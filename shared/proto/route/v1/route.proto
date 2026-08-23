@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package hba.route.v1;
+
+option csharp_namespace = "HBA.Routes.Grpc.V1";
+
+service RouteApi {
+  rpc EstimateRoute(EstimateRouteRequest) returns (RoutePlanReply);
+  rpc OptimizeRoute(OptimizeRouteRequest) returns (RoutePlanReply);
+  rpc RecalculateEta(RecalculateEtaRequest) returns (EtaSnapshotReply);
+}
+
+message GeoPoint {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message EstimateRouteRequest {
+  optional string delivery_id = 1;
+  GeoPoint origin = 2;
+  GeoPoint destination = 3;
+  repeated GeoPoint waypoints = 4;
+  optional string vehicle_mode = 5;
+}
+
+message OptimizeRouteRequest {
+  optional string delivery_id = 1;
+  GeoPoint origin = 2;
+  repeated GeoPoint stops = 3;
+  optional string vehicle_mode = 4;
+}
+
+message RecalculateEtaRequest {
+  string delivery_id = 1;
+  string route_plan_id = 2;
+  GeoPoint current_position = 3;
+  GeoPoint destination = 4;
+}
+
+message RoutePlanReply {
+  string id = 1;
+  optional string delivery_id = 2;
+  string provider = 3;
+  GeoPoint origin = 4;
+  GeoPoint destination = 5;
+  repeated GeoPoint waypoints = 6;
+  int32 distance_meters = 7;
+  int32 duration_seconds = 8;
+  optional string encoded_polyline = 9;
+  string created_at = 10;
+  string expires_at = 11;
+  string eta_at = 12;
+}
+
+message EtaSnapshotReply {
+  string id = 1;
+  string delivery_id = 2;
+  string route_plan_id = 3;
+  string eta_at = 4;
+  int32 remaining_meters = 5;
+  string computed_at = 6;
+  string source = 7;
+}

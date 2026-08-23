@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    `GrpcServices="Both"` : SERVEUR ET CLIENT DANS LE MÊME ASSEMBLAGE.
+
+    Le service qui implémente et ceux qui consomment partagent donc le même
+    binaire, chacun n'utilisant que la moitié qui le concerne. Séparer en deux
+    projets éviterait ce code mort, au prix d'un second fichier à maintenir en
+    phase pour un gain nul à l'exécution — les stubs inutilisés ne coûtent que
+    quelques kilo-octets.
+
+    CE PROJET NE CONTIENT AUCUNE RÈGLE MÉTIER.
+
+    Il porte le transport et la traduction depuis et vers les enregistrements de
+    `HBA.Media.Contracts`. Le code applicatif ne le voit jamais : il continue de
+    dépendre de `I*ModuleApi`.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <Protobuf Include="..\..\proto\media\v1\media.proto" GrpcServices="Both" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+    <ProjectReference Include="..\..\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

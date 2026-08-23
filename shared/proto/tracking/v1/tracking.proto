@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package hba.tracking.v1;
+
+option csharp_namespace = "HBA.Tracking.Grpc.V1";
+
+service TrackingApi {
+  rpc GetLatestLocation(GetLatestLocationRequest) returns (GetLatestLocationResponse);
+  rpc StartTrackingSession(StartTrackingSessionRequest) returns (TrackingSessionReply);
+  rpc StopTrackingSession(StopTrackingSessionRequest) returns (TrackingSessionReply);
+}
+
+message GetLatestLocationRequest {
+  string delivery_id = 1;
+}
+
+message GetLatestLocationResponse {
+  bool found = 1;
+  TrackingSnapshot snapshot = 2;
+}
+
+message StartTrackingSessionRequest {
+  string delivery_id = 1;
+  string driver_id = 2;
+}
+
+message StopTrackingSessionRequest {
+  string delivery_id = 1;
+}
+
+message TrackingSessionReply {
+  bool found = 1;
+  string session_id = 2;
+  string delivery_id = 3;
+  string driver_id = 4;
+  string status = 5;
+  string started_at = 6;
+  optional string ended_at = 7;
+  int64 last_sequence = 8;
+}
+
+message TrackingSnapshot {
+  string delivery_id = 1;
+  string driver_id = 2;
+  double latitude = 3;
+  double longitude = 4;
+  string captured_at = 5;
+  optional int32 eta_seconds = 6;
+}

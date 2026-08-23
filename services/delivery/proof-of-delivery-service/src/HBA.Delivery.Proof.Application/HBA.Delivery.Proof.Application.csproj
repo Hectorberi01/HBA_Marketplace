@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    LE DOMAINE ÉTAIT ORPHELIN, ET IL PORTAIT DÉJÀ LA BONNE RÉPONSE.
+
+    `HBA.Delivery.Proof.Domain` n'était référencé que par l'Infrastructure, qui
+    n'en fait rien. Il déclare pourtant `OtpChallenge(Id, ProofId, OtpHash,
+    ExpiresAt, Attempts, Verified)` — c'est-à-dire EXACTEMENT le mécanisme
+    qu'ISSUE-056 réclame : une empreinte, une échéance, un compteur d'essais, un
+    drapeau d'usage.
+
+    Pendant ce temps, la couche Application comparait à la constante « 123456 ».
+    Le modèle juste existait, personne ne le référençait, et le défaut vivait
+    trois dossiers plus loin. On le branche plutôt que d'en écrire un second.
+
+    (Application → Domain est le sens NORMAL des dépendances. Aucun `COPY` de
+    Dockerfile à ajouter : l'Infrastructure référence déjà ce projet, donc il est
+    déjà copié — voir `check-dockerfiles.py`.)
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Delivery.Proof.Domain\HBA.Delivery.Proof.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.ProofOfDelivery.Contracts\HBA.ProofOfDelivery.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>

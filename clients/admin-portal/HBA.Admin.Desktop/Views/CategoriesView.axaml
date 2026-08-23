@@ -1,0 +1,268 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             x:Class="HBA.Admin.Desktop.Views.CategoriesView"
+             x:DataType="vm:CategoriesViewModel">
+
+  <DockPanel>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="12" Margin="4,0,4,14">
+
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Text="Catégories" Classes="titre" />
+          <TextBlock Classes="attenue" Text="{Binding Position}" />
+        </StackPanel>
+
+        <Button Grid.Column="1" Classes="discret" Content="Actualiser" Margin="0,0,10,0"
+                Command="{Binding Rafraichir}" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Classes="principal" Content="{Binding LibelleCreation}"
+                Command="{Binding Creer}" VerticalAlignment="Center" />
+      </Grid>
+
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding EnCours}" Height="3" />
+
+      <!--
+        LE BANDEAU DES BRANCHES COUPÉES.
+
+        Il ne signale pas une panne de l'écran mais un état de la base : des
+        catégories dont le chemin ne descend plus de leur parent déclaré. La
+        publication en cascade ne les atteint plus, et rien côté serveur ne le
+        dit. Couleur d'alerte et non de danger : il n'y a rien de cassé, il y a
+        quelque chose qui ne fera pas ce qu'on croit.
+      -->
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding AIncoherences}">
+        <TextBlock Text="{Binding Incoherences}" TextWrapping="Wrap"
+                   Foreground="{DynamicResource Alerte}" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding EnErreur}">
+        <TextBlock Text="{Binding Erreur}" TextWrapping="Wrap" Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding AConfirmation}">
+        <TextBlock Text="{Binding Confirmation}" TextWrapping="Wrap" Foreground="{DynamicResource Succes}" />
+      </Border>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="380,*">
+
+      <Border Grid.Column="0" Classes="carte" Margin="4,0,10,0" Padding="8">
+        <DockPanel>
+
+          <Border DockPanel.Dock="Top" Classes="creux" Margin="6,4,6,8">
+            <TextBox Text="{Binding Recherche}" Watermark="Rechercher un nom ou un chemin" />
+          </Border>
+
+          <ListBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Selection}"
+                   Background="Transparent" BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:LigneCategorie">
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="6">
+
+                  <!--
+                    LE RETRAIT EST UNE LARGEUR, PAS UNE MARGE LIÉE.
+
+                    Lier `Margin` obligerait la vue-modèle à manipuler un
+                    `Thickness`, donc à référencer Avalonia. Une cale de largeur
+                    variable donne le même dessin et laisse la vue-modèle
+                    indépendante de la trousse graphique.
+                  -->
+                  <Border Grid.Column="0" Width="{Binding Retrait}" />
+
+                  <StackPanel Grid.Column="1" Spacing="1">
+                    <TextBlock Text="{Binding Nom}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Chemin}" Classes="attenue" FontSize="11" />
+                  </StackPanel>
+
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
+                              VerticalAlignment="Center">
+
+                    <!-- Une branche coupée se repère dans la liste, pas seulement
+                         dans le bandeau : c'est là qu'on la cherche. -->
+                    <Border Classes="pastille" IsVisible="{Binding ACoupure}">
+                      <TextBlock Text="chemin" FontSize="10" Foreground="{DynamicResource Alerte}" />
+                    </Border>
+
+                    <Border Classes="pastille" IsVisible="{Binding !EstPubliee}">
+                      <TextBlock Text="{Binding Etat}" FontSize="10" />
+                    </Border>
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <Border Grid.Column="1" Classes="carte" Margin="0,0,4,0">
+        <ScrollViewer>
+          <StackPanel Spacing="16">
+
+            <TextBlock Classes="attenue" TextWrapping="Wrap"
+                       IsVisible="{Binding !ADesSelection}"
+                       Text="Sélectionnez une catégorie, ou créez-en une à la racine." />
+
+            <StackPanel Spacing="14" IsVisible="{Binding ADesSelection}">
+
+              <TextBlock Text="Identité" Classes="titre" FontSize="18" />
+
+              <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                         IsVisible="{Binding Archivee}"
+                         Text="Catégorie archivée : elle ne peut être ni publiée ni dépubliée. Aucun endpoint n'archive une catégorie ; cet état vient d'un import ou d'une écriture directe." />
+
+              <StackPanel Spacing="8">
+                <TextBlock Text="Nom" Classes="attenue" FontSize="12" />
+                <Border Classes="creux"><TextBox Text="{Binding Nom}" /></Border>
+              </StackPanel>
+
+              <StackPanel Spacing="8">
+                <!--
+                  LE CHEMIN EST LA VRAIE STRUCTURE, ET IL EST RECALCULÉ AU
+                  RENOMMAGE — MAIS SEULEMENT POUR CETTE LIGNE.
+
+                  Il porte l'index unique de la table et sert à propager les
+                  publications. Affiché en lecture seule : il se change en
+                  changeant le nom, jamais directement.
+                -->
+                <TextBlock Text="Chemin, recalculé au renommage" Classes="attenue" FontSize="12" />
+                <TextBlock Text="{Binding Selection.Chemin}" FontFamily="Consolas,Menlo,monospace" />
+              </StackPanel>
+
+              <StackPanel Spacing="8">
+                <TextBlock Text="URL de l'image" Classes="attenue" FontSize="12" />
+                <Border Classes="creux">
+                  <TextBox Text="{Binding Image}" Watermark="https://..." />
+                </Border>
+              </StackPanel>
+
+              <StackPanel Spacing="8">
+                <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                           Text="Schéma d'attributs (jsonb). Ce champ est STOCKÉ mais n'est pas ce qui valide les fiches : la validation lit la table des attributs exigés, plus bas." />
+                <Border Classes="creux">
+                  <TextBox Text="{Binding Schema}" AcceptsReturn="True" MinHeight="120"
+                           TextWrapping="NoWrap"
+                           FontFamily="Consolas,Menlo,monospace"
+                           Watermark="{}{}" />
+                </Border>
+              </StackPanel>
+
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="principal" Content="Enregistrer" Command="{Binding Enregistrer}" />
+                <Button Classes="discret" Content="Publier" Command="{Binding Publier}" />
+                <Button Classes="discret" Content="Dépublier" Command="{Binding Depublier}" />
+                <CheckBox Content="avec la descendance" IsChecked="{Binding Cascade}"
+                          VerticalAlignment="Center" />
+              </StackPanel>
+
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="danger" Content="Supprimer" Command="{Binding Supprimer}" />
+              </StackPanel>
+
+              <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                         IsVisible="{Binding ARefusDeSuppression}"
+                         Text="{Binding RefusDeSuppression}" />
+
+              <Border Height="1" Background="{DynamicResource AccentDoux}" />
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="2">
+                  <TextBlock Text="Attributs exigés" Classes="titre" FontSize="18" />
+                  <TextBlock Classes="attenue" FontSize="12" Text="{Binding PositionAttributs}" />
+                </StackPanel>
+
+                <Button Grid.Column="1" Classes="discret" Content="Nouvelle définition"
+                        Command="{Binding CreerDefinition}" VerticalAlignment="Center" />
+              </Grid>
+
+              <!--
+                « REQUIS » N'EST PAS UN RÉGLAGE D'AFFICHAGE.
+
+                Au passage en validation, `ChangeProductStatusCommandHandler`
+                refuse une fiche dont un attribut requis manque. Rattacher un
+                attribut obligatoire ferme donc la porte à des soumissions dès
+                l'enregistrement — et pas seulement aux prochaines fiches : aux
+                brouillons en cours, qui la rencontreront sans préavis.
+              -->
+              <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                         Text="Un attribut marqué requis est vérifié au passage en validation : une fiche qui ne le renseigne pas est refusée, y compris un brouillon déjà commencé." />
+
+              <ItemsControl ItemsSource="{Binding Attributs}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:LigneAttributCategorie">
+                    <Border Classes="creux" Padding="14,10" Margin="0,0,0,8">
+                      <Grid ColumnDefinitions="*,Auto,Auto">
+                        <StackPanel Grid.Column="0" Spacing="1">
+                          <TextBlock Text="{Binding Nom}" FontWeight="SemiBold" />
+                          <TextBlock Text="{Binding Details}" Classes="attenue" FontSize="11" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                    VerticalAlignment="Center" Margin="0,0,10,0">
+                          <Border Classes="pastille" IsVisible="{Binding Requis}">
+                            <TextBlock Text="requis" FontSize="10" />
+                          </Border>
+                          <Border Classes="pastille" IsVisible="{Binding Variante}">
+                            <TextBlock Text="variante" FontSize="10" />
+                          </Border>
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Classes="discret" Content="Retirer"
+                                VerticalAlignment="Center"
+                                Command="{Binding $parent[ItemsControl].((vm:CategoriesViewModel)DataContext).Detacher}"
+                                CommandParameter="{Binding}" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <TextBlock Text="Rattacher un attribut" Classes="attenue" FontSize="12" />
+
+              <!--
+                PAS DE `ColumnSpacing` SUR `Grid` DANS AVALONIA 11.2.
+
+                La propriété existe en WPF et en WinUI, pas ici : le compilateur
+                XAML rend « Unable to resolve suitable regular or attached
+                property ColumnSpacing on type Grid », à la COMPILATION et non à
+                l'exécution. L'écart se rattrape par une marge droite sur toutes
+                les colonnes sauf la dernière.
+              -->
+              <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+                <ComboBox Grid.Column="0" MinHeight="44" HorizontalAlignment="Stretch" Margin="0,0,10,0"
+                          ItemsSource="{Binding Definitions}"
+                          SelectedItem="{Binding DefinitionChoisie}"
+                          PlaceholderText="Attribut du référentiel">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="vm:LigneDefinition">
+                      <TextBlock Text="{Binding Libelle}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <CheckBox Grid.Column="1" Content="requis" IsChecked="{Binding Requis}"
+                          VerticalAlignment="Center" Margin="0,0,10,0" />
+                <CheckBox Grid.Column="2" Content="variante" IsChecked="{Binding Variante}"
+                          VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                <Border Grid.Column="3" Classes="creux" Width="80" VerticalAlignment="Center" Margin="0,0,10,0">
+                  <TextBox Text="{Binding Ordre}" Watermark="ordre" />
+                </Border>
+
+                <Button Grid.Column="4" Classes="principal" Content="Rattacher"
+                        VerticalAlignment="Center" Command="{Binding Rattacher}" />
+              </Grid>
+
+              <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                         Text="Rattacher un attribut déjà présent n'est pas une erreur : le service met à jour les trois réglages. Le retrait, lui, ne touche pas aux valeurs déjà saisies sur les fiches." />
+
+            </StackPanel>
+
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+    </Grid>
+
+  </DockPanel>
+</UserControl>

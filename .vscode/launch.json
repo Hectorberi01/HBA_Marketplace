@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "api-gateway",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/apps/api-gateway/src/HBA.Gateway.Api/bin/Debug/net9.0/HBA.Gateway.Api.dll",
+      "cwd": "${workspaceFolder}/apps/api-gateway/src/HBA.Gateway.Api",
+      "env": { "ASPNETCORE_ENVIRONMENT": "Development" }
+    }
+  ]
+}

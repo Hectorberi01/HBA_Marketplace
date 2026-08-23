@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Engagement.Reviews.Domain\HBA.Engagement.Reviews.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Engagement.Reviews.Contracts\HBA.Engagement.Reviews.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+
+    <!--
+      LA DÉPENDANCE QUI FERME LA RÉPONSE AUX AVIS.
+
+      `Review` porte un `SellerId` ; le jeton porte un identifiant
+      d'UTILISATEUR. Sans cette référence, `ReplyToReviewCommandHandler` ne peut
+      pas savoir si l'appelant est le vendeur concerné, et la route reste
+      ouverte à tout compte inscrit.
+
+      Le contrat est léger — il ne tire que `HBA.Shared.IntegrationEvents`.
+      L'implémentation gRPC est câblée dans `HBA.Engagement.Api`, pas ici :
+      cette couche ne connaît que l'interface.
+    -->
+    <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Reviews.UnitTests" />
+    <InternalsVisibleTo Include="HBA.Engagement.UnitTests" />
+  </ItemGroup>
+
+</Project>

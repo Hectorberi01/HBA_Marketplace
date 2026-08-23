@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Protobuf Include="..\..\proto\deliverypricing\v1\delivery_pricing.proto" GrpcServices="Both" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+      LE CONTRAT, ET PAS SEULEMENT LE `.proto`.
+
+      Ce projet n'enveloppait jusqu'ici que des messages générés : il n'avait
+      besoin d'aucun contrat C#. Depuis qu'il porte `DeliveryQuoteLookupClient`,
+      il IMPLÉMENTE `IDeliveryQuoteLookup` — déclaré dans le projet frère.
+
+      Le namespace `HBA.DeliveryPricing.Contracts.Grpc` étant imbriqué sous
+      `HBA.DeliveryPricing.Contracts`, la résolution de nom trouve les types sans
+      `using` — mais seulement si l'ASSEMBLAGE est référencé. Il ne l'était pas :
+      d'où deux CS0246 sur des types qui semblaient pourtant à portée.
+
+      C'est le montage de tous les autres `*.Contracts.Grpc` du dépôt : le client
+      gRPC référence le contrat qu'il réalise.
+    -->
+    <ProjectReference Include="..\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+</Project>

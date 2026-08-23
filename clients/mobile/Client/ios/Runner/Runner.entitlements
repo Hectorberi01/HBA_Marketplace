@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Sans cette clé, iOS ne délivre AUCUNE notification : le jeton APNs n'est
+	     même pas émis. « development » vaut pour les builds locaux ; Xcode le
+	     bascule automatiquement en « production » à l'archivage. -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!--
+	  Universal Links : autorise l'app à ouvrir les liens produit partagés
+	  (https://<domaine>/p/…) directement sur la fiche, sans passer par Safari.
+	  Les deux domaines couvrent la prod et le staging (bundles distincts).
+
+	  La capacité « Associated Domains » doit aussi être active sur l'App ID
+	  côté portail Apple. Avec la signature automatique, Xcode l'active tout seul
+	  au premier build après l'ajout de ce fichier.
+	-->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:m.hba-express.org</string>
+		<string>applinks:m.marketplace-staging.hba-marketplace.fr</string>
+	</array>
+</dict>
+</plist>

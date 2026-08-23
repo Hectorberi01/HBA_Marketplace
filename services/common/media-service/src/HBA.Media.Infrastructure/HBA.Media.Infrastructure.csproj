@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Media.Domain\HBA.Media.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Media.Application\HBA.Media.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+      <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+
+    <!--
+      PAS DE « Microsoft.Extensions.Options » ICI.
+      La gestion centralisée des versions (Directory.Packages.props) n'en déclare
+      aucune, et un PackageReference sans PackageVersion correspondant fait
+      échouer la restauration (NU1008). IOptions<T> arrive de toute façon par
+      transitivité — c'est ce que fait déjà Sellers pour son stockage R2, qui
+      utilise IOptions sans le référencer.
+
+      Le service hébergé qui signale un stockage non configuré exige, lui,
+      Hosting.Abstractions — comme Deliveries pour ses services de fond.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="MediatR" />
+
+    <!--
+      SkiaSharp, et non ImageSharp : le choix est déjà argumenté dans
+      Directory.Packages.props. ImageSharp est passé en licence commerciale ;
+      SkiaSharp reste MIT sans condition. La variante « NoDependencies » embarque
+      son libSkiaSharp.so, ce qui évite d'installer des paquets système dans
+      l'image de conteneur.
+    -->
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+  </ItemGroup>
+
+</Project>

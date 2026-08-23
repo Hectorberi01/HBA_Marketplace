@@ -1,0 +1,46 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# TEMPO — LE BACKEND DE TRACES QUI MANQUAIT.
+#
+# LE PIPELINE DE TRACES DU COLLECTEUR N'EXPORTAIT QUE VERS `debug`.
+#
+# C'est-à-dire vers la sortie standard du collecteur. Les traces étaient bien
+# reçues — le récepteur OTLP était correct — et n'étaient interrogeables nulle
+# part. Le README du dossier promettait pourtant « Prometheus, Grafana, Loki,
+# Jaeger ».
+#
+# Tempo plutôt que Jaeger : il parle OTLP nativement, se provisionne dans Grafana
+# comme Loki et Prometheus, et stocke sur le disque local sans dépendance
+# supplémentaire. Jaeger aurait demandé son propre magasin.
+# ═══════════════════════════════════════════════════════════════════════════
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  # Court en développement : on veut voir la trace qu'on vient de produire, pas
+  # attendre cinq minutes qu'un bloc soit scellé.
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    # Même fenêtre que la rétention de Loki (168 h) : chercher une trace dont les
+    # journaux ont disparu — ou l'inverse — est le genre de demi-information qui
+    # fait conclure trop vite.
+    block_retention: 168h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks

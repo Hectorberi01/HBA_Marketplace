@@ -1,0 +1,176 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PRODUCTION — utilisateurs réels, promotion contrôlée et rollback (§2).
+#
+# LE TAG N'EST PAS ÉCRIT ICI À LA MAIN.
+#
+# Le §13 interdit `latest` en production et impose des images immuables
+# identifiées par SHA ou semver. Le `newTag` ci-dessous est un PLACEHOLDER que la
+# promotion remplace — `kustomize edit set image`, ou l'écriture du SHA par la
+# chaîne de release. Committer un tag mouvant ici ferait d'un `kubectl apply`
+# rejoué un déploiement différent du précédent, ce qui est exactement ce que le
+# §25 appelle « non reproductible ».
+#
+# LES REPLICAS SUIVENT LA CRITICITÉ DU §4, PAS UNE VALEUR UNIQUE.
+#
+# Dix services critiques passent à 2 ; les quatre secondaires — media,
+# communication, engagement, promotion — restent à 1 et montent par le HPA. Le
+# PDB `minAvailable: 1` prend alors son sens : un drain de nœud ne peut plus
+# emporter les deux pods d'un service critique en même temps.
+# ═══════════════════════════════════════════════════════════════════════════════
+namespace: hba-prod
+
+resources:
+  - ../../base
+  - kafka-topics.yaml
+
+patches:
+  - target:
+      kind: Namespace
+      name: hba
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: hba-prod
+
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: catalog-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: commerce-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: delivery-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: financial-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: food-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: identity-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: inventory-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: merchant-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: order-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: Deployment
+      name: user-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+
+  - target:
+      kind: HorizontalPodAutoscaler
+    patch: |-
+      - op: replace
+        path: /spec/maxReplicas
+        value: 6
+
+  # LE DOMAINE EST PROPRE À L'ENVIRONNEMENT (§2).
+  #
+  # Les trois overlays ne doivent JAMAIS pointer le même hôte : le §2 exige des
+  # namespaces, secrets, bases et buckets distincts, et un domaine partagé
+  # ferait entrer du trafic de production dans un cluster de validation sans que
+  # personne s'en aperçoive avant les journaux.
+  #
+  # `.example` est un domaine réservé (RFC 2606) : il ne résoudra jamais. C'est
+  # délibéré — un placeholder qui résout est un placeholder qu'on oublie de
+  # remplacer.
+  - target:
+      kind: Ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: api.hba-express.example
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: api.hba-express.example
+
+images:
+  - name: hba/api-gateway
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/identity-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/user-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/media-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/communication-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/financial-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/engagement-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/catalog-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/merchant-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/inventory-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/commerce-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/order-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/food-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/delivery-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/promotion-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"

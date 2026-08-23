@@ -1,0 +1,176 @@
+syntax = "proto3";
+
+package hba.catalog.v1;
+
+option csharp_namespace = "HBA.Catalog.Grpc.V1";
+
+service CatalogApi {
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+  // `GetProducts` (LE LOT) A ÉTÉ RETIRÉ — lot 9.1.
+  //
+  // Déclaré depuis l'origine, jamais implémenté : tout appel rendait
+  // `UNIMPLEMENTED`. Le raisonnement du retrait — plutôt que de l'implémenter —
+  // est dans `IProductsModuleApi`. Le jour où un écran en a besoin, il faut
+  // l'écrire AVEC son corps de serveur : un contrat sans serveur n'est pas une
+  // avance, c'est un piège qui compile.
+  rpc ListProductsBySeller(ListProductsBySellerRequest) returns (GetProductsResponse);
+  rpc GetCategory(GetCategoryRequest) returns (GetCategoryResponse);
+  rpc GetBrand(GetBrandRequest) returns (GetBrandResponse);
+  rpc ValidateProduct(ValidateProductRequest) returns (ValidateProductResponse);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LES OFFRES — CE QUI SE MET DANS UN PANIER.
+  //
+  // CES QUATRE RPC MANQUAIENT, ET LE CLIENT RENDAIT `null` EN DUR.
+  //
+  // `ProductsGrpcClient.GetOfferAsync` était écrit `Task.FromResult(null)`. Or
+  // `AddItemToCartCommandHandler` l'appelle pour lire le prix de l'offre : il
+  // concluait « offre introuvable » sur TOUTE offre, et AUCUN article ne pouvait
+  // entrer dans un panier. Le premier geste du parcours client.
+  //
+  // Un produit décrit ce qu'on vend ; une OFFRE dit à quel prix, par qui, depuis
+  // quel lieu, et si c'est achetable. C'est l'offre qui porte l'acte de vente.
+  // ═══════════════════════════════════════════════════════════════════════════
+  rpc GetOffer(GetOfferRequest) returns (GetOfferResponse);
+  rpc GetOffers(GetOffersRequest) returns (GetOffersResponse);
+  rpc ListPurchasableOffers(ListPurchasableOffersRequest) returns (GetOffersResponse);
+  rpc ListOffersBySku(ListOffersBySkuRequest) returns (GetOffersResponse);
+}
+
+message GetOfferRequest {
+  string offer_id = 1;
+}
+
+message GetOffersRequest {
+  repeated string offer_ids = 1;
+}
+
+message ListPurchasableOffersRequest {
+  string product_id = 1;
+}
+
+message ListOffersBySkuRequest {
+  string sku = 1;
+}
+
+message GetOfferResponse {
+  bool found = 1;
+  OfferSummary offer = 2;
+}
+
+message GetOffersResponse {
+  repeated OfferSummary offers = 1;
+}
+
+// TROIS PRIX, ET ILS NE DISENT PAS LA MÊME CHOSE.
+//
+//   • `buyer_price`       — le prix affiché hors promotion ;
+//   • `promotional_price` — vide s'il n'y en a pas. VIDE, pas zéro : « aucune
+//     promotion » et « gratuit » sont deux faits différents ;
+//   • `effective_price`   — celui qu'on facture. C'est LUI que le panier fige.
+//
+// Recalculer le prix effectif côté appelant ferait exister deux règles de
+// promotion, qui divergeraient à la première évolution.
+message OfferSummary {
+  string offer_id = 1;
+  string product_id = 2;
+  string variant_id = 3;
+  string store_id = 4;
+  string seller_id = 5;
+  string sku = 6;
+
+  string buyer_price = 7;
+  string promotional_price = 8;
+  string effective_price = 9;
+  string promotion_ends_on = 10;
+
+  string currency = 11;
+  string status = 12;
+  bool is_purchasable = 13;
+  string condition = 14;
+  int32 handling_time_days = 15;
+  string ship_from_location_id = 16;
+}
+
+message GetProductRequest {
+  string product_id = 1;
+}
+
+// ENCORE UTILISÉ PAR `ListProductsBySeller`, MALGRÉ SON NOM.
+//
+// Il a été retiré une première fois avec `GetProducts`, à tort : deux RPC
+// partagent ce message de réponse. Le lot par identifiants est parti ; la liste
+// par vendeur reste, et elle rend bien une collection de produits.
+message GetProductsResponse {
+  repeated ProductSummary products = 1;
+}
+
+message GetProductResponse {
+  bool found = 1;
+  ProductSummary product = 2;
+}
+
+message ListProductsBySellerRequest {
+  string seller_id = 1;
+}
+
+message GetCategoryRequest {
+  string category_id = 1;
+}
+
+message GetCategoryResponse {
+  bool found = 1;
+  CategorySummary category = 2;
+}
+
+message GetBrandRequest {
+  string brand_id = 1;
+}
+
+message GetBrandResponse {
+  bool found = 1;
+  BrandSummary brand = 2;
+}
+
+message ValidateProductRequest {
+  string product_id = 1;
+  optional string variant_id = 2;
+}
+
+message ValidateProductResponse {
+  bool valid = 1;
+  string status = 2;
+  string reason = 3;
+}
+
+message ProductSummary {
+  string product_id = 1;
+  string seller_id = 2;
+  string category_id = 3;
+  string name = 4;
+  string status = 5;
+  optional string brand_id = 6;
+  optional string primary_media_url = 7;
+  repeated ProductVariantSummary variants = 8;
+}
+
+message ProductVariantSummary {
+  string variant_id = 1;
+  string sku = 2;
+  string status = 3;
+  map<string, string> attributes = 4;
+}
+
+message CategorySummary {
+  string category_id = 1;
+  string name = 2;
+  string status = 3;
+  optional string parent_id = 4;
+}
+
+message BrandSummary {
+  string brand_id = 1;
+  string name = 2;
+  string status = 3;
+  optional string logo_url = 4;
+}

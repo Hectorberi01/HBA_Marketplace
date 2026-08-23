@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Domain\HBA.Shared.Domain.csproj" />
+  </ItemGroup>
+
+  <!--
+    DEUX NOMS, PARCE QUE LE PREMIER NE DÉSIGNAIT RIEN.
+
+    « Delivery.UnitTests » était déclaré depuis des mois vers une assemblée qui
+    n'existait pas : le projet créé au lot 5.1 s'appelle
+    `HBA.Delivery.UnitTests`, et c'est ce nom-là que le compilateur compare.
+    L'ancienne ligne est conservée — la retirer casserait un projet de test qui
+    porterait ce nom ailleurs, et elle ne coûte rien.
+
+    (Le dépôt hésite entre les deux formes : `HBA.Merchants.Domain` déclare
+    « HBA.Merchants.UnitTests », `HBA.Inventory.Application` déclare
+    « Inventory.UnitTests » alors que le projet est `HBA.Inventory.UnitTests` —
+    donc cette ouverture-là ne désigne rien non plus, et personne ne l'a vu
+    parce que ces tests n'utilisent que l'API publique.)
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Delivery.UnitTests" />
+    <InternalsVisibleTo Include="HBA.Delivery.UnitTests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package hba.proof.v1;
+
+option csharp_namespace = "HBA.ProofOfDelivery.Grpc.V1";
+
+service ProofApi {
+  rpc HasValidDropoffProof(HasValidDropoffProofRequest) returns (HasValidDropoffProofResponse);
+  rpc GetProofSummary(GetProofSummaryRequest) returns (GetProofSummaryResponse);
+}
+
+message HasValidDropoffProofRequest {
+  string delivery_id = 1;
+}
+
+message HasValidDropoffProofResponse {
+  string delivery_id = 1;
+  bool valid = 2;
+}
+
+message GetProofSummaryRequest {
+  string delivery_id = 1;
+}
+
+message GetProofSummaryResponse {
+  repeated ProofSummary proofs = 1;
+}
+
+message ProofSummary {
+  string proof_id = 1;
+  string delivery_id = 2;
+  optional string stop_id = 3;
+  string type = 4;
+  string status = 5;
+  optional string recipient_name = 6;
+  bool otp_verified = 7;
+  string created_at = 8;
+  string driver_id = 9;
+  repeated ProofMedia media = 10;
+}
+
+message ProofMedia {
+  string id = 1;
+  string media_type = 2;
+  string object_key = 3;
+  string mime_type = 4;
+  string sha256 = 5;
+  string captured_at = 6;
+  int64 size_bytes = 7;
+}

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <!--
+      `AddDbContextCheck` VIENT DE CE PAQUET, PAS DU FRAMEWORK PARTAGÉ.
+
+      Il arrivait déjà par transitivité via HBA.Shared.Hosting, et le code
+      compilait — jusqu'au jour où cette référence-là changerait. La règle du
+      dépôt vaut ici comme ailleurs : une dépendance qu'on utilise DIRECTEMENT
+      se déclare. Sans lui, l'erreur — « IHealthChecksBuilder ne contient pas de
+      définition pour AddDbContextCheck » — fait chercher un `using` manquant
+      alors qu'il s'agit d'un paquet absent.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Delivery.Pricing.Application\HBA.Delivery.Pricing.Application.csproj" />
+    <ProjectReference Include="..\HBA.Delivery.Pricing.Infrastructure\HBA.Delivery.Pricing.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts.Grpc\HBA.DeliveryPricing.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+</Project>

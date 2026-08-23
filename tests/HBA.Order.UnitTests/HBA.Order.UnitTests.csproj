@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    LE DOMAINE SEUL — ORDER N'AVAIT AUCUN PROJET DE TESTS UNITAIRES.
+
+    `HBA.Order.AuthorizationTests` éprouve les gardes HTTP et
+    `HBA.Order.IntegrationTests` la saga de bout en bout ; ni l'un ni l'autre ne
+    peut dire si `SellerOrder.Reject` refuse un motif vide. Or c'est là que
+    ISSUE-027 se joue : un découpage par vendeur, sept états, six transitions,
+    et un invariant — « une commande de repas ne produit aucune part » — qui
+    n'ont besoin ni de base, ni de serveur, ni de Kafka pour être faux.
+
+    CE QUI N'EST PAS COUVERT, ET IL FAUT LE SAVOIR.
+
+      • L'INDEX UNIQUE `(OrderId, SellerId)`. C'est lui qui ferme la course entre
+        deux confirmations SIMULTANÉES ; l'agrégat, lui, ne connaît que le rejeu
+        séquentiel — et c'est ce rejeu-là qu'on éprouve ici, en montrant qu'une
+        commande déjà confirmée refuse une seconde confirmation. Aucun test en
+        mémoire ne peut éprouver un index PostgreSQL : il faudrait une base et
+        deux transactions concurrentes.
+
+      • LA RELECTURE APPLICATIVE `ExistsForOrderAsync` de
+        `ConfirmOrderPaymentCommandHandler` — deuxième garde de la même
+        idempotence. Elle vit dans `HBA.Order.Application`, que ce projet ne
+        référence PAS : l'éprouver demanderait de simuler quatre dépendances
+        (dépôt, dépôt vendeur, Inventory, unit of work) et de rendre le
+        gestionnaire visible. C'est le rôle des tests d'intégration.
+
+      • LE VERROU OPTIMISTE. `xmin` est vérifié par PostgreSQL dans la clause
+        `WHERE` d'un `UPDATE` ; rien en mémoire ne le simule. Ce que ces tests
+        garantissent, c'est la PRÉCONDITION de son efficacité : toutes les
+        transitions écrivent sur la ligne parente — voir l'encadré de
+        `SellerOrderConfiguration` et celui d'`InventoryItem.StockVersion`.
+
+      • LES CINQ ROUTES et leurs permissions (ISSUE-026). Elles relèvent de
+        `HBA.Order.AuthorizationTests`, qui monte un serveur.
+
+      • CE QU'UN REFUS DÉCLENCHE EN AVAL. Rien, aujourd'hui : l'événement n'a
+        aucun consommateur. On vérifie donc qu'il est LEVÉ et qu'il porte de quoi
+        agir — pas qu'il agit, ce qui serait faux.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\order-service\src\HBA.Order.Domain\HBA.Order.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

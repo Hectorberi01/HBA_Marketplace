@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    `FrameworkReference` plutôt que des paquets : la propagation d'en-têtes a
+    besoin d'`IHttpContextAccessor`, et le filtre de configuration YARP
+    d'`IProxyConfigFilter`. C'est la couche technique — elle a le droit de
+    connaître ASP.NET Core. Application, elle, ne l'a pas.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Timeouts, disjoncteur, réessais (Polly v8 sous le capot). -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+
+    <!-- Nécessaire pour IProxyConfigFilter : les adresses viennent de Services:*. -->
+    <PackageReference Include="Yarp.ReverseProxy" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Gateway.Application\HBA.Gateway.Application.csproj" />
+  </ItemGroup>
+
+</Project>

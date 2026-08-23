@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ══════════════════════════════════════════════════════════════════════════
+    CE PROJET NE RÉFÉRENÇAIT PAS SON PROPRE DOMAINE.
+
+    Il n'en avait pas besoin : son seul contenu était `DriverStore`, un
+    `ConcurrentDictionary` de records anonymes. Le domaine du service — quatre
+    fichiers sans appelant — vivait à côté sans que rien ne l'utilise (lot 5.4).
+
+    Depuis ce lot, la couche Application orchestre l'agrégat `DriverAccount` :
+    la référence au domaine est donc réelle, et celle vers `HBA.Shared.Application`
+    apporte `ICommand` / `IQuery` / `IUnitOfWork` / `IDomainEventHandler`.
+
+    ET SURTOUT, CE QUI N'Y EST PAS : `HBA.Shared.Infrastructure`.
+    La règle du dépôt est absolue — une couche Application qui référence
+    l'Infrastructure partagée peut injecter un `DbContext`, et le découpage
+    Clean Architecture n'est plus vérifiable que par la discipline.
+    ══════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Delivery.Driver.Domain\HBA.Delivery.Driver.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HBA.Delivery.UnitTests" />
+  </ItemGroup>
+
+</Project>

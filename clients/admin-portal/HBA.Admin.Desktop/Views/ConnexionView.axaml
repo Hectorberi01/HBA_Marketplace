@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             x:Class="HBA.Admin.Desktop.Views.ConnexionView"
+             x:DataType="vm:ConnexionViewModel">
+
+  <Border Classes="eleve"
+          MaxWidth="430"
+          HorizontalAlignment="Center"
+          VerticalAlignment="Center">
+
+    <StackPanel Spacing="16">
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Back-office" Classes="titre" />
+        <TextBlock Classes="attenue"
+                   TextWrapping="Wrap"
+                   Text="Accès réservé aux administrateurs de la plateforme." />
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <TextBlock Text="Adresse e-mail" Classes="attenue" />
+        <Border Classes="creux">
+          <TextBox Text="{Binding Courriel}" Watermark="prenom.nom@hba.bj" />
+        </Border>
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <TextBlock Text="Mot de passe" Classes="attenue" />
+        <Border Classes="creux">
+          <!-- `PasswordChar` masque la saisie ; `RevealPassword` reste faux :
+               un bouton « afficher » sur un poste d'administration partagé
+               montre le mot de passe à qui passe derrière. -->
+          <TextBox Text="{Binding MotDePasse}" PasswordChar="•" />
+        </Border>
+      </StackPanel>
+
+      <!-- Le champ n'apparaît QUE si le serveur l'a réclamé. L'afficher d'emblée
+           ferait chercher un code à un administrateur qui n'en a pas. -->
+      <StackPanel Spacing="8" IsVisible="{Binding CodeExige}">
+        <TextBlock Text="Code d'authentification" Classes="attenue" />
+        <Border Classes="creux">
+          <TextBox Text="{Binding Code}" Watermark="123456" MaxLength="8" />
+        </Border>
+      </StackPanel>
+
+      <TextBlock Text="{Binding Erreur}"
+                 IsVisible="{Binding EnErreur}"
+                 TextWrapping="Wrap"
+                 Foreground="{DynamicResource Danger}" />
+
+      <Button Classes="principal"
+              Content="Se connecter"
+              Command="{Binding Connecter}"
+              HorizontalAlignment="Stretch" />
+
+      <ProgressBar IsIndeterminate="True"
+                   IsVisible="{Binding EnCours}"
+                   Height="3" />
+
+    </StackPanel>
+  </Border>
+
+</UserControl>

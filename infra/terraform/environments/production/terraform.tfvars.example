@@ -1,0 +1,16 @@
+# Copier en `terraform.tfvars` — ignoré par Git.
+#
+# Identifiants : dans l'environnement, jamais dans ce fichier. Voir
+# `../staging/terraform.tfvars.example` pour la liste des variables attendues.
+#
+# LES CLÉS DE PRODUCTION NE SONT PAS CELLES DE STAGING.
+#
+# Réutiliser le même jeu de clés annule la séparation que le §2 demande : une
+# fuite côté staging donnerait la production. Un projet Public Cloud distinct est
+# le plus simple ; à défaut, au minimum des User S3 et des clés API séparés.
+
+service_name = "0123456789abcdef0123456789abcdef"
+
+zone_dns = "hba-express.example"
+
+cle_ssh_publique = "ssh-ed25519 AAAA... hector@hba"

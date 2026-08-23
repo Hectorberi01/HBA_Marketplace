@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    Un projet de test par service — voir l'encadré de HBA.Order.AuthorizationTests :
+    deux `*.Api` référencés ensemble rendent `Program` ambigu (CS0433) et font
+    s'écraser les `appsettings.json` dans le répertoire de sortie.
+  -->
+  <ItemGroup>
+    <Compile Include="..\Shared\TestTokens.cs" Link="Shared\TestTokens.cs" />
+    <Compile Include="..\Shared\AuthorizationTestFactory.cs" Link="Shared\AuthorizationTestFactory.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\common\notification-service\src\HBA.Communication.Api\HBA.Communication.Api.csproj" />
+  </ItemGroup>
+
+</Project>

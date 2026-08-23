@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Delivery.Dispatch.Application\HBA.Delivery.Dispatch.Application.csproj" />
+    <ProjectReference Include="..\HBA.Delivery.Dispatch.Infrastructure\HBA.Delivery.Dispatch.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Dispatch.Contracts.Grpc\HBA.Dispatch.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+</Project>

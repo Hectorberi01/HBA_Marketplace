@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Food.Order.Application\HBA.Food.Order.Application.csproj" />
+    <ProjectReference Include="..\HBA.Food.Order.Infrastructure\HBA.Food.Order.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodCarts.Contracts.Grpc\HBA.FoodCarts.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts.Grpc\HBA.DeliveryPricing.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,6 @@
+# Compte de service Google Play (JSON) — écrit par la CI depuis un secret, JAMAIS
+# committé. Le workflow le dépose à ce chemin avant d'appeler Fastlane.
+json_key_file(ENV["PLAY_JSON_KEY_PATH"] || "fastlane/play-service-account.json")
+
+# Doit correspondre à l'applicationId Android et au nom du paquet sur le Play Store.
+package_name("fr.hbamarketplace.seller")

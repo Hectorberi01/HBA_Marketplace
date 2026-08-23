@@ -1,0 +1,150 @@
+name: client_mp_mobile
+description: Application mobile client de la marketplace (Flutter).
+publish_to: "none"
+# LE NOMBRE APRÈS « + » EST LE versionCode ANDROID / build number iOS.
+#
+# Il était ABSENT : Flutter retombait alors sur la valeur 1 pour toute compilation.
+# Or Google Play REFUSE deux téléversements portant le même versionCode, et App
+# Store Connect refuse deux build numbers identiques. Sans ce champ, on ne peut
+# livrer qu'UNE SEULE fois, puis plus jamais — l'erreur n'apparaissant qu'au
+# moment du téléversement, après un build complet.
+#
+# À INCRÉMENTER À CHAQUE ENVOI sur une piste de test ou en production, même si
+# `1.1.9` ne change pas. Il ne redescend jamais.
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.2.0 — LE TRAIN 1.1.9 EST CLOS.
+#
+# 1.1.9 (6) est publiée sur l'App Store (« prête pour la vente »). Apple ferme
+# alors définitivement ce « train » : plus aucun build ne peut s'y rattacher,
+# quel que soit le numéro après le « + ». Seul un nouveau NOM de version rouvre
+# la porte — d'où 1.2.0.
+#
+# LE NOMBRE APRÈS LE « + » NE REPART PAS À 1, ET C'EST LE PIÈGE.
+#
+# Ce seul nombre alimente DEUX compteurs aux règles opposées :
+#   • iOS  — CFBundleVersion, unique DANS un train : un nouveau train pourrait
+#            repartir de 1 ;
+#   • Android — versionCode, qui doit croître pour TOUJOURS, sans jamais
+#            repartir en arrière, indépendamment du nom de version.
+#
+# Play a déjà reçu le versionCode 8. Repartir de 1 « parce que c'est une
+# nouvelle version » rendrait tout envoi Android impossible. On garde donc le
+# compteur, et le script l'incrémentera à 9 au prochain build.
+# ─────────────────────────────────────────────────────────────────────────────
+version: 1.2.0+9
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Réseau
+  dio: ^5.4.3+1
+
+  # Navigation
+  go_router: ^14.2.0
+
+  # Stockage sécurisé des tokens
+  flutter_secure_storage: ^9.2.2
+  # Déverrouillage biométrique (Face ID / Touch ID) pour la connexion rapide.
+  local_auth: ^2.3.0
+
+  # Divers
+  intl: ^0.19.0
+  cached_network_image: ^3.3.1
+
+  # Typographie (police Plus Jakarta Sans appliquée à tout le thème)
+  google_fonts: ^6.2.1
+
+  # Temps réel (messagerie) : client SignalR pur Dart.
+  signalr_netcore: ^1.3.7
+
+  # Page de paiement hébergée FedaPay (ouverte en WebView intégrée).
+  webview_flutter: ^4.8.0
+
+  # Pièces jointes de messagerie : sélection d'image (galerie/photo) + type MIME
+  # du fichier envoyé en multipart.
+  image_picker: ^1.1.2
+  http_parser: ^4.0.2
+
+  # Partage natif (produit / boutique) via la feuille de partage du système.
+  # 11.x REQUIS : les versions 7.x cherchaient la fenêtre via `keyWindow`, qui
+  # est nulle sous le cycle de vie « scene » (FlutterSceneDelegate, embedding iOS
+  # récent). Résultat : en RELEASE (TestFlight), la feuille ne s'affichait pas et
+  # le bouton semblait inerte. 11.x résout le contrôleur via la scène active.
+  share_plus: ^11.0.0
+
+  # Liens universels entrants : ouvrir un lien produit partagé directement sur la
+  # fiche dans l'app (Universal Links iOS / App Links Android).
+  app_links: ^6.3.2
+
+  # Lecture du build installé + ouverture de la fiche store pour la porte de
+  # « mise à jour requise » au démarrage.
+  package_info_plus: ^8.0.0
+  url_launcher: ^6.3.0
+
+  # ── Position et carte : gratuit, sans clé d'API ─────────────────────────────
+  # `geolocator` capte la position. `flutter_map` n'affiche une carte QUE sur
+  # l'écran d'ajustement, ouvert à la demande — le parcours courant (« utiliser ma
+  # position ») ne charge aucune tuile. Le volume reste donc compatible avec la
+  # politique d'usage d'OpenStreetMap ; basculer vers un fournisseur payant
+  # (MapTiler, Stadia) le jour venu ne demandera que de changer une URL de gabarit.
+  geolocator: ^13.0.1
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Notifications push (FCM). Sans elles, un acheteur n'apprend que sa commande est
+  # confirmée ou son colis expédié qu'en OUVRANT l'app et en allant consulter sa
+  # boîte de réception — c'est-à-dire, en pratique, jamais à temps. Le serveur
+  # envoyait déjà ces notifications ; personne ne les écoutait.
+  # Versions alignées sur l'app vendeur (HbaExpressPro), qui les utilise déjà.
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
+
+  # Rapports de crash : un plantage chez un acheteur reste invisible sans ça
+  # (on ne le découvre que par une mauvaise note sur le store).
+  firebase_crashlytics: ^4.1.3
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+
+  # HTTP simulé pour les tests des couches API (aucun appel réseau réel).
+  http_mock_adapter: ^0.6.1
+
+  # Génération des icônes d'application (Android + iOS) à partir d'un master PNG.
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # Polices Plus Jakarta Sans embarquées. `google_fonts` cherche d'abord dans
+    # ce dossier ; combiné à `allowRuntimeFetching = false` (voir main.dart),
+    # plus aucune requête n'est faite vers fonts.gstatic.com au lancement.
+    #
+    # Les noms de fichiers doivent suivre EXACTEMENT la convention du paquet
+    # (« PlusJakartaSans-Bold.ttf »…) : c'est ainsi qu'il les associe aux graisses
+    # demandées. Un fichier mal nommé n'est pas trouvé, et le texte retombe
+    # silencieusement sur la police système.
+    - assets/google_fonts/
+
+# Icône : monogramme HBA vert sur blanc — l'inverse de l'app vendeur, pour que
+# les deux ne se confondent pas sur l'écran d'accueil d'un même téléphone.
+# Régénérer après modif : `dart run flutter_launcher_icons`.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/foreground.png"

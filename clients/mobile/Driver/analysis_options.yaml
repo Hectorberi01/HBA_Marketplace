@@ -1,0 +1,14 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    unawaited_futures: true
+
+analyzer:
+  errors:
+    # Un import inutilisé est un vestige de refonte : il doit bloquer, pas
+    # ronronner dans une liste d'avertissements que plus personne ne lit.
+    unused_import: error
+    unused_local_variable: error

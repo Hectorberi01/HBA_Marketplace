@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    LE DOMAINE SEUL — ET C'EST TOUT L'INTÉRÊT.
+
+    CE SERVICE N'AVAIT AUCUN TEST DE DOMAINE. 83 FICHIERS, 6 422 LIGNES.
+
+    Sa seule couverture était `HBA.Merchants.AuthorizationTests` : cinq tests,
+    qui vérifient QUI entre, jamais ce qui se passe ensuite. Pendant ce temps
+    l'agrégat portait deux machines à états imbriquées — le compte et le dossier
+    KYB — qui se contraignent mutuellement.
+
+    Ces règles n'ont besoin ni de base, ni de serveur, ni de Kafka pour être
+    fausses. Les tester à travers l'API demanderait Testcontainers et une minute
+    par exécution ; ici c'est quelques millisecondes, donc ces tests tournent
+    vraiment. Le même raisonnement que pour `HBA.Catalog.UnitTests`, et le même
+    résultat attendu : c'est ce niveau-là qui trouve les défauts de règle.
+
+    AUCUNE RÉFÉRENCE À `*.Application` NI À `*.Infrastructure`.
+
+    Le catalogue en a une vers Application, pour sa fabrique de contenu — une
+    frontière où une valeur du cahier peut se faire refuser sans que personne ne
+    l'ait voulu. Rien d'équivalent ici : les fabriques de ce service
+    (`PayoutAccount`, `BusinessContact`) vivent dans le domaine. Ajouter la
+    référence « au cas où » ouvrirait la porte à des tests qui montent des
+    handlers, et ce projet cesserait d'être rapide.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\seller-service\src\HBA.Merchants.Domain\HBA.Merchants.Domain.csproj" />
+
+    <!--
+      LA SEULE RAISON D'ÊTRE DE CETTE RÉFÉRENCE : `CapacitesTests`.
+
+      Le contrat et le domaine décrivent la même liste de permissions dans deux
+      assemblages qui ne se référencent pas — et qui ne DOIVENT pas, sinon
+      `HBA.Merchants.Domain` finirait chez catalog. Rien dans le compilateur ne
+      les relie ; ce projet est le seul endroit où les deux sont visibles
+      ensemble, donc le seul d'où l'on peut vérifier qu'elles n'ont pas divergé.
+
+      Elle n'ouvre pas la porte à des tests qui monteraient des handlers :
+      `HBA.Merchants.Contracts` ne tire que `HBA.Shared.IntegrationEvents`.
+    -->
+    <ProjectReference Include="..\..\services\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

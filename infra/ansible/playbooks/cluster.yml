@@ -1,0 +1,65 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DES VMs NUES À UN CLUSTER k3s.
+#
+# Usage :
+#   cd infra/ansible
+#   ansible-playbook -i inventory/staging.yml playbooks/cluster.yml --check
+#   ansible-playbook -i inventory/staging.yml playbooks/cluster.yml
+#
+# L'ORDRE DES TROIS JEUX EST LA SEULE CHOSE QUI COMPTE ICI.
+#
+# Le jeton d'enrôlement n'existe qu'APRÈS l'installation du serveur, et les
+# agents le lisent dans les faits de ce nœud. Jouer `--limit agents` sur un
+# cluster neuf échoue — délibérément, avec un message explicite dans le rôle,
+# plutôt que par un agent qui boucle silencieusement sur un jeton vide.
+# ═══════════════════════════════════════════════════════════════════════════════
+---
+- name: Durcissement de l'OS
+  hosts: all
+  become: true
+  roles:
+    - commun
+
+- name: Plan de contrôle k3s
+  hosts: serveurs
+  become: true
+  roles:
+    - k3s-serveur
+
+- name: Nœuds agents
+  hosts: agents
+  become: true
+  roles:
+    - k3s-agent
+
+- name: Vérifier le cluster
+  hosts: serveurs
+  become: true
+  tasks:
+    # UN PLAYBOOK VERT NE PROUVE PAS UN CLUSTER SAIN.
+    #
+    # Chaque tâche ci-dessus a réussi sur SA machine. Rien n'a encore vérifié que
+    # les nœuds se voient. Sans ce contrôle, on découvre l'agent manquant au
+    # premier déploiement, quand la moitié des pods restent en `Pending` faute de
+    # place — un symptôme qui ressemble à un problème de ressources.
+    - name: Compter les nœuds prêts
+      ansible.builtin.command: k3s kubectl get nodes --no-headers
+      register: noeuds
+      changed_when: false
+      retries: 10
+      delay: 15
+      until: >-
+        noeuds.stdout_lines | length == (groups['all'] | length)
+        and 'NotReady' not in noeuds.stdout
+
+    - name: Récapituler
+      ansible.builtin.debug:
+        msg: "{{ noeuds.stdout_lines }}"
+
+    - name: Ce qui reste à installer À LA MAIN sur ce cluster
+      ansible.builtin.debug:
+        msg: >-
+          Le cluster tourne, il est VIDE. Restent, dans cet ordre :
+          ingress-nginx, cert-manager (+ ClusterIssuer « letsencrypt »),
+          l'opérateur CloudNativePG, l'opérateur Strimzi — puis seulement
+          `kubectl apply -k k8s/overlays/<env>`. Voir docs/DEPLOIEMENT.md, §4.

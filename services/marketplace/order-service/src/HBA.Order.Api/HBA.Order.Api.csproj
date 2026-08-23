@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Order.Application\HBA.Order.Application.csproj" />
+    <ProjectReference Include="..\HBA.Order.Infrastructure\HBA.Order.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Commerce.Contracts.Grpc\HBA.Commerce.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts.Grpc\HBA.DeliveryPricing.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Inventory.Contracts.Grpc\HBA.Inventory.Contracts.Grpc.csproj" />
+
+    <!--
+      LE CLIENT DU CATALOGUE — SANS LUI, LE PRIX N'EST PAS REVÉRIFIÉ (ISSUE-048).
+
+      `PlaceOrderCommandHandler` relit désormais l'offre au moment de commander :
+      prix, statut « publié », achetabilité. Rien de tout cela n'était revérifié
+      entre l'ajout au panier et le paiement, et le panier fige son prix à l'ajout
+      sans jamais le rafraîchir — sur un panier qu'aucune expiration ne ferme.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Catalog.Contracts.Grpc\HBA.Catalog.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
+
+    <!--
+      RÉFÉRENCÉ POUR TRADUIRE UNE RÉFÉRENCE DE COURSE, PAS POUR PILOTER FOOD.
+
+      Une course de repas annulée porte « FOOD-<ticket> ». L'identifiant est celui
+      du TICKET DE CUISINE, inconnu de cette base : sans traduction, une commande
+      de repas payée resterait bloquée pour toujours après l'annulation de sa
+      course. `IFoodModuleApi.GetOrderAsync` ne rend que des rattachements — ni
+      lignes, ni prix, ni ticket.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
+
+    <!--
+      RÉFÉRENCÉ POUR UNE AUTORISATION, PAS POUR UNE FONCTIONNALITÉ.
+
+      `GET /api/sellers/{sellerId}/orders` doit prouver que l'appelant EST ce
+      vendeur. Le jeton porte un identifiant d'utilisateur ; la correspondance
+      utilisateur → vendeur vit chez merchant-service et nulle part ailleurs.
+      Sans cet appel, la route rendait le carnet de commandes de n'importe quel
+      vendeur à n'importe quel inscrit.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  </ItemGroup>
+</Project>

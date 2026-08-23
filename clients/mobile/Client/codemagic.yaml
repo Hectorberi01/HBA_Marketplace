@@ -1,0 +1,99 @@
+# =====================================================================
+#  Livraison continue iOS → TestFlight (Codemagic) pour HbaMarket.
+#
+#  Déclenchement : à chaque tag Git « v* » (ex. v0.1.2) sur GitHub.
+#  Étapes : build Flutter release → signature auto → upload TestFlight.
+#
+#  PRÉ-REQUIS (à faire UNE FOIS dans l'UI Codemagic, PAS dans ce fichier) :
+#   1. Team settings → Integrations → App Store Connect → « Add key »
+#        - Name        : HbaMarket ASC   (doit correspondre au nom ci-dessous)
+#        - Issuer ID   : <ton Issuer ID>
+#        - Key ID      : KR8LS5ZU35
+#        - API key     : téléverse le fichier .p8
+#   2. Connecte le dépôt GitHub Client_MP_Mobile.
+#  Aucune clé/secret ne doit figurer dans ce YAML : tout vient de l'intégration.
+# =====================================================================
+
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight (HbaMarket)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      app_store_connect: HbaMarket ASC   # nom EXACT de l'intégration créée dans Codemagic
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: fr.hbamarket.app
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
+          include: true
+
+    scripts:
+      - name: Récupérer les packages Flutter
+        script: flutter pub get
+
+      - name: Installer les Pods iOS
+        script: find . -name "Podfile" -execdir pod install \;
+
+      - name: Numéro de build = numéro de build Codemagic (évite les collisions)
+        script: |
+          echo "Build number: $BUILD_NUMBER"
+
+      - name: Configurer la signature (profils gérés par l'intégration)
+        script: xcode-project use-profiles
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # L'URL DE L'API N'EST PLUS CODÉE EN DUR ICI — ET C'EST LE CORRECTIF.
+      #
+      # Cette étape construisait l'IPA envoyée sur TestFlight en la pointant sur le
+      # STAGING. Autrement dit : la version distribuée aux testeurs — et, de là, aux
+      # utilisateurs — parlait au serveur de test. Commandes réelles enregistrées dans
+      # une base jetable, paiements qui n'aboutissent nulle part.
+      #
+      # `API_BASE_URL` doit désormais être définie dans les VARIABLES D'ENVIRONNEMENT
+      # Codemagic (groupe `hbaexpress`), avec la valeur de PRODUCTION.
+      #
+      # Le garde-fou ci-dessous fait ÉCHOUER le build si elle manque. C'est délibéré :
+      # sans lui, l'app démarrerait sur son écran « Build mal configuré » (voir
+      # main.dart) — ce qui est déjà bien, mais après avoir consommé une revue Apple.
+      # Mieux vaut échouer ici, en trente secondes.
+      # ─────────────────────────────────────────────────────────────────────────
+      - name: Vérifier que l'URL d'API de production est définie
+        script: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "❌ API_BASE_URL n'est pas définie."
+            echo "   Ajoutez-la aux variables d'environnement Codemagic (groupe « hbaexpress »),"
+            echo "   avec l'URL de PRODUCTION du BFF Mobile (ex. https://m.votre-domaine.com)."
+            echo "   Sans elle, l'IPA partirait sur le serveur de STAGING."
+            exit 1
+          fi
+          echo "✅ API_BASE_URL = $API_BASE_URL"
+
+      - name: Build IPA release
+        script: |
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=API_BASE_URL=$API_BASE_URL \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Diffuse automatiquement au groupe de test interne (crée-le d'abord dans TestFlight).
+        beta_groups:
+          - Interne

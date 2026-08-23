@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    CE PROJET RÉFÉRENÇAIT LE DOMAINE DE delivery-service, ET C'ÉTAIT UN CYCLE.
+
+    `HBA.Delivery.Driver.Domain` → `HBA.Delivery.Core.Domain`, pendant que
+    `HBA.Delivery.Core.Api`, `.Application` et `.Infrastructure` référençaient
+    `HBA.Delivery.Driver.Domain`. Deux services, deux images, deux versions —
+    et aucun des deux ne pouvait être restauré, construit ni déployé seul.
+    Modifier une règle de livraison recompilait le domaine livreur, et
+    inversement.
+
+    CE QUI CAUSAIT VRAIMENT LE CYCLE : DES FICHIERS MAL CLASSÉS.
+
+    Quatre fichiers vivaient ici alors qu'ils déclaraient le namespace
+    `HBA.Deliveries.Domain.Drivers*` — l'agrégat `Driver`, `IDriverRepository`,
+    `VehicleCapacity` et `DriverVerifiedDomainEvent`. Personne dans
+    driver-service ne les utilisait : leurs seuls appelants étaient
+    delivery-service, qui persiste d'ailleurs cet agrégat dans SA table
+    `deliveries.drivers`. Le dossier disait « driver-service », le code disait
+    « delivery-service », et le second avait raison. Ils sont rentrés chez eux,
+    dans `HBA.Delivery.Core.Domain` (lot 5.4, ISSUE-069 / ISSUE-070).
+
+    CE QUI RESTE ICI, ET POURQUOI SI PEU.
+
+    Les quelques types conservés — `DriverDocument`, `DriverZone`,
+    `VehiclePlate`, `AvailabilityPolicy` — n'ont aujourd'hui aucun appelant :
+    driver-service est encore une maquette en mémoire (`DriverStore`, un
+    `ConcurrentDictionary`). Ils sont gardés parce que c'est le lot 5.2 qui
+    construira ce domaine pour de bon ; ce qui a été RETIRÉ, ce sont les
+    déclarations qui redoublaient l'agrégat `Driver` (`DriverAggregate.cs`,
+    `Entities/DriverAvailability.cs`, `Entities/DriverVehicle.cs`,
+    `Enums/DriverEnums.cs`, `Policies/DriverEligibilityPolicy.cs`).
+
+    LE JOUR OÙ driver-service DEVIENDRA LE PROPRIÉTAIRE DE L'AGRÉGAT, il ne
+    faudra PAS rétablir cette référence : delivery-service l'interrogera par
+    `shared/contracts/HBA.Drivers.Contracts` — ou par son contrat gRPC — comme
+    order-service interroge inventory-service. Une référence de projet vers le
+    domaine du voisin n'est pas un raccourci, c'est le même déploiement.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Domain\HBA.Shared.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

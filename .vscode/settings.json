@@ -1,0 +1,18 @@
+{
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/node_modules": true,
+    "**/.dart_tool": true
+  },
+  "search.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/node_modules": true,
+    "**/*.tsbuildinfo": true
+  },
+  "dotnet.defaultSolution": "HBA.sln",
+  "omnisharp.enableEditorConfigSupport": true,
+  "editor.formatOnSave": true,
+  "files.eol": "\n"
+}

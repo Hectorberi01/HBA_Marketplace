@@ -1,0 +1,88 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    ONZE CONTRATS D'AUTRES SERVICES — ET AUCUN DOMAINE.
+    Ce module réagit à ce qui se passe PARTOUT : une commande payée, un vendeur
+    suspendu, un restaurant validé, un stock épuisé. C'est sa raison d'être, et
+    cela se paie en références.
+    Ce qui est référencé n'est que des `*.Contracts` : des enregistrements
+    d'événements d'intégration, transportés par Kafka. Aucun `*.Domain`, aucun
+    `*.Application`, aucun `*.Infrastructure` d'un autre service. La frontière
+    tient tant que cette ligne tient — le jour où l'on ajoutera ici un
+    `HBA.Order.Domain`, communication-service redeviendra un morceau du
+    monolithe.
+    Le gabarit est celui d'Engagement.Reviews, qui référence déjà
+    `HBA.Order.Contracts` pour la même raison.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Communication.Notifications.Domain\HBA.Communication.Notifications.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Communication.Notifications.Contracts\HBA.Communication.Notifications.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  
+    <!--
+      LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.
+
+      Ces événements étaient déclarés DEUX FOIS : ici via un contrat partagé,
+      et chez leur propriétaire. L'enveloppe Kafka ne portant que le nom court,
+      le consommateur en résolvait un des deux au hasard de l'ordre de
+      chargement — et un gestionnaire enregistré sur l'autre n'était jamais
+      appelé, sans la moindre erreur.
+
+      Le duplicata partagé a été supprimé. Un fait métier, un contrat, un
+      propriétaire.
+    -->
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\payment-service\src\HBA.Financial.Payments.Contracts\HBA.Financial.Payments.Contracts.csproj" />
+  
+    <!-- Le livreur doit être prévenu de la course qu'on lui propose. -->
+    <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+  </ItemGroup>
+
+  <!-- Contrats partagés : émetteurs restés dans le socle commun. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+
+    <!--
+      Produits : `IProductsModuleApi`, utilisé par les gestionnaires « avis publié »
+      et « rupture de stock » pour remonter d'un produit ou d'un SKU à son vendeur.
+      L'événement ne porte que l'identifiant ; le destinataire, lui, se déduit.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Payments.Contracts\HBA.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Shipping.Contracts\HBA.Shipping.Contracts.csproj" />
+  </ItemGroup>
+
+  <!-- Contrats d'autres services extraits. -->
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Communication.Contracts\HBA.Communication.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\food\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+
+    <!--
+      LE SECOND UNIVERS DE COMMANDES — SANS LUI, LE CLIENT DU PARCOURS FOOD NE
+      RECEVAIT AUCUN SUIVI.
+
+      Les quatre notifications de cuisine résolvaient l'acheteur chez
+      order-service. Un ticket né d'une `MealOrder` porte un identifiant que
+      order-service ne connaît pas : la lecture rendait `null`, un Warning
+      partait, et rien n'était envoyé. Acceptation, préparation, repas prêt, repas
+      récupéré — quatre messages, aucun délivré, en silence.
+    -->
+    <ProjectReference Include="..\..\..\..\food\food-order-service\src\HBA.Food.Order.Contracts\HBA.Food.Order.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\inventory-service\src\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\review-service\src\HBA.Engagement.Reviews.Contracts\HBA.Engagement.Reviews.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\wallet-service\src\HBA.Financial.Wallet.Contracts\HBA.Financial.Wallet.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+</Project>

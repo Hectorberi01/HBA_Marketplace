@@ -1,0 +1,253 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             x:Class="HBA.Admin.Desktop.Views.TarificationView"
+             x:DataType="vm:TarificationViewModel">
+
+  <DockPanel>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="12" Margin="4,0,4,14">
+
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Text="Tarification des courses" Classes="titre" />
+          <TextBlock Classes="attenue" Text="{Binding Position}" />
+        </StackPanel>
+
+        <Button Grid.Column="1" Classes="discret" Content="Actualiser" Margin="0,0,10,0"
+                Command="{Binding Rafraichir}" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Classes="principal" Content="Nouvelle règle"
+                Command="{Binding Nouvelle}" VerticalAlignment="Center" />
+      </Grid>
+
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding EnCours}" Height="3" />
+
+      <!--
+        UNE SEULE RÈGLE S'APPLIQUE, ET CE BANDEAU EXISTE PARCE QUE RIEN NE LE DIT
+        AILLEURS.
+
+        Le moteur de devis prend la première règle active en fenêtre, par priorité
+        décroissante. La portée, le niveau de service et le type de véhicule sont
+        stockés mais N'ENTRENT PAS dans le choix : une règle « EXPRESS » de haute
+        priorité tarife aussi les courses standard.
+      -->
+      <Border Classes="creux" Padding="16,12">
+        <TextBlock TextWrapping="Wrap" Classes="attenue" FontSize="12"
+                   Text="Une seule règle tarife toutes les courses : la première active dans sa fenêtre, par priorité décroissante. Portée, niveau de service et type de véhicule sont enregistrés mais n'interviennent pas dans ce choix." />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding AAvertissement}">
+        <TextBlock Text="{Binding Avertissement}" TextWrapping="Wrap"
+                   Foreground="{DynamicResource Alerte}" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding EnErreur}">
+        <TextBlock Text="{Binding Erreur}" TextWrapping="Wrap" Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding AConfirmation}">
+        <TextBlock Text="{Binding Confirmation}" TextWrapping="Wrap" Foreground="{DynamicResource Succes}" />
+      </Border>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="400,*">
+
+      <Border Grid.Column="0" Classes="carte" Margin="4,0,10,0" Padding="8">
+        <ListBox ItemsSource="{Binding Regles}" SelectedItem="{Binding Selection}"
+                 Background="Transparent" BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="vm:LigneRegle">
+              <StackPanel Spacing="3" Margin="6">
+
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{Binding Nom}" FontWeight="SemiBold" />
+
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                    <!-- La seule information qui compte vraiment dans cette liste :
+                         laquelle de ces règles tarife la prochaine course. -->
+                    <Border Classes="pastille" IsVisible="{Binding Gagnante}">
+                      <TextBlock Text="appliquée" FontSize="10"
+                                 Foreground="{DynamicResource Succes}" />
+                    </Border>
+
+                    <Border Classes="pastille" IsVisible="{Binding !Eligible}">
+                      <TextBlock Text="{Binding Etat}" FontSize="10" />
+                    </Border>
+                  </StackPanel>
+                </Grid>
+
+                <TextBlock Text="{Binding Resume}" Classes="attenue" FontSize="11" />
+                <TextBlock Text="{Binding Tarif}" FontSize="12" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <Border Grid.Column="1" Classes="carte" Margin="0,0,4,0">
+        <ScrollViewer>
+          <StackPanel Spacing="16">
+
+            <TextBlock Classes="attenue" TextWrapping="Wrap"
+                       IsVisible="{Binding !EnEdition}"
+                       Text="Sélectionnez une règle, ou créez-en une. La nouvelle règle naît active : vérifiez sa priorité avant de l'enregistrer." />
+
+            <StackPanel Spacing="14" IsVisible="{Binding EnEdition}">
+
+              <TextBlock Text="{Binding Titre}" Classes="titre" FontSize="18" />
+
+              <!--
+                L'APERÇU EST UN CALCUL LOCAL, ET IL EST ÉTIQUETÉ COMME TEL.
+
+                Aucune route ne simule un devis : `POST /quotes` en crée un vrai,
+                persisté et publié en événement. Les cinq lignes de
+                `PricingPolicy` sont donc recopiées côté client pour montrer
+                l'effet d'un réglage AVANT de le facturer.
+              -->
+              <Border Classes="creux" Padding="16,14">
+                <StackPanel Spacing="10">
+                  <!--
+                    PAS DE `ColumnSpacing` SUR `Grid` DANS AVALONIA 11.2.
+
+                    La propriété existe en WPF et en WinUI, pas ici : le
+                    compilateur XAML rend « Unable to resolve suitable regular or
+                    attached property ColumnSpacing on type Grid », à la
+                    COMPILATION. On écarte donc par une marge droite sur toutes
+                    les colonnes sauf la dernière.
+                  -->
+                  <Grid ColumnDefinitions="Auto,90,Auto,90,*">
+                    <TextBlock Grid.Column="0" Text="Course d'essai" Classes="attenue"
+                               FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                    <Border Grid.Column="1" Classes="creux" Margin="0,0,10,0">
+                      <TextBox Text="{Binding Distance}" Watermark="km" />
+                    </Border>
+
+                    <TextBlock Grid.Column="2" Text="km, en" Classes="attenue"
+                               FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                    <Border Grid.Column="3" Classes="creux" Margin="0,0,10,0">
+                      <TextBox Text="{Binding Duree}" Watermark="min" />
+                    </Border>
+
+                    <TextBlock Grid.Column="4" Text="minutes" Classes="attenue"
+                               FontSize="12" VerticalAlignment="Center" />
+                  </Grid>
+
+                  <TextBlock Text="{Binding Simulation}" Classes="chiffre" />
+                  <TextBlock Text="{Binding Detail}" Classes="attenue" FontSize="11"
+                             TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+
+              <StackPanel Spacing="8">
+                <TextBlock Text="Nom" Classes="attenue" FontSize="12" />
+                <Border Classes="creux"><TextBox Text="{Binding Nom}" /></Border>
+              </StackPanel>
+
+              <Grid ColumnDefinitions="*,*,*">
+                <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,10,0">
+                  <TextBlock Text="Portée" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding Portee}" Watermark="GLOBAL" /></Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="8" Margin="0,0,10,0">
+                  <TextBlock Text="Niveau de service" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding Niveau}" Watermark="STANDARD" /></Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Spacing="8">
+                  <TextBlock Text="Véhicule" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding Vehicule}" Watermark="MOTORBIKE" /></Border>
+                </StackPanel>
+              </Grid>
+
+              <TextBlock Classes="attenue" FontSize="11" TextWrapping="Wrap"
+                         Text="Ces trois champs sont enregistrés et affichés, mais le moteur de devis ne s'en sert pas pour choisir la règle. Ils documentent l'intention ; ils ne la font pas appliquer." />
+
+              <Grid ColumnDefinitions="*,*,*">
+                <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,10,0">
+                  <TextBlock Text="Prise en charge (F CFA)" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding BaseFee}" /></Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="8" Margin="0,0,10,0">
+                  <TextBlock Text="Par kilomètre" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding ParKm}" /></Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Spacing="8">
+                  <TextBlock Text="Par minute" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding ParMinute}" /></Border>
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="*,*,*">
+                <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,10,0">
+                  <TextBlock Text="Minimum facturé" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding Minimum}" /></Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="8" Margin="0,0,10,0">
+                  <TextBlock Text="Plafond, vide = aucun" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding Maximum}" /></Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Spacing="8">
+                  <TextBlock Text="Multiplicateur" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding Multiplicateur}" Watermark="1" /></Border>
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="*,*,*">
+                <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,10,0">
+                  <TextBlock Text="Début (UTC)" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux">
+                    <TextBox Text="{Binding Debut}" Watermark="2026-08-23 00:00" />
+                  </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="8" Margin="0,0,10,0">
+                  <TextBlock Text="Fin (UTC), vide = sans fin" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux">
+                    <TextBox Text="{Binding Fin}" Watermark="" />
+                  </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Spacing="8">
+                  <TextBlock Text="Priorité" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux"><TextBox Text="{Binding Priorite}" /></Border>
+                </StackPanel>
+              </Grid>
+
+              <!--
+                LE `PATCH` EST UN REMPLACEMENT COMPLET.
+
+                `UpdateRuleAsync` reconstruit l'enregistrement depuis la requête :
+                un plafond effacé ici RETIRE le plafond, il ne le conserve pas.
+                Les treize champs partent donc ensemble, tels qu'ils sont affichés.
+              -->
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="principal" Content="Enregistrer" Command="{Binding Enregistrer}" />
+                <Button Classes="discret" Content="Activer" Command="{Binding Activer}" />
+                <Button Classes="discret" Content="Désactiver" Command="{Binding Desactiver}" />
+              </StackPanel>
+
+              <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                         IsVisible="{Binding ARefusDeDesactivation}"
+                         Foreground="{DynamicResource Alerte}"
+                         Text="{Binding RefusDeDesactivation}" />
+
+              <TextBlock Classes="attenue" FontSize="11" TextWrapping="Wrap"
+                         Text="Enregistrer ne change pas le statut : activation et désactivation ont leurs propres gestes. Les montants sont en francs CFA entiers, le franc n'ayant pas de décimale." />
+
+            </StackPanel>
+
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+    </Grid>
+
+  </DockPanel>
+</UserControl>

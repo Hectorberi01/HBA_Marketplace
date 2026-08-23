@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    LE DOMAINE SEUL — INVENTORY N'AVAIT AUCUN PROJET DE TEST.
+
+    Les trois anomalies corrigées ici (ISSUE-045 statut, ISSUE-075 réservation
+    non idempotente, ISSUE-031 expiration jamais relue) sont TOUTES des règles
+    d'agrégat. Elles n'ont besoin ni de base, ni de serveur, ni de Kafka pour
+    être fausses. Les éprouver à travers l'API demanderait Testcontainers et une
+    minute par exécution ; ici c'est quelques millisecondes, donc ces tests
+    tournent vraiment.
+
+    CE QUI N'EST PAS COUVERT, ET IL FAUT LE SAVOIR.
+
+      • L'INDEX UNIQUE PARTIEL. `ux_stock_reservations_active_order` est ce qui
+        ferme la course entre deux rejeux SIMULTANÉS ; l'agrégat, lui, ne traite
+        que le rejeu séquentiel. Aucun test en mémoire ne peut éprouver un index
+        PostgreSQL — il faudrait une base et deux transactions concurrentes.
+
+      • LA MIGRATION, et notamment la FUSION des doublons existants. Elle est
+        écrite en SQL brut, que `check-migrations.py` ignore délibérément.
+
+      • LE CÂBLAGE du balayeur : qu'`ExpireStockReservationsWorker` soit bien
+        enregistré, que sa période soit lue, que la requête de sélection soit
+        traduisible en SQL. Cela demande le service entier.
+
+      • LE REGROUPEMENT PAR (SKU, EMPLACEMENT) dans `PlaceOrderCommandHandler` :
+        il vit dans order-service, dont l'agrégat n'est pas référencé ici.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\inventory-service\src\HBA.Inventory.Domain\HBA.Inventory.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

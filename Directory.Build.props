@@ -1,0 +1,65 @@
+<Project>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    HBA — CONVENTIONS COMMUNES.
+
+    CE FICHIER COUPE AUSSI LA CHAÎNE D'HÉRITAGE, ET C'EST SON PREMIER RÔLE.
+
+    MSBuild remonte les dossiers jusqu'à trouver un `Directory.Build.props`.
+    Sans celui-ci, tout projet de `HBA/` hériterait de `../Directory.Build.props`,
+    écrit pour le monolithe, et se verrait imposer `TreatWarningsAsErrors` ainsi
+    que le jeu de versions du monolithe.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    CADRE CIBLE PAR DÉFAUT — AJOUTÉ APRÈS UN ÉCHEC DE RESTAURATION.
+
+    Ce fichier n'en déclarait aucun, au motif que treize services ne monteraient
+    pas de version en même temps. Le raisonnement était juste et la conséquence
+    ne l'était pas : les `.csproj` des modules copiés du monolithe n'ont AUCUN
+    `<PropertyGroup>` — ils étaient complets là-bas parce que le
+    `Directory.Build.props` du monolithe leur fournissait tout. Ici, onze projets
+    se sont retrouvés sans cadre cible, et `dotnet restore` a rendu
+    « Identificateur de framework '' non valide » — un message qui ne désigne
+    ni le projet fautif ni la propriété manquante.
+
+    La propriété est posée ICI, donc AVANT le corps de chaque projet : tout
+    `.csproj` qui déclare son propre `<TargetFramework>` l'emporte toujours. Le
+    besoin d'origine — migrer un service sans toucher aux douze autres — reste
+    donc satisfait, mais par une exception explicite au lieu d'un silence.
+
+    net9.0 ET NON net8.0, CONTRAIREMENT À CE QUI ÉTAIT PRÉVU.
+
+    Les projets `*.Api` et `HBA.Shared.Hosting` sont en net9.0, comme la
+    passerelle. Maintenir les couches métier en net8.0 aurait produit un
+    assemblage mixte : un hôte net9.0 chargeant des bibliothèques net8.0 et,
+    surtout, deux versions d'un même paquet ASP.NET Core impossibles à
+    réconcilier — c'est ce conflit qui avait imposé le `VersionOverride` sur
+    JwtBearer. Un seul cadre le supprime.
+
+    Les paquets restent ceux du monolithe (EF Core 8.0.8, MediatR 12.4.1) :
+    ils sont pleinement supportés sur .NET 9. On change le cadre d'exécution,
+    pas les dépendances — une seule variable à la fois.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--
+    La gestion centralisée des versions est décidée dans `Directory.Packages.props`,
+    importé APRÈS ce fichier. La déclarer ici en plus créerait deux sources de
+    vérité dont l'une serait systématiquement écrasée sans que rien ne le signale.
+  -->
+
+</Project>

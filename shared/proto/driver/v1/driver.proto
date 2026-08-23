@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package hba.driver.v1;
+
+option csharp_namespace = "HBA.Drivers.Grpc.V1";
+
+service DriverApi {
+  rpc GetDriver(GetDriverRequest) returns (GetDriverResponse);
+  rpc GetDriversBatch(GetDriversBatchRequest) returns (GetDriversBatchResponse);
+  rpc CheckDriverEligibility(CheckDriverEligibilityRequest) returns (DriverEligibilityResponse);
+  rpc SetBusyState(SetBusyStateRequest) returns (SetBusyStateResponse);
+}
+
+message GetDriverRequest {
+  string driver_id = 1;
+}
+
+message GetDriverResponse {
+  bool found = 1;
+  DriverProfile driver = 2;
+}
+
+message GetDriversBatchRequest {
+  repeated string driver_ids = 1;
+}
+
+message GetDriversBatchResponse {
+  repeated DriverProfile drivers = 1;
+}
+
+message CheckDriverEligibilityRequest {
+  string driver_id = 1;
+  optional string required_vehicle_type = 2;
+}
+
+message DriverEligibilityResponse {
+  string driver_id = 1;
+  bool eligible = 2;
+  optional string reason = 3;
+}
+
+message SetBusyStateRequest {
+  string driver_id = 1;
+  bool busy = 2;
+}
+
+message SetBusyStateResponse {
+  bool found = 1;
+  DriverAvailability availability = 2;
+}
+
+message DriverProfile {
+  string id = 1;
+  string user_id = 2;
+  string status = 3;
+  string verification_status = 4;
+  string first_name = 5;
+  string last_name = 6;
+  string phone = 7;
+  string rating = 8;
+  string created_at = 9;
+}
+
+message DriverAvailability {
+  string driver_id = 1;
+  string status = 2;
+  int32 current_delivery_count = 3;
+  string last_changed_at = 4;
+}

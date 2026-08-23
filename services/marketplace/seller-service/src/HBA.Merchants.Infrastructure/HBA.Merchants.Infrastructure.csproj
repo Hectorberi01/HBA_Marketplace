@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Merchants.Domain\HBA.Merchants.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Merchants.Application\HBA.Merchants.Application.csproj" />
+    <ProjectReference Include="..\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+    <!--
+      `UserAnonymizedSellerPurgeHandler` consomme un événement d'Identity. Le
+      paquet arrivait déjà par transitivité via HBA.Merchants.Application (qui
+      valide le compte à l'inscription) et le code aurait compilé — jusqu'au jour
+      où cette référence-là changerait. Une dépendance qu'on utilise directement
+      se déclare.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+
+    <!--
+      LES DEUX COMPTEURS DE LA VITRINE, QUI VALAIENT ZÉRO POUR TOUT LE MONDE.
+
+      `SellerRatingHandler` consomme `SellerRatingRecomputedIntegrationEvent`
+      (review-service) ; `SellerSalesCountHandler` consomme
+      `OrderConfirmedIntegrationEvent` (order-service) et rappelle
+      `IOrderingModuleApi` pour recalculer depuis la source plutôt qu'incrémenter.
+
+      Trois références de CONTRAT, aucun transport : le client gRPC vient de la
+      composition root, comme pour Media et Inventory.
+    -->
+    <ProjectReference Include="..\..\..\..\..\services\common\review-service\src\HBA.Engagement.Reviews.Contracts\HBA.Engagement.Reviews.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+  </ItemGroup>
+
+</Project>

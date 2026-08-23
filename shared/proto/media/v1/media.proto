@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package hba.media.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "HBA.Media.Grpc.V1";
+
+// Équivalent de `IMediaModuleApi`, méthode pour méthode.
+//
+// LA CORRESPONDANCE AVEC L'INTERFACE C# EST VOLONTAIREMENT LITTÉRALE.
+//
+// Le code applicatif continue de dépendre de `IMediaModuleApi` ; gRPC n'est
+// qu'un transport. Si ce contrat s'éloignait de l'interface, la traduction
+// cesserait d'être mécanique et deviendrait un endroit où des règles se cachent.
+service MediaApi {
+  rpc Get(GetMediaRequest) returns (GetMediaResponse);
+  rpc GetMany(GetManyMediaRequest) returns (MediaList);
+  rpc ListByOwner(ListByOwnerRequest) returns (MediaList);
+  rpc CreateSignedUrl(CreateSignedUrlRequest) returns (CreateSignedUrlResponse);
+}
+
+message GetMediaRequest {
+  string media_id = 1;
+}
+
+// UNE RÉPONSE ENVELOPPÉE PLUTÔT QUE `MediaView` DIRECTEMENT.
+//
+// L'interface C# rend `MediaView?` — l'absence est un cas NORMAL, pas une erreur.
+// Signaler l'absence par un statut `NOT_FOUND` la transformerait en exception
+// côté client : un média supprimé ferait lever une `RpcException` au milieu de
+// l'affichage d'une galerie, là où le monolithe rendait simplement `null`.
+message GetMediaResponse {
+  bool found = 1;
+  MediaView media = 2;
+}
+
+message GetManyMediaRequest {
+  repeated string media_ids = 1;
+}
+
+message ListByOwnerRequest {
+  string owner_type = 1;
+  string owner_id = 2;
+}
+
+message MediaList {
+  repeated MediaView items = 1;
+}
+
+message CreateSignedUrlRequest {
+  string media_id = 1;
+  int32 expires_seconds = 2;
+}
+
+message CreateSignedUrlResponse {
+  bool found = 1;
+  string url = 2;
+  int32 expires_in_seconds = 3;
+}
+
+// Miroir de `MediaView`. Les `Guid` circulent en `string` : Protobuf n'a pas de
+// type UUID, et un couple d'entiers 64 bits économiserait huit octets au prix
+// d'une charge utile illisible dans les traces.
+message MediaView {
+  string id = 1;
+  string owner_type = 2;
+  string owner_id = 3;
+  string media_type = 4;
+  string original_file_name = 5;
+  string content_type = 6;
+  int64 size_bytes = 7;
+  string visibility = 8;
+  string status = 9;
+
+  // `optional` N'EST PAS DÉCORATIF ICI.
+  //
+  // En proto3, un champ scalaire absent est indiscernable de sa valeur par
+  // défaut : une chaîne vide et « pas d'URL » deviendraient la même chose.
+  //
+  // Or `MediaView.Url` est NULLE pour un fichier privé, et c'est une garantie du
+  // §10 : une pièce d'identité n'a pas d'URL permanente. Sans `optional`, un
+  // appelant recevrait `""` et pourrait le prendre pour un média public dont
+  // l'URL n'a pas été calculée. `optional` restaure la distinction et génère
+  // `HasUrl` côté C#.
+  optional string url = 10;
+
+  optional int32 width = 11;
+  optional int32 height = 12;
+
+  repeated MediaVariantView variants = 13;
+  google.protobuf.Timestamp created_on_utc = 14;
+}
+
+message MediaVariantView {
+  string variant_type = 1;
+  string url = 2;
+  int32 width = 3;
+  int32 height = 4;
+  int64 size_bytes = 5;
+}

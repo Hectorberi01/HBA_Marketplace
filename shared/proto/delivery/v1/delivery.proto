@@ -1,0 +1,251 @@
+syntax = "proto3";
+
+package hba.delivery.v1;
+
+option csharp_namespace = "HBA.Deliveries.Grpc.V1";
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LE MOTEUR LOGISTIQUE, VU PAR SES DONNEURS D'ORDRE.
+//
+// CE CONTRAT NE PARLE NI DE COMMANDE, NI D'EXPÉDITION, NI DE REPAS.
+//
+// Delivery transporte une RÉFÉRENCE opaque et une SOURCE, et les rend telles
+// quelles dans ses événements. C'est ce qui lui permet de servir HBAExpress,
+// HBA Food et des partenaires externes avec le même code — et ce qui le rend
+// vendable à des tiers. Un `order_id` ici le coupleraient à Ordering pour
+// toujours.
+//
+// L'ADRESSE EST BÉNINOISE : COMMUNE, QUARTIER, POINT DE REPÈRE.
+//
+// Ce fichier portait `address_line`, hérité d'un modèle occidental de rue et
+// numéro. Le domaine ne l'utilise plus depuis la refonte des adresses : au
+// Bénin, on se repère par commune, quartier et point de repère — « en face de
+// la pharmacie Ste Rita ». Transporter une ligne d'adresse ici aurait perdu
+// l'information au passage de la frontière, sans erreur ni avertissement.
+// ═════════════════════════════════════════════════════════════════════════════
+
+service DeliveryApi {
+  // ═════════════════════════════════════════════════════════════════════════
+  // `GetQuote` ET `LookupQuote` ONT ÉTÉ RETIRÉS D'ICI. AUCUN DES DEUX N'A
+  // JAMAIS EU DE CORPS DE SERVEUR.
+  //
+  // `LookupQuote` était appelé — par le checkout marchandise ET par le checkout
+  // repas. Les deux rendaient `UNIMPLEMENTED`, et comme le devis est OBLIGATOIRE
+  // pour un repas, AUCUNE COMMANDE DE REPAS NE POUVAIT ÊTRE PASSÉE.
+  //
+  // ET LES IMPLÉMENTER ICI N'AURAIT RIEN RÉGLÉ : delivery-service n'a plus de
+  // domaine de tarification depuis la séparation des deux services. Ses entités
+  // `DeliveryQuote`, `DeliveryZone` et `PricingRule` n'existent plus dans son
+  // code — seul le ModelSnapshot en gardait la trace, ce qui a été corrigé dans
+  // le même geste. La table `delivery_quotes` n'était écrite par personne.
+  //
+  // Le devis se demande et se relit désormais chez delivery-pricing —
+  // `DeliveryPricingApi.QuoteDelivery` et `DeliveryPricingApi.LookupQuote`. Ce
+  // service-ci CONSOMME le devis à la création de la course, ce qu'il faisait
+  // déjà : `CreateDeliveryCommand` appelle `ConsumeQuote` chez delivery-pricing.
+  // ═════════════════════════════════════════════════════════════════════════
+
+  rpc CreateDelivery(CreateDeliveryRequest) returns (CreateDeliveryResponse);
+
+  // LE DONNEUR D'ORDRE DOIT POUVOIR DÉFAIRE CE QU'IL A DEMANDÉ.
+  //
+  // Il manquait, et l'asymétrie coûtait cher : une commande annulée laissait
+  // sa course VIVANTE. Un livreur était payé pour aller chercher un colis que
+  // le vendeur ne remettrait pas — trajet à vide, livreur immobilisé, et
+  // personne pour lui expliquer sur place.
+  rpc CancelDelivery(CancelDeliveryRequest) returns (CancelDeliveryResponse);
+
+  rpc GetDelivery(GetDeliveryRequest) returns (GetDeliveryResponse);
+  rpc GetDeliveryByReference(GetByReferenceRequest) returns (GetDeliveryResponse);
+  rpc GetTracking(GetTrackingRequest) returns (GetTrackingResponse);
+  rpc ResolveDriver(ResolveDriverRequest) returns (ResolveDriverResponse);
+}
+
+// ── Création ───────────────────────────────────────────────────────────────
+message CreateDeliveryRequest {
+  // « ORDER-<guid> », « FOOD-<guid> », ou ce que veut un partenaire externe.
+  string reference = 1;
+
+  // « HbaExpress », « HbaFood », « ExternalPartner ».
+  string source = 2;
+
+  // « Express », « Standard », « Scheduled ».
+  string type = 3;
+
+  DeliveryStop pickup = 4;
+  DeliveryStop dropoff = 5;
+  DeliveryPackage package = 6;
+
+  // CHAMP 7 RETIRÉ — ISSUE-057.
+  //
+  // Il portait « None », « Pin », « Photo » ou « Signature », et c'était
+  // l'APPELANT qui choisissait. Aucun ne choisissait : order-service et
+  // restaurant-service laissaient la valeur par défaut du contrat, « None »,
+  // et toute course de la plateforme naissait clôturable sans preuve.
+  //
+  // Le numéro 7 est RÉSERVÉ, jamais réattribué : un ancien client qui enverrait
+  // encore une chaîne dans ce champ verrait sa valeur silencieusement
+  // réinterprétée comme autre chose si on le recyclait.
+  reserved 7;
+  reserved "required_proof";
+
+  // Ce que valent les marchandises transportées, en FCFA, tel que le donneur
+  // d'ordre le déclare. En CHAÎNE comme tous les montants de ce contrat : un
+  // `double` protobuf sur de l'argent finit toujours par arrondir.
+  optional string declared_value = 11;
+
+  // Le livreur encaisse-t-il le prix des marchandises à la remise ?
+  bool is_cash_on_delivery = 12;
+
+  optional string partner_id = 8;
+  optional string quote_id = 9;
+
+  // Obligatoire pour « Scheduled », refusé pour les autres — l'agrégat tient
+  // l'invariant dans les deux sens.
+  optional string scheduled_for = 10;
+}
+
+message CreateDeliveryResponse {
+  bool succeeded = 1;
+  string delivery_id = 2;
+  string reason = 3;
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // LE CODE D'ERREUR NORMALISÉ, DANS SON PROPRE CHAMP (D32, ADDITIF).
+  //
+  // `reason` contenait DEUX informations empaquetées dans une chaîne — et pas
+  // de la même manière selon le service : « code — message » ici,
+  // « code:message » là. Aucun appelant ne reparsait ni l'un ni l'autre. Le code
+  // normalisé, seul élément stable et traduisible, était donc PERDU au passage
+  // du saut gRPC : il ne restait qu'un texte libre destiné à un humain.
+  //
+  // Champ additif : les appelants qui l'ignorent lisent `reason` comme avant.
+  // `reason` reste le message LISIBLE ; `reason_code` porte le code.
+  // ═════════════════════════════════════════════════════════════════════════
+  string reason_code = 4;
+}
+
+message DeliveryStop {
+  string contact_name = 1;
+  string phone = 2;
+
+  // Les trois champs qui localisent réellement au Bénin.
+  string commune = 3;
+  string quartier = 4;
+  string landmark = 5;
+
+  string instructions = 6;
+
+  // Facultatives : le point sur la carte, même approximatif, sert au dispatch.
+  optional double latitude = 7;
+  optional double longitude = 8;
+}
+
+message DeliveryPackage {
+  string description = 1;
+  string weight_kg = 2;
+  bool is_fragile = 3;
+  bool is_perishable = 4;
+}
+
+// ── Annulation ─────────────────────────────────────────────────────────────
+//
+// ON ANNULE PAR RÉFÉRENCE, PAS PAR IDENTIFIANT DE COURSE.
+//
+// Le donneur d'ordre ne connaît QUE sa propre référence — « ORDER-<guid> ». Il
+// n'a jamais retenu l'identifiant que Delivery lui a rendu à la création : rien
+// dans la commande ne le stocke. Exiger un `delivery_id` ici l'obligerait à
+// faire une lecture par référence d'abord, c'est-à-dire deux allers-retours
+// pour un geste qui doit être court — entre l'annulation et l'arrêt du livreur,
+// chaque minute est un trajet engagé.
+//
+// `found = false` quand aucune course ne correspond : c'est le cas NORMAL,
+// puisque la plupart des commandes sont annulées avant confirmation, donc avant
+// qu'aucune course n'existe.
+message CancelDeliveryRequest {
+  string reference = 1;
+  string source = 2;
+  optional string reason = 3;
+}
+
+message CancelDeliveryResponse {
+  // La course existait-elle ? Faux ne veut pas dire « échec » : voir ci-dessus.
+  bool found = 1;
+
+  // A-t-elle été annulée ? Faux avec `found = true` signifie que le domaine a
+  // refusé — colis déjà collecté, course déjà terminée. C'est une réponse
+  // métier, et l'appelant doit pouvoir la distinguer d'une panne.
+  bool cancelled = 2;
+
+  string reason = 3;
+
+  // Le code d'erreur normalisé, dans son propre champ — même raisonnement que
+  // `CreateDeliveryResponse.reason_code` ci-dessus (D32, additif).
+  string reason_code = 4;
+}
+
+// ── Lecture ────────────────────────────────────────────────────────────────
+message GetDeliveryRequest {
+  string delivery_id = 1;
+}
+
+// Retrouve la course d'un donneur d'ordre à partir de SA référence — sans que
+// Delivery ait à savoir ce que cette référence désigne.
+message GetByReferenceRequest {
+  string reference = 1;
+  string source = 2;
+}
+
+message GetDeliveryResponse {
+  bool found = 1;
+  DeliverySummary delivery = 2;
+}
+
+message GetTrackingRequest {
+  string delivery_id = 1;
+}
+
+message GetTrackingResponse {
+  bool found = 1;
+  string status = 2;
+  optional double driver_latitude = 3;
+  optional double driver_longitude = 4;
+  optional string position_reported_at = 5;
+  string driver_name = 6;
+  string driver_phone = 7;
+}
+
+message DeliverySummary {
+  string delivery_id = 1;
+  string reference = 2;
+  string source = 3;
+  string type = 4;
+  string status = 5;
+  string pickup_summary = 6;
+  string dropoff_summary = 7;
+
+  // Ce que le client réclame en premier quand il appelle le support.
+  string driver_name = 8;
+  string driver_phone = 9;
+
+  string created_at = 10;
+  optional string accepted_at = 11;
+  optional string picked_up_at = 12;
+  optional string delivered_at = 13;
+}
+
+// ── Livreur ────────────────────────────────────────────────────────────────
+//
+// Le strict nécessaire pour s'adresser à un livreur : à quel compte il
+// correspond, et comment le nommer. Ni téléphone, ni position, ni véhicule —
+// le seul appelant est le service de notification.
+message ResolveDriverRequest {
+  string driver_id = 1;
+}
+
+message ResolveDriverResponse {
+  bool found = 1;
+  string driver_id = 2;
+  string user_id = 3;
+  string full_name = 4;
+}

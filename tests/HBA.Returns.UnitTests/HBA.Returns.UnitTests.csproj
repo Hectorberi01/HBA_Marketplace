@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    LES DEUX MOITIÉS D'ISSUE-014, DANS LE MÊME PROJET.
+
+    L'anomalie tient en une phrase : « un même article peut être retourné et
+    remboursé autant de fois que voulu ». Sa correction est à cheval sur deux
+    services — order-service INSCRIT ce qu'un retour lui a retiré, return-refund
+    le LIT et refuse. Éprouver les deux moitiés séparément laisserait le seul
+    endroit où la régression est réellement possible — la jonction — sans
+    aucun test.
+
+    AUCUNE BASE, AUCUN COURTIER, AUCUN SERVEUR.
+
+    Tout ce qui est vérifié ici est une règle d'agrégat ou de politique. Le
+    faire passer par l'API demanderait Testcontainers et une minute par
+    exécution ; ici c'est quelques millisecondes, donc ces tests tournent
+    vraiment.
+
+    CE QUI N'EST PAS COUVERT, ET IL FAUT LE SAVOIR.
+
+    Le CÂBLAGE reste hors de portée : que
+    `RecordReturnSettlementOnRefundHandler` soit bien enregistré, que
+    `ReturnRefundedIntegrationEvent` arrive vraiment jusqu'à order-service, que
+    l'inbox committe sa trace. Cela demande le service entier ; c'est le rôle
+    d'une suite d'intégration, qui n'existe pas encore pour return-refund.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\order-service\src\HBA.Order.Domain\HBA.Order.Domain.csproj" />
+    <ProjectReference Include="..\..\services\marketplace\return-refund-service\src\HBA.Marketplace.ReturnRefund.Domain\HBA.Marketplace.ReturnRefund.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

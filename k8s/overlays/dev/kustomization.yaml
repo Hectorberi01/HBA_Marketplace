@@ -1,0 +1,162 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEVELOPMENT — intégration continue des branches, données non sensibles (§2).
+#
+# Un replica partout, ressources basses : cet environnement sert à savoir si ça
+# démarre et si les contrats tiennent, pas à mesurer une capacité.
+# ═══════════════════════════════════════════════════════════════════════════════
+namespace: hba-dev
+
+resources:
+  - ../../base
+  - kafka-topics.yaml
+
+patches:
+  - target:
+      kind: Namespace
+      name: hba
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: hba-dev
+
+  # `ASPNETCORE_ENVIRONMENT=Development` ACTIVE LES MIGRATIONS AU DÉMARRAGE.
+  #
+  # `Database:MigrateOnStartup` n'est vrai qu'en Development. C'est ce qui rend
+  # cet environnement jetable : on supprime le namespace, on redéploie, le schéma
+  # se reconstruit. En staging et en production, la migration est une étape de
+  # release (§15), pas un effet de bord du démarrage.
+  - target:
+      kind: Deployment
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: unused
+      spec:
+        template:
+          spec:
+            containers:
+              - name: service
+                env:
+                  - name: ASPNETCORE_ENVIRONMENT
+                    value: Development
+                resources:
+                  requests:
+                    cpu: "50m"
+                    memory: "192Mi"
+                  limits:
+                    cpu: "500m"
+                    memory: "512Mi"
+
+  # Le HPA n'a pas de sens ici : un seul nœud, et une charge qui vient des tests.
+  - target:
+      kind: HorizontalPodAutoscaler
+    patch: |-
+      - op: replace
+        path: /spec/maxReplicas
+        value: 1
+
+  # La passerelle redescend à un replica ici. Le §4 la place à 2-3 parce qu'un
+  # redémarrage coupe TOUT — mais en dev, « tout » vaut une branche en cours
+  # d'intégration, et le second pod coûte un nœud déjà étroit.
+  - target:
+      kind: Deployment
+      name: gateway-service
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # UNE SEULE INSTANCE POSTGRES ET UN SEUL BROKER ICI.
+  #
+  # Le §4 place staging à « 1 broker dev » et une instance de base. La haute
+  # disponibilité y coûterait quatre nœuds pour une propriété que personne n'y
+  # observe — et la seule façon de l'observer serait de tuer une instance, ce
+  # qu'on ne fait pas dans un environnement d'intégration.
+  #
+  # Conséquence à connaître : `min.insync.replicas: 1` en dessous. Avec la valeur
+  # de production (2) et un seul broker, TOUTE écriture Kafka bloquerait — le
+  # cluster refuserait d'acquitter faute d'une seconde copie. Les services
+  # démarreraient, et le premier événement publié resterait en attente.
+  - target:
+      kind: Cluster
+      name: postgres
+    patch: |-
+      - op: replace
+        path: /spec/instances
+        value: 1
+
+  - target:
+      kind: Kafka
+      name: kafka
+    patch: |-
+      - op: replace
+        path: /spec/kafka/config/default.replication.factor
+        value: 1
+      - op: replace
+        path: /spec/kafka/config/min.insync.replicas
+        value: 1
+      - op: replace
+        path: /spec/kafka/config/offsets.topic.replication.factor
+        value: 1
+      - op: replace
+        path: /spec/kafka/config/transaction.state.log.replication.factor
+        value: 1
+      - op: replace
+        path: /spec/kafka/config/transaction.state.log.min.isr
+        value: 1
+
+  # LE DOMAINE EST PROPRE À L'ENVIRONNEMENT (§2).
+  #
+  # Les trois overlays ne doivent JAMAIS pointer le même hôte : le §2 exige des
+  # namespaces, secrets, bases et buckets distincts, et un domaine partagé
+  # ferait entrer du trafic de production dans un cluster de validation sans que
+  # personne s'en aperçoive avant les journaux.
+  #
+  # `.example` est un domaine réservé (RFC 2606) : il ne résoudra jamais. C'est
+  # délibéré — un placeholder qui résout est un placeholder qu'on oublie de
+  # remplacer.
+  - target:
+      kind: Ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: api.dev.hba-express.example
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: api.dev.hba-express.example
+
+images:
+  - name: hba/api-gateway
+    newTag: "dev"
+  - name: hba/identity-service
+    newTag: dev
+  - name: hba/user-service
+    newTag: dev
+  - name: hba/media-service
+    newTag: dev
+  - name: hba/communication-service
+    newTag: dev
+  - name: hba/financial-service
+    newTag: dev
+  - name: hba/engagement-service
+    newTag: dev
+  - name: hba/catalog-service
+    newTag: dev
+  - name: hba/merchant-service
+    newTag: dev
+  - name: hba/inventory-service
+    newTag: dev
+  - name: hba/commerce-service
+    newTag: dev
+  - name: hba/order-service
+    newTag: dev
+  - name: hba/food-service
+    newTag: dev
+  - name: hba/delivery-service
+    newTag: dev
+  - name: hba/promotion-service
+    newTag: dev

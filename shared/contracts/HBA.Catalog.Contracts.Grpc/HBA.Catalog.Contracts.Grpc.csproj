@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Protobuf Include="..\..\proto\catalog\v1\catalog.proto" GrpcServices="Both" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\services\marketplace\catalog-service\src\HBA.Catalog.Contracts\HBA.Catalog.Contracts.csproj" />
+    <ProjectReference Include="..\..\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+</Project>

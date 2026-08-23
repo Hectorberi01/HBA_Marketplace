@@ -1,0 +1,151 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# NETWORKPOLICIES — DENY BY DEFAULT (§5).
+#
+# SANS CES OBJETS, TOUT POD PARLE À TOUT POD. C'EST LE DÉFAUT DE KUBERNETES.
+#
+# Le §5 exige l'inverse : « chaque service ne peut contacter que ses dépendances
+# explicitement déclarées ». Le §25 en fait un critère d'acceptation — « aucun
+# datastore interne n'est exposé publiquement ».
+#
+# ELLES NE FONT RIEN SANS UN CNI QUI LES APPLIQUE.
+#
+# C'est le piège de ce fichier : sur un cluster dont le CNI ne gère pas les
+# NetworkPolicies, ces objets sont créés, `kubectl get netpol` les affiche, et
+# AUCUN paquet n'est filtré. Tout paraît en place.
+#
+# CORRECTION D'UNE AFFIRMATION ANTÉRIEURE DE CE FICHIER : k3s les applique.
+# flannel seul ne le ferait pas, mais k3s embarque en plus le contrôleur de
+# politiques réseau de kube-router, ACTIVÉ PAR DÉFAUT. Ce qui les désactiverait,
+# c'est le drapeau `--disable-network-policy` — que `infra/ansible/roles/
+# k3s-serveur` ne pose pas, et où un encadré explique pourquoi il ne faut pas
+# l'ajouter « le temps de déboguer ».
+#
+# À vérifier une fois, en essayant depuis un pod quelconque de joindre Postgres :
+# si la connexion s'ouvre, ces fichiers ne servent à rien.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+spec:
+  # Sélecteur vide = TOUS les pods du namespace.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# LE DNS DOIT ÊTRE ROUVERT EXPLICITEMENT, ET ON L'OUBLIE TOUJOURS.
+#
+# `deny-all` sur l'egress coupe aussi les requêtes vers CoreDNS. Les symptômes ne
+# ressemblent pas à un problème réseau : les services démarrent, puis échouent à
+# résoudre `postgres` ou `identity-service` avec des erreurs de connexion — que
+# l'on impute d'abord au service visé, pas à la résolution de son nom.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Trafic entrant : seul l'Ingress Controller atteint le port HTTP des applications
+# exposées (§1). Les services applicatifs, eux, ne reçoivent rien de l'extérieur.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-gateway
+spec:
+  podSelector:
+    matchLabels:
+      hba.express/exposition: publique
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# MAILLAGE INTERNE : LES SERVICES SE PARLENT EN gRPC, ENTRE EUX SEULEMENT.
+#
+# CETTE RÈGLE EST VOLONTAIREMENT GROSSIÈRE, ET C'EST UN COMPROMIS ASSUMÉ.
+#
+# Le §5 voudrait que chaque service ne joigne QUE ses dépendances déclarées. À
+# quatorze services et une trentaine d'arêtes, une politique par paire serait
+# exacte — et deviendrait fausse au premier client gRPC ajouté, sans que rien ne
+# le signale autrement que par une panne en production.
+#
+# On ferme donc d'abord ce qui compte vraiment : plus rien n'entre depuis
+# l'extérieur, et plus rien ne sort du namespace. Le resserrement par paire
+# viendra quand le graphe d'appels sera stable et vérifié par `check-di.py`, qui
+# le connaît déjà.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: hba-express
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: hba-express
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: hba-express
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES DATASTORES N'ACCEPTENT QUE LES APPLICATIONS HBA (§5, §25).
+#
+# Postgres, Redis, Kafka et MinIO tournent DANS le cluster (décision D9). Ils sont
+# donc joignables par tout pod du namespace tant que rien ne l'interdit — y compris
+# par un pod de débogage lancé à la main, ou par un conteneur compromis.
+#
+# CETTE RÈGLE NE REMPLACE PAS LE MOT DE PASSE. Elle réduit la surface ; elle ne
+# rend pas Postgres sûr. Le §5 demande aussi TLS et NetworkPolicy, pas l'un OU
+# l'autre.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: datastores-accept-hba-only
+spec:
+  podSelector:
+    matchLabels:
+      hba.express/role: datastore
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: hba-express

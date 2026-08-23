@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package hba.financial.v1;
+
+option csharp_namespace = "HBA.Financial.Grpc.V1";
+
+service FinancialApi {
+  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+  rpc GetPaymentByOrder(GetPaymentByOrderRequest) returns (GetPaymentResponse);
+  rpc InitiatePayment(InitiatePaymentRequest) returns (InitiatePaymentResponse);
+  rpc CapturePayment(CapturePaymentRequest) returns (FinancialOperationResponse);
+  rpc FailPayment(FailPaymentRequest) returns (FinancialOperationResponse);
+  rpc RefundPayment(RefundPaymentRequest) returns (FinancialOperationResponse);
+  rpc ComputeCommission(ComputeCommissionRequest) returns (ComputeCommissionResponse);
+  rpc GetSellerWallet(GetSellerWalletRequest) returns (GetWalletResponse);
+  rpc GetDriverWallet(GetDriverWalletRequest) returns (GetWalletResponse);
+}
+
+message GetPaymentRequest {
+  string payment_id = 1;
+}
+
+message GetPaymentByOrderRequest {
+  string order_id = 1;
+}
+
+message GetPaymentResponse {
+  bool found = 1;
+  PaymentSummary payment = 2;
+}
+
+message InitiatePaymentRequest {
+  string order_id = 1;
+  string user_id = 2;
+  string amount = 3;
+  string currency = 4;
+  string provider = 5;
+  optional string payment_method_id = 6;
+}
+
+message InitiatePaymentResponse {
+  bool succeeded = 1;
+  string payment_id = 2;
+  optional string redirect_url = 3;
+  string reason = 4;
+}
+
+message CapturePaymentRequest {
+  string payment_id = 1;
+  string provider_reference = 2;
+}
+
+message FailPaymentRequest {
+  string payment_id = 1;
+  string reason = 2;
+}
+
+message RefundPaymentRequest {
+  string payment_id = 1;
+  string return_id = 2;
+  string refund_id = 3;
+  string amount = 4;
+  string currency = 5;
+  string reason = 6;
+  string idempotency_key = 7;
+}
+
+message FinancialOperationResponse {
+  bool succeeded = 1;
+  string reason = 2;
+  string provider_reference = 3;
+  string status = 4;
+  string amount = 5;
+  string currency = 6;
+  string refund_id = 7;
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // LE CODE D'ERREUR NORMALISÉ, DANS SON PROPRE CHAMP (D32, ADDITIF).
+  //
+  // `reason` contenait DEUX informations empaquetées dans une chaîne — et pas
+  // de la même manière selon le service : « code — message » ici,
+  // « code:message » là. Aucun appelant ne reparsait ni l'un ni l'autre. Le code
+  // normalisé, seul élément stable et traduisible, était donc PERDU au passage
+  // du saut gRPC : il ne restait qu'un texte libre destiné à un humain.
+  //
+  // Champ additif : les appelants qui l'ignorent lisent `reason` comme avant.
+  // `reason` reste le message LISIBLE ; `reason_code` porte le code.
+  // ═════════════════════════════════════════════════════════════════════════
+  string reason_code = 8;
+}
+
+message ComputeCommissionRequest {
+  string seller_id = 1;
+  string category_id = 2;
+  string gross_amount = 3;
+  string currency = 4;
+}
+
+message ComputeCommissionResponse {
+  string gross_amount = 1;
+  string commission_amount = 2;
+  string net_amount = 3;
+  string currency = 4;
+}
+
+message GetSellerWalletRequest {
+  string seller_id = 1;
+}
+
+message GetDriverWalletRequest {
+  string driver_id = 1;
+}
+
+message GetWalletResponse {
+  bool found = 1;
+  WalletSummary wallet = 2;
+}
+
+message PaymentSummary {
+  string payment_id = 1;
+  string order_id = 2;
+  string user_id = 3;
+  string status = 4;
+  string provider = 5;
+  string amount = 6;
+  string currency = 7;
+}
+
+message WalletSummary {
+  string wallet_id = 1;
+  string owner_id = 2;
+  string owner_type = 3;
+  string balance = 4;
+  string currency = 5;
+}

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Communication.Application\HBA.Communication.Application.csproj" />
+    <ProjectReference Include="..\HBA.Communication.Infrastructure\HBA.Communication.Infrastructure.csproj" />
+
+    <!-- Seconde tranche du service : notifications, préférences, appareils. -->
+    <ProjectReference Include="..\HBA.Communication.Notifications.Application\HBA.Communication.Notifications.Application.csproj" />
+    <ProjectReference Include="..\HBA.Communication.Notifications.Infrastructure\HBA.Communication.Notifications.Infrastructure.csproj" />
+
+    <!--
+      CLIENTS gRPC — LE COMPOSITION ROOT, ET LUI SEUL.
+
+      La couche Application ne connaît que les INTERFACES (`IProductsModuleApi`,
+      `ISellerModuleApi`, `IIdentityModuleApi`). Les implémentations qui parlent
+      sur le réseau sont branchées ici, dans le projet hôte. Les référencer
+      depuis Application donnerait à la logique métier une dépendance au
+      transport.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Catalog.Contracts.Grpc\HBA.Catalog.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts.Grpc\HBA.Identity.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
+
+    <!--
+      LE SECOND UNIVERS DE COMMANDES (lot 6.4). `AcheteurDuTicket` résout
+      l'acheteur d'un ticket de cuisine chez order-service OU chez
+      food-order-service selon l'origine du ticket ; sans ce client, le parcours
+      food n'avait aucune notification de suivi.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

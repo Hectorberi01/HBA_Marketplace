@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+package hba.deliverypricing.v1;
+
+option csharp_namespace = "HBA.DeliveryPricing.Grpc.V1";
+
+service DeliveryPricingApi {
+  rpc QuoteDelivery(QuoteDeliveryRequest) returns (DeliveryQuoteReply);
+  rpc ValidateQuote(ValidateQuoteRequest) returns (ValidateQuoteResponse);
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // RELIRE UN DEVIS DÉJÀ ÉTABLI, POUR QUI NE PEUT RIEN TENIR POUR ACQUIS.
+  //
+  // CE RPC EXISTE PARCE QUE `DeliveryApi.LookupQuote` N'A JAMAIS EU DE CORPS.
+  //
+  // Le checkout marchandise ET le checkout repas l'appelaient sur delivery-service
+  // pour lire le montant du devis que l'acheteur a vu — c'est ce qui empêche
+  // l'acheteur de dicter ses propres frais de port. Aucun serveur ne
+  // l'implémentait : les deux parcours rendaient `UNIMPLEMENTED`, et AUCUNE
+  // COMMANDE DE REPAS NE POUVAIT ÊTRE PASSÉE, le devis y étant obligatoire.
+  //
+  // ET IL EST ICI, PAS LÀ-BAS. delivery-service n'a plus de domaine de
+  // tarification depuis la séparation des deux services : ses entités `DeliveryQuote`,
+  // `DeliveryZone` et `PricingRule` n'existent plus dans son code. Le seul magasin
+  // de devis vivant est celui-ci. L'implémenter côté delivery-service aurait
+  // interrogé une table vide.
+  //
+  // POURQUOI PAS `ValidateQuote`, QUI EXISTE DÉJÀ. Il rend quatre champs —
+  // valide, statut, total, devise. Le checkout doit vérifier QUATRE choses de
+  // plus, et un montant seul n'en couvre aucune : ce devis est-il expiré ou
+  // consommé (deux cas distincts, deux messages différents au client), a-t-il été
+  // établi pour CETTE adresse, et pour CE niveau de service.
+  // ═════════════════════════════════════════════════════════════════════════
+  rpc LookupQuote(LookupQuoteRequest) returns (LookupQuoteResponse);
+  rpc ConsumeQuote(ConsumeQuoteRequest) returns (ValidateQuoteResponse);
+  rpc GetServiceability(GetServiceabilityRequest) returns (GetServiceabilityResponse);
+}
+
+message GeoPoint {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message QuoteDeliveryRequest {
+  optional string seller_id = 1;
+  optional string store_id = 2;
+  GeoPoint pickup = 3;
+  GeoPoint dropoff = 4;
+  optional int32 distance_meters = 5;
+  optional int32 duration_seconds = 6;
+  optional string vehicle_type = 7;
+  int64 discount = 8;
+  optional string currency = 9;
+  optional string service_level = 10;
+}
+
+message DeliveryQuoteReply {
+  string quote_id = 1;
+  optional string seller_id = 2;
+  optional string store_id = 3;
+  int32 distance_meters = 4;
+  int32 duration_seconds = 5;
+  optional string vehicle_type = 6;
+  int64 subtotal = 7;
+  int64 discount = 8;
+  int64 total = 9;
+  string currency = 10;
+  string expires_at = 11;
+  string pricing_version = 12;
+  string status = 13;
+  optional string service_level = 14;
+}
+
+message ValidateQuoteRequest {
+  string quote_id = 1;
+}
+
+message ConsumeQuoteRequest {
+  string quote_id = 1;
+  string delivery_id = 2;
+}
+
+message ValidateQuoteResponse {
+  string quote_id = 1;
+  bool valid = 2;
+  string status = 3;
+  optional int64 total = 4;
+  optional string currency = 5;
+}
+
+message LookupQuoteRequest {
+  string quote_id = 1;
+}
+
+message LookupQuoteResponse {
+  // Faux ne veut pas dire « erreur » : un identifiant recopié de travers ou un
+  // devis purgé sont des cas ordinaires, et l'appelant doit rendre « redemandez
+  // un prix », pas une panne.
+  bool found = 1;
+
+  string quote_id = 2;
+
+  // ENTIER, COMME TOUS LES MONTANTS DE CE SERVICE (D39). delivery-pricing
+  // compte en francs entiers — le franc CFA n'a pas de sous-unité. La conversion
+  // vers le `decimal` du reste du dépôt se fait UNE FOIS, côté client, et elle
+  // est exacte : 1500 devient 1500,00. Jamais de × 100 ni de / 100.
+  int64 total = 3;
+
+  string currency = 4;
+  int32 estimated_minutes = 5;
+  double distance_km = 6;
+  string expires_at = 7;
+
+  // EXPIRÉ ET CONSOMMÉ SONT RENDUS SÉPARÉMENT, PAS FONDUS EN « INVALIDE ».
+  //
+  // Les deux appellent des gestes opposés côté appelant : un devis EXPIRÉ se
+  // redemande — l'acheteur a mis trop longtemps à payer ; un devis DÉJÀ CONSOMMÉ
+  // signale qu'une course existe pour ce prix, donc un rejeu ou un défaut
+  // d'intégration. Le message affiché au client n'est pas le même.
+  //
+  // LES DEUX SONT DÉCIDÉS PAR LE SERVEUR. Comparer soi-même `expires_at`
+  // déplacerait la règle chez chaque appelant, avec son horloge et sa dérive.
+  // La date reste rendue — elle sert au message — mais pas la décision.
+  bool is_expired = 8;
+  bool is_consumed = 9;
+
+  // Les quatre coordonnées du trajet chiffré. Sans elles, un devis parfaitement
+  // valide reste opposable pour n'importe quelle destination : on chiffre une
+  // course de deux rues et on la présente pour l'autre bout de la ville.
+  double pickup_latitude = 10;
+  double pickup_longitude = 11;
+  double dropoff_latitude = 12;
+  double dropoff_longitude = 13;
+
+  // « EXPRESS », « STANDARD », « SCHEDULED » — le niveau de service tel qu'il est
+  // stocké, pas une énumération : les contrats ne connaissent pas les
+  // énumérations du domaine et ne doivent pas les connaître.
+  string delivery_type = 14;
+}
+
+// AUCUN `partner_id` DANS CETTE RÉPONSE, ET C'EST UN MANQUE CONNU.
+//
+// `PlaceOrderCommandHandler` refuse un devis dont le `PartnerId` n'est pas nul —
+// « un acheteur qui a mis la main sur un identifiant de partenaire s'en servirait
+// pour payer son propre colis au tarif de gros ». Or delivery-pricing n'a AUCUNE
+// notion de partenaire : son devis ne porte pas ce champ, et il n'existe aucune
+// route de devis partenaire dans tout le dépôt.
+//
+// La garde est donc INERTE aujourd'hui — elle l'était déjà avant ce RPC, puisque
+// rien ne répondait. Elle est conservée telle quelle : le jour où une grille
+// partenaire existera, c'est ici qu'il faudra porter le champ, et la garde
+// mordra. La retirer maintenant obligerait à la réécrire de mémoire.
+
+message GetServiceabilityRequest {
+  GeoPoint pickup = 1;
+  GeoPoint dropoff = 2;
+}
+
+message GetServiceabilityResponse {
+  bool serviceable = 1;
+  int32 distance_meters = 2;
+  optional string reason = 3;
+}

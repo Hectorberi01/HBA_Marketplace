@@ -1,0 +1,18 @@
+gradle-wrapper.jar
+/.gradle
+/captures/
+/gradlew
+/gradlew.bat
+# Sans ancre « / » : Android Studio, ouvert sur le mauvais dossier, sème des copies de
+# ce fichier dans des sous-répertoires (android/gradle/local.properties). La règle
+# ancrée ne couvrait QUE android/local.properties, et l'égaré partait au commit —
+# avec un chemin absolu propre à une seule machine.
+local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# Remember to never publicly share your keystore.
+# See https://flutter.dev/to/reference-keystore
+key.properties
+**/*.keystore
+**/*.jks

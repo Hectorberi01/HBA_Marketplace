@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Versions alignées sur celles déjà éprouvées dans le monolithe
+      (`marketPlace/Directory.Packages.props`) : inutile d'introduire une
+      seconde matrice de versions de test dans le même dépôt.
+    -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+
+    <!-- Doit suivre la version d'ASP.NET Core de l'application testée. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+
+    <!--
+      Fabrication des jetons de test. Déclaré EXPLICITEMENT bien qu'il arrive
+      aussi par transitivité via JwtBearer : une dépendance transitive peut
+      disparaître d'une version à l'autre sans que ce soit une rupture pour son
+      auteur, et l'erreur obtenue alors — un type introuvable dans les tests —
+      n'indique pas d'où venait le paquet. La version est celle exigée par
+      JwtBearer 9.0.19 (Microsoft.IdentityModel 8.19.2) : aucun conflit possible.
+    -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\HBA.Gateway.Api\HBA.Gateway.Api.csproj" />
+  </ItemGroup>
+
+</Project>

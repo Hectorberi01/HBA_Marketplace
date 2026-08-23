@@ -1,0 +1,240 @@
+syntax = "proto3";
+
+package hba.order.v1;
+
+option csharp_namespace = "HBA.Orders.Grpc.V1";
+
+service OrderApi {
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc ListOrdersByBuyer(ListOrdersByBuyerRequest) returns (ListOrdersResponse);
+  rpc ListOrdersBySeller(ListOrdersBySellerRequest) returns (ListOrdersResponse);
+  rpc ConfirmPayment(ConfirmPaymentRequest) returns (OrderOperationResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (OrderOperationResponse);
+  rpc MarkDelivered(MarkDeliveredRequest) returns (OrderOperationResponse);
+  rpc ValidateCompletedOrder(ValidateCompletedOrderRequest) returns (ValidateCompletedOrderResponse);
+  rpc GetOrderReturnContext(GetOrderReturnContextRequest) returns (GetOrderReturnContextResponse);
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // LE COMPTEUR DE VENTES D'UN VENDEUR, COMPTÉ PAR LA BASE.
+  //
+  // IL EXISTE PARCE QUE `ListOrdersBySeller` N'A JAMAIS EU DE CORPS DE
+  // SERVEUR — ET QUE QUELQU'UN L'APPELAIT.
+  //
+  // `SellerSalesCountHandler`, dans seller-service, s'exécute à CHAQUE commande
+  // confirmée et appelle `GetSellerSalesCountAsync`, dont la version gRPC passait
+  // par `ListOrdersBySeller`. Résultat : `UNIMPLEMENTED` à chaque confirmation,
+  // levé AVANT que l'inbox ne soit marquée — donc rejeu du message jusqu'à
+  // épuisement, et `SalesCount` resté à zéro pour tous les vendeurs. C'est-à-dire
+  // exactement le défaut que ce handler avait été écrit pour fermer.
+  //
+  // ET ON NE RÉPARE PAS EN IMPLÉMENTANT `ListOrdersBySeller`.
+  //
+  // Rendre TOUTES les commandes d'un vendeur pour n'en tirer qu'une somme
+  // d'entiers est ce que le lot 8.4 a retiré côté in-process : un vendeur à dix
+  // mille ventes faisait remonter dix mille agrégats, et une commande à trois
+  // vendeurs le faisait trois fois. Le coût croissait avec le succès du vendeur.
+  //
+  // ET LE FILTRE DE STATUT NE PEUT PAS VIVRE CHEZ L'APPELANT.
+  //
+  // Une vente comptée est une vente PAYÉE — `Confirmed` ou `Delivered`. La
+  // version gRPC refaisait ce tri elle-même sur les lignes reçues : même
+  // interface, deux réponses possibles selon que le lecteur vit dans
+  // order-service ou ailleurs. Le serveur rend maintenant le nombre, pas la
+  // matière à le recalculer.
+  // ═════════════════════════════════════════════════════════════════════════
+  rpc GetSellerSalesCount(GetSellerSalesCountRequest) returns (GetSellerSalesCountResponse);
+}
+
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+message GetOrderResponse {
+  bool found = 1;
+  OrderSummary order = 2;
+}
+
+message ListOrdersByBuyerRequest {
+  string buyer_id = 1;
+}
+
+message ListOrdersBySellerRequest {
+  string seller_id = 1;
+}
+
+message ListOrdersResponse {
+  repeated OrderSummary orders = 1;
+}
+
+message ConfirmPaymentRequest {
+  string order_id = 1;
+}
+
+message CancelOrderRequest {
+  string order_id = 1;
+  string reason = 2;
+}
+
+message MarkDeliveredRequest {
+  string order_id = 1;
+}
+
+message OrderOperationResponse {
+  bool succeeded = 1;
+  string reason = 2;
+}
+
+message ValidateCompletedOrderRequest {
+  string order_id = 1;
+  string buyer_id = 2;
+  optional string product_id = 3;
+}
+
+message ValidateCompletedOrderResponse {
+  bool valid = 1;
+  string reason = 2;
+}
+
+message GetOrderReturnContextRequest {
+  string order_id = 1;
+}
+
+message GetOrderReturnContextResponse {
+  bool found = 1;
+  string reason = 2;
+  OrderReturnContext context = 3;
+}
+
+message OrderReturnContext {
+  string order_id = 1;
+  string customer_id = 2;
+  string seller_id = 3;
+  string store_id = 4;
+  string seller_order_id = 5;
+  string delivered_at_utc = 6;
+  string payment_id = 7;
+  string currency = 8;
+  string captured_amount = 9;
+  string already_refunded_amount = 10;
+  repeated OrderReturnLineContext lines = 11;
+}
+
+message OrderReturnLineContext {
+  string order_item_id = 1;
+  string product_id = 2;
+  string variant_id = 3;
+  string category_id = 4;
+  string sku = 5;
+  string name = 6;
+  int32 ordered_quantity = 7;
+  int32 delivered_quantity = 8;
+  int32 already_returned_quantity = 9;
+  string unit_paid_amount = 10;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CE MESSAGE ÉTAIT AMPUTÉ, ET LA CONVERSION MENTAIT.
+//
+// Il portait sept champs quand le contrat C# en porte dix-sept. Le client gRPC
+// comblait donc les trous en INVENTANT : `Kind` forcé à « Goods », `CartId` à
+// vide, `CreatedAtUtc` à `DateTime.MinValue`, les remises à zéro, et un prix
+// unitaire recalculé en divisant le total par la quantité.
+//
+// Conséquence : toute commande de REPAS lue par un autre service revenait en
+// commande de MARCHANDISE. Plat, options et note disparaissaient en silence, et
+// food-service ne pouvait pas ouvrir un ticket de cuisine à partir de ce qu'il
+// recevait. C'est ce qui bloquait tout le parcours Food.
+//
+// La règle qui aurait évité cela : un message de transport reflète le contrat
+// qu'il transporte, ou il déclare explicitement ce qu'il omet. Combler par des
+// valeurs plausibles est la pire des trois options.
+// ═════════════════════════════════════════════════════════════════════════════
+message GetSellerSalesCountRequest {
+  string seller_id = 1;
+}
+
+message GetSellerSalesCountResponse {
+  // Le nombre d'ARTICLES vendus, pas de commandes : c'est la somme des quantités
+  // des lignes de ce vendeur sur les commandes encaissées.
+  int32 sales_count = 1;
+}
+
+message OrderSummary {
+  string order_id = 1;
+  string order_number = 2;
+  string buyer_id = 3;
+  string status = 4;
+  string currency = 5;
+  string total_amount = 6;
+  repeated OrderLineSummary lines = 7;
+
+  string cart_id = 8;
+  string created_at = 9;
+  string subtotal = 10;
+  string total_seller_discount = 11;
+  string total_platform_discount = 12;
+
+  // « Goods » ou « Food ». Le discriminant, et non une déduction.
+  string kind = 13;
+  string restaurant_id = 14;
+
+  string shipping_fee = 15;
+
+  // Le devis de course FIGÉ au checkout. C'est lui qui garantit que la course
+  // achetée le sera au prix que le client a payé — sans lui, on rachèterait un
+  // devis vingt minutes plus tard, à une grille peut-être modifiée.
+  string delivery_quote_id = 16;
+
+  OrderShippingAddress shipping_address = 17;
+}
+
+// L'adresse de remise, à la béninoise : commune, quartier, point de repère.
+message OrderShippingAddress {
+  string label = 1;
+  string recipient = 2;
+  string commune_code = 3;
+  string commune_name = 4;
+  string quartier = 5;
+  string landmark = 6;
+  string line1 = 7;
+  string country_code = 8;
+  optional double latitude = 9;
+  optional double longitude = 10;
+  string phone = 11;
+}
+
+message OrderLineSummary {
+  string line_id = 1;
+  string seller_id = 2;
+  string product_id = 3;
+  string variant_id = 4;
+  string sku = 5;
+  int32 quantity = 6;
+  string total_amount = 7;
+
+  // `kind` DIT QUELS CHAMPS LIRE — voir le panier, même arbitrage.
+  //
+  // « Goods » renseigne l'offre, le SKU et le lieu d'expédition ; « Food »
+  // renseigne le restaurant, le plat et ses options. Déduire la nature de la
+  // vacuité d'un champ marche jusqu'au jour où l'on en ajoute un.
+  string kind = 8;
+
+  string offer_id = 9;
+  string ship_from_location_id = 10;
+
+  string unit_base_price = 11;
+  string seller_discount = 12;
+  string platform_discount = 13;
+  string final_unit_price = 14;
+
+  // ── Restauration ─────────────────────────────────────────────────────────
+  string restaurant_id = 15;
+  string menu_item_id = 16;
+  string notes = 17;
+  repeated OrderLineOption options = 18;
+}
+
+message OrderLineOption {
+  string option_group_id = 1;
+  string option_id = 2;
+}

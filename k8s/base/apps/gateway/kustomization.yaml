@@ -1,0 +1,85 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LA PASSERELLE — LE SEUL POINT D'ENTRÉE PUBLIC (§1, §6).
+#
+# Elle reprend le gabarit `../../services/_service` pour tout ce qui est commun :
+# sondes, SecurityContext non-root, requests/limits, PDB, HPA. Ce qui la
+# distingue tient dans les patches ci-dessous, et chacun a une raison.
+#
+# ELLE N'EXPOSE PAS DE PORT gRPC, ET LE LAISSER SERAIT PIRE QU'INUTILE.
+#
+# La passerelle proxifie du REST ; elle n'héberge aucun service gRPC. Un Service
+# qui publierait 9090 vers un conteneur où rien n'écoute rendrait des connexions
+# refusées — que l'on imputerait au service visé, pas à un port fantôme.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+namePrefix: gateway-
+
+commonLabels:
+  app.kubernetes.io/name: api-gateway
+
+resources:
+  - ../../services/_service
+  - ingress.yaml
+
+images:
+  - name: hba/service
+    newName: hba/api-gateway
+
+patches:
+  # Le port gRPC part des deux objets. La suppression est appariée par la CLÉ DE
+  # FUSION — `containerPort` côté pod, `port` côté Service — et non par position :
+  # un `op: remove` sur `/spec/ports/1` retirerait le mauvais port le jour où
+  # quelqu'un en ajoute un avant.
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: service
+      spec:
+        template:
+          metadata:
+            labels:
+              # SEUL LABEL QUE LA NetworkPolicy `allow-ingress-to-gateway`
+              # laisse joindre depuis l'Ingress Controller. Sans lui, la
+              # passerelle est déployée, saine, et injoignable.
+              hba.express/exposition: publique
+          spec:
+            containers:
+              - name: service
+                ports:
+                  - containerPort: 9090
+                    $patch: delete
+                env:
+                  - name: ASPNETCORE_URLS
+                    value: http://+:8080
+                  # `UseHbaService` en déduit le nom du service dans les traces et
+                  # le contexte propagé du §18. Laissé à « service », toute la
+                  # télémétrie de la passerelle serait anonyme.
+                  - name: SERVICE_NAME
+                    value: api-gateway
+
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: service
+      spec:
+        ports:
+          - port: 9090
+            $patch: delete
+
+  # DEUX REPLICAS DÈS LA BASE, CONTRAIREMENT AUX SERVICES.
+  #
+  # Le §4 place la passerelle à « 2-3 replicas » là où les microservices
+  # secondaires restent à 1. La raison n'est pas la charge : c'est qu'un
+  # redémarrage de la passerelle coupe TOUT, alors qu'un redémarrage de
+  # promotion-service ne coupe que les coupons.
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment

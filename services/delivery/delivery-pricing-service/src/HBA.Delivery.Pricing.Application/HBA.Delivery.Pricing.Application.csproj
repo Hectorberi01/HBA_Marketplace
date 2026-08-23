@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Delivery.Pricing.Domain\HBA.Delivery.Pricing.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>

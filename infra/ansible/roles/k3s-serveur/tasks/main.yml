@@ -1,0 +1,100 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE NŒUD SERVEUR k3s — PLAN DE CONTRÔLE (§4).
+#
+# UN SEUL SERVEUR, MÊME EN PRODUCTION À TROIS NŒUDS.
+#
+# k3s sait faire du HA à trois serveurs embarqués (etcd). Ce rôle ne le fait pas,
+# et il vaut mieux le dire que le laisser croire : la production tourne avec UN
+# plan de contrôle. Perdre ce nœud ne coupe pas les pods déjà lancés — ils
+# continuent — mais plus rien ne se replanifie, et `kubectl` ne répond plus.
+#
+# C'est un écart au §24 (« perte d'un nœud Kubernetes ») qu'il faudra fermer :
+# passer les trois nœuds en `--cluster-init` + `server`. Cela demande un
+# équilibreur devant le port 6443, sans quoi les agents pointent un seul serveur
+# et l'on n'a rien gagné. Décision à prendre AVANT la mise en production.
+# ═══════════════════════════════════════════════════════════════════════════════
+---
+- name: Vérifier que l'adresse privée est connue
+  # SANS `--node-ip` PRIVÉE, LE TRAFIC ENTRE NŒUDS SORT SUR INTERNET.
+  #
+  # k3s annonce alors l'IP publique, et le VXLAN entre pods passe par le réseau
+  # public — en clair, facturé, et hors de toute règle nftables du réseau privé.
+  # Tout fonctionne, ce qui est précisément le problème.
+  ansible.builtin.assert:
+    that:
+      - ip_privee is defined
+      - ip_privee | length > 0
+    fail_msg: >-
+      `ip_privee` manque pour {{ inventory_hostname }} — l'inventaire doit la
+      porter (sortie `noeuds` de Terraform). Voir infra/ansible/README.md.
+
+- name: Récupérer l'installateur k3s
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/bin/k3s-install.sh
+    mode: "0755"
+
+- name: Installer k3s (serveur)
+  ansible.builtin.command:
+    cmd: /usr/local/bin/k3s-install.sh
+    creates: /usr/local/bin/k3s
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_EXEC: >-
+      server
+      --node-ip {{ ip_privee }}
+      --advertise-address {{ ip_privee }}
+      --flannel-iface {{ interface_privee | default('ens4') }}
+      --tls-san {{ ansible_host }}
+      {% for c in k3s_desactiver %}--disable {{ c }} {% endfor %}
+      --write-kubeconfig-mode 0600
+    # CE QUI N'APPARAÎT PAS CI-DESSUS, ET NE DOIT PAS Y APPARAÎTRE :
+    #
+    #   --disable-network-policy
+    #
+    # k3s embarque le contrôleur de politiques réseau de kube-router, activé par
+    # défaut : c'est LUI qui applique `k8s/base/policies/`. Le drapeau ci-dessus
+    # les rendrait inertes sans rien supprimer — `kubectl get netpol` continuerait
+    # de tout afficher. On le pose parfois « le temps de déboguer » une connexion
+    # refusée, et on l'oublie. Le débogage se fait en lisant la politique.
+
+- name: Attendre que l'API réponde
+  ansible.builtin.wait_for:
+    port: 6443
+    host: "{{ ip_privee }}"
+    timeout: 180
+
+- name: Lire le jeton d'enrôlement des agents
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: jeton_k3s
+
+- name: Publier le jeton pour le rôle agent
+  # IL RESTE EN MÉMOIRE DE L'EXÉCUTION, PAS SUR DISQUE.
+  #
+  # Ce jeton donne le droit de rejoindre le cluster. L'écrire dans un fichier du
+  # dépôt ou dans un `group_vars` en clair reviendrait à publier une clé
+  # d'admission — et personne ne pense à la faire tourner ensuite.
+  ansible.builtin.set_fact:
+    k3s_jeton: "{{ jeton_k3s.content | b64decode | trim }}"
+
+- name: Rendre le kubeconfig lisible par l'opérateur
+  ansible.builtin.command:
+    cmd: >-
+      sed -i 's|127.0.0.1|{{ ansible_host }}|'
+      /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+  # Le kubeconfig généré pointe 127.0.0.1 : utilisable seulement DEPUIS le nœud.
+  # On réécrit l'hôte pour qu'il serve depuis le poste de l'opérateur — le
+  # certificat le couvre grâce à `--tls-san` ci-dessus.
+
+- name: Rapatrier le kubeconfig
+  ansible.builtin.fetch:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "{{ playbook_dir }}/../kubeconfig-{{ environnement }}.yaml"
+    flat: true
+  # CE FICHIER EST UN ACCÈS ADMINISTRATEUR COMPLET AU CLUSTER.
+  #
+  # `infra/ansible/.gitignore` l'exclut. À stocker comme un mot de passe, et à
+  # ne jamais confier à un runner CI tant que le §19 (VPN/bastion + MFA) n'est
+  # pas en place — c'est précisément le point ouvert de `cd.yml`.

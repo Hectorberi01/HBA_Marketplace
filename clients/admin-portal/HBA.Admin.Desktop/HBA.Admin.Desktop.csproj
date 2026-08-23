@@ -1,0 +1,91 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    LE BACK-OFFICE — APPLICATION DE BUREAU, PAS UNE PAGE WEB.
+
+    POURQUOI UN CLIENT LOURD ALORS QUE TOUT LE RESTE EST WEB OU MOBILE.
+
+    L'administration n'est pas un parcours utilisateur : c'est un poste de
+    travail. Les gestes qu'elle porte — approuver un KYB, débloquer un
+    versement, suspendre une boutique — sont peu nombreux, lourds de
+    conséquences, et faits par une poignée de personnes sur des machines
+    connues. Un client installé permet ce qu'un onglet de navigateur ne permet
+    pas : refuser de démarrer sans configuration explicite, et ne jamais écrire
+    de jeton d'administration sur le disque (voir `SessionAdmin`).
+
+    `WinExe` SUR LES TROIS SYSTÈMES, ET CE N'EST PAS UNE FAUTE.
+
+    Le nom est un héritage : sur Linux et macOS, ce réglage ne change rien. Sur
+    Windows, il évite qu'une console noire s'ouvre derrière la fenêtre — ce que
+    `Exe` ferait, et que personne ne remarque avant la première installation
+    chez un administrateur.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <RootNamespace>HBA.Admin.Desktop</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    AUCUN `<AvaloniaResource Include="**/*.axaml" />` ICI — ET C'EST VOULU.
+
+    Le premier réflexe est d'inscrire les vues et les thèmes explicitement, pour
+    que le fichier dise ce qu'il embarque. Les cibles Avalonia le font DÉJÀ :
+    `EnableDefaultAvaloniaItems` (activé par défaut) inclut tous les `.axaml` du
+    projet. Les déclarer une seconde fois échoue la compilation sur
+    « Duplicate 'AvaloniaResource' items were included » — message qui parle de
+    doublon sans nommer QUI a posé le premier.
+
+    Une ligne redeviendra nécessaire le jour où ce projet embarquera des images
+    ou des polices dans un dossier `Assets/` : celles-là ne sont pas incluses par
+    défaut.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!--
+    AUCUNE VERSION ICI — `Directory.Packages.props` LES PORTE TOUTES.
+
+    Le dépôt est en gestion centralisée des versions. Écrire `Version=` sur une
+    de ces lignes ferait échouer la restauration avec NU1008, message qui parle
+    de « centrally managed versions » et non du paquet fautif.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+
+    <!--
+      Diagnostics : l'inspecteur visuel (F12) en développement seulement. En
+      release, il n'est pas référencé du tout — un inspecteur d'arbre visuel
+      embarqué dans un binaire d'administration n'a rien à y faire.
+    -->
+    <PackageReference Include="Avalonia.Diagnostics" Condition="'$(Configuration)' == 'Debug'" />
+
+    <!--
+      PAS DE `Microsoft.Extensions.Configuration`, ET C'EST UN CHOIX.
+
+      Il aurait fallu quatre paquets — le socle, le fournisseur JSON, celui des
+      variables d'environnement, et le lieur — donc quatre lignes de plus dans
+      `Directory.Packages.props`, à tenir alignées sur les `9.0.0` du dépôt,
+      pour lire DEUX valeurs. `ConfigurationAdmin` les lit avec
+      `System.Text.Json`, qui est dans le cadre.
+
+      Le jour où cette application aura une vraie configuration en couches
+      (profils, surcharges par poste), le paquet redeviendra le bon outil.
+    -->
+  </ItemGroup>
+
+</Project>

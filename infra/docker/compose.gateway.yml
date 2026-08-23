@@ -1,0 +1,108 @@
+services:
+
+  gateway:
+    image: ${REGISTRY:-ghcr.io/hba}/gateway:${GATEWAY_VERSION:-latest}
+
+    # Sans `build`, `docker compose up` échoue tant que l'image n'a pas été
+    # publiée dans le registre — ce qui est le cas aujourd'hui. Avec, compose
+    # construit localement si l'image est absente.
+    build:
+      # CONTEXTE = RACINE `HBA/`, PAS `bff/`.
+      #
+      # Le Dockerfile a besoin de `Directory.Build.props` et
+      # `Directory.Packages.props`, posés à la racine : le projet passerelle ne
+      # déclare ni cadre cible ni version de paquet. Avec `../gateway/bff`, la
+      # restauration échoue sur « TargetFramework value '' was not recognized ».
+      context: ../../..
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: hba-gateway
+    restart: unless-stopped
+
+    env_file:
+      # FACULTATIF — voir le bloc d'explication en tête de
+      # `compose.services.yml`. Ce fichier n'existe dans aucun clone :
+      # `.gitignore` ignore `*.env`. En forme courte, Compose échouait dessus
+      # avant même d'essayer de démarrer quoi que ce soit.
+      - path: ./env/gateway.env
+        required: false
+
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+
+      # ═══════════════════════════════════════════════════════════════════
+      # LA PASSERELLE EST UN APPELANT gRPC COMME LES AUTRES.
+      #
+      # Elle interroge identity-service à chaque requête authentifiée pour le
+      # contrôle de révocation (D27). Sans ces variables, ce contrôle échoue —
+      # et il échoue à la PREMIÈRE REQUÊTE, pas au démarrage.
+      #
+      # `Internal__ApiKey` MANQUAIT ICI, ET RIEN NE LE DISAIT.
+      #
+      # Les treize services l'avaient dans `compose.services.yml` ; la
+      # passerelle non. Le seul repli était `env/gateway.env`, que `.gitignore`
+      # ignore et qui n'existe dans aucun clone — d'où `required: false`
+      # au-dessus. La révocation de jeton était donc inopérante sur toute pile
+      # montée depuis ce dépôt.
+      #
+      # Voir l'encadré d'identity-service dans `compose.services.yml` pour ce
+      # que les trois variables d'identité ferment, et pourquoi la rotation
+      # exige un redémarrage groupé.
+      # ═══════════════════════════════════════════════════════════════════
+      Internal__ApiKey: ${INTERNAL_API_KEY:?INTERNAL_API_KEY est obligatoire}
+      Internal__ServiceName: HBA.Gateway.Api
+      Internal__PrivateKey: ${INTERNAL_KEY_HBA_GATEWAY_API:?INTERNAL_KEY_HBA_GATEWAY_API est obligatoire}
+      Internal__PublicKeys: ${INTERNAL_PUBLIC_KEYS:?INTERNAL_PUBLIC_KEYS est obligatoire}
+
+      # ═══════════════════════════════════════════════════════════════════
+      # L'EXPORT OTLP — POSÉ ICI COMME POUR LES TREIZE SERVICES.
+      #
+      # La passerelle n'était PAS muette : son `appsettings.json` porte déjà
+      # `OpenTelemetry:Endpoint`, et c'est ce qui a longtemps fait d'elle le
+      # seul processus visible dans Grafana. La ligne ci-dessous ne corrige
+      # donc rien pour elle — elle aligne la source.
+      #
+      # CE QU'ELLE ÉVITE : deux adresses, l'une dans le code livré, l'autre
+      # dans l'orchestrateur. Le jour où le collecteur déménage, on modifie le
+      # `.env` du répertoire et la pile entière suit ; sans cette ligne, la
+      # passerelle resterait seule à viser l'ancienne adresse, en silence.
+      #
+      # L'environnement l'emporte sur `appsettings.json` — c'est l'ordre des
+      # fournisseurs de configuration d'ASP.NET Core, pas une convention
+      # locale.
+      # ═══════════════════════════════════════════════════════════════════
+      OpenTelemetry__Endpoint: ${OTEL_ENDPOINT:-http://otel-collector:4317}
+
+    networks:
+      - hba-backend
+      - hba-proxy
+
+    # AUCUN `depends_on` VERS LES MICROSERVICES, DÉLIBÉRÉMENT.
+    #
+    # La passerelle démarre et sert son trafic même si les treize services sont
+    # à terre : elle rend 502 sur les routes concernées et fonctionne pour les
+    # autres. La faire attendre transformerait la panne d'un seul service en
+    # indisponibilité totale de l'API — exactement ce que la sonde `ready`
+    # s'attache par ailleurs à éviter.
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hba-api.rule=Host(`${API_DOMAIN}`)"
+      - "traefik.http.routers.hba-api.entrypoints=websecure"
+      - "traefik.http.routers.hba-api.tls=true"
+      - "traefik.http.routers.hba-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.hba-api.middlewares=security-chain@file"
+      - "traefik.http.services.hba-api.loadbalancer.server.port=8080"
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+networks:
+  hba-backend:
+    external: true
+
+  hba-proxy:
+    external: true

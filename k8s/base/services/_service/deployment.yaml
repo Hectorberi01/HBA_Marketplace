@@ -1,0 +1,167 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE GABARIT DE DÉPLOIEMENT COMMUN À TOUS LES SERVICES HBA (§7).
+#
+# CE FICHIER N'EST DÉPLOYÉ PAR PERSONNE TEL QUEL.
+#
+# Il s'appelle « service » et chaque dossier voisin le reprend avec un
+# `namePrefix` : `identity-` donne `identity-service`, `order-` donne
+# `order-service`. Ce qui varie d'un service à l'autre — le nom, l'image, la
+# classe de ressources, le nombre de replicas — tient alors en dix lignes de
+# patch, au lieu de vingt-six copies d'un même fichier de soixante lignes.
+#
+# LA RAISON EST OPÉRATIONNELLE, PAS ESTHÉTIQUE.
+#
+# Vingt-six copies divergent. Le jour où l'on corrige un seuil de sonde ou une
+# capacité Linux, on le corrige vingt-six fois — et on en oublie deux, qui sont
+# précisément celles qui poseront problème six mois plus tard. Ici la correction
+# se fait une fois.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # `maxUnavailable: 0` — LE §7 L'ÉCRIT, ET IL FAUT LE LIRE AVEC replicas.
+      #
+      # À un seul replica, cette valeur impose de démarrer le nouveau pod AVANT
+      # d'arrêter l'ancien : le service ne tombe jamais pendant un déploiement.
+      # C'est ce qui rend le rolling update sûr même sur les services secondaires
+      # que le §4 laisse à un replica.
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: service
+        app.kubernetes.io/part-of: hba-express
+    spec:
+      # UN ServiceAccount PAR WORKLOAD (§19), CRÉÉ À CÔTÉ.
+      #
+      # Le compte `default` d'un namespace est partagé par tout ce qui y tourne :
+      # lui donner un droit, c'est le donner à tous. Le moindre privilège commence
+      # par une identité distincte.
+      serviceAccountName: service
+      automountServiceAccountToken: false
+
+      securityContext:
+        # CES QUATRE LIGNES EXIGENT UNE IMAGE NON-ROOT.
+        #
+        # Elles ont été posées APRÈS la correction des huit Dockerfiles qui
+        # tournaient en root (voir D10). Dans l'autre ordre, le pod aurait planté
+        # au démarrage et le diagnostic serait parti d'ici — alors que le défaut
+        # était dans l'image.
+        runAsNonRoot: true
+        runAsUser: 1654          # $APP_UID des images .NET 8+
+        runAsGroup: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: service
+          image: hba/service:latest
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc
+              containerPort: 9090
+
+          envFrom:
+            - configMapRef:
+                name: hba-platform
+            - secretRef:
+                name: hba-platform
+
+          env:
+            - name: SERVICE_NAME
+              value: service
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          # SYSTÈME DE FICHIERS EN LECTURE SEULE, DONC /tmp EN MÉMOIRE.
+          #
+          # `readOnlyRootFilesystem: true` sans ce volume fait échouer .NET dès
+          # qu'il veut écrire un fichier temporaire — et l'erreur est un
+          # `UnauthorizedAccessException` sur un chemin, pas un message parlant.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+          # ═══════════════════════════════════════════════════════════════════
+          # LES TROIS SONDES, ET ELLES NE DISENT PAS LA MÊME CHOSE (§7).
+          #
+          # CONFONDRE `live` ET `ready` REDÉMARRE UN SERVICE QUI VA BIEN.
+          #
+          # `/health/ready` vérifie les dépendances — la base, entre autres.
+          # `/health/live` ne vérifie que le processus. Un service qui a perdu
+          # Postgres ne doit plus recevoir de trafic ; le redémarrer n'y changera
+          # rien, et le redémarrer en boucle pendant l'incident ajoute une panne à
+          # une panne.
+          #
+          # D'où : liveness sur `live`, readiness sur `ready`. Jamais l'inverse.
+          # ═══════════════════════════════════════════════════════════════════
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            # Le démarrage applique les migrations en Development ; en production
+            # il reste long à froid (JIT, pool de connexions). 30 × 2 s laissent
+            # une minute avant que la liveness ne prenne le relais.
+            periodSeconds: 2
+            failureThreshold: 30
+
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            # Une seule sonde en échec suffit à retirer le pod du service : c'est
+            # réversible et sans coût. On ne veut pas la même indulgence que pour
+            # la liveness, qui, elle, tue le processus.
+            failureThreshold: 2
+
+          # Valeurs du §7. `requests` dimensionne le placement, `limits` borne le
+          # dégât d'une fuite. Les deux sont obligatoires : sans `requests`, le
+          # scheduler place à l'aveugle ; sans `limits`, un pod affame ses voisins.
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "768Mi"
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+      # 30 s PAR DÉFAUT NE SUFFISENT PAS À UN CONSOMMATEUR KAFKA.
+      #
+      # À l'arrêt, un consommateur doit finir le message en cours et valider son
+      # offset. Coupé au milieu, le message repart chez un autre pod — ce que
+      # l'inbox rattrape, mais au prix d'un traitement en double évité de justesse.
+      terminationGracePeriodSeconds: 60

@@ -1,0 +1,208 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             x:Class="HBA.Admin.Desktop.Views.UtilisateursView"
+             x:DataType="vm:UtilisateursViewModel">
+
+  <DockPanel>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="12" Margin="4,0,4,14">
+
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Text="Utilisateurs" Classes="titre" />
+          <TextBlock Classes="attenue" Text="{Binding Position}" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                    VerticalAlignment="Center">
+          <Button Classes="discret" Content="Précédente" Command="{Binding Precedente}" />
+          <Button Classes="discret" Content="Suivante" Command="{Binding Suivante}" />
+          <Button Classes="discret" Content="Actualiser" Command="{Binding Rafraichir}" />
+        </StackPanel>
+      </Grid>
+
+      <Grid ColumnDefinitions="*,Auto">
+        <Border Grid.Column="0" Classes="creux" Margin="0,0,10,0">
+          <TextBox Text="{Binding Recherche}" Watermark="Rechercher un prénom ou un nom" />
+        </Border>
+        <Button Grid.Column="1" Classes="principal" Content="Chercher" Command="{Binding Chercher}" />
+      </Grid>
+
+      <!--
+        CE QUE LA RECHERCHE NE SAIT PAS FAIRE, DIT AVANT L'ESSAI.
+
+        `Email` et `PhoneNumber` sont des value objects convertis : PostgreSQL ne
+        les compare pas en ILike. Chercher une adresse rend une liste vide SANS
+        erreur — et l'on en conclurait que le compte n'existe pas.
+      -->
+      <Border Classes="creux" Padding="16,12">
+        <TextBlock Text="{Binding LimiteRecherche}" TextWrapping="Wrap"
+                   Classes="attenue" FontSize="12" />
+      </Border>
+
+      <!-- Les onglets portent le compte de CHAQUE statut, calculé avant le filtre :
+           « Suspendus (3) » reste lisible pendant qu'on regarde les actifs. -->
+      <ItemsControl ItemsSource="{Binding Facettes}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="10" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:LigneFacette">
+            <Button Classes="discret" Classes.actif="{Binding Actif}"
+                    Content="{Binding Libelle}"
+                    Command="{Binding $parent[ItemsControl].((vm:UtilisateursViewModel)DataContext).Filtrer}"
+                    CommandParameter="{Binding Cle}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding EnCours}" Height="3" />
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding EnErreur}">
+        <TextBlock Text="{Binding Erreur}" TextWrapping="Wrap" Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding AConfirmation}">
+        <TextBlock Text="{Binding Confirmation}" TextWrapping="Wrap" Foreground="{DynamicResource Succes}" />
+      </Border>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="*,400">
+
+      <Border Grid.Column="0" Classes="carte" Margin="4,0,10,0" Padding="8">
+        <ListBox ItemsSource="{Binding Comptes}" SelectedItem="{Binding Selection}"
+                 Background="Transparent" BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="vm:LigneCompte">
+              <Grid ColumnDefinitions="*,Auto" Margin="6">
+                <StackPanel Grid.Column="0" Spacing="2">
+                  <TextBlock Text="{Binding Nom}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Courriel}" Classes="attenue" FontSize="11" />
+                  <TextBlock Text="{Binding LibelleRoles}" Classes="attenue" FontSize="11" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                  <Border Classes="pastille" IsVisible="{Binding !EstActif}">
+                    <TextBlock Text="{Binding Etat}" FontSize="10" />
+                  </Border>
+                  <Border Classes="pastille" IsVisible="{Binding Mfa}">
+                    <TextBlock Text="MFA" FontSize="10" />
+                  </Border>
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <Border Grid.Column="1" Classes="carte" Margin="0,0,4,0">
+        <ScrollViewer>
+          <StackPanel Spacing="14">
+
+            <TextBlock Classes="attenue" TextWrapping="Wrap"
+                       IsVisible="{Binding !ADesSelection}"
+                       Text="Sélectionnez un compte." />
+
+            <StackPanel Spacing="14" IsVisible="{Binding ADesSelection}">
+
+              <StackPanel Spacing="3">
+                <TextBlock Text="{Binding Selection.Nom}" Classes="titre" FontSize="18" />
+                <TextBlock Text="{Binding Selection.Courriel}" Classes="attenue" FontSize="12" />
+                <TextBlock Text="{Binding Selection.Telephone}" Classes="attenue" FontSize="12" />
+              </StackPanel>
+
+              <StackPanel Spacing="4">
+                <TextBlock Text="Adresse e-mail" Classes="attenue" FontSize="11" />
+                <!-- « Oui » et « oui, sur parole » ne valent pas la même chose :
+                     le contrat porte les deux champs pour cette raison. -->
+                <TextBlock Text="{Binding VerificationEmail}" FontSize="13" />
+              </StackPanel>
+
+              <StackPanel Spacing="4">
+                <TextBlock Text="Conditions générales" Classes="attenue" FontSize="11" />
+                <TextBlock Text="{Binding Selection.Conditions}" FontSize="13" TextWrapping="Wrap" />
+              </StackPanel>
+
+              <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                         IsVisible="{Binding Anonymise}"
+                         Foreground="{DynamicResource Alerte}"
+                         Text="Compte anonymisé à la demande de son titulaire. Nom, e-mail et téléphone ont été remplacés, le mot de passe détruit. Aucun geste ne fait sortir de cet état — il n'y a rien à restaurer." />
+
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="danger" Content="Suspendre" Command="{Binding Suspendre}" />
+                <Button Classes="discret" Content="Réactiver" Command="{Binding Reactiver}" />
+              </StackPanel>
+
+              <Border Height="1" Background="{DynamicResource AccentDoux}" />
+
+              <TextBlock Text="Rôles" Classes="titre" FontSize="16" />
+
+              <ItemsControl ItemsSource="{Binding RolesDuCompte}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:LigneRoleAssignable">
+                    <Border Classes="creux" Padding="14,10" Margin="0,0,0,8">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding Nom}" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="discret" Content="Retirer"
+                                Command="{Binding $parent[ItemsControl].((vm:UtilisateursViewModel)DataContext).Retirer}"
+                                CommandParameter="{Binding}" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <!--
+                LES NOMS VIENNENT D'UN SECOND APPEL.
+
+                `UserSummary.RoleIds` ne porte que des GUID. Le service des comptes
+                et celui des rôles sont le même service, mais deux routes, et
+                aucune ne les joint : la liste des rôles est chargée une fois, puis
+                sert à nommer.
+              -->
+              <Grid ColumnDefinitions="*,Auto">
+                <ComboBox Grid.Column="0" MinHeight="44" HorizontalAlignment="Stretch"
+                          Margin="0,0,10,0"
+                          ItemsSource="{Binding RolesDisponibles}"
+                          SelectedItem="{Binding RoleChoisi}"
+                          PlaceholderText="Rôle à donner">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="vm:LigneRoleAssignable">
+                      <TextBlock Text="{Binding Nom}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <Button Grid.Column="1" Classes="principal" Content="Donner"
+                        Command="{Binding Assigner}" VerticalAlignment="Center" />
+              </Grid>
+
+              <!--
+                CE QUE « SUSPENDRE » COUPE VRAIMENT.
+
+                `User.Suspend()` appelle `RevokeAllRefreshTokens()` : plus aucun
+                renouvellement. Et la passerelle interroge identity à chaque
+                requête authentifiée (`TokenRevocationMiddleware`), avec un cache
+                de trente secondes — le jeton d'accès cesse donc de passer en
+                moins d'une minute, sans attendre son expiration.
+
+                LA SEULE RÉSERVE EST LA PANNE : le contrôle échoue OUVERT (D27),
+                pour qu'une indisponibilité d'identity ne rende pas 401 à toute la
+                plateforme. Pendant une panne, un compte suspendu garde ses droits.
+              -->
+              <TextBlock Classes="attenue" FontSize="11" TextWrapping="Wrap"
+                         Text="Suspendre révoque tous les jetons de rafraîchissement, et la passerelle cesse d'accepter le jeton d'accès sous trente secondes — la durée de son cache de révocation. Réserve : ce contrôle échoue ouvert, donc pendant une panne d'identity le compte garde ses droits." />
+
+            </StackPanel>
+
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+    </Grid>
+
+  </DockPanel>
+</UserControl>

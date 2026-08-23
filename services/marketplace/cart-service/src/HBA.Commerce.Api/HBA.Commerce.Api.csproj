@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Commerce.Application\HBA.Commerce.Application.csproj" />
+    <ProjectReference Include="..\HBA.Commerce.Infrastructure\HBA.Commerce.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Catalog.Contracts.Grpc\HBA.Catalog.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Commerce.Contracts.Grpc\HBA.Commerce.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Inventory.Contracts.Grpc\HBA.Inventory.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
+
+    <!--
+      AJOUTÉ POUR BRANCHER LA TARIFICATION SUR promotion-service (ISSUE-033).
+
+      C'est le composition root qui choisit le transport : `AddPromotionGrpcClient`
+      enregistre `IPromotionModuleApi` sur le client gRPC. L'Infrastructure, elle,
+      ne connaît que l'interface — voir le commentaire de son `.csproj`.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts.Grpc\HBA.Promotions.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package hba.identity.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "HBA.Identity.Grpc.V1";
+
+// Équivalent de `IIdentityModuleApi`.
+service IdentityApi {
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserResponse);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LES TROIS RPC DU §10.1 DU CAHIER DES CHARGES.
+  //
+  // ValidateAccessToken NE REMPLACE PAS LA VALIDATION LOCALE.
+  //
+  // Chaque service valide déjà la signature du JWT lui-même, sans appel réseau, et
+  // c'est ce qui doit rester le chemin normal : router toutes les requêtes de la
+  // plateforme vers identity-service en ferait un point de panne unique.
+  //
+  // Ce RPC répond à la question que la validation locale ne PEUT pas trancher :
+  // « ce compte est-il encore actif ? ». Un jeton reste cryptographiquement valide
+  // jusqu'à son expiration — quinze minutes — même après suspension du compte. Les
+  // appels sensibles (paiement, retrait, action d'administration) ont besoin de
+  // cette vérification-là ; l'affichage d'un catalogue n'en a pas besoin.
+  // ═══════════════════════════════════════════════════════════════════════════
+  rpc ValidateAccessToken(ValidateAccessTokenRequest) returns (ValidateAccessTokenResponse);
+  rpc GetUserRoles(GetUserRolesRequest) returns (GetUserRolesResponse);
+  rpc RevokeUserSessions(RevokeUserSessionsRequest) returns (RevokeUserSessionsResponse);
+}
+
+message ValidateAccessTokenRequest {
+  string access_token = 1;
+}
+
+// Le principal du §18 : qui agit, et avec quels droits.
+message ValidateAccessTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  repeated string roles = 3;
+  repeated string permissions = 4;
+
+  // Renseigné quand valid = false : EXPIRED, SIGNATURE_INVALID, USER_SUSPENDED,
+  // USER_UNKNOWN. L'appelant en a besoin pour distinguer « rafraîchis ton jeton »
+  // de « ce compte est fermé » — deux situations qui n'appellent pas la même
+  // réaction côté client.
+  string reason = 5;
+}
+
+message GetUserRolesRequest {
+  string user_id = 1;
+}
+
+message GetUserRolesResponse {
+  bool found = 1;
+  repeated string roles = 2;
+  repeated string permissions = 3;
+}
+
+message RevokeUserSessionsRequest {
+  string user_id = 1;
+}
+
+message RevokeUserSessionsResponse {
+  // Nombre de jetons de rafraîchissement révoqués. Zéro est un succès : il signifie
+  // qu'aucune session n'était ouverte, pas que l'opération a échoué.
+  int32 revoked = 1;
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+// L'ADRESSE VOYAGE DANS UN MESSAGE, JAMAIS DANS UNE URL.
+//
+// C'était déjà la raison du POST dans la version REST : une adresse en chemin ou
+// en query se retrouve dans les journaux d'accès, les traces et l'historique des
+// intermédiaires. gRPC met tout dans le corps par construction — le point est
+// noté ici pour que personne n'ajoute un jour un `user_email` en métadonnée.
+message GetUserByEmailRequest {
+  string email = 1;
+}
+
+message GetUserResponse {
+  bool found = 1;
+  UserSummary user = 2;
+}
+
+message UserSummary {
+  string id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  string phone_number = 5;
+  string status = 6;
+  bool email_verified = 7;
+  bool mfa_enabled = 8;
+  repeated string role_ids = 9;
+
+  // `optional` : « aucune version acceptée » doit rester distinct de « version
+  // vide ». C'est le client qui compare cette valeur à celle qu'il embarque.
+  optional string accepted_terms_version = 10;
+  optional google.protobuf.Timestamp accepted_terms_on_utc = 11;
+
+  // Renseignée = e-mail vérifié PAR UN ADMINISTRATEUR, sur attestation, et non
+  // par le titulaire. « Oui » et « oui, sur parole » ne valent pas la même chose,
+  // et l'absence doit rester lisible comme telle.
+  optional google.protobuf.Timestamp email_verified_by_admin_on_utc = 12;
+}

@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    CE PROJET DEMANDE UN DOCKER EN MARCHE. LES AUTRES SUITES, NON.
+
+    Testcontainers démarre un vrai PostgreSQL et un vrai Kafka. Sur une machine
+    sans Docker, ces tests échouent au démarrage de la fixture — pas un par un,
+    mais tous ensemble, sur la même erreur de connexion au démon.
+
+    C'est pour cela qu'ils vivent dans un projet SÉPARÉ de
+    `HBA.Catalog.UnitTests` et `HBA.Catalog.AuthorizationTests`, qui tournent en
+    quelques secondes et sans rien installer. Mélangés, la suite entière
+    deviendrait indisponible dès que Docker manque — et l'on cesserait de lancer
+    les tests rapides pour la mauvaise raison.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+
+  <ItemGroup>
+    <Compile Include="..\Shared\TestTokens.cs" Link="Shared\TestTokens.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+
+    <!-- Les conteneurs jetables. Seuls paquets ajoutés par le lot 7. -->
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.Kafka" />
+
+    <!--
+      Lus directement par les tests : le producteur Kafka fabrique un message, et
+      Npgsql vérifie la ligne écrite dans `consumer_inbox`.
+
+      ON VÉRIFIE EN SQL, PAS PAR LE `DbContext` DU SERVICE.
+
+      Passer par `CatalogDbContext` ferait vérifier l'écriture avec le même
+      mécanisme que celui qui l'a produite : un mauvais mapping de colonne serait
+      invisible des deux côtés à la fois. Le SQL, lui, voit la table telle que la
+      migration l'a créée.
+    -->
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\catalog-service\src\HBA.Catalog.Api\HBA.Catalog.Api.csproj" />
+  </ItemGroup>
+
+</Project>

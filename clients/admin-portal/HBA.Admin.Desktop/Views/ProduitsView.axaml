@@ -1,0 +1,155 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             xmlns:svc="clr-namespace:HBA.Admin.Desktop.Services"
+             x:Class="HBA.Admin.Desktop.Views.ProduitsView"
+             x:DataType="vm:ProduitsViewModel">
+
+  <DockPanel>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="12" Margin="4,0,4,14">
+
+      <StackPanel Spacing="2">
+        <TextBlock Text="Produits" Classes="titre" />
+        <TextBlock Classes="attenue" Text="{Binding Position}" />
+      </StackPanel>
+
+      <!--
+        LA FILE DE VALIDATION EST L'ONGLET PAR DÉFAUT.
+
+        C'est le travail ; le catalogue complet est la consultation. Ouvrir sur
+        le catalogue obligerait à un clic avant de commencer, tous les jours.
+      -->
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button Classes="discret" Classes.actif="{Binding FileDeValidation}"
+                Content="File de validation" Command="{Binding Basculer}" CommandParameter="file" />
+        <Button Classes="discret" Classes.actif="{Binding SurCatalogue}"
+                Content="Tout le catalogue" Command="{Binding Basculer}" CommandParameter="catalogue" />
+      </StackPanel>
+
+      <Border Classes="creux" Padding="14,11">
+        <TextBlock Text="{Binding Explication}" TextWrapping="Wrap" Classes="attenue" />
+      </Border>
+
+      <!--
+        LES FILTRES DISPARAISSENT SUR LA FILE, ILS NE SE GRISENT PAS.
+
+        `products/reviews` n'accepte ni recherche ni statut. Un champ grisé
+        invite à chercher pourquoi ; un champ absent ne pose pas la question.
+      -->
+      <Grid ColumnDefinitions="*,190,Auto" IsVisible="{Binding FiltresActifs}">
+        <Border Grid.Column="0" Classes="creux" Margin="0,0,10,0">
+          <TextBox Text="{Binding Recherche}" Watermark="Nom, slug, code-barres" />
+        </Border>
+
+        <ComboBox Grid.Column="1" Margin="0,0,10,0" MinHeight="44"
+                  ItemsSource="{Binding Statuts}" SelectedItem="{Binding FiltreStatut}"
+                  PlaceholderText="Statut" />
+
+        <Button Grid.Column="2" Classes="principal" Content="Chercher" Command="{Binding Chercher}" />
+      </Grid>
+
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding EnCours}" Height="3" />
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding EnErreur}">
+        <TextBlock Text="{Binding Erreur}" TextWrapping="Wrap"
+                   Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding AConfirmation}">
+        <TextBlock Text="{Binding Confirmation}" TextWrapping="Wrap"
+                   Foreground="{DynamicResource Succes}" />
+      </Border>
+    </StackPanel>
+
+    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto" Margin="4,14,4,0">
+      <Button Grid.Column="0" Classes="discret" Content="Précédente" Command="{Binding Precedente}" />
+      <Button Grid.Column="2" Classes="discret" Content="Suivante" Command="{Binding Suivante}" />
+    </Grid>
+
+    <Grid ColumnDefinitions="*,340">
+
+      <Border Grid.Column="0" Classes="carte" Margin="4,0,10,0" Padding="8">
+        <ListBox ItemsSource="{Binding Produits}" SelectedItem="{Binding Selection}"
+                 Background="Transparent" BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="vm:LigneProduit">
+              <Grid ColumnDefinitions="*,130,120,150" Margin="6">
+
+                <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Nom}" FontWeight="SemiBold"
+                             TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding Slug}" Classes="attenue" FontSize="12"
+                             TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" Text="{Binding Statut}" Classes="attenue"
+                           VerticalAlignment="Center" />
+
+                <TextBlock Grid.Column="2" Text="Sans marque" Classes="attenue" FontSize="12"
+                           VerticalAlignment="Center" IsVisible="{Binding SansMarque}" />
+
+                <TextBlock Grid.Column="3" Text="{Binding Vendeur}" Classes="attenue"
+                           FontFamily="Consolas,Menlo,monospace" FontSize="13"
+                           VerticalAlignment="Center" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <Border Grid.Column="1" Classes="carte" Margin="0,0,4,0">
+        <DockPanel>
+
+          <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,16">
+            <TextBlock Text="Modération" Classes="titre" FontSize="18" />
+
+            <TextBlock Classes="attenue" TextWrapping="Wrap"
+                       IsVisible="{Binding !ADesSelection}"
+                       Text="Sélectionnez une fiche dans la liste." />
+
+            <TextBlock TextWrapping="Wrap" FontWeight="SemiBold"
+                       IsVisible="{Binding ADesSelection}"
+                       Text="{Binding Selection.Nom}" />
+
+            <Border Classes="creux" Padding="12" Margin="0,8,0,0"
+                    IsVisible="{Binding Selection.AGtin, FallbackValue=False}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Code-barres" Classes="attenue" FontSize="11" />
+                <TextBlock Text="{Binding Selection.Gtin}"
+                           FontFamily="Consolas,Menlo,monospace" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <ItemsControl ItemsSource="{Binding Gestes}" VerticalAlignment="Top">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="svc:GesteProduit">
+
+                <!--
+                  SEULS DEUX DES QUATRE SONT ROUGES.
+
+                  Approuver et rétablir OUVRENT un droit ; rejeter et suspendre
+                  en retirent un. C'est la table `GesteProduit` qui le dit — le
+                  gabarit ne fait que la lire, comme pour les vendeurs.
+                -->
+                <Button Classes="discret"
+                        Classes.danger="{Binding Destructeur}"
+                        Content="{Binding Libelle}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Margin="0,0,0,8"
+                        Command="{Binding $parent[ItemsControl].((vm:ProduitsViewModel)DataContext).Agir}"
+                        CommandParameter="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+        </DockPanel>
+      </Border>
+
+    </Grid>
+
+  </DockPanel>
+
+</UserControl>

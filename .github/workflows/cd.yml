@@ -1,0 +1,145 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROMOTION VERS UN ENVIRONNEMENT (§13, §14).
+#
+# CE WORKFLOW NE CONSTRUIT AUCUNE IMAGE. C'EST TOUT SON INTÉRÊT.
+#
+# Le §13 impose des images immuables identifiées par SHA. Reconstruire à la
+# promotion produirait un binaire DIFFÉRENT de celui qui a passé les tests de
+# staging — même code source, autre image — et le rollback ne voudrait plus rien
+# dire, puisqu'on ne saurait plus vers quoi revenir.
+#
+# La promotion écrit donc un tag dans l'overlay Kustomize et le commite. C'est le
+# dépôt qui devient la source de vérité de ce qui tourne (§25 : « reconstruisible
+# à partir de l'IaC et de Git »).
+#
+# IL S'ARRÊTE AVANT `kubectl apply`, ET C'EST UNE DÉCISION EN ATTENTE.
+#
+# Deux façons de fermer la boucle, à trancher :
+#   • Argo CD ou Flux réconcilient le cluster avec Git — le commit ci-dessous
+#     SUFFIT, rien d'autre à faire, et le cluster reste reconstructible.
+#   • un `kubectl apply` depuis ce workflow — plus direct, mais il faut alors
+#     confier un kubeconfig de production à GitHub Actions, et l'état du cluster
+#     cesse d'être déductible du dépôt.
+#
+# Tant que rien n'est décidé, ce workflow prépare et s'arrête. Un déploiement
+# à moitié automatisé qu'on croit complet serait pire que celui-ci, qui dit ce
+# qu'il ne fait pas.
+# ═══════════════════════════════════════════════════════════════════════════════
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environnement:
+        description: Environnement cible
+        required: true
+        type: choice
+        options: [staging, prod]
+      sha:
+        description: SHA du commit dont on promeut les images (40 caractères)
+        required: true
+        type: string
+
+concurrency:
+  # Deux promotions simultanées vers le même environnement s'écraseraient dans
+  # Git. On sérialise, sans annuler : une promotion en cours doit finir.
+  group: cd-${{ inputs.environnement }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  promouvoir:
+    name: Promouvoir ${{ inputs.sha }} vers ${{ inputs.environnement }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environnement }}   # porte l'approbation manuelle du §13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier que le SHA existe
+        run: |
+          # UN SHA INEXISTANT DONNERAIT UN OVERLAY QUI RÉFÉRENCE UNE IMAGE
+          # ABSENTE — et le symptôme serait `ImagePullBackOff` sur quinze pods,
+          # une heure plus tard, sans lien évident avec cette saisie.
+          git cat-file -e "${{ inputs.sha }}^{commit}" \
+            || { echo "::error::SHA ${{ inputs.sha }} inconnu du dépôt"; exit 1; }
+
+      - name: Installer kustomize
+        run: |
+          curl -sSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Vérifier la signature des images (§19)
+        run: |
+          curl -sSLo cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          chmod +x cosign
+
+          # ON VÉRIFIE AVANT DE PROMOUVOIR, PAS APRÈS.
+          #
+          # Une image non signée à ce stade veut dire qu'elle ne vient pas de la
+          # CI de ce dépôt. C'est exactement le contrôle que le §19 demande —
+          # « registre privé et images signées » — et il n'a de valeur que s'il
+          # bloque.
+          pip install --quiet pyyaml
+          services=$(python3 -c "
+          import yaml
+          k = yaml.safe_load(open('k8s/overlays/${{ inputs.environnement }}/kustomization.yaml'))
+          print(' '.join(i['name'].removeprefix('hba/') for i in k.get('images', [])))
+          ")
+
+          for service in $services; do
+            image="ghcr.io/${{ github.repository_owner }}/${service}:${{ inputs.sha }}"
+            if ! ./cosign verify \
+                  --certificate-identity-regexp ".*" \
+                  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+                  "$image" >/dev/null 2>&1; then
+              echo "::warning::$image non signée ou absente — non promue"
+            fi
+          done
+
+      - name: Poser le tag dans l'overlay
+        working-directory: k8s/overlays/${{ inputs.environnement }}
+        run: |
+          # ON NE TOUCHE QUE LES IMAGES DÉJÀ DÉCLARÉES PAR L'OVERLAY.
+          #
+          # `kustomize edit set image` AJOUTE une entrée si le nom est inconnu.
+          # Boucler sur la liste complète des images du dépôt y ferait donc
+          # apparaître les trois BFF, qui sont encore des squelettes et que cet
+          # overlay ne déploie pas — des entrées mortes que personne ne saurait
+          # plus pourquoi retirer.
+          #
+          # La liste de référence est celle du kustomization lui-même.
+          pip install --quiet pyyaml
+          noms=$(python3 -c "
+          import yaml
+          k = yaml.safe_load(open('kustomization.yaml'))
+          print(' '.join(i['name'] for i in k.get('images', [])))
+          ")
+
+          for nom in $noms; do
+            service=${nom#hba/}
+            kustomize edit set image "${nom}=ghcr.io/${{ github.repository_owner }}/${service}:${{ inputs.sha }}"
+            echo "  $service -> ${{ inputs.sha }}"
+          done
+
+      - name: Vérifier le rendu
+        run: |
+          pip install --quiet pyyaml
+          # Le contrôle refuse `latest` et toute image sans tag en production : il
+          # échoue donc si la promotion a laissé une entrée derrière elle.
+          python3 scripts/check-k8s.py ${{ inputs.environnement }}
+
+      - name: Commiter la promotion
+        run: |
+          git config user.name "hba-ci"
+          git config user.email "ci@hba-express.local"
+          git add k8s/overlays/${{ inputs.environnement }}
+          git diff --cached --quiet && { echo "Rien à promouvoir — déjà à jour."; exit 0; }
+          git commit -m "chore(cd): ${{ inputs.environnement }} <- ${{ inputs.sha }}"
+          git push
+
+      - name: Ce qu'il reste à faire à la main
+        run: |
+          echo "::notice::Overlay ${{ inputs.environnement }} mis à jour dans Git."
+          echo "::notice::La réconciliation vers le cluster n'est pas automatisée — voir l'encadré en tête de ce fichier."

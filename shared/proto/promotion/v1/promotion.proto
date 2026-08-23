@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package hba.promotion.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "HBA.Promotion.Grpc.V1";
+
+// Équivalent de `IPromotionModuleApi` — les trois RPC du §10.16, plus la
+// libération.
+service PromotionApi {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EVALUATE EST EN LECTURE PURE, RESERVE NE L'EST PAS.
+  //
+  // L'écran du panier rappelle Evaluate à chaque changement de quantité. Si elle
+  // réservait, dix modifications consommeraient dix fois l'enveloppe et
+  // épuiseraient une campagne sans qu'aucune commande ne soit passée.
+  //
+  // Reserve engage le budget et n'a sa place qu'au checkout.
+  // ═══════════════════════════════════════════════════════════════════════════
+  rpc EvaluatePromotion(EvaluatePromotionRequest) returns (EvaluatePromotionResponse);
+  rpc ReserveCoupon(ReserveCouponRequest) returns (ReserveCouponResponse);
+  rpc CommitCoupon(CommitCouponRequest) returns (CommitCouponResponse);
+
+  // Hors §10.16, et assumé : rendre le budget tout de suite sur un checkout
+  // abandonné vaut mieux qu'immobiliser une enveloppe trente minutes en
+  // attendant l'expiration.
+  rpc ReleaseCoupon(ReleaseCouponRequest) returns (ReleaseCouponResponse);
+}
+
+// Ce qu'un panier apporte pour qu'une remise soit calculée.
+//
+// LES MONTANTS SONT DES ENTIERS (§2). Le franc CFA n'a pas de sous-unité, et
+// un flottant sur une remise en pourcentage, répété un million de fois, n'est
+// plus une erreur d'arrondi.
+message PromotionContext {
+  string scope = 1;          // GLOBAL | MARKETPLACE | FOOD
+  int64 subtotal = 2;
+  int64 delivery_fee = 3;    // séparé : une remise peut ne toucher que la livraison
+  string currency = 4;
+  string user_id = 5;
+}
+
+message EvaluatePromotionRequest {
+  string code = 1;
+  PromotionContext context = 2;
+}
+
+// UN COUPON REFUSÉ REND UNE RÉPONSE, JAMAIS UN status != OK.
+//
+// Saisir un code périmé est un usage ordinaire du champ. Répondre par une erreur
+// gRPC ferait apparaître chaque frappe d'un client dans les compteurs d'erreur du
+// service et, surtout, ouvrirait le disjoncteur côté appelant — coupant les
+// évaluations valides de tous les autres clients. C'est la même leçon que pour la
+// validation de jeton d'identity-service.
+message EvaluatePromotionResponse {
+  bool valid = 1;
+  string promotion_id = 2;   // vide si invalide
+  int64 discount = 3;
+  string currency = 4;
+  string message = 5;        // « 10% de réduction » — affichable
+  string reason = 6;         // code stable si invalide, vide sinon
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // QUI PAIE LA REMISE (ISSUE-052, décision D28). AJOUTÉ, JAMAIS SUBSTITUÉ.
+  //
+  // `discount` seul ne dit pas de quelle poche sort l'argent. L'appelant doit
+  // pourtant écrire un `SellerDiscount` ET un `PlatformDiscount` dans son
+  // `PriceBreakdownDto` — et wallet calcule le gain vendeur sur
+  // `UnitBasePrice - SellerDiscount`. Sans ces champs, brancher promotion-service
+  // faisait payer aux VENDEURS les coupons de la PLATEFORME, silencieusement.
+  //
+  // NUMÉROS 7, 8, 9 : DES AJOUTS, DONC COMPATIBLES DANS LES DEUX SENS.
+  //
+  // Un serveur antérieur ne les remplit pas ; le client les lit à zéro et à
+  // chaîne vide. C'est pourquoi la règle d'interprétation est écrite ici :
+  // `seller_funded_discount + platform_funded_discount` vaut `discount` dès que
+  // `valid` est vrai. Un total non nul avec DEUX parts à zéro signale donc un
+  // serveur d'avant D28, et non « une remise que personne ne paie ».
+  //
+  // Aucun numéro n'est réutilisé et aucun champ existant n'est renommé : la
+  // règle D32 (contrats additifs) vaut pour protobuf comme pour les événements.
+  // ═══════════════════════════════════════════════════════════════════════════
+  int64 seller_funded_discount = 7;
+  int64 platform_funded_discount = 8;
+
+  // Vendeur qui finance. Vide = campagne de la plateforme. Indispensable à
+  // l'imputation dans un panier multi-vendeurs : sans lui, la part vendeur
+  // serait imputée à des marchands qui n'ont pas financé cette campagne.
+  string owner_seller_id = 9;
+}
+
+message ReserveCouponRequest {
+  string code = 1;
+  string user_id = 2;
+  string cart_id = 3;
+  PromotionContext context = 4;
+}
+
+// Idempotent par panier : un second appel pour le même cart_id rend la MÊME
+// retenue sans rien débiter de plus.
+message ReserveCouponResponse {
+  bool reserved = 1;
+  string reservation_id = 2;
+  string coupon_id = 3;
+  string promotion_id = 4;
+  int64 discount_amount = 5;
+  string currency = 6;
+  google.protobuf.Timestamp expires_at = 7;
+  string reason = 8;         // code stable si refusé
+}
+
+message CommitCouponRequest {
+  string reservation_id = 1;
+  string order_id = 2;
+}
+
+message CommitCouponResponse {
+  bool committed = 1;
+  string reason = 2;
+}
+
+message ReleaseCouponRequest {
+  string reservation_id = 1;
+}
+
+message ReleaseCouponResponse {
+  bool released = 1;
+  string reason = 2;
+}

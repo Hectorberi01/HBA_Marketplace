@@ -1,0 +1,22 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# PodDisruptionBudget (§7) — CONTRE LES ÉVICTIONS VOLONTAIRES, PAS LES PANNES.
+#
+# `minAvailable: 1` EST INERTE À UN SEUL REPLICA, ET C'EST VOULU.
+#
+# À un replica, ce budget empêcherait un `kubectl drain` d'aboutir : le nœud ne
+# se viderait jamais. Kubernetes tranche en faveur du drain après un délai, mais
+# l'opération devient bruyante pour rien.
+#
+# Il prend son sens dans l'overlay prod, où les services critiques passent à 2-3
+# replicas (§4) : le budget garantit alors qu'une maintenance de nœud n'emporte
+# pas les deux derniers pods en même temps.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: service
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: service

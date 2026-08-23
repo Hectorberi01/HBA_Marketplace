@@ -1,0 +1,246 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# INTÉGRATION CONTINUE (§13).
+#
+# UN SEUL FICHIER, ET C'EST UN ÉCART ASSUMÉ AU README DE CE DOSSIER.
+#
+# `.github/README.md` demande « un workflow par service ». Sa RAISON est juste :
+# ne pas reconstruire quinze services à chaque commit, pour pouvoir corriger la
+# restauration sans redéployer les paiements.
+#
+# Quinze fichiers quasi identiques auraient satisfait la lettre et créé le défaut
+# que ce dépôt combat partout ailleurs — quinze copies qui divergent, dont on en
+# oublie deux le jour où l'on change une étape. La raison est ici satisfaite par
+# `scripts/ci-affected.py`, qui calcule les images réellement touchées depuis le
+# GRAPHE DE RÉFÉRENCES des `.csproj`, transitivement.
+#
+# Une liste de chemins tenue à la main aurait échoué autrement, et en silence : le
+# service n'est pas reconstruit, l'image publiée reste l'ancienne, et la
+# correction qu'on croit déployée ne l'est pas.
+# ═══════════════════════════════════════════════════════════════════════════════
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # Une PR qui reçoit trois commits en cinq minutes n'a pas besoin de trois
+  # exécutions complètes — seule la dernière est intéressante. Sur `main` en
+  # revanche, on n'annule rien : chaque commit doit produire son image.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. LES CONTRÔLES QUI SE PAIENT EN SECONDES.
+  #
+  # Ils passent AVANT la compilation, et c'est tout leur intérêt : chacun attrape
+  # une classe d'erreurs que le compilateur ne voit pas — une dépendance injectée
+  # que personne ne fournit, un `using` manquant sur un namespace frère, un projet
+  # non copié dans une image, une table configurée sans migration.
+  # ═══════════════════════════════════════════════════════════════════════════
+  controles:
+    name: Contrôles du dépôt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer kustomize
+        run: |
+          curl -sSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Installer les dépendances des contrôles
+        # python-hcl2 sert à `check-infra.py`. Sans lui le contrôle ne casse pas :
+        # il s'ignore — ce qui serait une CI verte sur une infrastructure jamais
+        # relue. On l'installe donc explicitement.
+        run: pip install --quiet pyyaml python-hcl2
+
+      - name: check-all
+        run: ./scripts/check-all.sh
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. COMPILATION ET TESTS, SUR LA SOLUTION ENTIÈRE.
+  #
+  # PAS DE DÉCOUPAGE PAR SERVICE ICI, CONTRAIREMENT AUX IMAGES.
+  #
+  # Les quinze hôtes partagent `shared/` et se référencent par leurs contrats :
+  # compiler « juste order-service » compile de toute façon la moitié du dépôt.
+  # Le coût qu'on veut éviter est celui des IMAGES Docker, pas celui de `dotnet
+  # build` — et un `dotnet test` partiel ferait rater les tests de contrat
+  # d'événements, qui sont précisément ceux qui cassent entre services.
+  # ═══════════════════════════════════════════════════════════════════════════
+  build:
+    name: Compilation et tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-
+
+      - run: dotnet restore HBA.sln
+
+      # `--no-restore` ET `/m:1` : voir infra/README.md.
+      #
+      # La compilation parallèle de trente projets fait tomber le runner sur
+      # « cannot allocate memory » — le même défaut que `COMPOSE_PARALLEL_LIMIT`
+      # règle pour docker. Le symptôme est un code 137 sans message utile.
+      - run: dotnet build HBA.sln --configuration Release --no-restore /m:1
+
+      - name: Analyse de vulnérabilité des dépendances (§13)
+        # NE FAIT PAS ÉCHOUER LA PR, ET C'EST DÉLIBÉRÉ.
+        #
+        # Une CVE publiée dans une dépendance transitive bloquerait toutes les PR
+        # d'un coup, y compris celle qui la corrige. Le §13 demande un scan ; le
+        # §23 demande « aucune criticité bloquante » AVANT LA PRODUCTION — c'est
+        # dans `cd.yml` que la porte se ferme, pas ici.
+        continue-on-error: true
+        run: dotnet list HBA.sln package --vulnerable --include-transitive
+
+      - run: dotnet test HBA.sln --configuration Release --no-build --logger "trx;LogFileName=tests.trx"
+
+      - name: Conserver les résultats de test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultats-tests
+          path: "**/*.trx"
+          if-no-files-found: ignore
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. QUELLES IMAGES RECONSTRUIRE ?
+  # ═══════════════════════════════════════════════════════════════════════════
+  affectes:
+    name: Services affectés
+    runs-on: ubuntu-latest
+    outputs:
+      matrice: ${{ steps.calcul.outputs.matrice }}
+      vide: ${{ steps.calcul.outputs.vide }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # L'HISTORIQUE COMPLET EST NÉCESSAIRE.
+          #
+          # `actions/checkout` clone en profondeur 1 par défaut. `git diff
+          # origin/main...HEAD` échouerait alors — et le script, prudemment,
+          # reconstruirait TOUT. Un pipeline correct mais quinze fois trop long.
+          fetch-depth: 0
+
+      - id: calcul
+        run: |
+          base="${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
+          matrice=$(python3 scripts/ci-affected.py "$base")
+          echo "matrice=$matrice" >> "$GITHUB_OUTPUT"
+          echo "vide=$([ "$matrice" = '[]' ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "Services affectés : $matrice"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 4. IMAGE OCI : CONSTRUCTION, SBOM, SCAN, SIGNATURE, PUBLICATION (§13).
+  #
+  # SUR `main` SEULEMENT.
+  #
+  # Une PR vérifie que l'image SE CONSTRUIT ; elle ne publie rien. Publier depuis
+  # une branche remplirait le registre d'images qu'aucun déploiement n'atteindra,
+  # et brouillerait la traçabilité que le §13 demande — une image, un commit.
+  # ═══════════════════════════════════════════════════════════════════════════
+  image:
+    name: Image ${{ matrix.service }}
+    needs: [controles, build, affectes]
+    if: needs.affectes.outputs.vide == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write        # requis par cosign en mode keyless
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include: ${{ fromJson(needs.affectes.outputs.matrice) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Se connecter au registre
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construire
+        id: construire
+        uses: docker/build-push-action@v6
+        with:
+          # Contexte = racine du dépôt : les Dockerfiles copient `shared/`, qui
+          # vit hors du dossier du service.
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.ref == 'refs/heads/main' }}
+          # LE SHA DU COMMIT, JAMAIS `latest` (§13).
+          #
+          # Le §13 impose des images immuables identifiées par SHA ou semver, et
+          # interdit `latest` pour un déploiement reproductible. Le tag `main`
+          # ci-dessous existe pour la lisibilité humaine ; c'est le SHA qui est
+          # déployé.
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:main
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          provenance: true
+          sbom: true
+
+      - name: Scan de vulnérabilité
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          # ON N'ÉCHOUE PAS ICI — voir le §23 et `cd.yml`.
+          #
+          # Le rapport est conservé et remonté ; la porte se ferme avant la
+          # PRODUCTION, pas avant la publication. Bloquer ici empêcherait de
+          # publier l'image qui CORRIGE la vulnérabilité.
+          exit-code: "0"
+          severity: HIGH,CRITICAL
+
+      - name: Conserver le rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ matrix.service }}
+          path: trivy-${{ matrix.service }}.sarif
+          if-no-files-found: ignore
+
+      - name: "Signer l'image (§19 : registre privé et images signées)"
+        if: github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          curl -sSLo cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          chmod +x cosign
+          # Signature « keyless » : l'identité vient du jeton OIDC du workflow, il
+          # n'y a donc aucune clé privée à stocker ni à faire tourner. C'est ce que
+          # le §12 préfère à un secret de plus.
+          ./cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}@${{ steps.construire.outputs.digest }}

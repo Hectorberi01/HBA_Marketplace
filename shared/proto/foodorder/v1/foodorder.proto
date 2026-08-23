@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package hba.foodorder.v1;
+
+option csharp_namespace = "HBA.FoodOrders.Grpc.V1";
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LA COMMANDE DE REPAS, LUE PAR LES SERVICES QUI EN DÉPENDENT.
+//
+// Deux appelants aujourd'hui :
+//   • food-cart-service, pour savoir si l'acheteur en est à sa première
+//     commande — sans quoi les promotions « première commande » seraient
+//     inapplicables, comme elles l'ont été côté marketplace ;
+//   • restaurant-service, pour retrouver une commande depuis son ticket.
+//
+// LES MONTANTS VOYAGENT EN CHAÎNE. Voir `foodcart.proto`.
+// ═════════════════════════════════════════════════════════════════════════════
+
+service FoodOrderApi {
+  rpc GetOrder(GetMealOrderRequest) returns (GetMealOrderResponse);
+  rpc HasPlacedOrder(HasPlacedMealOrderRequest) returns (HasPlacedMealOrderResponse);
+}
+
+message GetMealOrderRequest {
+  string order_id = 1;
+}
+
+message GetMealOrderResponse {
+  bool found = 1;
+  MealOrderView order = 2;
+}
+
+message HasPlacedMealOrderRequest {
+  string buyer_id = 1;
+}
+
+message HasPlacedMealOrderResponse {
+  bool has_placed = 1;
+}
+
+message MealOrderView {
+  string order_id = 1;
+  string buyer_id = 2;
+  string restaurant_id = 3;
+  string status = 4;
+  string subtotal = 5;
+  string shipping_fee = 6;
+  string total_amount = 7;
+  string currency = 8;
+  string promotion_code = 9;
+  string delivery_quote_id = 10;
+  string customer_note = 11;
+  string created_on_utc = 12;
+  repeated MealOrderLine lines = 13;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OU LE REPAS DOIT ETRE PORTE (champs 14-21).
+  //
+  // Ecrits parce qu'AUCUNE COURSE N'ETAIT JAMAIS CREEE POUR UN REPAS :
+  // restaurant-service demandait l'adresse de remise a order-service, seul
+  // univers de commandes qu'il connaissait, et une commande de repas y etait
+  // introuvable. Le sac restait sur le passe.
+  //
+  // AJOUT ADDITIF : numeros neufs, aucun champ renumerote ni retire. Un client
+  // d'une version anterieure lit ce message sans erreur et ignore ces champs.
+  //
+  // Chaines vides et non `optional` : c'est la convention de ce fichier
+  // (`promotion_code`, `customer_note` font de meme). La latitude et la
+  // longitude sont en chaine comme les montants — voir l'entete : le zero
+  // numerique et « non renseigne » ne doivent pas se confondre, et 0/0 est un
+  // point valide dans le golfe de Guinee, a 500 km des cotes du Benin.
+  //
+  // `ship_to_commune_name` porte le LIBELLE, pas le code : c'est ce que
+  // `DeliveryStopRequest` attend, et la traduction se fait une seule fois, du
+  // cote qui possede la donnee.
+  // ═══════════════════════════════════════════════════════════════════════════
+  string ship_to_recipient = 14;
+  string ship_to_phone = 15;
+  string ship_to_commune_name = 16;
+  string ship_to_quartier = 17;
+  string ship_to_landmark = 18;
+  string ship_to_line1 = 19;
+  string ship_to_latitude = 20;
+  string ship_to_longitude = 21;
+}
+
+message MealOrderLine {
+  string line_id = 1;
+  string menu_item_id = 2;
+  string name = 3;
+  int32 quantity = 4;
+  string unit_price = 5;
+  string line_total = 6;
+  string currency = 7;
+  string notes = 8;
+  repeated MealOrderLineOption options = 9;
+}
+
+message MealOrderLineOption {
+  string option_group_id = 1;
+  string option_id = 2;
+}

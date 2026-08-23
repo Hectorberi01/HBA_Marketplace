@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Application : commands/queries/handlers/validators + abstractions d'auth
+       (hasher, JWT, TOTP). Référence Domain + Contracts + BuildingBlocks. -->
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Identity.Domain\HBA.Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+
+    <!--
+      TROIS CONTRATS D'AUTRES SERVICES — UNIQUEMENT POUR ÉCOUTER.
+
+      identity-service consomme « vendeur inscrit », « restaurant validé » et
+      « livreur vérifié » pour attribuer les rôles correspondants. Ce sont des
+      enregistrements d'événements transportés par Kafka : aucun Domain,
+      aucune Application, aucun appel synchrone vers ces services.
+
+      Ces références ont un second rôle, moins visible : le consommateur
+      Kafka résout le type d'un message en parcourant les assemblies
+      CHARGÉES. Sans une référence qui force le chargement, un message
+      arriverait, ne serait rattaché à aucun type, et serait ignoré en
+      silence. L'enregistrement des gestionnaires dans le conteneur suffit à
+      garantir ce chargement.
+    -->
+    <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\food\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+    <!-- Conservée bien que plus AUCUN type n'en soit utilisé ici depuis que
+         `GrantDriverRoleHandler` écoute le contrat de Drivers. Sans elle,
+         l'assembly n'est plus chargée et les `delivery.*` reçus passeraient de
+         « reconnu, aucun gestionnaire » à « NON RECONNU » dans le journal du
+         consommateur — un avertissement de câblage là où il n'y a rien à
+         câbler. À retirer le jour où ce bruit est jugé préférable. -->
+    <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+    <!-- `driver.verified` était déclaré des DEUX côtés, Deliveries et Drivers,
+         aux champs identiques. Le consommateur ne voyait que le premier par ordre
+         alphabétique : `GrantDriverRoleHandler`, enregistré sur l'autre, n'aurait
+         jamais été appelé — sans erreur — et le rôle `Driver` n'aurait été
+         attribué à personne. La déclaration côté Deliveries a été retirée. -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <!-- Handlers internes : visibles aux tests et à l'Infrastructure (DI). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Identity.UnitTests" />
+    <InternalsVisibleTo Include="HBA.Identity.Infrastructure" />
+  </ItemGroup>
+
+</Project>

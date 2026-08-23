@@ -1,0 +1,86 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!--
+      SANS CE FICHIER, LES `///` DU CODE N'ARRIVENT PAS DANS LA PAGE OPENAPI.
+      Swashbuckle ne lit pas les sources : il lit le XML produit à la compilation.
+      Sans lui, la documentation existe dans le dépôt et nulle part ailleurs.
+
+      CS1591 est mis en sourdine : il exige un commentaire XML sur CHAQUE membre
+      public. Le laisser actif noierait les avertissements utiles sous des
+      centaines de lignes réclamant de documenter des propriétés dont le nom
+      suffit.
+    -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    `WebApplicationFactory<Program>` a besoin d'une classe `Program` ACCESSIBLE.
+    Elle est rendue publique par la déclaration `public partial class Program`
+    en fin de Program.cs — pas par `InternalsVisibleTo`, qui n'aurait pas suffi :
+    le type généré pour un fichier d'instructions de haut niveau est interne ET
+    non partiel tant qu'on ne le déclare pas soi-même.
+  -->
+
+  <ItemGroup>
+    <!-- Validation du jeton émis par identity-service. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+
+    <!-- YARP : proxy inverse applicatif. -->
+    <PackageReference Include="Yarp.ReverseProxy" />
+
+    <!-- Génération et interface OpenAPI. -->
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+
+    <!--
+      OpenTelemetry. Les cinq paquets sont maintenus ensemble et publiés au même
+      rythme : les désynchroniser produit des erreurs de résolution de types
+      difficiles à lire, car l'API d'instrumentation dépend du SDK.
+    -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Gateway.Application\HBA.Gateway.Application.csproj" />
+    <ProjectReference Include="..\HBA.Gateway.Infrastructure\HBA.Gateway.Infrastructure.csproj" />
+
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      LE SEUL CLIENT gRPC DE LA PASSERELLE, ET IL N'EST PAS LÀ PAR CONFORT.
+
+      Tout le reste du trafic sortant d'ici est du REST sur le port 8080 : les
+      clients typés des BFF et les clusters YARP. Cette référence existe pour un
+      appel et un seul — `ValidateAccessToken`, le contrôle de révocation
+      (ISSUE-022, décision D27).
+
+      Il n'y a pas d'équivalent REST : `IdentityGrpcService` est publié par
+      `MapInternalGrpcService`, donc sur le port gRPC et derrière la clé interne.
+      Ouvrir une route REST de validation de jeton reviendrait à exposer, sur le
+      port joignable depuis le réseau du proxy, un point qui accepte n'importe
+      quel jeton d'accès en entrée. Le saut gRPC réutilise le contrôle existant
+      sans en créer un nouveau.
+
+      `HBA.Shared.Hosting` arrive TRANSITIVEMENT par ce projet — c'est de là
+      que viennent `InternalCallOptions` et `InternalCallClientInterceptor`,
+      utilisés dans `TokenRevocationExtensions`.
+      ═══════════════════════════════════════════════════════════════════════
+    -->
+    <ProjectReference Include="..\..\..\..\shared\contracts\HBA.Identity.Contracts.Grpc\HBA.Identity.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Controllers\Admin\" />
+    <Folder Include="Controllers\Driver\" />
+    <Folder Include="Controllers\Merchant\" />
+    <Folder Include="Controllers\Seller\" />
+  </ItemGroup>
+
+</Project>

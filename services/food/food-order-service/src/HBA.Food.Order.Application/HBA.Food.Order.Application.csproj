@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Food.Order.Domain\HBA.Food.Order.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Food.Order.Contracts\HBA.Food.Order.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+
+    <!-- Le panier de repas, lu pour figer ses lignes et ses prix. -->
+    <ProjectReference Include="..\..\..\food-cart-service\src\HBA.Food.Cart.Contracts\HBA.Food.Cart.Contracts.csproj" />
+
+    <!-- La carte : le prix est RECALCULÉ au paiement, il n'est pas repris du panier. -->
+    <ProjectReference Include="..\..\..\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+
+    <!-- Le devis de course, relu pour fixer les frais. -->
+    <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+
+    <!-- Le devis de course se relit chez delivery-pricing — voir HBA.Order.Application. -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
+
+    <!--
+      LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.
+
+      Un contrat déclaré deux fois — une copie partagée, une chez son
+      propriétaire — se résout au hasard de l'ordre de chargement, et le
+      gestionnaire enregistré sur l'autre n'est jamais appelé, sans erreur.
+    -->
+    <ProjectReference Include="..\..\..\..\common\payment-service\src\HBA.Financial.Payments.Contracts\HBA.Financial.Payments.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FoodOrder.UnitTests" />
+  </ItemGroup>
+
+</Project>

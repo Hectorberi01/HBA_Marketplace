@@ -1,0 +1,55 @@
+# ---- .NET ----
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userprefs
+project.lock.json
+artifacts/
+TestResults/
+*.tsbuildinfo
+
+# ---- Node / Next ----
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ---- IDE / OS ----
+.idea/
+.vs/
+.DS_Store
+*.swp
+
+# ---- Env / secrets ----
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---- Divers ----
+coverage/
+*.tmp
+
+# ---- Flutter / Dart ----
+.dart_tool/
+.flutter-plugins*
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/flutter_export_environment.sh
+
+# Zone de transfert et de suppression differee (le montage refuse unlink).
+_incoming/
+_to_delete/

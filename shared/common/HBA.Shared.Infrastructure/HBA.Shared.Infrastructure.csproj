@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Shared.Domain\HBA.Shared.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+
+    <!--
+      LE PAQUET ÉTAIT DÉCLARÉ DANS `Directory.Packages.props` ET RÉFÉRENCÉ PAR
+      UN SEUL PROJET — delivery-service, pour ses positions de livreurs.
+
+      Le socle, lui, ne l'avait jamais tiré : `AddDistributedMemoryCache()` était
+      le cache de TOUTE la plateforme, production comprise, pendant qu'un
+      commentaire affirmait que « le Bootstrap remplace l'IDistributedCache par
+      Redis ». Ce remplacement n'existait nulle part.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+
+    <PackageReference Include="Confluent.Kafka" />
+  </ItemGroup>
+
+</Project>

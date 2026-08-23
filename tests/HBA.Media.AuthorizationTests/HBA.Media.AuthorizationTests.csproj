@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ════════════════════════════════════════════════════════════════════════════
+    UN PROJET DE TEST PAR SERVICE, ET CE N'EST PAS DE LA CÉRÉMONIE.
+
+    Deux raisons rendent le projet unique impossible :
+
+      • chaque `*.Api` déclare `public partial class Program` dans l'espace de
+        noms global. Deux d'entre eux référencés ensemble, et toute mention de
+        `Program` devient ambiguë (CS0433) — or c'est exactement le type que
+        `WebApplicationFactory<Program>` attend ;
+
+      • `Microsoft.NET.Sdk.Web` copie l'`appsettings.json` de chaque projet
+        référencé dans le répertoire de sortie. Deux services, deux fichiers du
+        même nom, un seul répertoire : la configuration de l'un écraserait
+        silencieusement celle de l'autre.
+
+    Les deux fichiers communs sont LIÉS depuis `tests/Shared` plutôt que recopiés,
+    pour la raison écrite en tête de `TestTokens.cs` : trois copies auraient
+    divergé.
+    ════════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <Compile Include="..\Shared\TestTokens.cs" Link="Shared\TestTokens.cs" />
+    <Compile Include="..\Shared\AuthorizationTestFactory.cs" Link="Shared\AuthorizationTestFactory.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+
+    <!--
+      MEDIATR EN RÉFÉRENCE DIRECTE, CONTRAIREMENT AUX AUTRES SUITES
+      D'AUTORISATION.
+
+      Elles substituent des CLIENTS de services voisins (`ISellerModuleApi`…),
+      dont les contrats leur arrivent transitivement. Celle-ci substitue en plus
+      un GESTIONNAIRE MediatR — voir l'encadré de `MediaFactory` — et nomme donc
+      `IRequestHandler<,>` dans son propre code. Le paquet arriverait aussi
+      transitivement par `HBA.Media.Application`, mais une dépendance qu'on
+      écrit doit être une dépendance qu'on déclare : le jour où la couche
+      Application cesserait de l'exposer, l'erreur désignerait ce fichier.
+
+      La version vient de `Directory.Packages.props` (gestion centralisée).
+    -->
+    <PackageReference Include="MediatR" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\common\media-service\src\HBA.Media.Api\HBA.Media.Api.csproj" />
+  </ItemGroup>
+
+</Project>

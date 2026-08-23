@@ -1,0 +1,17 @@
+name: hba
+
+include:
+  - path:
+      - ./compose.infrastructure.yml
+
+  - path:
+      - ./compose.services.yml
+
+  # compose.gateway.yml n'était référencé par aucun fichier : `docker compose up`
+  # démarrait les treize services et la supervision, mais JAMAIS la passerelle.
+  # Rien ne le signalait — Traefik renvoyait simplement 404 sur api.hba-express.com.
+  - path:
+      - ./compose.gateway.yml
+
+  - path:
+      - ./compose.monitoring.yml

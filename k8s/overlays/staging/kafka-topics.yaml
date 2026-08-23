@@ -1,0 +1,474 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# TOPICS KAFKA — ENVIRONNEMENT « staging » (§9).
+#
+# FICHIER GÉNÉRÉ PAR `scripts/k8s-kafka-topics.py`. NE PAS ÉDITER À LA MAIN.
+#
+# CETTE LISTE EST LE MIROIR DE `HbaTopics.DomaineParService`.
+#
+# Un sujet par DOMAINE DISTINCT de la table, sous la forme
+# `{préfixe}.{domaine}.{version}` — les défauts de `KafkaEventBusOptions`. C'est
+# exactement ce que `KafkaIntegrationEventPublisher` écrit et ce à quoi
+# `KafkaIntegrationEventConsumer` s'abonne : trois sources d'un même nom, une seule
+# dérivation. Ajouter un service à la table et régénérer, jamais éditer ici.
+#
+# `scripts/check-kafka-topics.py` vérifie que ce fichier n'a pas divergé.
+#
+# UN SUJET ABSENT D'ICI N'ÉCHOUE PAS — IL EST CRÉÉ SANS CE QU'ON VOULAIT.
+#
+# `auto.create.topics.enable` vaut vrai : le premier producteur fait naître son
+# sujet, avec UNE partition, la réplication par défaut et la rétention par défaut.
+# Rien ne casse, tout paraît marcher, et la perte d'un courtier perd des messages.
+# C'est le défaut le plus silencieux de tout le plan de données — et c'est
+# précisément ce qui s'est passé pour les 23 sujets réellement employés, pendant
+# que ce fichier en provisionnait vingt-huit autres que personne n'écrivait.
+#
+# LE SCHÉMA `hba.staging.<domaine>.<agrégat>.v1` QUI ÉTAIT ICI N'ÉTAIT PAS UNE ERREUR.
+#
+# C'était le §19.2 du cahier — un sujet par AGRÉGAT, l'environnement dans le nom —
+# provisionné AVANT que le runtime ne le suive. `HbaEventNaming` construit ces
+# noms ; aucun appelant ne l'invoque encore. Le §19.2 RESTE LA CIBLE : il est ce
+# qui permettra de garder les paiements trente jours et les positions GPS une
+# heure, ce qu'un sujet par producteur interdit. Le jour où il sera branché, cette
+# liste changera — nom, nombre, rétention par agrégat. Ce fichier décrit
+# l'existant, pas l'ambition.
+#
+# AUCUN `.dlq` : RIEN NE PUBLIE VERS UN SUJET DE LETTRES MORTES.
+#
+# Les quatorze `.dlq` provisionnés jusqu'ici n'ont jamais reçu de message, et ne
+# pouvaient pas en recevoir : le seul code qui sache en fabriquer le nom est
+# `HbaEventNaming.DeadLetterTopic`, sans appelant. Les lettres mortes du dépôt
+# vivent en base — `outbox_messages.DeadLetteredOnUtc`, posé par
+# `OutboxRetryPolicy`, surveillé par la métrique `OutboxDeadLetter`. Côté
+# consommation, `KafkaIntegrationEventConsumer` journalise « ÉVÉNEMENT ABANDONNÉ »
+# après ses tentatives et passe au suivant : il ne réémet rien.
+#
+# Les provisionner quand même donnerait une garantie fausse — un exploitant qui
+# cherche un message perdu irait regarder un topic vide au lieu de la table outbox.
+# Ils reviendront ici le jour où un vrai routage DLQ existera, et ce jour-là c'est
+# le §19.2 qui dira lesquels.
+#
+# LES TROIS ENVIRONNEMENTS PORTENT LES MÊMES NOMS DE SUJETS.
+#
+# `service.<domaine>.v1` ne contient pas l'environnement, parce que le runtime ne
+# l'y met pas. L'isolation tient au cluster et au namespace, pas au nom — ce qui
+# veut dire qu'un courtier partagé entre deux environnements les mélangerait sans
+# rien dire. Le §19.2 remet l'environnement dans le nom, et c'est une de ses
+# raisons d'être.
+#
+# Régénérer après tout ajout de service au catalogue :
+#     python3 scripts/k8s-kafka-topics.py
+# ═══════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.catalog.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.catalog.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.commerce.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.commerce.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.communication.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.communication.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.delivery.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.delivery.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.delivery-pricing.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.delivery-pricing.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.dispatch.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.dispatch.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.driver.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.driver.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.engagement.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.engagement.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.financial.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.financial.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.food.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.food.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.food-cart.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.food-cart.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.food-order.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.food-order.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.identity.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.identity.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.inventory.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.inventory.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.media.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.media.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.merchant.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.merchant.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.order.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.order.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.promotion.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.promotion.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.proof-of-delivery.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.proof-of-delivery.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.return-refund.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.return-refund.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.route.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.route.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.tracking.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.tracking.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: service.user.v1
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: service.user.v1
+  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
+  # à une partition, un second pod du service resterait inactif. On peut en
+  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+    compression.type: lz4
+    min.insync.replicas: "1"

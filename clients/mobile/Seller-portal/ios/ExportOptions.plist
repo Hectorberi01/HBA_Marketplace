@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Options d'export de l'IPA pour TestFlight / App Store.
+
+  POURQUOI CE FICHIER : sans lui, `flutter build ipa` a pu exporter une IPA
+  signée en DÉVELOPPEMENT (aps-environment=development, get-task-allow=true).
+  Une telle app, distribuée via TestFlight, n'obtient AUCUN jeton APNs
+  exploitable → les notifications push ne partent jamais.
+
+  method=app-store force une signature de DISTRIBUTION : l'export produit alors
+  aps-environment=PRODUCTION (et get-task-allow=false), ce qui est indispensable
+  pour que le push fonctionne sur un vrai appareil.
+
+  Prérequis : un certificat « Apple Distribution » doit exister dans le trousseau
+  (Xcode → Settings → Accounts → Manage Certificates → + Apple Distribution). En
+  signature automatique, Xcode génère/télécharge le profil de distribution requis.
+-->
+<plist version="1.0">
+<dict>
+  <key>method</key>
+  <string>app-store</string>
+
+  <key>signingStyle</key>
+  <string>automatic</string>
+
+  <key>teamID</key>
+  <string>QSVS3QW2NQ</string>
+
+  <key>uploadSymbols</key>
+  <true/>
+
+  <key>stripSwiftSymbols</key>
+  <true/>
+
+  <key>destination</key>
+  <string>export</string>
+</dict>
+</plist>

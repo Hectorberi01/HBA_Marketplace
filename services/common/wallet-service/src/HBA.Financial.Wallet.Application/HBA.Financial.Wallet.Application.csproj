@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Financial.Wallet.Domain\HBA.Financial.Wallet.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Financial.Wallet.Contracts\HBA.Financial.Wallet.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+    <!-- Contre-passation des gains vendeur au remboursement d'un retour. -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\catalog-service\src\HBA.Catalog.Contracts\HBA.Catalog.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\billing-service\src\HBA.Financial.Billing.Contracts\HBA.Financial.Billing.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Shipping.Contracts\HBA.Shipping.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\payment-service\src\HBA.Financial.Payments.Contracts\HBA.Financial.Payments.Contracts.csproj" />
+    <!--
+      Le dossier de reversement d'un restaurant. Contracts SEULEMENT, comme les
+      dix autres : c'est ce que le test de frontière autorise, et ce qui garde
+      Food extractible. Sans cette lecture, la recette d'un repas est encaissée
+      et le restaurateur n'a aucun moyen d'être payé.
+    -->
+    <ProjectReference Include="..\..\..\..\food\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+    <!--
+      La fin de course, qui porte le gain du livreur. Contracts SEULEMENT.
+      Sans cette référence, `DeliveryCompletedIntegrationEvent` n'a aucun
+      consommateur ici : le gain est calculé, publié, et tombe dans le vide —
+      le portefeuille du livreur reste à zéro à vie.
+    -->
+    <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wallet.UnitTests" />
+  </ItemGroup>
+
+</Project>

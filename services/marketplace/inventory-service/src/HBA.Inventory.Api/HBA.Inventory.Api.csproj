@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Inventory.Application\HBA.Inventory.Application.csproj" />
+    <ProjectReference Include="..\HBA.Inventory.Infrastructure\HBA.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Inventory.Contracts.Grpc\HBA.Inventory.Contracts.Grpc.csproj" />
+    <!--
+      AJOUTÉ POUR RÉSOUDRE COMPTE → VENDEUR, ET RIEN D'AUTRE.
+
+      inventory-service ne savait pas à quel vendeur appartient un compte : c'est
+      exactement ce qui l'a obligé à ranger ses douze écritures sous
+      `MapAdminGroup`, faute de pouvoir vérifier une propriété. La correspondance
+      appartient à merchant-service, qui la sert par `GetSellerByUserIdAsync`.
+
+      CE PROJET VIT HORS DU CONTEXTE DE BUILD DU DOCKERFILE. Toute référence
+      ajoutée ici DOIT avoir sa ligne `COPY` correspondante — sinon la
+      compilation locale passe et l'image échoue en CS0234, sans que le message
+      nomme jamais le fichier manquant.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

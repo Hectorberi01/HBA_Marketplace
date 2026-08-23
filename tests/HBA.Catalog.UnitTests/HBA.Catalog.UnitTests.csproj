@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    LE DOMAINE SEUL, ET C'EST TOUT L'INTÉRÊT.
+
+    Les règles du §28 — transitions de statut, publication interdite avant
+    approbation, condition commerciale, prix, variantes/SKU, rejet et correction,
+    suspension/restauration, nouvelle révision — n'ont besoin ni de base, ni de
+    serveur, ni de Kafka pour être fausses. Les tester à travers l'API demanderait
+    Testcontainers et une minute par exécution ; ici c'est quelques millisecondes,
+    donc ces tests tournent vraiment.
+
+    HBA.Catalog.Application vient en plus pour ContenuProduitFactory : la
+    traduction « VERY_GOOD » → ProductConditionType est exactement le genre de
+    frontière où une valeur du cahier se fait refuser sans que personne ne l'ait
+    voulu.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\catalog-service\src\HBA.Catalog.Domain\HBA.Catalog.Domain.csproj" />
+    <ProjectReference Include="..\..\services\marketplace\catalog-service\src\HBA.Catalog.Application\HBA.Catalog.Application.csproj" />
+
+    <!--
+      L'INFRASTRUCTURE, POUR DEUX CLASSES ET DEUX SEULEMENT.
+
+      `SellerSuspendedOfferWithdrawalHandler` et son pendant de levée vivent dans
+      `Infrastructure/Integration` — pas par goût, mais parce qu'ils dépendent
+      d'`IConsumerInbox`, dont le contrat décrit un mécanisme de PERSISTANCE et
+      vit donc dans le socle d'infrastructure.
+
+      Les tester exige cette référence. Ne pas les tester laisserait sans filet la
+      correction d'ISSUE-025 — un vendeur suspendu dont les offres restaient
+      achetables — et c'est le genre de régression qui ne se voit que sur une
+      commande passée chez un vendeur écarté.
+
+      Elle n'amène ni base ni serveur dans les tests : les gestionnaires reçoivent
+      des doublures (voir `DoublesDuCatalogue.cs`), et rien ici n'ouvre de
+      connexion.
+    -->
+    <ProjectReference Include="..\..\services\marketplace\catalog-service\src\HBA.Catalog.Infrastructure\HBA.Catalog.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

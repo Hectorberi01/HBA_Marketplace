@@ -1,0 +1,233 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             x:Class="HBA.Admin.Desktop.Views.MarquesView"
+             x:DataType="vm:MarquesViewModel">
+
+  <DockPanel>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="12" Margin="4,0,4,14">
+
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Text="Marques" Classes="titre" />
+          <TextBlock Classes="attenue" Text="{Binding PositionDemandes}" />
+        </StackPanel>
+
+        <Button Grid.Column="1" Classes="discret" Content="Actualiser" Margin="0,0,10,0"
+                Command="{Binding Rafraichir}" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Classes="principal" Content="Nouvelle marque"
+                Command="{Binding Creer}" VerticalAlignment="Center" />
+      </Grid>
+
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding EnCours}" Height="3" />
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding EnErreur}">
+        <TextBlock Text="{Binding Erreur}" TextWrapping="Wrap" Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding AConfirmation}">
+        <TextBlock Text="{Binding Confirmation}" TextWrapping="Wrap" Foreground="{DynamicResource Succes}" />
+      </Border>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="360,*">
+
+      <Grid Grid.Column="0" RowDefinitions="2*,3*" Margin="4,0,10,0">
+
+        <!--
+          LA FILE DES DEMANDES EST EN HAUT PARCE QU'ELLE SE VIDE.
+
+          Le référentiel se consulte ; la file se traite. Une demande de marque
+          en attente empêche un vendeur de mettre son produit en vente, et c'est
+          la seule des deux listes où l'inaction a un coût.
+        -->
+        <Border Grid.Row="0" Classes="carte" Padding="8" Margin="0,0,0,10">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="Demandes des vendeurs" Classes="groupe"
+                       Margin="6,4,6,8" />
+
+            <TextBlock DockPanel.Dock="Top" Classes="attenue" FontSize="12" Margin="6,0,6,8"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding AucuneDemande}"
+                       Text="Rien en attente." />
+
+            <ListBox ItemsSource="{Binding Demandes}" SelectedItem="{Binding SelectionDemande}"
+                     Background="Transparent" BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:LigneDemandeMarque">
+                  <StackPanel Spacing="1" Margin="6">
+                    <TextBlock Text="{Binding Nom}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Depuis}" Classes="attenue" FontSize="12" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1" Classes="carte" Padding="8">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="Référentiel" Classes="groupe" Margin="6,4,6,8" />
+
+            <Border DockPanel.Dock="Top" Classes="creux" Margin="6,0,6,8">
+              <TextBox Text="{Binding Recherche}" Watermark="Rechercher un nom ou un slug" />
+            </Border>
+
+            <TextBlock DockPanel.Dock="Bottom" Classes="attenue" FontSize="12" Margin="6,8,6,2"
+                       Text="{Binding PositionMarques}" />
+
+            <ListBox ItemsSource="{Binding Marques}" SelectedItem="{Binding SelectionMarque}"
+                     Background="Transparent" BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:LigneMarque">
+                  <Grid ColumnDefinitions="*,Auto" Margin="6">
+                    <StackPanel Grid.Column="0" Spacing="1">
+                      <TextBlock Text="{Binding Nom}" FontWeight="SemiBold" />
+                      <TextBlock Text="{Binding Slug}" Classes="attenue" FontSize="12" />
+                    </StackPanel>
+
+                    <!-- Une marque non publiée n'apparaît pas dans le filtre de
+                         la vitrine : c'est visible ici avant d'être cliqué. -->
+                    <Border Grid.Column="1" Classes="pastille" VerticalAlignment="Center"
+                            IsVisible="{Binding !EstPubliee}">
+                      <TextBlock Text="{Binding Etat}" FontSize="10" />
+                    </Border>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+
+      </Grid>
+
+      <Border Grid.Column="1" Classes="carte" Margin="0,0,4,0">
+        <ScrollViewer>
+          <StackPanel Spacing="16">
+
+            <TextBlock Classes="attenue" TextWrapping="Wrap"
+                       IsVisible="{Binding !ADesDemande}"
+                       Text="Sélectionnez une demande pour la trancher, une marque pour la corriger — ou les deux pour rattacher l'une à l'autre." />
+
+            <StackPanel Spacing="12" IsVisible="{Binding ADesDemande}">
+
+              <TextBlock Text="Demande en attente" Classes="titre" FontSize="18" />
+
+              <!--
+                LE CHEMIN PART DE LA VUE-MODÈLE, ON NE DÉPLACE PAS LE DataContext.
+
+                Poser `DataContext="{Binding SelectionDemande}"` sur ce bloc
+                changerait le type attendu par les liaisons compilées, qui
+                resteraient pourtant vérifiées contre le `x:DataType` de la
+                racine : cela compile, et cela ne lie rien à l'exécution.
+              -->
+              <StackPanel Spacing="4">
+                <TextBlock Text="{Binding SelectionDemande.Nom}" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Classes="attenue" FontSize="12" Text="{Binding SelectionDemande.Depuis}" />
+                <TextBlock Classes="attenue" FontSize="12" Text="{Binding SelectionDemande.Vendeur}" />
+              </StackPanel>
+
+              <Border Classes="creux" Padding="14,12"
+                      IsVisible="{Binding DemandeANote}">
+                <TextBlock Text="{Binding SelectionDemande.Note}" TextWrapping="Wrap" />
+              </Border>
+
+              <!--
+                DEUX FAÇONS D'APPROUVER, ET LA SECONDE EST LA PLUS FRÉQUENTE.
+
+                « Approuver » crée une marque au nom demandé. « Rattacher »
+                rend la demande à une marque déjà au référentiel, celle qui est
+                sélectionnée dans la liste de gauche : c'est ce qu'il faut faire
+                pour « samsumg » face à « Samsung ». Créer serait, là, ajouter le
+                doublon que ce mécanisme devait empêcher.
+              -->
+              <StackPanel Spacing="10">
+                <Button Classes="principal" Content="Approuver et créer la marque"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Command="{Binding Approuver}" />
+
+                <Button Classes="principal" Content="{Binding LibelleRattachement}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Command="{Binding Rattacher}" />
+
+                <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                           IsVisible="{Binding !ADesMarque}"
+                           Text="Le rattachement demande de choisir une marque dans le référentiel ci-contre." />
+
+                <Button Classes="danger" Content="Refuser avec motif"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Command="{Binding Refuser}" />
+              </StackPanel>
+
+              <Border Height="1" Background="{DynamicResource AccentDoux}" Margin="0,4,0,0" />
+            </StackPanel>
+
+            <StackPanel Spacing="12" IsVisible="{Binding ADesMarque}">
+
+              <TextBlock Text="Marque du référentiel" Classes="titre" FontSize="18" />
+
+              <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                         IsVisible="{Binding Archivee}"
+                         Text="Marque archivée : elle ne peut être ni publiée ni dépubliée. Le domaine refuse les deux gestes." />
+
+              <StackPanel Spacing="8">
+                <TextBlock Text="Nom" Classes="attenue" FontSize="12" />
+                <Border Classes="creux"><TextBox Text="{Binding Nom}" /></Border>
+              </StackPanel>
+
+              <StackPanel Spacing="8">
+                <!--
+                  LE SLUG NE SUIT PAS LE NOM.
+
+                  Il est calculé à la création et sert de clé d'unicité :
+                  renommer la marque le laisse tel quel. Il est donc affiché en
+                  lecture seule, pour que personne ne croie le corriger en
+                  corrigeant le nom.
+                -->
+                <TextBlock Text="Slug, fixé à la création" Classes="attenue" FontSize="12" />
+                <TextBlock Text="{Binding SelectionMarque.Slug}" FontFamily="Consolas,Menlo,monospace" />
+              </StackPanel>
+
+              <StackPanel Spacing="8">
+                <TextBlock Text="URL du logo" Classes="attenue" FontSize="12" />
+                <Border Classes="creux">
+                  <TextBox Text="{Binding Logo}" Watermark="https://..." />
+                </Border>
+              </StackPanel>
+
+              <StackPanel Spacing="8">
+                <TextBlock Text="Description" Classes="attenue" FontSize="12" />
+                <Border Classes="creux">
+                  <TextBox Text="{Binding Description}" AcceptsReturn="True" MinHeight="90"
+                           TextWrapping="Wrap" />
+                </Border>
+              </StackPanel>
+
+              <!--
+                ENREGISTRER ENVOIE LES TROIS CHAMPS, PAS LES SEULS MODIFIÉS.
+
+                La route est un PUT et `UpdateBrandCommand` pose ce qu'il reçoit :
+                un logo laissé vide ici EFFACE celui du serveur. C'est pourquoi
+                les trois champs sont chargés avant d'être offerts à l'édition.
+              -->
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="principal" Content="Enregistrer" Command="{Binding Enregistrer}" />
+                <Button Classes="discret" Content="Publier" Command="{Binding Publier}" />
+                <Button Classes="discret" Content="Dépublier" Command="{Binding Depublier}" />
+                <Button Classes="danger" Content="Supprimer" Command="{Binding Supprimer}" />
+              </StackPanel>
+
+              <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                         Text="Dépublier ramène la marque en attente ; cela ne l'archive pas. Supprimer est définitif et le serveur ne vérifie pas si des fiches produit la citent." />
+
+            </StackPanel>
+
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+    </Grid>
+
+  </DockPanel>
+</UserControl>

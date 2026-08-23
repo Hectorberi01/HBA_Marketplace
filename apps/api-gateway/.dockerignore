@@ -1,0 +1,18 @@
+# CE FICHIER N'EST PLUS LU — LE CONTEXTE DE CONSTRUCTION EST `HBA/`.
+#
+# Docker ne consulte que le `.dockerignore` situé à la RACINE DU CONTEXTE. Depuis
+# que le Dockerfile a besoin des `Directory.*.props` de `HBA/`, c'est
+# `HBA/.dockerignore` qui s'applique — il exclut les mêmes chemins.
+#
+# Conservé pour que personne ne le croie actif en le trouvant ici. Le supprimer
+# ferait perdre cet avertissement ; le modifier n'aurait aucun effet.
+#
+# ── Raison d'origine ────────────────────────────────────────────────────────
+# Sans ce fichier, `COPY src/ src/` embarque les bin/ et obj/ de la machine de
+# développement dans l'image de construction. Outre le poids, des artefacts
+# compilés sur un autre système d'exploitation entrent en conflit avec ceux
+# produits dans le conteneur, et l'erreur obtenue ne désigne pas sa cause.
+**/bin/
+**/obj/
+**/.vs/
+**/*.user

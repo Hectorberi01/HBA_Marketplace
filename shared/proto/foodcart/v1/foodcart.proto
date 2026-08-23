@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package hba.foodcart.v1;
+
+option csharp_namespace = "HBA.FoodCarts.Grpc.V1";
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LE PANIER DE REPAS VALORISÉ, LU PAR food-order-service AU MOMENT DE COMMANDER.
+//
+// CE CONTRAT NE SERT QU'À FIGER UNE COMMANDE.
+//
+// Les mutations du panier — ajouter, retirer, vider — passent par les routes
+// HTTP de food-cart-service, appelées par l'application. Le seul besoin
+// INTER-SERVICES est la lecture au passage en commande. Le contrat jumeau de la
+// marketplace a fait l'erreur inverse : il déclarait des mutations jamais
+// implémentées, qui rendaient UNIMPLEMENTED au premier appel réel.
+//
+// LES MONTANTS VOYAGENT EN CHAÎNE, PAS EN double.
+//
+// `double` ne représente pas exactement 0,10 — et il s'agit ici de prix qui
+// seront figés dans une commande puis comparés à un encaissement. La chaîne est
+// convertie en `decimal` en culture invariante des deux côtés.
+//
+// AUCUN CHAMP `kind`.
+//
+// Son jumeau `hba.commerce.v1.CartView` en porte un — « Goods », « Food », ou
+// vide — parce qu'il décrit deux univers dans un seul message. Ici il n'y a
+// qu'un univers, et le consommateur n'a rien à démêler.
+// ═════════════════════════════════════════════════════════════════════════════
+
+service FoodCartApi {
+  rpc GetActiveCart(GetActiveFoodCartRequest) returns (GetFoodCartResponse);
+  rpc GetCart(GetFoodCartRequest) returns (GetFoodCartResponse);
+}
+
+message GetActiveFoodCartRequest {
+  string buyer_id = 1;
+}
+
+message GetFoodCartRequest {
+  string cart_id = 1;
+}
+
+message GetFoodCartResponse {
+  bool found = 1;
+  FoodCartView cart = 2;
+}
+
+message FoodCartView {
+  string cart_id = 1;
+  string buyer_id = 2;
+
+  // L'établissement du panier. Toujours renseigné : il est fixé à l'ouverture.
+  string restaurant_id = 3;
+
+  string status = 4;
+  string currency = 5;
+  string subtotal = 6;
+  string total_seller_discount = 7;
+  string total_platform_discount = 8;
+  string grand_total = 9;
+
+  // Vide s'il n'y a pas de code promo. Il est FIGÉ dans la commande : sans lui,
+  // une remise appliquée au panier disparaîtrait au passage en commande.
+  string promotion_code = 10;
+
+  repeated FoodCartLine lines = 11;
+}
+
+message FoodCartLine {
+  // L'identifiant de la LIGNE, et seul moyen de la désigner : le même plat peut
+  // figurer deux fois avec des options différentes.
+  string line_id = 1;
+
+  string menu_item_id = 2;
+
+  // Le nom au moment de l'ajout. Instantané d'affichage — la carte fait foi.
+  string name = 3;
+
+  int32 quantity = 4;
+  string unit_base_amount = 5;
+  string seller_discount = 6;
+  string platform_discount = 7;
+  string final_unit_price = 8;
+  string line_total = 9;
+  string currency = 10;
+  string notes = 11;
+  repeated FoodCartLineOption options = 12;
+}
+
+message FoodCartLineOption {
+  string option_group_id = 1;
+  string option_id = 2;
+}

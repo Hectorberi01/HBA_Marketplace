@@ -1,0 +1,228 @@
+<Project>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    GESTION CENTRALISÉE DES VERSIONS — ACTIVÉE.
+
+    Ce fichier était volontairement vide et servait de barrière : il empêchait
+    HBA d'hériter des versions du monolithe. Le commentaire d'alors annonçait la
+    condition de bascule — « le jour où HBA voudra vraiment de la gestion
+    centralisée ». Ce jour est arrivé, et pour une raison contraignante : les
+    `.csproj` copiés du monolithe déclarent leurs `PackageReference` SANS
+    version, puisque le monolithe est lui-même en gestion centralisée. Sans ce
+    fichier, la restauration de chaque projet copié échouerait.
+
+    UN SEUL CADRE CIBLE : net9.0, POSÉ DANS `Directory.Build.props`.
+
+    Les versions ci-dessous restent celles du monolithe (EF Core 8.0.8,
+    MediatR 12.4.1), pleinement supportées sur .NET 9. On change le cadre
+    d'exécution sans toucher aux dépendances : à la première erreur de
+    compilation, une seule variable aura bougé.
+
+    Ce fichier a d'abord tenté de servir net8.0 pour les services et net9.0 pour
+    la passerelle. Les paquets ASP.NET Core ne ciblant qu'un cadre par ligne
+    majeure, aucune valeur unique ne convenait pour JwtBearer et il a fallu un
+    `VersionOverride`. L'unification du cadre a supprimé cette dérogation : le
+    dépôt n'en compte plus aucune, et c'est l'état à préserver.
+
+    Note : l'épinglage transitif n'est pas activé (défaut NuGet). Ces versions ne
+    s'appliquent donc qu'aux références DIRECTES ; les dépendances indirectes se
+    résolvent normalement.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup Label="Socle applicatif (services, net8.0)">
+    <PackageVersion Include="MediatR" Version="12.4.1" />
+    <PackageVersion Include="FluentValidation" Version="11.9.2" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.9.2" />
+  </ItemGroup>
+
+  <ItemGroup Label="Persistance (services, net8.0)">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.8" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.8" />
+    <!--
+      Npgsql seul, pour les tests d'intégration qui vérifient une table en SQL
+      plutôt qu'à travers le DbContext du service. Il arrivait déjà
+      transitivement par le paquet ci-dessus ; la gestion centralisée des
+      versions exige qu'une référence DIRECTE ait sa version déclarée. Elle est
+      volontairement identique — deux versions de Npgsql dans un même processus
+      de test seraient un conflit à diagnostiquer pour rien.
+    -->
+    <PackageVersion Include="Npgsql" Version="8.0.8" />
+
+    <!--
+      Sonde de base pour /health/ready. Ce paquet dépend d'EF Core en version
+      EXACTE (`[8.0.8]`) : sa version doit donc suivre celle d'EF Core ligne à
+      ligne. C'est une contrainte utile — elle rend impossible une montée d'EF
+      qui laisserait la sonde en arrière.
+    -->
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.8" />
+  </ItemGroup>
+
+  <!--
+    9.0.0 sert les DEUX cadres : ces paquets embarquent un actif net8.0 en plus
+    du net9.0. Les figer à 8.0.x aurait provoqué NU1605 côté passerelle, dont les
+    dépendances réclament la ligne 9.
+  -->
+  <ItemGroup Label="Extensions .NET (net8.0 et net9.0)">
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
+    <!--
+      FCM. Version reprise telle quelle du monolithe : on migre un expéditeur qui
+      fonctionne, pas sa dépendance. Une seule variable à la fois.
+    -->
+    <PackageVersion Include="FirebaseAdmin" Version="3.1.0" />
+    <!--
+      OpenAPI de la passerelle. 7.x et non 6.6.2 comme le monolithe : la série 6
+      cible net8, la passerelle est en net9.
+    -->
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="9.0.0" />
+  </ItemGroup>
+
+  <!--
+    Microsoft.IdentityModel est aligné sur 8.19.2 — la version qu'exige
+    JwtBearer 9.0.19 de la passerelle. La conserver à 8.0.1 (valeur du monolithe)
+    aurait produit un NU1605 de rétrogradation à chaque restauration de la
+    passerelle. L'écart 8.0.1 → 8.19.2 reste dans la même ligne majeure.
+  -->
+  <ItemGroup Label="Sécurité">
+    <PackageVersion Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageVersion Include="Otp.NET" Version="1.4.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.19.2" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
+
+    <!--
+      9.0.19 pour TOUT LE DÉPÔT depuis que le cadre cible est unifié en net9.0.
+      Cette entrée valait 8.0.8 tant que les services visaient net8.0, ce qui
+      forçait une dérogation sur la passerelle. Un seul cadre, une seule version.
+    -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.19" />
+  </ItemGroup>
+
+  <ItemGroup Label="Traitement d'images (media-service)">
+    <PackageVersion Include="SkiaSharp" Version="2.88.8" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.8" />
+  </ItemGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    POLLY, NU, POUR LE DISJONCTEUR gRPC DES SERVICES (lot 8.8).
+
+    PAS `Microsoft.Extensions.Http.Resilience` : IL A CASSÉ LA RESTAURATION.
+
+    C'était le premier réflexe — même paquet que la passerelle, déjà épinglé,
+    « donc rien de nouveau ». Faux : il tire tout un arbre en 9.10.0
+    (Http.Diagnostics, Telemetry, AmbientMetadata…) qui remonte les
+    `Microsoft.Extensions.*` au-dessus des 9.0.0 que les projets de service
+    déclarent directement. Résultat : huit NU1605 « passage à une version
+    antérieure détecté » sur return-refund et delivery.
+
+    ET LE COMMENTAIRE QUE J'AVAIS ÉCRIT DISAIT L'INVERSE : « ne pas épingler
+    Polly.Core séparément, cela exposerait au NU1605 ». C'est exactement le
+    contraire qui s'est produit — `Polly.Core` n'a AUCUNE dépendance, donc il
+    ne peut mécaniquement provoquer aucune rétrogradation, tandis que le paquet
+    « sûr » en a apporté une pleine branche.
+
+    8.4.2 : c'est la version que `Microsoft.Extensions.Http.Resilience 9.10.0`
+    résout déjà pour la passerelle. Les deux couches partagent donc le même
+    Polly, sans que les services héritent de l'arbre de la passerelle.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup Label="Résilience des services">
+    <PackageVersion Include="Polly.Core" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup Label="Passerelle (net9.0 exclusivement)">
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.10.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
+    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.19" />
+  </ItemGroup>
+
+  <!--
+    gRPC — transport synchrone ENTRE SERVICES uniquement.
+
+    `Grpc.Tools` est un paquet de build : il n'entre pas dans la sortie et
+    régénère le code à chaque compilation. Aucun fichier généré n'est versionné —
+    un `.cs` généré commité finit toujours par diverger de son `.proto` sans que
+    rien ne le signale.
+  -->
+  <ItemGroup Label="gRPC">
+    <PackageVersion Include="Grpc.AspNetCore" Version="2.71.0" />
+    <PackageVersion Include="Grpc.Net.ClientFactory" Version="2.71.0" />
+    <PackageVersion Include="Grpc.Tools" Version="2.71.0" />
+    <PackageVersion Include="Google.Protobuf" Version="3.31.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Kafka">
+    <PackageVersion Include="Confluent.Kafka" Version="2.6.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Tests">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageVersion Include="xunit" Version="2.9.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="FluentAssertions" Version="6.12.0" />
+
+    <!--
+      ═════════════════════════════════════════════════════════════════════
+      TESTCONTAINERS — LES SEULS PAQUETS AJOUTÉS PAR LE LOT 7.
+      
+      CES DEUX VERSIONS N'ONT PAS PU ÊTRE VÉRIFIÉES HORS LIGNE.
+      
+      Elles ont été choisies sur la foi de la ligne 4.x stable ; si `restore`
+      les refuse, c'est un numéro à corriger, pas un choix à revoir. Tout le
+      reste du lot 7 se fait sans aucun paquet nouveau.
+      
+      Ils sont réservés aux tests d'intégration : aucun projet livré ne les
+      référence, et ils ne partent donc dans aucune image.
+      ═════════════════════════════════════════════════════════════════════
+    -->
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.0.0" />
+    <PackageVersion Include="Testcontainers.Kafka" Version="4.0.0" />
+  </ItemGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    AVALONIA — LE BACK-OFFICE (clients/admin-portal).
+
+    SEUL BLOC DU DÉPÔT QUI NE SERT NI UN SERVICE NI LA PASSERELLE.
+
+    Ces paquets ne sont référencés que par `HBA.Admin.Desktop`. Ils sont ici
+    parce que la gestion centralisée l'exige — un `Version=` dans le `.csproj`
+    échouerait en NU1008 —, pas parce qu'un autre projet pourrait en vouloir.
+
+    LES QUATRE PAQUETS AVALONIA DOIVENT PARTAGER LA MÊME VERSION.
+
+    `Avalonia`, `.Desktop`, `.Themes.Fluent` et `.Diagnostics` sont publiés
+    ensemble et se supposent alignés. Un décalage ne se voit pas à la
+    restauration : il se voit au démarrage, sous la forme d'une exception de
+    chargement de type dans le moteur XAML, qui ne nomme pas la version.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup Label="Back-office Avalonia (clients/admin-portal)">
+    <PackageVersion Include="Avalonia" Version="11.2.1" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.2.1" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.2.1" />
+    <PackageVersion Include="Avalonia.Diagnostics" Version="11.2.1" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.2.1" />
+  </ItemGroup>
+
+</Project>

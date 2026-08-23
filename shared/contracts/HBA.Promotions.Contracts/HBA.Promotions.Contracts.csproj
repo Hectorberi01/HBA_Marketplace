@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Le contrat public de promotion-service : ce que les autres services voient.
+
+    IL NE RÉFÉRENCE QUE `HBA.Shared.IntegrationEvents`, ET C'EST LA RAISON
+    D'ÊTRE DE CE PROJET.
+
+    cart-service, order-service et food-order-service doivent pouvoir consommer
+    `coupon.used` et appeler `EvaluatePromotion` sans hériter d'EF, de MediatR ni
+    du domaine de promotion. Un contrat qui traîne ses dépendances derrière lui
+    n'est plus un contrat : c'est un couplage avec une interface devant.
+
+    C'est aussi pourquoi `[HbaEvent]` vit dans `HBA.Shared.IntegrationEvents` et
+    non dans l'infrastructure Kafka — un attribut de nommage ne doit obliger
+    personne à référencer un client Kafka.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>

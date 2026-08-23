@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    CE PROJET DEMANDE UN DOCKER EN MARCHE. LES AUTRES SUITES, NON.
+
+    Même arbitrage que pour `HBA.Catalog.IntegrationTests` : Testcontainers
+    démarre un vrai PostgreSQL et un vrai Kafka, et sur une machine sans Docker
+    ces tests échouent tous ensemble au démarrage de la fixture. Mélangés à
+    `HBA.Merchants.UnitTests` — 63 cas, quelques secondes, rien à installer — ils
+    rendraient la suite rapide indisponible dès que Docker manque, et l'on
+    cesserait de la lancer pour la mauvaise raison.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+
+  <ItemGroup>
+    <Compile Include="..\Shared\TestTokens.cs" Link="Shared\TestTokens.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.Kafka" />
+
+    <!--
+      ON VÉRIFIE EN SQL, PAS PAR LE `DbContext` DU SERVICE.
+
+      Passer par `SellersDbContext` ferait vérifier l'écriture avec le même
+      mécanisme que celui qui l'a produite : un mauvais mapping de colonne serait
+      invisible des deux côtés à la fois. Le SQL voit la table telle que la
+      migration l'a créée — et c'est précisément ce qu'on veut éprouver, puisque
+      les neuf migrations de ce service n'ont jamais été rejouées.
+    -->
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\seller-service\src\HBA.Merchants.Api\HBA.Merchants.Api.csproj" />
+  </ItemGroup>
+
+</Project>

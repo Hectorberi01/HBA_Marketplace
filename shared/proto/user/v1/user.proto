@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package hba.user.v1;
+
+option csharp_namespace = "HBA.Users.Grpc.V1";
+
+// Équivalent de `IUsersModuleApi`.
+service UsersApi {
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc GetProfiles(GetProfilesRequest) returns (GetProfilesResponse);
+}
+
+message GetProfileRequest {
+  string user_id = 1;
+}
+
+message GetProfileResponse {
+  bool found = 1;
+  UserProfileSummary profile = 2;
+}
+
+// La lecture en lot n'est pas un confort : une liste de commandes affichant le
+// nom de chaque acheteur ferait un appel par ligne. C'est la raison d'être de
+// `GetProfilesAsync`, et elle vaut d'autant plus sur le réseau.
+message GetProfilesRequest {
+  repeated string user_ids = 1;
+}
+
+// UNE CARTE, ET LES IDENTIFIANTS INCONNUS SONT SIMPLEMENT ABSENTS.
+//
+// L'interface C# rend `IReadOnlyDictionary<Guid, UserProfileSummary>` : demander
+// dix profils et en recevoir sept est un cas NORMAL — comptes supprimés, profils
+// jamais créés. Une liste ordonnée aurait obligé l'appelant à réaligner les
+// index, et un décalage y serait passé inaperçu.
+message GetProfilesResponse {
+  map<string, UserProfileSummary> profiles = 1;
+}
+
+message UserProfileSummary {
+  string user_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+
+  // Prénom et nom assemblés, PRÊTS À AFFICHER : sans ce champ, chaque appelant
+  // écrit sa propre concaténation et l'on obtient « Awa  Sagbo » ici et
+  // « Sagbo Awa » là.
+  string display_name = 4;
+
+  optional string avatar_url = 5;
+}

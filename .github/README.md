@@ -1,0 +1,84 @@
+# Intégration et déploiement continus
+
+Workflows GitHub Actions (§13, §14 du cahier Infrastructure).
+
+## Deux fichiers, pas quinze
+
+`workflows/ci.yml` — contrôles, compilation, tests, puis image OCI par service
+affecté : SBOM, scan, signature, publication.
+`workflows/cd.yml` — promotion d'une image DÉJÀ construite vers un environnement.
+
+**Un pipeline par service, pas un pipeline pour tout** reste la règle, mais elle
+est tenue autrement que par quinze fichiers. Sa raison — ne pas reconstruire
+treize services à chaque commit, pour pouvoir corriger la restauration sans
+redéployer les paiements — est satisfaite par `scripts/ci-affected.py`, qui
+calcule les images réellement touchées.
+
+Quinze fichiers quasi identiques auraient satisfait la lettre et créé le défaut
+que ce dépôt combat partout ailleurs : des copies qui divergent, dont on en oublie
+deux le jour où l'on change une étape.
+
+## Les services affectés sont calculés, pas listés
+
+```bash
+python3 scripts/ci-affected.py origin/main   # ce qu'un diff reconstruit
+python3 scripts/ci-affected.py --liste       # les 30 images et leur fermeture
+```
+
+Le calcul suit le **graphe de références des `.csproj`**, transitivement — le même
+que `check-dockerfiles.py`. Une liste de chemins tenue à la main deviendrait fausse
+au premier `<ProjectReference>` ajouté, et le défaut serait silencieux dans le
+mauvais sens : le service n'est pas reconstruit, l'image publiée reste l'ancienne,
+et la correction qu'on croit déployée ne l'est pas.
+
+Trois fichiers reconstruisent tout : `Directory.Build.props`,
+`Directory.Packages.props` et `HBA.sln` — ils changent le cadre cible ou les
+versions de paquets de chaque projet.
+
+À l'inverse, `docs/`, `k8s/`, `infra/`, `tests/`, `scripts/` et `.github/`
+n'affectent aucune image.
+
+*Détail vérifié : `api-gateway` ne référence aucun projet de `shared/`. Un
+changement dans `HBA.Shared.Domain` reconstruit 29 images sur 30, et l'exclusion de
+la passerelle est correcte, pas un oubli.*
+
+## Où les portes se ferment
+
+| Étape | Sur PR | Sur `main` | Avant production |
+|---|---|---|---|
+| `check-all.sh` | bloque | bloque | bloque |
+| tests | bloque | bloque | bloque |
+| scan dépendances | signale | signale | — |
+| scan image (Trivy) | — | signale | **bloque** (§23) |
+| signature cosign | — | signe | **vérifie** |
+
+**Le scan de vulnérabilité ne bloque pas la publication, et c'est délibéré.**
+Une CVE publiée dans une dépendance transitive bloquerait toutes les PR d'un coup,
+y compris celle qui la corrige. Le §23 demande « aucune criticité bloquante » avant
+la **production** — la porte est dans `cd.yml`.
+
+## Ce que `cd.yml` ne fait pas
+
+Il écrit le tag dans l'overlay Kustomize, le commite, et **s'arrête**. La
+réconciliation vers le cluster n'est pas automatisée, faute d'une décision :
+
+- **Argo CD / Flux** réconcilient depuis Git — le commit suffit, et le cluster
+  reste reconstructible depuis le dépôt, ce qu'exige le §25 ;
+- **`kubectl apply` depuis le workflow** — plus direct, mais il faut confier un
+  kubeconfig de production à GitHub Actions, et l'état du cluster cesse d'être
+  déductible du dépôt.
+
+Un déploiement à moitié automatisé qu'on croit complet serait pire que celui-ci,
+qui dit ce qu'il ne fait pas.
+
+## Le contrôle qui manquait
+
+`scripts/check-workflows.py`, dans `check-all.sh`.
+
+**Un workflow au YAML invalide ne se plaint pas — il ne tourne pas.** Aucune
+exécution n'apparaît, aucune notification ne part, aucun statut ne remonte sur la
+PR. On croit la CI verte alors qu'elle n'a jamais démarré, et on s'en aperçoit en
+cherchant pourquoi une régression est passée.
+
+Le défaut qui a motivé ce contrôle a été commis en écrivant `ci.yml` : un
+`- name:` contenant « : » sans guillemets, que YAML lit comme un mapping.

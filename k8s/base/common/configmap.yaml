@@ -1,0 +1,80 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONFIGURATION NON SENSIBLE, PARTAGÉE PAR TOUS LES SERVICES (§12).
+#
+# RIEN DE SECRET ICI. JAMAIS.
+#
+# Le §12 est catégorique : aucun secret dans Git, un Dockerfile, une image ou un
+# ConfigMap. Un ConfigMap est lisible par quiconque a un accès lecture au
+# namespace, et il part dans Git avec le reste — donc dans l'historique, où il
+# reste après suppression.
+#
+# Les adresses ci-dessous ne sont pas des secrets : ce sont des noms DNS internes
+# que le §8 fait résoudre par Kubernetes. Les mots de passe qu'elles n'incluent
+# PAS vivent dans le Secret `hba-platform`, monté par le même `envFrom`.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hba-platform
+data:
+  HOSTING__HTTPPORT: "8080"
+  HOSTING__GRPCPORT: "9090"
+
+  KAFKA__BOOTSTRAPSERVERS: "kafka:9092"
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # PORT 8080 ET NON 9090, ALORS QUE CES ADRESSES SERVENT AU gRPC.
+  #
+  # C'est contre-intuitif, et l'inverse casse la passerelle.
+  #
+  # Les clients gRPC ne prennent pas ce port : `AddXxxGrpcClient` réécrit
+  # l'adresse avec `new UriBuilder(address) { Port = grpcPort }`, où `grpcPort`
+  # vient de `Hosting:GrpcPort`. Ils atteignent donc 9090 quel que soit ce qui
+  # est écrit ici.
+  #
+  # La passerelle, elle, prend l'adresse TELLE QUELLE : YARP proxifie du REST.
+  # Avec 9090, chaque requête publique partirait vers le port gRPC et
+  # échouerait — sur un cluster neuf, tout paraîtrait démarré et rien ne
+  # répondrait.
+  #
+  # 8080 est donc la seule valeur qui serve les deux. Le compose de
+  # développement porte 9090 entre services et 8080 pour la passerelle ; ici,
+  # une clé unique doit satisfaire les deux, et c'est celle-ci.
+  # ═════════════════════════════════════════════════════════════════════════
+  SERVICES__IDENTITY: "http://identity-service:8080"
+  SERVICES__USER: "http://user-service:8080"
+  SERVICES__MEDIA: "http://media-service:8080"
+  SERVICES__MERCHANT: "http://merchant-service:8080"
+  SERVICES__CATALOG: "http://catalog-service:8080"
+  SERVICES__INVENTORY: "http://inventory-service:8080"
+  SERVICES__COMMERCE: "http://commerce-service:8080"
+  SERVICES__ORDER: "http://order-service:8080"
+  SERVICES__FOOD: "http://food-service:8080"
+
+  # LE PANIER ET LA COMMANDE DE RESTAURATION SONT DEUX SERVICES À PART.
+  #
+  # La passerelle les déclare OBLIGATOIRES (`ServicesOptions`) : sans ces deux
+  # adresses, elle refuse de démarrer. Les omettre ici ferait tomber le pod de la
+  # passerelle au premier déploiement, pas seulement le parcours restaurant.
+  SERVICES__FOODCART: "http://food-cart-service:8080"
+  SERVICES__FOODORDER: "http://food-order-service:8080"
+  SERVICES__DELIVERY: "http://delivery-service:8080"
+  SERVICES__FINANCIAL: "http://financial-service:8080"
+  SERVICES__ENGAGEMENT: "http://engagement-service:8080"
+  SERVICES__COMMUNICATION: "http://communication-service:8080"
+  SERVICES__PROMOTION: "http://promotion-service:8080"
+
+  # TROIS SERVICES QUI N'ÉTAIENT JOIGNABLES PAR PERSONNE (lot 7.5).
+  #
+  # La passerelle porte désormais leurs clusters et leurs routes ; `ServicesOptions`
+  # déclare leurs adresses en `[Required, Url]`, donc SANS ces trois lignes la
+  # passerelle refuse de démarrer sur Kubernetes. C'est le bon comportement : une
+  # adresse absente doit se voir au déploiement, pas au premier 503.
+  #
+  # Le compose les fournissait déjà (l. 1308-1311) — vers du vide, faute de
+  # propriété pour les lier.
+  SERVICES__RETURNREFUND: "http://return-refund-service:8080"
+  SERVICES__DRIVERS: "http://driver-service:8080"
+  SERVICES__DELIVERYPRICING: "http://delivery-pricing-service:8080"
+
+  OPENTELEMETRY__ENDPOINT: "http://otel-collector:4317"

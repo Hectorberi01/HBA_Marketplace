@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             x:Class="HBA.Admin.Desktop.Views.PageAVenirView"
+             x:DataType="vm:PageAVenirViewModel">
+
+  <Border Classes="carte"
+          MaxWidth="620"
+          HorizontalAlignment="Center"
+          VerticalAlignment="Center"
+          Padding="32">
+    <StackPanel Spacing="14">
+      <TextBlock Text="{Binding Titre}" Classes="titre" />
+      <TextBlock Text="{Binding Resume}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Consequence}" Classes="attenue" TextWrapping="Wrap" />
+
+      <Border Classes="creux" Padding="16">
+        <TextBlock Text="{Binding Detail}"
+                   TextWrapping="Wrap"
+                   FontFamily="Consolas,Menlo,monospace"
+                   FontSize="13" />
+      </Border>
+    </StackPanel>
+  </Border>
+
+</UserControl>

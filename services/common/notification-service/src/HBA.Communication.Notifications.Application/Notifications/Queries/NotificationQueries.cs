@@ -1,0 +1,54 @@
+using HBA.Shared.Application.Messaging;
+using HBA.Shared.Domain.Results;
+using HBA.Communication.Notifications.Contracts;
+using HBA.Communication.Notifications.Domain.Notifications;
+
+namespace HBA.Communication.Notifications.Application.Notifications.Queries;
+
+/// <summary>Liste les notifications de l'utilisateur (les plus récentes d'abord).</summary>
+public sealed record ListMyNotificationsQuery(Guid RecipientUserId, int Take = 50) : IQuery<IReadOnlyList<NotificationSummary>>;
+
+/// <summary>Nombre de notifications non lues de l'utilisateur.</summary>
+public sealed record GetUnreadCountQuery(Guid RecipientUserId) : IQuery<int>;
+
+/// <summary>Liste toutes les notifications de la plateforme (back-office admin).</summary>
+public sealed record ListAllNotificationsQuery : IQuery<IReadOnlyList<NotificationSummary>>;
+
+internal sealed class ListAllNotificationsQueryHandler : IQueryHandler<ListAllNotificationsQuery, IReadOnlyList<NotificationSummary>>
+{
+    private readonly INotificationRepository _repository;
+
+    public ListAllNotificationsQueryHandler(INotificationRepository repository) => _repository = repository;
+
+    public async Task<Result<IReadOnlyList<NotificationSummary>>> Handle(ListAllNotificationsQuery query, CancellationToken cancellationToken)
+    {
+        var notifications = await _repository.ListAllAsync(cancellationToken: cancellationToken);
+        IReadOnlyList<NotificationSummary> summaries = notifications.Select(NotificationMapper.ToSummary).ToList();
+        return Result.Success(summaries);
+    }
+}
+
+internal sealed class ListMyNotificationsQueryHandler : IQueryHandler<ListMyNotificationsQuery, IReadOnlyList<NotificationSummary>>
+{
+    private readonly INotificationRepository _repository;
+
+    public ListMyNotificationsQueryHandler(INotificationRepository repository) => _repository = repository;
+
+    public async Task<Result<IReadOnlyList<NotificationSummary>>> Handle(ListMyNotificationsQuery query, CancellationToken cancellationToken)
+    {
+        var take = query.Take is < 1 or > 200 ? 50 : query.Take;
+        var notifications = await _repository.ListByRecipientAsync(query.RecipientUserId, take, cancellationToken);
+        IReadOnlyList<NotificationSummary> summaries = notifications.Select(NotificationMapper.ToSummary).ToList();
+        return Result.Success(summaries);
+    }
+}
+
+internal sealed class GetUnreadCountQueryHandler : IQueryHandler<GetUnreadCountQuery, int>
+{
+    private readonly INotificationRepository _repository;
+
+    public GetUnreadCountQueryHandler(INotificationRepository repository) => _repository = repository;
+
+    public async Task<Result<int>> Handle(GetUnreadCountQuery query, CancellationToken cancellationToken)
+        => await _repository.CountUnreadAsync(query.RecipientUserId, cancellationToken);
+}

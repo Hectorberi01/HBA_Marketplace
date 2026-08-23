@@ -1,0 +1,1765 @@
+{
+  "_lire": "Instantané des contrats d'événements d'intégration. Tenu par scripts/check-event-contracts.py. La convention est ADDITIVE (D32) : on n'ajoute que des champs optionnels ; une rupture crée un NOUVEAU type d'événement. Mettre ce fichier à jour dans le même commit que le changement, pour que le relecteur voie exactement ce qui a bougé.",
+  "evenements": {
+    "BrandCreatedIntegrationEvent": {
+      "champs": {
+        "BrandId": "Guid",
+        "Name": "string",
+        "Slug": "string"
+      },
+      "requis": [
+        "BrandId",
+        "Name",
+        "Slug"
+      ]
+    },
+    "BrandRequestApprovedIntegrationEvent": {
+      "champs": {
+        "RequestId": "Guid",
+        "SellerId": "Guid",
+        "BrandId": "Guid",
+        "RequestedName": "string"
+      },
+      "requis": [
+        "BrandId",
+        "RequestId",
+        "RequestedName",
+        "SellerId"
+      ]
+    },
+    "BrandRequestedIntegrationEvent": {
+      "champs": {
+        "RequestId": "Guid",
+        "SellerId": "Guid",
+        "Name": "string"
+      },
+      "requis": [
+        "Name",
+        "RequestId",
+        "SellerId"
+      ]
+    },
+    "CartCheckedOutIntegrationEvent": {
+      "champs": {
+        "CartId": "Guid",
+        "BuyerId": "Guid"
+      },
+      "requis": [
+        "BuyerId",
+        "CartId"
+      ]
+    },
+    "CategoryCreatedIntegrationEvent": {
+      "champs": {
+        "CategoryId": "Guid",
+        "ParentId": "Guid?",
+        "Name": "string",
+        "Slug": "string",
+        "Path": "string"
+      },
+      "requis": [
+        "CategoryId",
+        "Name",
+        "Path",
+        "Slug"
+      ]
+    },
+    "CouponUsedIntegrationEvent": {
+      "champs": {
+        "CouponId": "Guid",
+        "PromotionId": "Guid",
+        "Code": "string",
+        "UserId": "Guid",
+        "OrderId": "Guid",
+        "DiscountAmount": "long"
+      },
+      "requis": [
+        "Code",
+        "CouponId",
+        "DiscountAmount",
+        "OrderId",
+        "PromotionId",
+        "UserId"
+      ]
+    },
+    "DeliveryAcceptedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "Reference": "string",
+        "Source": "string",
+        "DriverId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "DriverId",
+        "Reference",
+        "Source"
+      ]
+    },
+    "DeliveryAssignedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "DriverId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "DriverId"
+      ]
+    },
+    "DeliveryCancelledIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "Reference": "string",
+        "Source": "string",
+        "Reason": "string?"
+      },
+      "requis": [
+        "DeliveryId",
+        "Reference",
+        "Source"
+      ]
+    },
+    "DeliveryCompletedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "Reference": "string",
+        "Source": "string",
+        "DriverId": "Guid",
+        "DeliveredAtUtc": "DateTime",
+        "DriverEarning": "decimal?",
+        "Currency": "string?"
+      },
+      "requis": [
+        "DeliveredAtUtc",
+        "DeliveryId",
+        "DriverId",
+        "Reference",
+        "Source"
+      ]
+    },
+    "DeliveryCreatedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "Reference": "string",
+        "Source": "string",
+        "Type": "string"
+      },
+      "requis": [
+        "DeliveryId",
+        "Reference",
+        "Source",
+        "Type"
+      ]
+    },
+    "DeliveryEtaUpdatedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "EtaSeconds": "int"
+      },
+      "requis": [
+        "DeliveryId",
+        "EtaSeconds"
+      ]
+    },
+    "DeliveryNoDriverAvailableIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "Reference": "string",
+        "Source": "string",
+        "Attempts": "int"
+      },
+      "requis": [
+        "Attempts",
+        "DeliveryId",
+        "Reference",
+        "Source"
+      ]
+    },
+    "DeliveryPickedUpIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "Reference": "string",
+        "Source": "string",
+        "DriverId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "DriverId",
+        "Reference",
+        "Source"
+      ]
+    },
+    "DeliveryPricingRuleActivatedIntegrationEvent": {
+      "champs": {
+        "PricingRuleId": "Guid"
+      },
+      "requis": [
+        "PricingRuleId"
+      ]
+    },
+    "DeliveryPricingRuleCreatedIntegrationEvent": {
+      "champs": {
+        "PricingRuleId": "Guid",
+        "Name": "string"
+      },
+      "requis": [
+        "Name",
+        "PricingRuleId"
+      ]
+    },
+    "DeliveryPricingRuleDeactivatedIntegrationEvent": {
+      "champs": {
+        "PricingRuleId": "Guid"
+      },
+      "requis": [
+        "PricingRuleId"
+      ]
+    },
+    "DeliveryPricingRuleUpdatedIntegrationEvent": {
+      "champs": {
+        "PricingRuleId": "Guid",
+        "Name": "string"
+      },
+      "requis": [
+        "Name",
+        "PricingRuleId"
+      ]
+    },
+    "DeliveryProofCompletedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "ProofId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "ProofId"
+      ]
+    },
+    "DeliveryQuoteConsumedIntegrationEvent": {
+      "champs": {
+        "QuoteId": "Guid",
+        "DeliveryId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "QuoteId"
+      ]
+    },
+    "DeliveryQuoteCreatedIntegrationEvent": {
+      "champs": {
+        "QuoteId": "Guid",
+        "Total": "long",
+        "Currency": "string",
+        "ExpiresAtUtc": "DateTime"
+      },
+      "requis": [
+        "Currency",
+        "ExpiresAtUtc",
+        "QuoteId",
+        "Total"
+      ]
+    },
+    "DeliveryQuoteExpiredIntegrationEvent": {
+      "champs": {
+        "QuoteId": "Guid"
+      },
+      "requis": [
+        "QuoteId"
+      ]
+    },
+    "DispatchNoDriverFoundIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "Attempts": "int"
+      },
+      "requis": [
+        "Attempts",
+        "DeliveryId"
+      ]
+    },
+    "DispatchOfferCreatedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "DriverId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "DriverId"
+      ]
+    },
+    "DispatchOfferExpiredIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "DriverId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "DriverId"
+      ]
+    },
+    "DispatchStartedIntegrationEvent": {
+      "champs": {
+        "DispatchJobId": "Guid",
+        "DeliveryId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "DispatchJobId"
+      ]
+    },
+    "DriverAvailabilityChangedIntegrationEvent": {
+      "champs": {
+        "DriverId": "Guid",
+        "Availability": "string"
+      },
+      "requis": [
+        "Availability",
+        "DriverId"
+      ]
+    },
+    "DriverCreatedIntegrationEvent": {
+      "champs": {
+        "DriverId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "DriverId",
+        "UserId"
+      ]
+    },
+    "DriverEarningCreditedIntegrationEvent": {
+      "champs": {
+        "DriverId": "Guid",
+        "DeliveryId": "Guid",
+        "Amount": "decimal",
+        "Currency": "string"
+      },
+      "requis": [
+        "Amount",
+        "Currency",
+        "DeliveryId",
+        "DriverId"
+      ]
+    },
+    "DriverSuspendedIntegrationEvent": {
+      "champs": {
+        "DriverId": "Guid",
+        "Reason": "string"
+      },
+      "requis": [
+        "DriverId",
+        "Reason"
+      ]
+    },
+    "DriverVehicleUpdatedIntegrationEvent": {
+      "champs": {
+        "DriverId": "Guid",
+        "VehicleId": "Guid",
+        "VehicleType": "string"
+      },
+      "requis": [
+        "DriverId",
+        "VehicleId",
+        "VehicleType"
+      ]
+    },
+    "DriverVerifiedIntegrationEvent": {
+      "champs": {
+        "DriverId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "DriverId",
+        "UserId"
+      ]
+    },
+    "EmailVerificationRequestedIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "Email": "string",
+        "FirstName": "string",
+        "ProtectedVerificationToken": "string"
+      },
+      "requis": [
+        "Email",
+        "FirstName",
+        "ProtectedVerificationToken",
+        "UserId"
+      ]
+    },
+    "FoodCartCheckedOutIntegrationEvent": {
+      "champs": {
+        "CartId": "Guid",
+        "BuyerId": "Guid",
+        "RestaurantId": "Guid"
+      },
+      "requis": [
+        "BuyerId",
+        "CartId",
+        "RestaurantId"
+      ]
+    },
+    "FoodOrderAcceptedIntegrationEvent": {
+      "champs": {
+        "FoodOrderId": "Guid",
+        "OrderId": "Guid",
+        "RestaurantId": "Guid",
+        "EstimatedPreparationMinutes": "int",
+        "AcceptedByUserId": "Guid?"
+      },
+      "requis": [
+        "EstimatedPreparationMinutes",
+        "FoodOrderId",
+        "OrderId",
+        "RestaurantId"
+      ]
+    },
+    "FoodOrderCancelledIntegrationEvent": {
+      "champs": {
+        "FoodOrderId": "Guid",
+        "OrderId": "Guid",
+        "RestaurantId": "Guid",
+        "Reason": "string?",
+        "WasInKitchen": "bool"
+      },
+      "requis": [
+        "FoodOrderId",
+        "OrderId",
+        "RestaurantId",
+        "WasInKitchen"
+      ]
+    },
+    "FoodOrderDeliveredIntegrationEvent": {
+      "champs": {
+        "FoodOrderId": "Guid",
+        "OrderId": "Guid",
+        "RestaurantId": "Guid"
+      },
+      "requis": [
+        "FoodOrderId",
+        "OrderId",
+        "RestaurantId"
+      ]
+    },
+    "FoodOrderPickedUpIntegrationEvent": {
+      "champs": {
+        "FoodOrderId": "Guid",
+        "OrderId": "Guid",
+        "RestaurantId": "Guid"
+      },
+      "requis": [
+        "FoodOrderId",
+        "OrderId",
+        "RestaurantId"
+      ]
+    },
+    "FoodOrderPreparingIntegrationEvent": {
+      "champs": {
+        "FoodOrderId": "Guid",
+        "OrderId": "Guid",
+        "RestaurantId": "Guid"
+      },
+      "requis": [
+        "FoodOrderId",
+        "OrderId",
+        "RestaurantId"
+      ]
+    },
+    "FoodOrderReadyForPickupIntegrationEvent": {
+      "champs": {
+        "FoodOrderId": "Guid",
+        "OrderId": "Guid",
+        "RestaurantId": "Guid",
+        "ReadyAtUtc": "DateTime"
+      },
+      "requis": [
+        "FoodOrderId",
+        "OrderId",
+        "ReadyAtUtc",
+        "RestaurantId"
+      ]
+    },
+    "FoodOrderReceivedIntegrationEvent": {
+      "champs": {
+        "FoodOrderId": "Guid",
+        "OrderId": "Guid",
+        "RestaurantId": "Guid",
+        "Total": "decimal",
+        "ItemCount": "int"
+      },
+      "requis": [
+        "FoodOrderId",
+        "ItemCount",
+        "OrderId",
+        "RestaurantId",
+        "Total"
+      ]
+    },
+    "FoodOrderRejectedIntegrationEvent": {
+      "champs": {
+        "FoodOrderId": "Guid",
+        "OrderId": "Guid",
+        "RestaurantId": "Guid",
+        "Reason": "string",
+        "Comment": "string?"
+      },
+      "requis": [
+        "FoodOrderId",
+        "OrderId",
+        "Reason",
+        "RestaurantId"
+      ]
+    },
+    "KybDocumentRemovedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid",
+        "MediaId": "Guid"
+      },
+      "requis": [
+        "MediaId",
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "MealOrderCancelledIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "RestaurantId": "Guid",
+        "Reason": "string"
+      },
+      "requis": [
+        "BuyerId",
+        "OrderId",
+        "Reason",
+        "RestaurantId"
+      ]
+    },
+    "MealOrderConfirmedIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "RestaurantId": "Guid",
+        "TotalAmount": "decimal",
+        "ShippingFee": "decimal",
+        "Currency": "string",
+        "CustomerNote": "string?",
+        "DeliveryQuoteId": "string?",
+        "Lines": "IReadOnlyList<MealOrderLinePayload>"
+      },
+      "requis": [
+        "BuyerId",
+        "Currency",
+        "OrderId",
+        "RestaurantId",
+        "ShippingFee",
+        "TotalAmount"
+      ]
+    },
+    "MealOrderDeliveredIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "RestaurantId": "Guid"
+      },
+      "requis": [
+        "BuyerId",
+        "OrderId",
+        "RestaurantId"
+      ]
+    },
+    "MealOrderPlacedIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "RestaurantId": "Guid",
+        "CartId": "Guid",
+        "TotalAmount": "decimal",
+        "Currency": "string"
+      },
+      "requis": [
+        "BuyerId",
+        "CartId",
+        "Currency",
+        "OrderId",
+        "RestaurantId",
+        "TotalAmount"
+      ]
+    },
+    "MealOrderResumedAfterReviewIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "RestaurantId": "Guid",
+        "PreviousReason": "string"
+      },
+      "requis": [
+        "BuyerId",
+        "OrderId",
+        "PreviousReason",
+        "RestaurantId"
+      ]
+    },
+    "MealOrderUnderReviewIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "RestaurantId": "Guid",
+        "Reason": "string"
+      },
+      "requis": [
+        "BuyerId",
+        "OrderId",
+        "Reason",
+        "RestaurantId"
+      ]
+    },
+    "MediaDeletedIntegrationEvent": {
+      "champs": {
+        "MediaId": "Guid",
+        "OwnerType": "string",
+        "OwnerId": "Guid",
+        "MediaType": "string"
+      },
+      "requis": [
+        "MediaId",
+        "MediaType",
+        "OwnerId",
+        "OwnerType"
+      ]
+    },
+    "MediaProcessingFailedIntegrationEvent": {
+      "champs": {
+        "MediaId": "Guid",
+        "OwnerType": "string",
+        "OwnerId": "Guid",
+        "Reason": "string"
+      },
+      "requis": [
+        "MediaId",
+        "OwnerId",
+        "OwnerType",
+        "Reason"
+      ]
+    },
+    "MediaReadyIntegrationEvent": {
+      "champs": {
+        "MediaId": "Guid",
+        "OwnerType": "string",
+        "OwnerId": "Guid",
+        "MediaType": "string",
+        "ObjectKey": "string"
+      },
+      "requis": [
+        "MediaId",
+        "MediaType",
+        "ObjectKey",
+        "OwnerId",
+        "OwnerType"
+      ]
+    },
+    "MessageSentIntegrationEvent": {
+      "champs": {
+        "ConversationId": "Guid",
+        "MessageId": "Guid",
+        "SenderId": "Guid"
+      },
+      "requis": [
+        "ConversationId",
+        "MessageId",
+        "SenderId"
+      ]
+    },
+    "NotificationFailedIntegrationEvent": {
+      "champs": {
+        "NotificationId": "Guid",
+        "RecipientUserId": "Guid",
+        "Channel": "string",
+        "Reason": "string",
+        "TemplateCode": "string?"
+      },
+      "requis": [
+        "Channel",
+        "NotificationId",
+        "Reason",
+        "RecipientUserId"
+      ]
+    },
+    "NotificationSentIntegrationEvent": {
+      "champs": {
+        "NotificationId": "Guid",
+        "RecipientUserId": "Guid",
+        "Channel": "string",
+        "TemplateCode": "string?",
+        "ProviderMessageId": "string?"
+      },
+      "requis": [
+        "Channel",
+        "NotificationId",
+        "RecipientUserId"
+      ]
+    },
+    "OrderCancelledIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "Reason": "string"
+      },
+      "requis": [
+        "BuyerId",
+        "OrderId",
+        "Reason"
+      ]
+    },
+    "OrderConfirmedIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "Currency": "string",
+        "PromotionCode": "string?",
+        "SellerShares": "IReadOnlyCollection<OrderSellerShare>",
+        "Kind": "string",
+        "RestaurantId": "Guid?"
+      },
+      "requis": [
+        "BuyerId",
+        "Currency",
+        "OrderId",
+        "SellerShares"
+      ]
+    },
+    "OrderDeliveredIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid"
+      },
+      "requis": [
+        "BuyerId",
+        "OrderId"
+      ]
+    },
+    "OrderPlacedIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "CartId": "Guid",
+        "GrandTotal": "decimal",
+        "Currency": "string"
+      },
+      "requis": [
+        "BuyerId",
+        "CartId",
+        "Currency",
+        "GrandTotal",
+        "OrderId"
+      ]
+    },
+    "OrderResumedAfterReviewIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid"
+      },
+      "requis": [
+        "BuyerId",
+        "OrderId"
+      ]
+    },
+    "OrderUnderReviewIntegrationEvent": {
+      "champs": {
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "Reason": "string"
+      },
+      "requis": [
+        "BuyerId",
+        "OrderId",
+        "Reason"
+      ]
+    },
+    "PasswordResetRequestedIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "Email": "string",
+        "FirstName": "string",
+        "ProtectedResetToken": "string"
+      },
+      "requis": [
+        "Email",
+        "FirstName",
+        "ProtectedResetToken",
+        "UserId"
+      ]
+    },
+    "PaymentCapturedIntegrationEvent": {
+      "champs": {
+        "PaymentId": "Guid",
+        "OrderId": "Guid",
+        "OrderType": "string"
+      },
+      "requis": [
+        "OrderId",
+        "OrderType",
+        "PaymentId"
+      ]
+    },
+    "PaymentCreatedIntegrationEvent": {
+      "champs": {
+        "PaymentId": "Guid",
+        "OrderId": "Guid",
+        "OrderType": "string",
+        "BuyerId": "Guid",
+        "Amount": "decimal",
+        "Currency": "string",
+        "Provider": "string"
+      },
+      "requis": [
+        "Amount",
+        "BuyerId",
+        "Currency",
+        "OrderId",
+        "OrderType",
+        "PaymentId",
+        "Provider"
+      ]
+    },
+    "PaymentFailedIntegrationEvent": {
+      "champs": {
+        "PaymentId": "Guid",
+        "OrderId": "Guid",
+        "OrderType": "string",
+        "Reason": "string"
+      },
+      "requis": [
+        "OrderId",
+        "OrderType",
+        "PaymentId",
+        "Reason"
+      ]
+    },
+    "PaymentRefundFailedIntegrationEvent": {
+      "champs": {
+        "PaymentId": "Guid",
+        "OrderId": "Guid",
+        "OrderType": "string",
+        "RefundId": "Guid",
+        "ReturnId": "Guid?",
+        "ExternalRefundId": "Guid?",
+        "Amount": "decimal",
+        "Currency": "string",
+        "IdempotencyKey": "string",
+        "Reason": "string"
+      },
+      "requis": [
+        "Amount",
+        "Currency",
+        "IdempotencyKey",
+        "OrderId",
+        "OrderType",
+        "PaymentId",
+        "Reason",
+        "RefundId"
+      ]
+    },
+    "PaymentRefundedIntegrationEvent": {
+      "champs": {
+        "PaymentId": "Guid",
+        "OrderId": "Guid",
+        "RefundId": "Guid",
+        "ReturnId": "Guid?",
+        "ExternalRefundId": "Guid?",
+        "OrderType": "string",
+        "BuyerId": "Guid",
+        "Amount": "decimal",
+        "Currency": "string",
+        "IdempotencyKey": "string",
+        "ProviderRefundId": "string"
+      },
+      "requis": [
+        "Amount",
+        "BuyerId",
+        "Currency",
+        "IdempotencyKey",
+        "OrderId",
+        "OrderType",
+        "PaymentId",
+        "ProviderRefundId",
+        "RefundId"
+      ]
+    },
+    "PayoutPaidIntegrationEvent": {
+      "champs": {
+        "BatchId": "Guid",
+        "PayoutId": "Guid",
+        "SellerId": "Guid",
+        "NetAmount": "decimal",
+        "Currency": "string"
+      },
+      "requis": [
+        "BatchId",
+        "Currency",
+        "NetAmount",
+        "PayoutId",
+        "SellerId"
+      ]
+    },
+    "ProductApprovedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "SellerId": "Guid",
+        "RevisionId": "Guid",
+        "ReviewedBy": "Guid"
+      },
+      "requis": [
+        "ProductId",
+        "ReviewedBy",
+        "RevisionId",
+        "SellerId"
+      ]
+    },
+    "ProductArchivedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "SellerId": "Guid"
+      },
+      "requis": [
+        "ProductId",
+        "SellerId"
+      ]
+    },
+    "ProductCreatedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "SellerId": "Guid",
+        "CategoryId": "Guid",
+        "Name": "string",
+        "Slug": "string"
+      },
+      "requis": [
+        "CategoryId",
+        "Name",
+        "ProductId",
+        "SellerId",
+        "Slug"
+      ]
+    },
+    "ProductDeletedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid"
+      },
+      "requis": [
+        "ProductId"
+      ]
+    },
+    "ProductMediaRemovedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "MediaId": "Guid"
+      },
+      "requis": [
+        "MediaId",
+        "ProductId"
+      ]
+    },
+    "ProductPublishedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "SellerId": "Guid",
+        "RevisionId": "Guid",
+        "PreviousRevisionId": "Guid?"
+      },
+      "requis": [
+        "ProductId",
+        "RevisionId",
+        "SellerId"
+      ]
+    },
+    "ProductRejectedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "SellerId": "Guid",
+        "RevisionId": "Guid",
+        "ReviewedBy": "Guid"
+      },
+      "requis": [
+        "ProductId",
+        "ReviewedBy",
+        "RevisionId",
+        "SellerId"
+      ]
+    },
+    "ProductRestoredIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "SellerId": "Guid"
+      },
+      "requis": [
+        "ProductId",
+        "SellerId"
+      ]
+    },
+    "ProductSubmittedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "SellerId": "Guid",
+        "RevisionId": "Guid",
+        "RevisionVersion": "int"
+      },
+      "requis": [
+        "ProductId",
+        "RevisionId",
+        "RevisionVersion",
+        "SellerId"
+      ]
+    },
+    "ProductSuspendedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "SellerId": "Guid",
+        "Reason": "string?"
+      },
+      "requis": [
+        "ProductId",
+        "SellerId"
+      ]
+    },
+    "ProductUnpublishedIntegrationEvent": {
+      "champs": {
+        "ProductId": "Guid",
+        "SellerId": "Guid"
+      },
+      "requis": [
+        "ProductId",
+        "SellerId"
+      ]
+    },
+    "PromotionCreatedIntegrationEvent": {
+      "champs": {
+        "PromotionId": "Guid",
+        "Name": "string",
+        "Scope": "string",
+        "Type": "string",
+        "Value": "long",
+        "StartsAtUtc": "DateTime",
+        "EndsAtUtc": "DateTime",
+        "Budget": "long?",
+        "Currency": "string"
+      },
+      "requis": [
+        "Currency",
+        "EndsAtUtc",
+        "Name",
+        "PromotionId",
+        "Scope",
+        "StartsAtUtc",
+        "Type",
+        "Value"
+      ]
+    },
+    "PromotionExhaustedIntegrationEvent": {
+      "champs": {
+        "PromotionId": "Guid",
+        "Name": "string",
+        "BudgetConsumed": "long"
+      },
+      "requis": [
+        "BudgetConsumed",
+        "Name",
+        "PromotionId"
+      ]
+    },
+    "ProofRejectedIntegrationEvent": {
+      "champs": {
+        "ProofId": "Guid",
+        "DeliveryId": "Guid",
+        "Reason": "string"
+      },
+      "requis": [
+        "DeliveryId",
+        "ProofId",
+        "Reason"
+      ]
+    },
+    "ProofSubmittedIntegrationEvent": {
+      "champs": {
+        "ProofId": "Guid",
+        "DeliveryId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "ProofId"
+      ]
+    },
+    "ProofVerifiedIntegrationEvent": {
+      "champs": {
+        "ProofId": "Guid",
+        "DeliveryId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "ProofId"
+      ]
+    },
+    "RestaurantApprovedIntegrationEvent": {
+      "champs": {
+        "RestaurantId": "Guid",
+        "OwnerUserId": "Guid",
+        "Name": "string"
+      },
+      "requis": [
+        "Name",
+        "OwnerUserId",
+        "RestaurantId"
+      ]
+    },
+    "RestaurantRejectedIntegrationEvent": {
+      "champs": {
+        "RestaurantId": "Guid",
+        "OwnerUserId": "Guid",
+        "Reason": "string?"
+      },
+      "requis": [
+        "OwnerUserId",
+        "RestaurantId"
+      ]
+    },
+    "RestaurantReopenedIntegrationEvent": {
+      "champs": {
+        "RestaurantId": "Guid",
+        "OwnerUserId": "Guid"
+      },
+      "requis": [
+        "OwnerUserId",
+        "RestaurantId"
+      ]
+    },
+    "RestaurantSuspendedIntegrationEvent": {
+      "champs": {
+        "RestaurantId": "Guid",
+        "OwnerUserId": "Guid",
+        "Reason": "string?"
+      },
+      "requis": [
+        "OwnerUserId",
+        "RestaurantId"
+      ]
+    },
+    "ReturnRefundApprovedIntegrationEvent": {
+      "champs": {
+        "ReturnRequestId": "Guid",
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "SellerId": "Guid",
+        "RefundAmount": "decimal",
+        "Currency": "string"
+      },
+      "requis": [
+        "BuyerId",
+        "Currency",
+        "OrderId",
+        "RefundAmount",
+        "ReturnRequestId",
+        "SellerId"
+      ]
+    },
+    "ReturnRefundedIntegrationEvent": {
+      "champs": {
+        "ReturnRequestId": "Guid",
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "SellerId": "Guid",
+        "RefundAmount": "decimal",
+        "Currency": "string",
+        "RefundReference": "string"
+      },
+      "requis": [
+        "BuyerId",
+        "Currency",
+        "OrderId",
+        "RefundAmount",
+        "RefundReference",
+        "ReturnRequestId",
+        "SellerId"
+      ]
+    },
+    "ReviewPublishedIntegrationEvent": {
+      "champs": {
+        "ReviewId": "Guid",
+        "ProductId": "Guid",
+        "SellerId": "Guid",
+        "Rating": "int"
+      },
+      "requis": [
+        "ProductId",
+        "Rating",
+        "ReviewId",
+        "SellerId"
+      ]
+    },
+    "ReviewRejectedIntegrationEvent": {
+      "champs": {
+        "ReviewId": "Guid",
+        "ProductId": "Guid",
+        "SellerId": "Guid"
+      },
+      "requis": [
+        "ProductId",
+        "ReviewId",
+        "SellerId"
+      ]
+    },
+    "RouteCalculatedIntegrationEvent": {
+      "champs": {
+        "RoutePlanId": "Guid",
+        "DeliveryId": "Guid?",
+        "DistanceMeters": "int",
+        "DurationSeconds": "int"
+      },
+      "requis": [
+        "DistanceMeters",
+        "DurationSeconds",
+        "RoutePlanId"
+      ]
+    },
+    "RouteDeliveryEtaUpdatedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "EtaAtUtc": "DateTime"
+      },
+      "requis": [
+        "DeliveryId",
+        "EtaAtUtc"
+      ]
+    },
+    "RouteRecalculatedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "RoutePlanId": "Guid",
+        "EtaAtUtc": "DateTime"
+      },
+      "requis": [
+        "DeliveryId",
+        "EtaAtUtc",
+        "RoutePlanId"
+      ]
+    },
+    "SellerActivatedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerClosedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerDeletedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerKybApprovedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerKybRejectedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid",
+        "Reason": "string?"
+      },
+      "requis": [
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerKybSubmittedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid",
+        "DocumentCount": "int"
+      },
+      "requis": [
+        "DocumentCount",
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerMemberActivatedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "MemberId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "MemberId",
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerMemberInvitedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "InvitationId": "Guid",
+        "Email": "string",
+        "DisplayName": "string?",
+        "ShopName": "string",
+        "ProtectedInvitationToken": "string",
+        "ExpiresOnUtc": "DateTime"
+      },
+      "requis": [
+        "Email",
+        "ExpiresOnUtc",
+        "InvitationId",
+        "ProtectedInvitationToken",
+        "SellerId",
+        "ShopName"
+      ]
+    },
+    "SellerMemberJoinedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "MemberId": "Guid",
+        "UserId": "Guid",
+        "SellerRoleIds": "IReadOnlyList<Guid>",
+        "StoreIds": "IReadOnlyList<Guid>"
+      },
+      "requis": [
+        "MemberId",
+        "SellerId",
+        "SellerRoleIds",
+        "StoreIds",
+        "UserId"
+      ]
+    },
+    "SellerMemberRevokedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "MemberId": "Guid",
+        "UserId": "Guid",
+        "HasOtherSellerMembership": "bool"
+      },
+      "requis": [
+        "HasOtherSellerMembership",
+        "MemberId",
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerMemberRolesUpdatedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "MemberId": "Guid",
+        "UserId": "Guid",
+        "SellerRoleIds": "IReadOnlyList<Guid>"
+      },
+      "requis": [
+        "MemberId",
+        "SellerId",
+        "SellerRoleIds",
+        "UserId"
+      ]
+    },
+    "SellerMemberStoreAssignedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "MemberId": "Guid",
+        "UserId": "Guid",
+        "StoreId": "Guid"
+      },
+      "requis": [
+        "MemberId",
+        "SellerId",
+        "StoreId",
+        "UserId"
+      ]
+    },
+    "SellerMemberStoreUnassignedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "MemberId": "Guid",
+        "UserId": "Guid",
+        "StoreId": "Guid"
+      },
+      "requis": [
+        "MemberId",
+        "SellerId",
+        "StoreId",
+        "UserId"
+      ]
+    },
+    "SellerMemberSuspendedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "MemberId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "MemberId",
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerOrderRefusedIntegrationEvent": {
+      "champs": {
+        "SellerOrderId": "Guid",
+        "OrderId": "Guid",
+        "BuyerId": "Guid",
+        "SellerId": "Guid",
+        "Currency": "string",
+        "Outcome": "string",
+        "Reason": "string",
+        "Amount": "decimal",
+        "Lines": "IReadOnlyCollection<SellerOrderRefusedLine>"
+      },
+      "requis": [
+        "Amount",
+        "BuyerId",
+        "Currency",
+        "Lines",
+        "OrderId",
+        "Outcome",
+        "Reason",
+        "SellerId",
+        "SellerOrderId"
+      ]
+    },
+    "SellerRatingRecomputedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "Average": "double",
+        "Count": "int"
+      },
+      "requis": [
+        "Average",
+        "Count",
+        "SellerId"
+      ]
+    },
+    "SellerReactivatedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerRegisteredIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid",
+        "ShopName": "string"
+      },
+      "requis": [
+        "SellerId",
+        "ShopName",
+        "UserId"
+      ]
+    },
+    "SellerSuspendedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid",
+        "Reason": "string?"
+      },
+      "requis": [
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "SellerSuspensionLiftedIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "UserId": "Guid"
+      },
+      "requis": [
+        "SellerId",
+        "UserId"
+      ]
+    },
+    "ShipmentDeliveredIntegrationEvent": {
+      "champs": {
+        "ShipmentId": "Guid",
+        "OrderId": "Guid",
+        "SellerId": "Guid"
+      },
+      "requis": [
+        "OrderId",
+        "SellerId",
+        "ShipmentId"
+      ]
+    },
+    "ShipmentReadyForPickupIntegrationEvent": {
+      "champs": {
+        "ShipmentId": "Guid",
+        "OrderId": "Guid",
+        "SellerId": "Guid",
+        "ShipFromLocationId": "Guid"
+      },
+      "requis": [
+        "OrderId",
+        "SellerId",
+        "ShipFromLocationId",
+        "ShipmentId"
+      ]
+    },
+    "ShipmentShippedIntegrationEvent": {
+      "champs": {
+        "ShipmentId": "Guid",
+        "OrderId": "Guid",
+        "Carrier": "string",
+        "TrackingNumber": "string"
+      },
+      "requis": [
+        "Carrier",
+        "OrderId",
+        "ShipmentId",
+        "TrackingNumber"
+      ]
+    },
+    "StockDepletedIntegrationEvent": {
+      "champs": {
+        "InventoryItemId": "Guid",
+        "Sku": "string",
+        "LocationId": "Guid"
+      },
+      "requis": [
+        "InventoryItemId",
+        "LocationId",
+        "Sku"
+      ]
+    },
+    "StockReplenishedIntegrationEvent": {
+      "champs": {
+        "InventoryItemId": "Guid",
+        "Sku": "string",
+        "LocationId": "Guid"
+      },
+      "requis": [
+        "InventoryItemId",
+        "LocationId",
+        "Sku"
+      ]
+    },
+    "StockReservedIntegrationEvent": {
+      "champs": {
+        "InventoryItemId": "Guid",
+        "Sku": "string",
+        "OrderId": "Guid",
+        "Quantity": "int"
+      },
+      "requis": [
+        "InventoryItemId",
+        "OrderId",
+        "Quantity",
+        "Sku"
+      ]
+    },
+    "StoreClosedIntegrationEvent": {
+      "champs": {
+        "StoreId": "Guid",
+        "SellerId": "Guid",
+        "Reason": "string?"
+      },
+      "requis": [
+        "SellerId",
+        "StoreId"
+      ]
+    },
+    "StoreOpenedIntegrationEvent": {
+      "champs": {
+        "StoreId": "Guid",
+        "SellerId": "Guid"
+      },
+      "requis": [
+        "SellerId",
+        "StoreId"
+      ]
+    },
+    "StoreSuspendedIntegrationEvent": {
+      "champs": {
+        "StoreId": "Guid",
+        "SellerId": "Guid",
+        "Reason": "string?"
+      },
+      "requis": [
+        "SellerId",
+        "StoreId"
+      ]
+    },
+    "StoreSuspensionLiftedIntegrationEvent": {
+      "champs": {
+        "StoreId": "Guid",
+        "SellerId": "Guid"
+      },
+      "requis": [
+        "SellerId",
+        "StoreId"
+      ]
+    },
+    "TokenRevokedIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "Reason": "string",
+        "RevokedCount": "int"
+      },
+      "requis": [
+        "Reason",
+        "RevokedCount",
+        "UserId"
+      ]
+    },
+    "TrackingLocationSampledIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "DriverId": "Guid",
+        "Sequence": "long",
+        "Latitude": "double",
+        "Longitude": "double"
+      },
+      "requis": [
+        "DeliveryId",
+        "DriverId",
+        "Latitude",
+        "Longitude",
+        "Sequence"
+      ]
+    },
+    "TrackingSessionEndedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "DriverId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "DriverId"
+      ]
+    },
+    "TrackingSessionStartedIntegrationEvent": {
+      "champs": {
+        "DeliveryId": "Guid",
+        "DriverId": "Guid"
+      },
+      "requis": [
+        "DeliveryId",
+        "DriverId"
+      ]
+    },
+    "UserAddressCreatedIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "AddressId": "Guid",
+        "CommuneCode": "string?",
+        "IsDefault": "bool"
+      },
+      "requis": [
+        "AddressId",
+        "IsDefault",
+        "UserId"
+      ]
+    },
+    "UserAnonymizedIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid"
+      },
+      "requis": [
+        "UserId"
+      ]
+    },
+    "UserDeviceRegisteredIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "DeviceId": "Guid",
+        "Platform": "string"
+      },
+      "requis": [
+        "DeviceId",
+        "Platform",
+        "UserId"
+      ]
+    },
+    "UserEmailConfirmedIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "Email": "string"
+      },
+      "requis": [
+        "Email",
+        "UserId"
+      ]
+    },
+    "UserLoggedInIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "Method": "string",
+        "DeviceId": "string?"
+      },
+      "requis": [
+        "Method",
+        "UserId"
+      ]
+    },
+    "UserProfileChangedIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "FirstName": "string",
+        "LastName": "string",
+        "DisplayName": "string",
+        "AvatarUrl": "string?"
+      },
+      "requis": [
+        "DisplayName",
+        "FirstName",
+        "LastName",
+        "UserId"
+      ]
+    },
+    "UserProfileUpdatedIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "FirstName": "string",
+        "LastName": "string"
+      },
+      "requis": [
+        "FirstName",
+        "LastName",
+        "UserId"
+      ]
+    },
+    "UserRegisteredIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "Email": "string",
+        "FirstName": "string"
+      },
+      "requis": [
+        "Email",
+        "FirstName",
+        "UserId"
+      ]
+    }
+  }
+}

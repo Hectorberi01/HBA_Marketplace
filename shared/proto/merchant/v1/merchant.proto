@@ -1,0 +1,275 @@
+syntax = "proto3";
+
+package hba.merchant.v1;
+
+option csharp_namespace = "HBA.Merchants.Grpc.V1";
+
+service MerchantApi {
+  rpc GetSeller(GetSellerRequest) returns (GetSellerResponse);
+  rpc GetSellerByUser(GetSellerByUserRequest) returns (GetSellerResponse);
+  rpc GetStore(GetStoreRequest) returns (GetStoreResponse);
+  rpc ListSellerStores(ListSellerStoresRequest) returns (ListSellerStoresResponse);
+  rpc ValidateSeller(ValidateSellerRequest) returns (ValidateSellerResponse);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LE COMPTE DE REVERSEMENT — UN RPC À PART, ET IL DOIT LE RESTER.
+  //
+  // SANS LUI, AUCUN VENDEUR NE POUVAIT SORTIR SON ARGENT.
+  //
+  // `SellerSummary` (C#) porte un champ `Payout` que ce proto NE TRANSPORTE PAS.
+  // Le mappeur du client le remplissait donc avec `null` — indiscernable de « ce
+  // vendeur n'a pas configuré de compte ». wallet-service, qui lit ce champ pour
+  // autoriser un retrait, refusait TOUTES les demandes avec « Aucun compte de
+  // versement Mobile Money configuré », y compris pour les vendeurs qui en
+  // avaient un. Pire : la validation administrative d'une demande existante
+  // ÉCHOUAIT ET REMBOURSAIT, sur le même motif faux.
+  //
+  // POURQUOI PAS UN CHAMP DE PLUS SUR `SellerSummary`.
+  //
+  // `GetSeller` est appelé EN BOUCLE par la fiche produit mobile, et sa réponse
+  // est mise en cache dix minutes côté service. Y mettre le numéro Mobile Money
+  // du vendeur ferait circuler une coordonnée bancaire sur le chemin le plus
+  // chaud de la plateforme, et la ferait vivre dans un cache de lecture — alors
+  // qu'un seul appelant en a besoin, une fois par retrait, et qu'il lui faut la
+  // valeur FRAÎCHE : payer un numéro périmé de dix minutes, c'est envoyer
+  // l'argent à l'ancien numéro d'un vendeur qui vient de corriger une faute de
+  // frappe.
+  // ═══════════════════════════════════════════════════════════════════════════
+  rpc GetSellerPayout(GetSellerPayoutRequest) returns (GetSellerPayoutResponse);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // L'AUTORISATION VENDEUR — CE QUI SUCCÈDE À `GetSellerByUser`.
+  //
+  // `GetSellerByUser` NE RÉSOUT QUE LE PROPRIÉTAIRE, ET CONTINUERA DE LE FAIRE.
+  //
+  // C'est délibéré, et c'est ce qui rend la migration sûre. Élargir cette réponse
+  // aux membres aurait ouvert d'un seul coup les cinq services qui l'appellent —
+  // catalog, inventory, order, payment, seller — y compris
+  // `PUT /{seller_id}/payout-account`, qui fixe le numéro Mobile Money où partent
+  // les gains. Chaque service migre vers `GetMemberAccess` quand il applique
+  // réellement les capacités ; celui qui n'a pas migré ne voit pas les membres.
+  //
+  // `GetMemberAccess` REND L'ENSEMBLE, PAS UNE RÉPONSE PAR PERMISSION.
+  //
+  // Une route qui vérifie deux permissions ferait sinon deux allers-retours, et un
+  // écran qui grise ses boutons en ferait dix. La réponse porte aussi le
+  // `seller_id` : les appelants ne font pas que des gardes, ils écrivent le
+  // vendeur dans leurs commandes et filtrent leurs listes dessus.
+  //
+  // `CheckMerchantCapability` reste utile là où le vendeur vient de la RESSOURCE
+  // et non du jeton — un avis, une commande, un retrait.
+  // ═══════════════════════════════════════════════════════════════════════════
+  rpc GetMemberAccess(GetMemberAccessRequest) returns (GetMemberAccessResponse);
+  rpc CheckMerchantCapability(CheckMerchantCapabilityRequest) returns (CheckMerchantCapabilityResponse);
+}
+
+message GetSellerRequest {
+  string seller_id = 1;
+}
+
+message GetSellerByUserRequest {
+  string user_id = 1;
+}
+
+message GetSellerResponse {
+  bool found = 1;
+  SellerSummary seller = 2;
+}
+
+message GetStoreRequest {
+  string store_id = 1;
+}
+
+message GetStoreResponse {
+  bool found = 1;
+  StoreSummary store = 2;
+}
+
+message ListSellerStoresRequest {
+  string seller_id = 1;
+}
+
+message ListSellerStoresResponse {
+  repeated StoreSummary stores = 1;
+}
+
+message ValidateSellerRequest {
+  string seller_id = 1;
+}
+
+message ValidateSellerResponse {
+  bool valid = 1;
+  string status = 2;
+  string reason = 3;
+}
+
+message GetSellerPayoutRequest {
+  string seller_id = 1;
+}
+
+// DEUX BOOLÉENS, ET CE N'EST PAS UNE REDONDANCE.
+//
+// `found` dit que le VENDEUR existe ; `has_payout` dit qu'il a un compte. Les
+// confondre — un seul champ, ou un message nul — c'est exactement le défaut
+// qu'on répare : « vendeur inconnu » et « vendeur sans compte » n'appellent ni
+// le même message pour l'utilisateur, ni la même conduite pour l'appelant. Le
+// premier est une erreur d'identifiant ; le second est une étape d'onboarding
+// que le vendeur doit terminer.
+//
+// `configured` ET NON `has_payout` : protoc engendre des propriétés `HasXxx`
+// pour la présence des champs, et un champ nommé `has_payout` voisinant un champ
+// `payout` est le genre de collision qui ne se voit qu'à la compilation d'un
+// fichier généré — là où le message d'erreur ne désigne pas le .proto fautif.
+message GetSellerPayoutResponse {
+  bool found = 1;
+  bool configured = 2;
+  PayoutAccount payout = 3;
+}
+
+message PayoutAccount {
+  string provider = 1;
+  string account_number = 2;
+  string account_name = 3;
+}
+
+message SellerSummary {
+  string seller_id = 1;
+  string user_id = 2;
+  string shop_name = 3;
+  string status = 4;
+  string kyb_status = 5;
+  string commission_rate = 6;
+  optional string logo_url = 7;
+  optional string description = 8;
+}
+
+message StoreSummary {
+  string store_id = 1;
+  string seller_id = 2;
+  string name = 3;
+  string status = 4;
+  optional string contact_phone = 5;
+  optional string contact_email = 6;
+  optional string fulfillment_location_id = 7;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRANSPORTÉ, ET NON PLUS DÉDUIT DU STATUT PAR L'APPELANT.
+  //
+  // Le mappeur du client calculait `IsSelling` en comparant `status` à
+  // « Active » — une valeur qui N'EXISTE PAS dans `StoreStatus` (Draft, Open,
+  // Closed, Suspended). Toute boutique était donc fermée pour un appelant
+  // distant, en silence et pour toujours.
+  //
+  // Le piège est réel : « Active » EST une valeur légitime… de `SellerStatus`.
+  // Le même mappeur traite les deux vocabulaires, et l'un a été appliqué à
+  // l'autre.
+  //
+  // Personne ne lisait ce champ à distance — c'est la seule raison pour laquelle
+  // rien ne s'était éteint. Le jour où catalog ou order l'aurait lu, toutes les
+  // boutiques de la plateforme se seraient fermées pour lui, sans une erreur et
+  // sans une ligne de journal.
+  //
+  // LA RÉPARATION N'EST PAS DE CORRIGER LA CHAÎNE.
+  //
+  // Remplacer « Active » par « Open » aurait marché aujourd'hui, et aurait laissé
+  // un prédicat de DOMAINE recalculé côté client, à partir d'un statut sérialisé.
+  // Renommer une valeur d'énumération l'aurait cassé de nouveau, en silence. Le
+  // serveur connaît la réponse — `Store.IsSelling` — donc il l'envoie.
+  // ═══════════════════════════════════════════════════════════════════════════
+  bool is_selling = 8;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// L'AUTORISATION VENDEUR
+// ═════════════════════════════════════════════════════════════════════════════
+
+message GetMemberAccessRequest {
+  // L'IDENTIFIANT DU JETON, ET RIEN D'AUTRE.
+  //
+  // Pas de seller_id ici : c'est la RÉPONSE qui le porte. Un vendeur fourni par
+  // l'appelant serait une désignation, jamais une preuve — et la faire entrer
+  // dans la question laisserait croire le contraire.
+  string user_id = 1;
+}
+
+message GetMemberAccessResponse {
+  // Faux : ce compte n'appartient à aucune équipe vendeur active. Ce n'est pas un
+  // refus, c'est une absence — l'immense majorité des comptes sont des acheteurs.
+  bool found = 1;
+
+  string seller_id = 2;
+  string member_id = 3;
+  bool is_owner = 4;
+
+  // Les codes publics : ORDER_CONFIRM, INVENTORY_ADJUST… Ce sont ceux qui
+  // figurent dans `error.details.requiredPermission`, et le même texte des deux
+  // côtés est ce qui rend un refus explicable à l'utilisateur.
+  repeated string permissions = 5;
+
+  // Les boutiques auxquelles le membre est affecté. L'écran d'équipe les affiche,
+  // et `store_permissions` en détaille les droits.
+  repeated string store_ids = 6;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LE SOCLE ET LE CADRAGE (lot F).
+  //
+  // `permissions` RESTE L'UNION, ET NE CHANGE PAS DE SENS.
+  //
+  // Le resserrer aurait cadré d'un coup les dizaines de routes qui ne connaissent
+  // AUCUNE boutique et ne peuvent donc pas en nommer une : un responsable de
+  // boutique aurait perdu, sans transition, tout ce que le service n'a pas encore
+  // appris à situer. Les deux champs ci-dessous s'AJOUTENT ; les appelants
+  // migrent route par route.
+  //
+  // `seller_level_permissions` EST TRANSPORTÉ ET NON DÉDUIT.
+  //
+  // Chaque entrée de `store_permissions` contient le socle plus les rôles de sa
+  // boutique, ce qui donne envie de retrouver le socle par intersection. Elle ne
+  // le donne pas : un membre STORE_ADMIN sur A ET sur B a STORE_UPDATE dans les
+  // deux entrées, donc dans l'intersection — et une boutique C où il n'est pas
+  // affecté hériterait du droit. C'est exactement le trou que ce lot ferme.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Ce qui vaut dans TOUTE boutique : les rôles attribués au niveau du vendeur.
+  // Un comptable rattaché au vendeur lit les finances de l'entreprise ; la notion
+  // de boutique n'a pas de sens pour lui.
+  repeated string seller_level_permissions = 7;
+
+  // Les droits boutique par boutique, socle compris.
+  repeated StorePermissions store_permissions = 8;
+}
+
+// Les permissions d'un membre DANS une boutique — socle vendeur inclus.
+//
+// LE SOCLE EST RECOPIÉ DANS CHAQUE ENTRÉE, ET C'EST VOULU. L'appelant pose une
+// question fermée et doit y répondre par une seule recherche ; l'obliger à réunir
+// deux ensembles à chaque garde, dans cinq services, c'est quatre occasions
+// d'oublier le socle — et le comptable perdrait ses finances dès qu'une boutique
+// serait nommée dans l'URL.
+message StorePermissions {
+  string store_id = 1;
+  repeated string permissions = 2;
+}
+
+message CheckMerchantCapabilityRequest {
+  string user_id = 1;
+  string seller_id = 2;
+
+  // IGNORÉ EN PHASE 1, ET PRÉSENT QUAND MÊME.
+  //
+  // Il n'a rien sur quoi mordre tant que les commandes et le stock ne connaissent
+  // pas la boutique. Le champ existe pour que les appelants soient écrits dès
+  // maintenant avec l'information qu'ils devront transmettre : au lot G, seule
+  // l'implémentation change, pas les sites d'appel.
+  optional string store_id = 3;
+
+  string permission = 4;
+}
+
+message CheckMerchantCapabilityResponse {
+  bool allowed = 1;
+
+  // Vide si refusé. Sert à l'audit : « qui a fait cela » se répond par un membre,
+  // pas par un compte — un même compte peut être membre de plusieurs équipes.
+  string member_id = 2;
+}

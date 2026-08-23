@@ -1,0 +1,17 @@
+# Configuration de la génération i18n (flutter gen-l10n).
+# Le FRANÇAIS est la langue modèle (source de vérité des clés) ; l'anglais en
+# est la traduction. La classe AppLocalizations est générée dans lib/l10n/.
+arb-dir: lib/l10n
+template-arb-file: app_fr.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false
+
+# `synthetic-package: false` a été RETIRÉ : l'option n'a plus aucun effet depuis que
+# Flutter a supprimé le paquet synthétique `package:flutter_gen`, et l'outil le signale
+# à chaque `flutter run` — trois lignes rouges avant même le début du build, dont on
+# finit par ne plus rien lire.
+#
+# Rien ne change en pratique : sans `output-dir`, la génération vise `arb-dir`, donc
+# toujours lib/l10n/ — où app_localizations.dart se trouve déjà. L'app cliente n'a
+# jamais eu cette ligne.

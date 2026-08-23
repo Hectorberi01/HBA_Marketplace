@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Users.Application\HBA.Users.Application.csproj" />
+    <ProjectReference Include="..\HBA.Users.Infrastructure\HBA.Users.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Users.Contracts.Grpc\HBA.Users.Contracts.Grpc.csproj" />
+
+    <!--
+      IDENTITY N'EST RÉFÉRENCÉ QUE PAR CE PROJET-CI, ET C'EST LA RÈGLE.
+
+      `UsersBoundaryTests` interdit au module User de dépendre d'Identity,
+      Contracts compris. Le seul endroit qui a le droit de connaître les deux
+      mondes est la composition root — ici. Le couplage est isolé dans
+      `Integration/CreateUserProfileOnUserRegisteredHandler.cs`, un fichier qu'on
+      supprime pour détacher les deux services.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts.Grpc\HBA.Identity.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

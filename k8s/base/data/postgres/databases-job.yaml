@@ -1,0 +1,73 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES QUATORZE BASES DU §10 — « database ownership per service ».
+#
+# UN Job REJOUABLE, PAS UN SCRIPT D'INITIALISATION.
+#
+# En développement, ces bases viennent de `docker-entrypoint-initdb.d`, qui ne
+# s'exécute QU'AU PREMIER démarrage du volume. C'est la cause la plus fréquente de
+# « j'ai ajouté la base et rien ne se passe » — le fichier est modifié, le volume
+# existe déjà, le script est ignoré, et aucun message ne le dit.
+#
+# Ici, `CREATE DATABASE IF NOT EXISTS` n'existe pas en PostgreSQL : d'où le
+# `SELECT` conditionnel, qui rend le Job rejouable autant de fois qu'on veut.
+# Ajouter un service = ajouter une ligne et relancer le Job.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-databases
+  annotations:
+    # Rejoué à chaque déploiement : c'est voulu, il est idempotent.
+    argocd.argoproj.io/hook: PostSync
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 26          # utilisateur postgres de l'image CNPG
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: psql
+          image: ghcr.io/cloudnative-pg/postgresql:16.4
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: PGHOST
+              value: postgres-rw
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app
+                  key: password
+            - name: PGDATABASE
+              value: app
+          command:
+            - bash
+            - -euo
+            - pipefail
+            - -c
+            - |
+              for base in identity user merchant catalog inventory commerce order \
+                          food delivery financial engagement communication media promotion; do
+                psql -tAc "SELECT 1 FROM pg_database WHERE datname='hba_${base}'" \
+                  | grep -q 1 || psql -c "CREATE DATABASE hba_${base} OWNER ${PGUSER}"
+                echo "hba_${base} present"
+              done
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"

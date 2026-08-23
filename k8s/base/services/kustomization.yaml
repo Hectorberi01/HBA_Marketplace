@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Les quatorze services applicatifs. La passerelle et les BFF vivent dans
+# `../apps` : ils sont les seuls à porter un Ingress, et leur dimensionnement
+# suit le trafic public plutôt que la charge interne (§4).
+
+resources:
+  - identity-service
+  - user-service
+  - media-service
+  - communication-service
+  - financial-service
+  - engagement-service
+  - catalog-service
+  - merchant-service
+  - inventory-service
+  - commerce-service
+  - order-service
+  - food-service
+  - delivery-service
+  - promotion-service

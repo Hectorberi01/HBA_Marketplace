@@ -1,0 +1,188 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# LA PILE D'OBSERVABILITÉ — QUI N'AVAIT JAMAIS DÉMARRÉ.
+#
+# TOUS CES FICHIERS DE CONFIGURATION EXISTAIENT DÉJÀ DANS `infra/observability`.
+#
+# Le collecteur, Prometheus, Loki et le provisionnement Grafana étaient écrits,
+# relus, versionnés — et aucun `docker-compose` ne les lançait. Le dossier avait
+# l'air d'une pile en place ; c'était une pile en plan. Le README l'annonçait
+# pourtant comme « une condition de la découpe, pas un confort ».
+#
+# FICHIER SÉPARÉ, ET NON UN AJOUT À `docker-compose.dev.yml`.
+#
+# Cinq conteneurs de plus coûtent environ 1,5 Go de mémoire. Les imposer à qui
+# veut simplement lancer deux services pour déboguer un handler ferait chercher
+# comment les désactiver — et la réponse serait de commenter des blocs, donc de
+# les voir diverger. Ici, on lance la pile quand on en a besoin :
+#
+#     docker compose -f docker-compose.dev.yml -f docker-compose.observability.yml up -d
+#
+# L'EXPORT NE S'ACTIVE PAS TOUT SEUL POUR AUTANT.
+#
+# `OPENTELEMETRY__ENDPOINT` vaut la chaîne vide sur les services : sans elle, un
+# `dotnet run` local tenterait de joindre `otel-collector:4317`, inexistant hors
+# du réseau Docker, et remplirait la console d'erreurs de connexion. Ce fichier
+# la renseigne — c'est le second geste, et il est délibérément lié au premier.
+# ═══════════════════════════════════════════════════════════════════════════
+
+services:
+
+  # ── Le point d'entrée unique ─────────────────────────────────────────────
+  #
+  # LES SERVICES NE PARLENT QU'À LUI, JAMAIS À PROMETHEUS NI À LOKI.
+  #
+  # C'est ce qui permet de changer de backend — remplacer Tempo, ajouter un
+  # export vers un service tiers — sans toucher aux quatorze services ni
+  # redéployer quoi que ce soit.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    container_name: hba-otel-collector
+    command: ["--config=/etc/otel/otel-collector.yml"]
+    volumes:
+      - ./infra/observability/otel/otel-collector.yml:/etc/otel/otel-collector.yml:ro
+    ports:
+      # 4317 gRPC / 4318 HTTP : publiés pour qu'un service lancé hors Docker
+      # (déboguage dans l'IDE) puisse exporter lui aussi.
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - tempo
+      - loki
+    networks: [hba-backend]
+
+  # ── Les traces ───────────────────────────────────────────────────────────
+  #
+  # SANS CE CONTENEUR, LE PIPELINE DE TRACES DU COLLECTEUR N'EXPORTAIT QUE
+  #    VERS `debug`.
+  #
+  # C'est-à-dire vers la sortie standard du collecteur. Les traces existaient,
+  # étaient reçues, et n'étaient interrogeables nulle part — on pouvait les lire
+  # avec `docker logs`, en JSON, dans l'ordre d'arrivée. Autant dire pas.
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: hba-tempo
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    volumes:
+      - ./infra/observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo-data:/var/tempo
+    networks: [hba-backend]
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: hba-loki
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./infra/observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    networks: [hba-backend]
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    container_name: hba-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [hba-backend]
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: hba-grafana
+    environment:
+      # ANONYME ET ADMINISTRATEUR : C'EST UNE PILE DE DÉVELOPPEMENT.
+      #
+      # Écrit ici plutôt que laissé au défaut `admin/admin`, pour que personne ne
+      # soit tenté de reprendre ce fichier tel quel en pré-production. Les
+      # manifests d'environnement partagé doivent poser une vraie authentification.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks: [hba-backend]
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # L'ADRESSE DU COLLECTEUR, SERVICE PAR SERVICE.
+  #
+  # Il n'y a pas de raccourci : Compose ne sait pas poser une variable sur « tous
+  # les services ». Chaque bloc ci-dessous ne fait qu'AJOUTER une variable au
+  # service défini dans `docker-compose.dev.yml` — le reste (image, ports,
+  # dépendances) reste là-bas et n'est pas dupliqué.
+  #
+  # Un service oublié ici reste muet, et rien ne le signale : il démarre, il sert,
+  # il n'apparaît simplement dans aucune trace. C'est pourquoi la liste suit
+  # exactement l'ordre de `docker-compose.dev.yml` — pour qu'une comparaison à
+  # l'œil suffise à trouver le manquant.
+  # ═════════════════════════════════════════════════════════════════════════
+
+  identity-service:
+    environment: &otel
+      OPENTELEMETRY__ENDPOINT: http://otel-collector:4317
+      OPENTELEMETRY__JSONCONSOLE: "true"
+
+  user-service:
+    environment: *otel
+
+  media-service:
+    environment: *otel
+
+  merchant-service:
+    environment: *otel
+
+  catalog-service:
+    environment: *otel
+
+  inventory-service:
+    environment: *otel
+
+  commerce-service:
+    environment: *otel
+
+  order-service:
+    environment: *otel
+
+  food-service:
+    environment: *otel
+
+  delivery-service:
+    environment: *otel
+
+  financial-service:
+    environment: *otel
+
+  engagement-service:
+    environment: *otel
+
+  communication-service:
+    environment: *otel
+
+  promotion-service:
+    environment: *otel
+
+  # `gateway`, ET NON `api-gateway`.
+  #
+  # Le dossier s'appelle `apps/api-gateway`, le conteneur s'appelle `gateway`.
+  # Compose ne se plaint pas d'un service inconnu dans un fichier de surcharge :
+  # il en CRÉE un, sans image, et la pile refuse de monter avec une erreur qui
+  # parle d'image manquante — pas de nom mal orthographié.
+  gateway:
+    environment: *otel
+
+volumes:
+  tempo-data:
+  loki-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  hba-backend:

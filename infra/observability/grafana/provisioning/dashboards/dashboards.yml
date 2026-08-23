@@ -1,0 +1,22 @@
+# Fournisseur de tableaux de bord : Grafana charge tout `.json` déposé dans
+# `infra/observability/grafana/dashboards`, monté en lecture seule.
+#
+# CE FICHIER REMPLACE `provisioning/dashboards/datasources.yml`, QUI CONTENAIT
+# LES SOURCES DE DONNÉES — voir l'encadré de `provisioning/datasources/datasources.yml`.
+# L'ancien doit être retiré : Grafana lit TOUS les fichiers du dossier, et celui-là
+# le ferait échouer sur une clé `datasources` qu'il n'attend pas ici.
+
+apiVersion: 1
+
+providers:
+
+  - name: HBA
+    orgId: 1
+    folder: HBA
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+
+    options:
+      path: /var/lib/grafana/dashboards

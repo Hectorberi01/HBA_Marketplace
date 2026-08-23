@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cadre cible, nullable et usings implicites viennent de Directory.Build.props.
+
+    Le domaine ne référence QUE le socle partagé : ni EF, ni MediatR, ni ASP.NET.
+    C'est ce qui permet de tester ces règles — budget, plafonds, fenêtre de
+    validité — sans base de données ni hôte, donc en millisecondes.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Domain\HBA.Shared.Domain.csproj" />
+  </ItemGroup>
+
+  <!--
+    POUR TESTER CE QUI ARRIVE **DE LA BASE**, PAS CE QUI PASSE PAR LA CRÉATION.
+
+    `PromotionRule.Create` refuse un type de règle inconnu — c'est voulu. Mais le
+    cas qui compte est l'autre : une campagne écrite par une version plus récente
+    du service, relue par celle-ci, avec un `rule_type` qu'elle ne connaît pas.
+    Cette règle-là n'est jamais passée par `Create` ; EF la matérialise par le
+    constructeur interne.
+
+    Ouvrir ce constructeur au projet de test est la façon la plus simple de couvrir
+    ce chemin. L'alternative essayée d'abord — instancier par réflexion et forcer
+    les propriétés — reposait sur le comportement de `PropertyInfo.SetValue` face à
+    des setters privés, pour un test dont l'enjeu est précisément la fiabilité.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="HBA.Promotions.Tests" />
+  </ItemGroup>
+
+</Project>

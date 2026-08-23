@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cadre cible, nullable et usings implicites viennent de Directory.Build.props.
+
+    Ce projet ne référence AUCUN autre service, pas même leurs contrats. Les deux
+    événements consommés — `marketplace.order.cancelled` et `food.order.cancelled`
+    — sont traités par l'Api, qui a le droit de connaître les contrats des services
+    dont elle écoute les faits. Faire descendre cette dépendance ici aurait lié la
+    persistance de promotion au vocabulaire de deux autres domaines.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Promotions.Domain\HBA.Promotions.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Promotions.Application\HBA.Promotions.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="MediatR" />
+
+    <!--
+      AJOUTÉS POUR LE BALAYEUR DE RETENUES (ISSUE-053), ET RIEN D'AUTRE.
+
+      `BackgroundService` vit dans `Hosting.Abstractions`, `ILogger<T>` dans
+      `Logging.Abstractions`. Ce projet n'en tirait aucun : promotion n'avait
+      jamais eu de travail d'arrière-plan à lui (l'outbox vient du socle, qui les
+      référence pour son propre compte). Sans ces deux lignes, la compilation
+      échoue en CS0246 sur `BackgroundService` — et le message ne nomme pas le
+      paquet manquant.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+</Project>

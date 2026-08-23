@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!--
+      C'EST CE FICHIER-CI QUI PORTE LE PLUS D'INFORMATION.
+
+      Les contrôleurs décrivent des routes ; les DTO de cette couche décrivent
+      les CHAMPS — pourquoi `AverageBasket` est nul un jour sans vente, pourquoi
+      l'écran de cuisine ne porte aucun montant, ce que signifie un `warnings`
+      non vide. Sans ce XML, chaque schéma s'affiche nu.
+    -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    AUCUNE RÉFÉRENCE VERS Infrastructure, ET AUCUNE VERS ASP.NET Core.
+
+    La règle Application ← Infrastructure ne tient que si elle est vérifiable.
+    Trois paquets d'abstractions suffisent : options, journalisation,
+    enregistrement DI. Ni `Microsoft.Extensions.Hosting` (qui apporterait
+    `ValidateOnStart` et tout le cycle de vie de l'hôte), ni
+    `FrameworkReference Microsoft.AspNetCore.App` (qui ferait entrer HttpContext
+    et le pipeline entier dans la couche censée en être indépendante).
+
+    Conséquence assumée : le binding et la validation de `BffAggregationOptions`
+    se font dans `Program.cs`. C'est le rôle d'un composition root.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+</Project>

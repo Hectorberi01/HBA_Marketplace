@@ -1,0 +1,45 @@
+using HBA.Financial.Billing.Contracts;
+using HBA.Financial.Billing.Domain.Commissions;
+
+namespace HBA.Financial.Billing.Infrastructure.Public;
+
+/// <summary>
+/// Implémentation in-process de l'API publique du module Billing : résout la
+/// règle de commission la plus spécifique et calcule la part plateforme.
+/// À défaut de règle, applique le taux fixe par défaut (BillingOptions) — la
+/// plateforme prélève ainsi TOUJOURS une commission sur chaque vente.
+/// </summary>
+internal sealed class CommissionModuleApi : ICommissionModuleApi
+{
+    private readonly ICommissionRuleRepository _repository;
+    private readonly decimal _defaultRate;
+
+    public CommissionModuleApi(ICommissionRuleRepository repository, BillingOptions options)
+    {
+        _repository = repository;
+        _defaultRate = options.DefaultCommissionRate;
+    }
+
+    public async Task<CommissionResult> ComputeCommissionAsync(
+        Guid sellerId, Guid categoryId, decimal grossAmount, string currency, CancellationToken cancellationToken = default)
+    {
+        var candidates = await _repository.GetCandidatesAsync(sellerId, categoryId, cancellationToken);
+        var rule = CommissionResolver.Resolve(candidates, sellerId, categoryId, DateTime.UtcNow);
+
+        // Règle spécifique si elle existe, sinon taux fixe par défaut (jamais 0 silencieux).
+        var commission = rule?.ComputeCommission(grossAmount) ?? DefaultCommission(grossAmount);
+        return new CommissionResult(grossAmount, commission, grossAmount - commission, currency, rule?.Id.Value);
+    }
+
+    /// <summary>Commission au taux fixe par défaut, arrondie à 2 décimales et plafonnée au brut.</summary>
+    private decimal DefaultCommission(decimal grossAmount)
+    {
+        if (_defaultRate <= 0m || grossAmount <= 0m)
+        {
+            return 0m;
+        }
+
+        var commission = decimal.Round(grossAmount * _defaultRate, 2, MidpointRounding.AwayFromZero);
+        return commission > grossAmount ? grossAmount : commission;
+    }
+}

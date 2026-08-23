@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hbaexpress.local/contracts/marketplace/return-events-v1.json",
+  "title": "Marketplace Return Events V1",
+  "type": "object",
+  "required": ["eventId", "eventType", "eventVersion", "occurredAt", "producer", "aggregate", "partitionKey", "data"],
+  "properties": {
+    "eventId": { "type": "string" },
+    "eventType": {
+      "enum": [
+        "marketplace.return.requested",
+        "marketplace.return.approved",
+        "marketplace.return.rejected",
+        "marketplace.return.awaiting-shipment",
+        "marketplace.return.in-transit",
+        "marketplace.return.received",
+        "marketplace.return.inspected",
+        "marketplace.return.closed"
+      ]
+    },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "producer": { "const": "return-refund-service" },
+    "correlationId": { "type": ["string", "null"] },
+    "traceId": { "type": ["string", "null"] },
+    "aggregate": {
+      "type": "object",
+      "required": ["type", "id", "version"],
+      "properties": {
+        "type": { "const": "ReturnRequest" },
+        "id": { "type": "string" },
+        "version": { "type": "integer" }
+      }
+    },
+    "partitionKey": { "type": "string" },
+    "data": {
+      "type": "object",
+      "required": ["returnId", "orderId", "sellerId", "status", "resolution"],
+      "properties": {
+        "returnId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "status": { "type": "string" },
+        "resolution": { "type": "string" }
+      }
+    }
+  }
+}

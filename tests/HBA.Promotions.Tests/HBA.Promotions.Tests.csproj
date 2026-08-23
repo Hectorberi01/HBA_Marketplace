@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    Le domaine ET les contrats, pas l'hôte : promotion-service n'a pas encore
+    d'Api câblée. Les règles testées ici — budget, plafonds, fenêtre, éligibilité —
+    n'ont besoin ni de base ni de serveur pour être fausses.
+
+    Les contrats viennent en plus parce que les événements d'intégration sont un
+    contrat public : c'est le seul endroit où un renommage de champ se voit avant
+    qu'un consommateur ne cesse silencieusement de comprendre.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\common\promotion-service\src\HBA.Promotions.Domain\HBA.Promotions.Domain.csproj" />
+    <ProjectReference Include="..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

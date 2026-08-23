@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Food.Cart.Application\HBA.Food.Cart.Application.csproj" />
+    <ProjectReference Include="..\HBA.Food.Cart.Infrastructure\HBA.Food.Cart.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+
+    <!-- La carte du restaurant, et la commande de repas : lus par le réseau. -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodCarts.Contracts.Grpc\HBA.FoodCarts.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+</Project>

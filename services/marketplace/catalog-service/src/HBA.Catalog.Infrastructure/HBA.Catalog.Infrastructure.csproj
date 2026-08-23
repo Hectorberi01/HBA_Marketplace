@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Catalog.Domain\HBA.Catalog.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Catalog.Application\HBA.Catalog.Application.csproj" />
+    <ProjectReference Include="..\HBA.Catalog.Contracts\HBA.Catalog.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+
+    <!--
+      LE CONTRAT D'INVENTAIRE — SANS LUI, AUCUNE OFFRE NE PASSE JAMAIS EN
+      RUPTURE (ISSUE-047).
+
+      `StockDepleted` et `StockReplenished` sont publiés depuis toujours par
+      inventory-service, et catalog n'enregistrait AUCUN consommateur de stock. Le
+      répartiteur résout paresseusement : l'événement était marqué traité et
+      disparaissait, sans erreur.
+
+      Comme le retour de course chez restaurant-service, le consommateur Kafka
+      résout l'événement par RÉFLEXION sur les assemblies chargées : sans cette
+      référence, catalog-service cesserait simplement de reconnaître ces deux
+      messages, sans la moindre erreur de compilation.
+
+      Sens de la dépendance sûr : `HBA.Inventory.Contracts` ne référence que le
+      socle, et inventory ne référence rien de catalog.
+    -->
+    <ProjectReference Include="..\..\..\inventory-service\src\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <!-- Détourage local : aplatissement sur blanc + encodage JPEG (RembgImageProcessor). -->
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+  </ItemGroup>
+
+</Project>

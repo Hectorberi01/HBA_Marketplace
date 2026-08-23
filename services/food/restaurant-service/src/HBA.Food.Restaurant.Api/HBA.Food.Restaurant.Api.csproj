@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Food.Restaurant.Application\HBA.Food.Restaurant.Application.csproj" />
+    <ProjectReference Include="..\HBA.Food.Restaurant.Infrastructure\HBA.Food.Restaurant.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
+
+    <!--
+      TROIS CLIENTS, ET ILS NE SONT RÉFÉRENCÉS QUE PAR CE PROJET.
+
+      Le pont Food → Delivery connaît quatre mondes : la commande (lignes,
+      adresse, devis payé), le lieu d'enlèvement, le transporteur, et le
+      restaurant. Seule la composition root a le droit de les connaître tous ;
+      la couche Application de Food n'en voit aucun.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Inventory.Contracts.Grpc\HBA.Inventory.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
+
+    <!--
+      QUATRIÈME CLIENT : LE DOSSIER VENDEUR QUI ENCAISSE POUR LE RESTAURANT.
+
+      La route qui rattache ce dossier doit vérifier qu'il appartient au porteur
+      du jeton et qu'il est actif. Food ne connaît pas Sellers — c'est la règle
+      qui rend le module extractible, et `Restaurant.PayoutSellerId` la rappelle
+      en toutes lettres. Seule cette composition root voit les deux.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+
+    <!--
+      RÉFÉRENCE EXPLICITE, BIEN QU'ELLE SOIT DÉJÀ TRANSITIVE VIA LE CLIENT gRPC.
+
+      Le retour de course — `DeliveryPickedUp`, `DeliveryCompleted` — est ce qui
+      clôt le ticket de cuisine et fait payer le restaurateur. Le consommateur
+      Kafka résout l'événement par RÉFLEXION sur les assemblies chargées : si
+      cette référence disparaissait avec le client gRPC, food-service cesserait
+      simplement de reconnaître ces deux événements, sans erreur de compilation.
+      La dépendance est donc déclarée pour ce qu'elle est.
+    -->
+    <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+
+    <!--
+      LE CONTRAT DE LA COMMANDE DE REPAS — SANS LUI, RIEN NE S'OUVRE EN CUISINE.
+
+      `MealOrderConfirmed` est publié par food-order-service et c'est ce qui doit
+      ouvrir le ticket. Comme le retour de course plus haut, le consommateur Kafka
+      résout l'événement par RÉFLEXION sur les assemblies chargées : sans cette
+      référence, restaurant-service cesserait simplement de reconnaître le
+      message, sans la moindre erreur de compilation ni de démarrage.
+
+      Le sens de la dépendance est sûr : ce projet ne référence que
+      `HBA.Shared.IntegrationEvents`, et rien du côté restaurant — aucun cycle.
+    -->
+    <ProjectReference Include="..\..\..\food-order-service\src\HBA.Food.Order.Contracts\HBA.Food.Order.Contracts.csproj" />
+
+    <!--
+      ET SON CLIENT gRPC — SANS LUI, AUCUNE COURSE POUR UN REPAS.
+
+      La référence ci-dessus n'apporte que les CONTRATS d'événements. Pour
+      construire une demande de course, il faut l'ADRESSE DE REMISE, et
+      `CreateDeliveryOnFoodOrderReadyHandler` allait la chercher chez
+      order-service — seul univers de commandes qu'il connaissait. Pour un ticket
+      né d'une `MealOrder`, l'identifiant n'y existe pas : « commande
+      introuvable », levée, reprises épuisées, sac abandonné sur le passe.
+
+      Ce client apporte `IMealOrderModuleApi`, donc la lecture dans le BON
+      univers. Le commentaire du proto affirmait depuis le début que
+      restaurant-service était un appelant : c'était une intention, pas un fait.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
+
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

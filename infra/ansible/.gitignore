@@ -1,0 +1,11 @@
+# TROIS CATÉGORIES DE FICHIERS QUI NE DOIVENT JAMAIS ÊTRE COMMITÉS.
+
+# 1. Les inventaires réels : ils portent les IP publiques des nœuds.
+inventory/*.yml
+!inventory/*.yml.example
+
+# 2. Les kubeconfig : accès administrateur COMPLET au cluster, sans expiration.
+kubeconfig-*.yaml
+
+# 3. Les artefacts d'exécution.
+*.retry

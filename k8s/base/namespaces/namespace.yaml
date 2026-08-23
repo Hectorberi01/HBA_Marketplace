@@ -1,0 +1,16 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE NAMESPACE — UN PAR ENVIRONNEMENT (§2).
+#
+# LE NOM EST UN GABARIT : CHAQUE OVERLAY LE REMPLACE.
+#
+# Le §2 exige que chaque environnement ait ses propres namespaces, secrets, bases,
+# topics et buckets, et qu'aucun accès production ne soit réutilisé en staging.
+# Un namespace unique partagé rendrait cette séparation impossible à tenir : les
+# NetworkPolicies, les quotas et le RBAC s'appliquent PAR namespace.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hba
+  labels:
+    app.kubernetes.io/part-of: hba-express

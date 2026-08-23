@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package hba.dispatch.v1;
+
+option csharp_namespace = "HBA.Dispatch.Grpc.V1";
+
+service DispatchApi {
+  rpc RequestDispatch(RequestDispatchRequest) returns (DispatchJobReply);
+  rpc CancelDispatch(CancelDispatchRequest) returns (CancelDispatchResponse);
+  rpc GetAssignment(GetAssignmentRequest) returns (GetAssignmentResponse);
+  rpc AcceptOffer(AcceptOfferRequest) returns (GetAssignmentResponse);
+}
+
+message GeoPoint {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message RequestDispatchRequest {
+  string delivery_id = 1;
+  GeoPoint pickup = 2;
+  GeoPoint dropoff = 3;
+  optional string vehicle_requirement = 4;
+  int32 priority = 5;
+}
+
+message DispatchJobReply {
+  string job_id = 1;
+  string delivery_id = 2;
+  string status = 3;
+  int32 attempt = 4;
+  int32 search_radius_meters = 5;
+  string expires_at = 6;
+  repeated DriverCandidate candidates = 7;
+}
+
+message DriverCandidate {
+  string driver_id = 1;
+  int32 distance_to_pickup_meters = 2;
+  int32 eta_seconds = 3;
+  string score = 4;
+  int32 rank = 5;
+}
+
+message CancelDispatchRequest {
+  string delivery_id = 1;
+}
+
+message CancelDispatchResponse {
+  bool cancelled = 1;
+}
+
+message GetAssignmentRequest {
+  string delivery_id = 1;
+}
+
+message GetAssignmentResponse {
+  bool found = 1;
+  Assignment assignment = 2;
+}
+
+message AcceptOfferRequest {
+  string delivery_id = 1;
+  string driver_id = 2;
+  optional string offer_id = 3;
+}
+
+message Assignment {
+  string id = 1;
+  string delivery_id = 2;
+  string driver_id = 3;
+  optional string offer_id = 4;
+  string assigned_at = 5;
+  string assignment_mode = 6;
+  string status = 7;
+}

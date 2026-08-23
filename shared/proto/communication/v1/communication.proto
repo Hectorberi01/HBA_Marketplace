@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package hba.communication.v1;
+
+option csharp_namespace = "HBA.Communication.Grpc.V1";
+
+service CommunicationApi {
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+  rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
+  rpc StartConversation(StartConversationRequest) returns (StartConversationResponse);
+  rpc SendMessage(SendMessageRequest) returns (CommunicationOperationResponse);
+  rpc MarkConversationRead(MarkConversationReadRequest) returns (CommunicationOperationResponse);
+  rpc ArchiveConversation(ArchiveConversationRequest) returns (CommunicationOperationResponse);
+}
+
+message ListConversationsRequest {
+  string user_id = 1;
+}
+
+message ListConversationsResponse {
+  repeated ConversationSummary conversations = 1;
+}
+
+message GetConversationRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+}
+
+message GetConversationResponse {
+  bool found = 1;
+  ConversationSummary conversation = 2;
+  repeated MessageSummary messages = 3;
+}
+
+message StartConversationRequest {
+  string sender_id = 1;
+  string recipient_id = 2;
+  optional string context_type = 3;
+  optional string context_id = 4;
+  string message = 5;
+}
+
+message StartConversationResponse {
+  bool succeeded = 1;
+  string conversation_id = 2;
+  string reason = 3;
+}
+
+message SendMessageRequest {
+  string conversation_id = 1;
+  string sender_id = 2;
+  string body = 3;
+  repeated MessageAttachment attachments = 4;
+}
+
+message MarkConversationReadRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+}
+
+message ArchiveConversationRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+}
+
+message CommunicationOperationResponse {
+  bool succeeded = 1;
+  string reason = 2;
+}
+
+message ConversationSummary {
+  string conversation_id = 1;
+  repeated string participant_ids = 2;
+  optional string context_type = 3;
+  optional string context_id = 4;
+  optional string last_message_preview = 5;
+}
+
+message MessageSummary {
+  string message_id = 1;
+  string sender_id = 2;
+  string body = 3;
+  string sent_at = 4;
+  repeated MessageAttachment attachments = 5;
+}
+
+message MessageAttachment {
+  string media_id = 1;
+  string content_type = 2;
+  optional string url = 3;
+}

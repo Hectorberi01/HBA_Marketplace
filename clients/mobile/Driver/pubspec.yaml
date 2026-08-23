@@ -1,0 +1,37 @@
+name: hba_driver
+description: HBA Driver — application livreur de la marketplace HBA (Flutter).
+publish_to: "none"
+
+# 1.0.0+1 — nouvelle application, nouveau bundle `fr.hbamarketplace.driver`.
+# Aucun historique à reprendre, contrairement au Seller-portal dont le train de
+# versions vient de l'ancienne application MAUI.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # État. Mêmes versions que le Seller-portal : deux applications du même dépôt
+  # qui divergeraient sur Riverpod ou go_router rendraient tout partage de code
+  # ultérieur douloureux.
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.2.0
+
+  # Typographie de la charte : Plus Jakarta Sans.
+  google_fonts: ^6.2.1
+
+  intl: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

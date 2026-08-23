@@ -1,0 +1,115 @@
+# ═════════════════════════════════════════════════════════════════════════════
+# L'ÉTAGE DE COMPILATION EST EN amd64, ET C'EST protoc QUI L'IMPOSE.
+#
+# Cette ligne n'a longtemps porté aucune explication, et elle a été mise à
+# `$BUILDPLATFORM` — donc en arm64 natif sur un Mac Apple Silicon — au motif que
+# la sortie n'en dépend pas. C'est vrai de la SORTIE et faux de la CONSTRUCTION :
+#
+#   error MSB6006: ".../grpc.tools/2.71.0/tools/linux_arm64/protoc"
+#                  exited with code 139
+#
+# 139 = 128 + SIGSEGV. Les 22 projets `*.Contracts.Grpc` de `shared/contracts/`
+# sont copiés dans TOUTES les images : le binaire protoc arm64 livré par
+# Grpc.Tools plante, et aucune image ne se construit.
+#
+# CE QUI RESTE VRAI DE L'ANALYSE PRÉCÉDENTE, ET CE QUI NE L'ÉTAIT PAS.
+#
+# Vrai : aucun projet ne fixe de `RuntimeIdentifier`, la publication est
+# portable, et la CI construit déjà sur `ubuntu-latest`. L'ARTEFACT ne dépend pas
+# de l'architecture de compilation.
+# Faux : en conclure que la plateforme est indifférente. Elle décide aussi de
+# l'OUTILLAGE qui tourne DANS le conteneur — protoc ici, et c'est un exécutable
+# natif. Le signal était déjà passé : l'erreur `protoc … No such file or
+# directory` de la passerelle, qui était un binaire glibc dans une image musl.
+#
+# SI LA CONSTRUCTION EST LENTE, LE LEVIER N'EST PAS ICI.
+#
+# amd64 sur Apple Silicon passe par QEMU, et `dotnet restore` y tient une heure
+# sur « Determining projects to restore… ». Docker Desktop sait faire cette
+# émulation par Rosetta plutôt que par QEMU :
+#   Réglages → General → « Use Rosetta for x86_64/amd64 emulation »
+# On passe alors de l'heure à quelques minutes, sans rien changer ici.
+#
+# POUR TENTER LE NATIF LE JOUR OÙ protoc arm64 SERA RÉPARÉ :
+#   docker build --build-arg DOTNET_BUILD_PLATFORM=linux/arm64 ...
+#
+# Voir infra/docker/README.md.
+# ═════════════════════════════════════════════════════════════════════════════
+ARG DOTNET_BUILD_PLATFORM=linux/amd64
+FROM --platform=$DOTNET_BUILD_PLATFORM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+COPY Directory.Build.props Directory.Packages.props ./
+COPY shared ./shared
+COPY services/marketplace/catalog-service/src/HBA.Catalog.Contracts ./services/marketplace/catalog-service/src/HBA.Catalog.Contracts
+COPY services/food/restaurant-service/src/HBA.Food.Restaurant.Contracts ./services/food/restaurant-service/src/HBA.Food.Restaurant.Contracts
+# Les COMMANDES de repas, distinctes de restaurant-service juste au-dessus :
+# `IPayableOrderReader` y lit la commande food a payer (lot 6.1).
+COPY services/food/food-order-service/src/HBA.Food.Order.Contracts ./services/food/food-order-service/src/HBA.Food.Order.Contracts
+COPY services/marketplace/seller-service/src/HBA.Merchants.Contracts ./services/marketplace/seller-service/src/HBA.Merchants.Contracts
+COPY services/marketplace/order-service/src/HBA.Order.Contracts ./services/marketplace/order-service/src/HBA.Order.Contracts
+
+# DEUX RAISONS, ET AUCUNE N'EST VISIBLE DEPUIS CE FICHIER.
+#
+#   • le gain du livreur : `CreditDriverOnDeliveryCompletedHandler` consomme
+#     `DeliveryCompletedIntegrationEvent` — sans quoi le montant est calculé,
+#     publié, et tombe dans le vide ;
+#   • l'autorisation de `GET /api/financial/wallets/drivers/{driverId}`, qui
+#     résout le livreur par `IDeliveryModuleApi.GetDriverAccountAsync`.
+#
+# `HBA.Deliveries.Contracts.Grpc` vit dans `shared` — donc copié — mais il
+# référence `HBA.Deliveries.Contracts`, qui vit chez delivery-service. C'est
+# CE projet-là qu'il faut nommer ici. L'oubli ne se voit pas sur le poste, où
+# la solution voit tout : il se manifeste à la construction de l'image par un
+# avertissement MSB9008 suivi d'une volée de CS0234.
+COPY services/delivery/delivery-service/src/HBA.Deliveries.Contracts ./services/delivery/delivery-service/src/HBA.Deliveries.Contracts
+
+# CET HÔTE N'EMBARQUE PAS QUE PAYMENT-SERVICE.
+#
+# `HBA.Financial.Api` compile TROIS modules dans un seul processus : payments,
+# billing et wallet. Son `Program.cs` appelle les trois installeurs et migre les
+# trois DbContext. Les deux dossiers voisins ne sont donc pas des dépendances de
+# contrat — ce sont des morceaux de ce service, et il faut les copier ENTIERS,
+# pas seulement leurs `*.Contracts`.
+#
+# Sans ces deux lignes, `dotnet restore` ne trouve pas quatre `.csproj`
+# référencés et l'image ne se construit pas. Rien ne le signalait : sur le poste
+# la solution voit tout le dépôt, donc `make build` passait et `docker build`
+# non — et le contrôle qui l'aurait dit pointait un `src/services` disparu à la
+# réorganisation.
+COPY services/common/billing-service ./services/common/billing-service
+COPY services/common/wallet-service ./services/common/wallet-service
+
+COPY services/common/payment-service ./services/common/payment-service
+
+RUN dotnet restore services/common/payment-service/src/HBA.Financial.Api/HBA.Financial.Api.csproj
+RUN dotnet publish services/common/payment-service/src/HBA.Financial.Api/HBA.Financial.Api.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false /m:1 -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:9.0
+WORKDIR /app
+COPY --from=build /app/publish .
+# ═════════════════════════════════════════════════════════════════════════════
+# CETTE IMAGE TOURNAIT EN ROOT.
+#
+# Vingt-deux des trente Dockerfiles du dépôt posaient déjà `USER $APP_UID` ;
+# celui-ci faisait partie des huit qui ne le faisaient pas. Rien ne le signalait :
+# une image root démarre, sert, et passe tous les tests.
+#
+# Le §19 du cahier Infrastructure exige des pods non-root, et le §7 un
+# `SecurityContext` qui le fait respecter. Poser ce SecurityContext sur une image
+# root ferait planter le pod au premier déploiement — d'où cette correction AVANT
+# les manifests, et non avec eux.
+#
+# Ce qui est vraiment en jeu : en root, une exécution de code arbitraire dans le
+# processus devient une exécution root dans le conteneur.
+#
+# Corollaire : impossible d'ouvrir un port < 1024. Les deux ports du service,
+# 8080 (REST) et 9090 (gRPC), sont au-dessus.
+# ═════════════════════════════════════════════════════════════════════════════
+USER $APP_UID
+
+ENV DOTNET_EnableDiagnostics=0
+
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "HBA.Financial.Api.dll"]

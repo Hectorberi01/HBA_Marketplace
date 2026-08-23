@@ -1,0 +1,99 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Position FACULTATIVE : elle complète le point de repère pour aider le
+         coursier. Un refus n'empêche ni de commander ni de vendre — voir
+         `LocationPicker`, qui traite explicitement le refus. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!--
+      Android 13 (API 33) et au-delà : sans cette permission, l'application ne peut
+      même pas DEMANDER l'autorisation d'afficher des notifications. Le système les
+      supprime en silence.
+
+      Elle n'existait pas, alors que l'app embarque Firebase Messaging : les push
+      « commande confirmée » et « colis expédié » n'auraient jamais atteint la
+      majorité du parc — sans la moindre erreur pour le signaler.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!--
+      `android:usesCleartextTraffic="true"` A ÉTÉ RETIRÉ.
+
+      Il autorisait l'application à parler en HTTP NON CHIFFRÉ. C'était un vestige du
+      développement local (émulateur → 10.0.2.2), et le commentaire disait déjà « à
+      retirer en prod ». Il ne l'avait pas été.
+
+      Le laisser, c'est permettre à un réseau hostile — un Wi-Fi public, un opérateur
+      qui dégrade — de rediriger l'application vers du HTTP et de lire les jetons de
+      session en clair. Le fait que l'URL configurée soit en HTTPS n'y change rien :
+      c'est le système qui refuse désormais, et c'est bien à lui de refuser.
+    -->
+    <application
+        android:label="@string/app_name"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!--
+              APP LINKS : ouvre les liens produit partagés (https://<domaine>/p/…)
+              directement dans l'app. `autoVerify` demande à Android de vérifier
+              /.well-known/assetlinks.json sur chaque hôte au moment de l'install ;
+              sans empreinte SHA-256 correcte servie là-bas, le lien retombera sur
+              le navigateur (page de repli) — jamais d'erreur, juste pas d'ouverture
+              directe. Prod + staging couverts.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:host="m.hba-express.org"/>
+                <data android:host="m.marketplace-staging.hba-marketplace.fr"/>
+                <data android:pathPrefix="/p/"/>
+                <data android:pathPrefix="/s/"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+        <!-- Canal de notification par défaut : sans lui, sur Android 8+, une push
+             FCM sans canal explicite peut être ignorée en silence. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="hba_default" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

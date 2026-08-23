@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# order-service — reprend le gabarit commun avec son nom et son image.
+#
+# `namePrefix: order-` transforme « service » en « order-service » sur les cinq
+# objets d'un coup : Deployment, Service, ServiceAccount, PDB et HPA. Kustomize
+# suit aussi les références — `serviceAccountName` et le `scaleTargetRef` du HPA
+# sont réécrits sans qu'on ait à les nommer.
+
+namePrefix: order-
+
+commonLabels:
+  app.kubernetes.io/name: order-service
+
+resources:
+  - ../_service
+
+images:
+  # Le tag est posé par l'overlay : le §13 interdit `latest` en production, et
+  # une image se promeut par SHA/semver, jamais en reconstruisant.
+  - name: hba/service
+    newName: hba/order-service
+
+patches:
+  # FUSION PAR NOM, ET NON PATCH POSITIONNEL.
+  #
+  # `/env/0/value` aurait marché aujourd'hui et changé de cible en silence le jour
+  # où quelqu'un insère une variable avant. La fusion stratégique apparie les
+  # entrées par leur clé `name`.
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: service
+      spec:
+        template:
+          spec:
+            containers:
+              - name: service
+                env:
+                  - name: SERVICE_NAME
+                    value: order-service

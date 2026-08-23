@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Commerce.Domain\HBA.Commerce.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Commerce.Contracts\HBA.Commerce.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\inventory-service\src\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Pricing.Contracts\HBA.Pricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+  
+    <!--
+      LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.
+
+      Ces événements étaient déclarés DEUX FOIS : ici via un contrat partagé,
+      et chez leur propriétaire. L'enveloppe Kafka ne portant que le nom court,
+      le consommateur en résolvait un des deux au hasard de l'ordre de
+      chargement — et un gestionnaire enregistré sur l'autre n'était jamais
+      appelé, sans la moindre erreur.
+
+      Le duplicata partagé a été supprimé. Un fait métier, un contrat, un
+      propriétaire.
+    -->
+    <ProjectReference Include="..\..\..\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cart.UnitTests" />
+  </ItemGroup>
+
+</Project>

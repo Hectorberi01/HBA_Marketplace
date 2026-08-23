@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package hba.inventory.v1;
+
+option csharp_namespace = "HBA.Inventory.Grpc.V1";
+
+service InventoryApi {
+  rpc GetInventoryItem(GetInventoryItemRequest) returns (GetInventoryItemResponse);
+  rpc ListInventoryBySku(ListInventoryBySkuRequest) returns (ListInventoryResponse);
+  rpc GetAvailability(GetAvailabilityRequest) returns (GetAvailabilityResponse);
+  rpc ReserveStock(ReserveStockRequest) returns (StockOperationResponse);
+  rpc ReleaseReservation(ReservationKeyRequest) returns (StockOperationResponse);
+  rpc ConfirmReservation(ReservationKeyRequest) returns (StockOperationResponse);
+
+  // AJOUTÉ APRÈS COUP, ET LE CLIENT RENDAIT `null` EN ATTENDANT.
+  //
+  // `InventoryGrpcClient.GetLocationAsync` était écrit `Task.FromResult(null)`
+  // — un bouchon qui compile, qui ne lève pas, et qui ment. Tout appelant
+  // concluait « ce lieu n'existe pas » alors qu'il n'avait simplement jamais
+  // été demandé.
+  //
+  // C'est ce lieu qui porte l'adresse d'ENLÈVEMENT d'une course : sans lui,
+  // aucun colis ni aucun repas ne peut être confié à un livreur.
+  rpc GetLocation(GetLocationRequest) returns (GetLocationResponse);
+}
+
+message GetLocationRequest {
+  string location_id = 1;
+}
+
+message GetLocationResponse {
+  bool found = 1;
+  FulfillmentLocation location = 2;
+}
+
+// L'adresse est béninoise : commune, quartier, point de repère. Pas de rue.
+message FulfillmentLocation {
+  string location_id = 1;
+  string type = 2;
+  string owner_id = 3;
+  string commune_code = 4;
+  string commune_name = 5;
+  string quartier = 6;
+  string landmark = 7;
+  string line = 8;
+  string country_code = 9;
+  optional double latitude = 10;
+  optional double longitude = 11;
+
+  // Le numéro que compose le livreur quand il ne trouve pas la porte — le
+  // champ le plus rentable du formulaire.
+  string contact_phone = 12;
+}
+
+message GetInventoryItemRequest {
+  string item_id = 1;
+}
+
+message GetInventoryItemResponse {
+  bool found = 1;
+  InventoryItem item = 2;
+}
+
+message ListInventoryBySkuRequest {
+  string sku = 1;
+}
+
+message ListInventoryResponse {
+  repeated InventoryItem items = 1;
+}
+
+message GetAvailabilityRequest {
+  string sku = 1;
+  optional string location_id = 2;
+}
+
+message GetAvailabilityResponse {
+  string sku = 1;
+  int32 on_hand = 2;
+  int32 reserved = 3;
+  int32 available = 4;
+  bool in_stock = 5;
+}
+
+message ReserveStockRequest {
+  string sku = 1;
+  string location_id = 2;
+  string order_id = 3;
+  int32 quantity = 4;
+  int32 expires_in_minutes = 5;
+}
+
+message ReservationKeyRequest {
+  string sku = 1;
+  string location_id = 2;
+  string order_id = 3;
+}
+
+message StockOperationResponse {
+  bool succeeded = 1;
+  string reason = 2;
+}
+
+message InventoryItem {
+  string item_id = 1;
+  string sku = 2;
+  string location_id = 3;
+  int32 on_hand = 4;
+  int32 reserved = 5;
+  int32 available = 6;
+  int32 reorder_threshold = 7;
+}

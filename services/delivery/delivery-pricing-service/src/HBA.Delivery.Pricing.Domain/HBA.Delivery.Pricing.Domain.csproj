@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    DEUX RÉFÉRENCES CROISÉES QUI NE SERVAIENT À RIEN, ET QUI COÛTAIENT UN
+    DÉPLOIEMENT.
+
+    Ce projet référençait `HBA.Delivery.Core.Domain` ET
+    `HBA.Delivery.Driver.Domain` — les domaines de deux AUTRES services. Aucun
+    fichier de ce projet n'en importait quoi que ce soit : la tarification
+    travaille délibérément sur ses propres primitives (`string? VehicleType`,
+    `Guid DeliveryId`, son propre `GeoPoint`, sa propre `Money`), justement
+    pour ne dépendre de personne.
+
+    Les deux références étaient donc du poids mort — mais du poids mort qui
+    fait tomber `check-dockerfiles.py` : l'image de delivery-pricing-service ne
+    copiait pas ces deux projets, et sa construction échouait sur un
+    `error CS0234` qui désignait un namespace au lieu de désigner un `COPY`
+    manquant. Elles sont retirées (lot 5.4, ISSUE-069).
+
+    SI CE SERVICE A UN JOUR BESOIN DE LA CAPACITÉ DE CHARGE PAR VÉHICULE —
+    `VehicleCapacity`, qui vit dans le domaine de delivery-service — ce n'est
+    PAS par une référence de projet qu'il faudra la prendre : soit par le
+    contrat `HBA.DeliveryPricing.Contracts` / le gRPC de delivery-service, soit
+    en dupliquant la table de capacités ICI, explicitement, avec un commentaire
+    disant qu'elle est dupliquée et où vit l'original. Une grille tarifaire qui
+    promet ce que le dispatch refusera est un défaut connu, décrit dans
+    l'encadré de `VehicleCapacity`.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Domain\HBA.Shared.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

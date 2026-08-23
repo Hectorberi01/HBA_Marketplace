@@ -1,0 +1,7 @@
+# Sans ce fichier, `COPY shared/` embarque les bin/ et obj/ de la machine de
+# développement : artefacts compilés pour un autre système d'exploitation, en
+# conflit avec ceux produits dans le conteneur — et l'erreur ne désigne pas sa cause.
+**/bin/
+**/obj/
+**/.vs/
+**/*.user

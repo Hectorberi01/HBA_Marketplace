@@ -1,0 +1,159 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    net8.0, COMME LES SERVICES ET CONTRAIREMENT À LA PASSERELLE.
+
+    Le code métier copié du monolithe compile sous net8.0 avec EF Core 8. Monter
+    en net9.0 en même temps que l'extraction mêlerait deux causes de panne : à la
+    première erreur, on ne saurait plus si elle vient du découpage ou de la montée
+    de version. `HBA/Directory.Build.props` n'impose délibérément aucun
+    TargetFramework — c'est exactement pour permettre cette cohabitation.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    LES `using` IMPLICITES DU SDK WEB, REPRODUITS À LA MAIN.
+
+    Ce projet est une bibliothèque (`Microsoft.NET.Sdk`) qui contient du code
+    d'endpoints — `MapAuthenticatedGroup`, `IResult`, `RouteGroupBuilder`. Or
+    `ImplicitUsings` n'apporte ici que le jeu de base (System, System.Linq…) :
+    `Microsoft.AspNetCore.Http`, `.Builder` et `.Routing` n'en font PAS partie.
+
+    Ces fichiers viennent du Bootstrap du monolithe, qui est un projet
+    `Microsoft.NET.Sdk.Web` — le SDK Web les fournissait sans qu'aucun `using`
+    n'apparaisse dans le code. Copiés tels quels, ils ne compilent plus, et
+    l'erreur (« IEndpointRouteBuilder est introuvable ») fait chercher une
+    référence d'assembly manquante alors que le `FrameworkReference` est bien là.
+
+    Deux solutions existaient : ajouter les `using` en tête de chaque fichier
+    copié, ou reproduire ici la liste du SDK Web. La seconde est retenue parce
+    que le prochain fichier repris du Bootstrap compilera sans retouche — sinon
+    la même erreur reviendra à chaque extraction de service.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <Using Include="System.Net.Http.Json" />
+    <Using Include="Microsoft.AspNetCore.Builder" />
+    <Using Include="Microsoft.AspNetCore.Hosting" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.Routing" />
+    <Using Include="Microsoft.Extensions.Configuration" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Microsoft.Extensions.Hosting" />
+    <Using Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+
+    <!--
+      ═════════════════════════════════════════════════════════════════════
+      POLLY.CORE — LE DISJONCTEUR DES APPELS gRPC INTERNES (lot 8.8).
+
+      ET NON `Microsoft.Extensions.Http.Resilience`, QUI A CASSÉ LA
+      RESTAURATION AVEC HUIT NU1605.
+
+      C'était le premier choix : même paquet que la passerelle, déjà épinglé.
+      Il tire un arbre entier en 9.10.0 — Http.Diagnostics, Telemetry,
+      AmbientMetadata — qui remonte les `Microsoft.Extensions.*` au-dessus des
+      9.0.0 que return-refund et delivery déclarent directement.
+
+      `Polly.Core` n'a AUCUNE dépendance : il ne peut mécaniquement provoquer
+      aucune rétrogradation. Et c'est ce que la règle du dépôt disait déjà —
+      une dépendance qu'on utilise directement se déclare. Le raisonnement
+      inverse écrit ici au premier essai (« l'épingler exposerait au NU1605 »)
+      était faux, et coûteux : voir Directory.Packages.props.
+
+      `Polly.Core` SEUL, PAS `Polly.Extensions` : le disjoncteur est
+      construit à la main par `ResiliencePipelineBuilder`, sans intégration
+      HttpClient — et la raison est écrite dans `DisjoncteurClientInterceptor` :
+      un échec gRPC arrive en « 200 OK », donc un disjoncteur posé sur le
+      gestionnaire HTTP ne verrait presque rien.
+      ═════════════════════════════════════════════════════════════════════
+    -->
+    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+
+    <!--
+      `MigrateAsync` et `GetPendingMigrationsAsync` viennent de Relational, pas de
+      Microsoft.EntityFrameworkCore. Le paquet arrivait déjà ici par transitivité
+      via HBA.Shared.Infrastructure, et le code compilait — jusqu'au jour où cette
+      référence-là changerait. Une dépendance qu'on utilise directement se déclare.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+
+    <!--
+      NPGSQL EN RÉFÉRENCE DIRECTE, POUR UN SEUL TYPE.
+
+      `ServiceExceptionMiddleware` doit reconnaître une violation de contrainte
+      d'unicité — `PostgresException.SqlState == "23505"` — pour la traduire en 409
+      plutôt qu'en 500. Il arrivait déjà transitivement par le pilote EF ; la
+      gestion centralisée des versions exige qu'une référence DIRECTE porte la
+      sienne, et elle est identique à celle du pilote.
+
+      On aurait pu reconnaître l'exception par le NOM de son type, sans référence.
+      Ce serait une chaîne de caractères comparée à un type — silencieusement fausse
+      le jour d'un renommage, et personne ne relit un `catch` qui n'attrape plus
+      rien.
+    -->
+    <PackageReference Include="Npgsql" />
+
+    <!--
+      `AddDbContextCheck` n'est PAS dans le framework partagé ni dans
+      Microsoft.EntityFrameworkCore : il vient de ce paquet-ci. L'erreur obtenue
+      sans lui — « IHealthChecksBuilder ne contient pas de définition pour
+      AddDbContextCheck » — fait chercher un `using` manquant alors qu'il s'agit
+      d'un paquet absent.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+
+    <!--
+      ═════════════════════════════════════════════════════════════════════
+      OPENTELEMETRY — LES MÊMES CINQ PAQUETS QUE LA PASSERELLE, AUCUN NOUVEAU.
+
+      Ils sont déjà épinglés dans `Directory.Packages.props` depuis que la
+      passerelle a été instrumentée ; les versions sont donc tenues d'un seul
+      endroit et les quatorze services ne peuvent pas en prendre une autre.
+
+      RIEN POUR EF CORE NI POUR NPGSQL, ET C'EST DÉLIBÉRÉ.
+
+      `OpenTelemetry.Instrumentation.EntityFrameworkCore` est encore en bêta.
+      On s'abonne à la place à la source `Npgsql`, que le pilote émet
+      nativement : on perd le découpage par DbContext, on gagne de ne pas
+      épingler une bêta sur quatorze services. Voir `TelemetryExtensions`.
+      ═════════════════════════════════════════════════════════════════════
+    -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+
+    <!--
+      Swashbuckle : déjà épinglé dans `Directory.Packages.props` pour la
+      passerelle. Il arrive ici pour les quatorze services — leur surface HTTP
+      réelle n'était documentée nulle part, la page de la passerelle ne pouvant
+      montrer que ses propres agrégations.
+    -->
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\HBA.Shared.Domain\HBA.Shared.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>

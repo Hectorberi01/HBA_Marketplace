@@ -1,0 +1,78 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# LES SOURCES DE DONNÉES — DANS LE DOSSIER QUE GRAFANA LIT VRAIMENT.
+#
+# LES DEUX FICHIERS DE PROVISIONNEMENT ÉTAIENT INTERVERTIS.
+#
+# Grafana scrute exactement deux dossiers : `provisioning/datasources/` pour les
+# sources, `provisioning/dashboards/` pour les fournisseurs de tableaux de bord.
+# Le dépôt avait :
+#
+#   • `provisioning/dashboards/datasources.yml` → contenait les SOURCES ;
+#   • `dashboards/datasources.yml`              → contenait le FOURNISSEUR, et
+#                                                 hors de `provisioning/`.
+#
+# Résultat au démarrage : Grafana tente de lire un fichier de sources comme une
+# déclaration de fournisseur, échoue sur une clé inconnue, et démarre SANS aucune
+# source ni aucun tableau de bord. L'écran est vide, la pile a l'air en panne, et
+# la cause est un nom de dossier.
+#
+# Les deux fichiers d'origine sont remplacés par celui-ci et par
+# `provisioning/dashboards/dashboards.yml`.
+# ═══════════════════════════════════════════════════════════════════════════
+
+apiVersion: 1
+
+datasources:
+
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+
+    jsonData:
+      # ═══════════════════════════════════════════════════════════════════
+      # C'EST CE BLOC QUI REND L'INSTRUMENTATION UTILE AU QUOTIDIEN.
+      #
+      # Il crée le lien « journal → trace » : sur une ligne de journal, le
+      # `trace_id` devient cliquable et ouvre la trace correspondante dans
+      # Tempo. Sans lui, on a bien les deux, et on recopie l'identifiant à la
+      # main d'un onglet à l'autre.
+      #
+      # Le champ existe parce que `TelemetryExtensions` branche l'exportateur
+      # de journaux OpenTelemetry : c'est lui qui attache `trace_id` et
+      # `span_id` à chaque ligne. Les deux moitiés vont ensemble — l'une sans
+      # l'autre ne donne rien.
+      # ═══════════════════════════════════════════════════════════════════
+      derivedFields:
+        - name: TraceID
+          datasourceUid: tempo
+          matcherRegex: '"trace_id":"(\w+)"'
+          url: "$${__value.raw}"
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+
+    jsonData:
+      # Le lien inverse : depuis un span, retrouver les journaux du même service
+      # sur la même fenêtre de temps. C'est le chemin le plus emprunté pendant un
+      # incident — on voit QUELLE étape est lente, on veut savoir POURQUOI.
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: -5m
+        spanEndTimeShift: 5m
+        filterByTraceID: true
+        tags:
+          - key: service.name
+            value: service_name

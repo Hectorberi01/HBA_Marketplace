@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Voir HBA.Order.AuthorizationTests.csproj : un projet par service, et pourquoi. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\TestTokens.cs" Link="Shared\TestTokens.cs" />
+    <Compile Include="..\Shared\AuthorizationTestFactory.cs" Link="Shared\AuthorizationTestFactory.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+  </ItemGroup>
+
+  <!--
+    `HBA.Merchants.Contracts` — d'où viennent `IMerchantAccessApi` et
+    `MerchantAccess`, substitués dans la fabrique — arrive TRANSITIVEMENT par
+    l'Api, qui référence `HBA.Merchants.Contracts.Grpc`. Le référencer une seconde
+    fois ici ne changerait rien à la compilation et laisserait croire que ce
+    projet de test dépend directement de seller-service.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\return-refund-service\src\HBA.Marketplace.ReturnRefund.Api\HBA.Marketplace.ReturnRefund.Api.csproj" />
+  </ItemGroup>
+
+</Project>

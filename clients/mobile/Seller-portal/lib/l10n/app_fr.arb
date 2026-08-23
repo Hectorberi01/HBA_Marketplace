@@ -1,0 +1,1473 @@
+{
+  "@@locale": "fr",
+  "appTitle": "HbaExpress PRO",
+  "@appTitle": {
+    "description": "Nom de l'application"
+  },
+  "commonCancel": "Annuler",
+  "commonSave": "Enregistrer",
+  "commonDelete": "Supprimer",
+  "commonClose": "Fermer",
+  "commonRetry": "Réessayer",
+  "commonConfirm": "Confirmer",
+  "commonContinue": "Continuer",
+  "commonBack": "Précédent",
+  "commonNext": "Suivant",
+  "commonAdd": "Ajouter",
+  "commonEdit": "Modifier",
+  "commonSearch": "Rechercher",
+  "commonLoading": "Chargement…",
+  "commonYes": "Oui",
+  "commonNo": "Non",
+  "commonError": "Une erreur est survenue.",
+  "settingsAppearanceTitle": "Apparence",
+  "settingsTheme": "Thème",
+  "settingsThemeAuto": "Automatique",
+  "settingsThemeAutoDesc": "Suit le réglage de votre téléphone",
+  "settingsThemeLight": "Clair",
+  "settingsThemeLightDesc": "Fond clair en permanence",
+  "settingsThemeDark": "Sombre",
+  "settingsThemeDarkDesc": "Fond sombre en permanence",
+  "settingsLanguage": "Langue",
+  "settingsLanguageSystem": "Automatique",
+  "settingsLanguageSystemDesc": "Suit la langue de votre téléphone",
+  "settingsLanguageFrench": "Français",
+  "settingsLanguageEnglish": "Anglais",
+  "navHome": "Accueil",
+  "navOrders": "Commandes",
+  "navProducts": "Produits",
+  "navMessages": "Messages",
+  "navMore": "Plus",
+  "homeTitle": "Tableau de bord",
+  "homeStatsTooltip": "Statistiques",
+  "homeNotificationsTooltip": "Notifications",
+  "homeDefaultShopName": "Ma boutique",
+  "homeGreeting": "Bonjour",
+  "homeSubtitle": "Voici l’activité de votre boutique.",
+  "homeKybInReviewTitle": "Vérification en cours",
+  "homeKybInReviewSubtitle": "Vous pourrez publier vos produits une fois votre profil validé.",
+  "homeKybRejectedTitle": "Vérification refusée",
+  "homeKybRejectedSubtitle": "Corrigez et redéposez vos documents pour publier vos produits.",
+  "homeKybPendingTitle": "Vérifiez votre boutique",
+  "homeKybPendingSubtitle": "Déposez vos documents (KYB) pour publier vos produits et être payé.",
+  "homeKpiToProcess": "À traiter",
+  "homeKpiOrders": "Commandes",
+  "homeKpiSales30d": "Ventes (30 j)",
+  "homeKpiNetPayout30d": "Net à percevoir (30 j)",
+  "homeKpiAverageRating": "Note moyenne",
+  "homeKpiReviewsReceived": "Avis reçus",
+  "homeReturnsToProcess": "{count, plural, =1{1 retour à traiter} other{{count} retours à traiter}}",
+  "@homeReturnsToProcess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeReturnsDisputeWarning": "Sans réponse, l’acheteur ouvrira un litige.",
+  "homeWalletTitle": "Portefeuille",
+  "homeWalletManage": "Gérer",
+  "homeWalletAvailable": "Solde disponible",
+  "homeWalletPendingDelivery": "En attente de livraison",
+  "homeWalletPendingWithdrawal": "Retraits en cours",
+  "homeRecentOrders": "Dernières commandes",
+  "homeStepCompleteShopTitle": "Compléter votre boutique",
+  "homeStepCompleteShopSubtitle": "Documents validés + compte de reversement",
+  "homeStepAddLocationTitle": "Ajouter un lieu d'expédition",
+  "homeStepAddLocationSubtitle": "L'adresse d'où partent vos colis",
+  "homeStepCreateProductTitle": "Créer un produit",
+  "homeStepCreateProductSubtitle": "Photo, catégorie, description",
+  "homeStepPublishOfferTitle": "Mettre un produit en vente",
+  "homeStepPublishOfferSubtitle": "Fixez votre prix pour être achetable",
+  "homeChecklistTitle": "Bien démarrer",
+  "homeChecklistProgress": "{done}/{total} étape(s) — encore quelques pas pour vendre",
+  "@homeChecklistProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "homeChecklistDismiss": "Masquer",
+  "ordTitle": "Commandes",
+  "ordSearchHint": "Rechercher une commande (référence, SKU)",
+  "ordEmptyMessage": "Aucune commande dans cette vue.",
+  "ordFilterAll": "Toutes",
+  "ordFilterToProcess": "À traiter",
+  "ordFilterShipped": "Expédiées",
+  "ordFilterDelivered": "Livrées",
+  "ordPaymentPending": "Paiement en attente",
+  "ordCustomerItems": "{customer} · {count} article(s)",
+  "@ordCustomerItems": {
+    "placeholders": {
+      "customer": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ordDetailTitle": "Détail de la commande",
+  "ordClient": "Client",
+  "ordDate": "Date",
+  "ordPayment": "Paiement",
+  "ordPaid": "Encaissé",
+  "ordPending": "En attente",
+  "ordTotal": "Total",
+  "ordPaymentNotCollectedWarning": "Le paiement de cette commande n'est pas encore encaissé. Attendez la confirmation avant de préparer l'envoi.",
+  "ordArticles": "Articles",
+  "ordShipping": "Livraison",
+  "ordRecipient": "Destinataire",
+  "ordAddress": "Adresse",
+  "ordLandmark": "Point de repère",
+  "ordQuartier": "Quartier",
+  "ordCommune": "Commune",
+  "ordCity": "Commune",
+  "ordPhone": "Téléphone",
+  "ordDisputes": "Litiges ({count})",
+  "@ordDisputes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ordDisputeClosed": "Clos · {date}",
+  "@ordDisputeClosed": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ordDisputeOpen": "Ouvert {age} — répondez pour vous défendre",
+  "@ordDisputeOpen": {
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "ordLineQtyPrice": "{qty} × {price}",
+  "@ordLineQtyPrice": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "accTitle": "Mon compte",
+  "accLoading": "Chargement…",
+  "accSectionShop": "Ma boutique",
+  "accShopLabel": "Boutique",
+  "accShopSubtitle": "Profil, compte de versement, documents",
+  "accOffersLabel": "Mises en vente",
+  "accOffersSubtitle": "Prix et disponibilité de vos produits",
+  "accShipmentsLabel": "Expéditions",
+  "accLocationsLabel": "Lieux d'expédition",
+  "accLocationsSubtitle": "Adresses d'où partent vos colis",
+  "accReturnsLabel": "Retours",
+  "accReturnsSubtitle": "Demandes de retour et remboursements",
+  "accReviewsLabel": "Avis clients",
+  "accSectionMoney": "Argent",
+  "accWalletLabel": "Portefeuille",
+  "accWalletSubtitle": "Soldes et retraits",
+  "accFinanceLabel": "Finances",
+  "accFinanceSubtitle": "Relevé et versements",
+  "accSectionAccount": "Compte",
+  "accNotificationsLabel": "Notifications",
+  "accProfileLabel": "Profil et sécurité",
+  "accAppearanceLabel": "Apparence",
+  "accAppearanceSubtitle": "Thème clair ou sombre",
+  "accPrivacyLabel": "Confidentialité",
+  "accPrivacySubtitle": "Vos données et vos droits",
+  "accHelpLabel": "Aide & support",
+  "accHelpSubtitle": "FAQ et contact",
+  "accTermsLabel": "Conditions d'utilisation",
+  "accTermsSubtitle": "Commission, versements, litiges",
+  "accCloseLabel": "Fermer mon compte",
+  "accCloseSubtitle": "Suspend la vente — réversible",
+  "accDeleteLabel": "Supprimer définitivement mon compte",
+  "accDeleteSubtitle": "Efface votre compte et vos données · irréversible",
+  "accLogout": "Se déconnecter",
+  "accLogoutConfirmTitle": "Se déconnecter ?",
+  "accLogoutConfirmBody": "Vous devrez saisir à nouveau vos identifiants.",
+  "accCancel": "Annuler",
+  "accCloseConfirmTitle": "Fermer votre compte ?",
+  "accCloseConfirmBody": "Vos produits seront immédiatement retirés de la vente. Votre compte et son historique sont conservés — la suppression définitive est décidée par l'équipe. Vous pourrez demander la réactivation à tout moment.",
+  "accCloseConfirmAction": "Fermer le compte",
+  "accCloseSuccess": "Compte fermé. Vos produits ne sont plus en vente.",
+  "accDeleteSuccess": "Votre compte a été supprimé.",
+  "accDeleteSheetTitle": "Supprimer définitivement le compte",
+  "accDeleteSheetBody": "Cette action est irréversible. Votre compte, votre boutique et vos produits seront supprimés, et vos données personnelles anonymisées. Les documents exigés par la loi (factures, versements) sont conservés sans lien avec votre identité.",
+  "accDeleteSheetUnderstand": "Je comprends que cette suppression est définitive.",
+  "accPasswordLabel": "Votre mot de passe",
+  "accPasswordHint": "Pour confirmer que c'est bien vous",
+  "accDeleteSheetAction": "Supprimer mon compte",
+  "accReactivationPendingTitle": "Réactivation en cours d'examen",
+  "accClosedTitle": "Compte fermé",
+  "accReactivationPendingBody": "Votre demande de réactivation a été envoyée. Un administrateur va l'examiner ; vos produits restent hors vente en attendant.",
+  "accClosedBody": "Votre compte est fermé : vos produits ne sont plus en vente. Vous pouvez demander sa réactivation.",
+  "accRequestReactivation": "Demander la réactivation",
+  "accReactivationSent": "Demande envoyée. Un administrateur va l'examiner.",
+  "prodTitle": "Produits",
+  "prodNew": "Nouveau",
+  "prodSearchHint": "Rechercher un produit",
+  "prodEmpty": "Aucun produit.\nAjoutez votre premier article pour commencer à vendre.",
+  "prodStep1Title": "1. Décrire le produit",
+  "prodStep1Subtitle": "Catégorie, nom, description, photos",
+  "prodStep2Title": "2. La déclinaison",
+  "prodStep2Subtitle": "La version vendue (taille, couleur… ou par défaut)",
+  "prodStep3Title": "3. Mise en vente & stock",
+  "prodStep3Subtitle": "État, prix, lieu d'expédition et quantité",
+  "prodHowToTitle": "Comment créer un produit",
+  "prodHowToSubtitle": "Un produit est vendable une fois ses 3 étapes complétées.",
+  "prodHowToCta": "Créer mon produit",
+  "prodFilterAll": "Tous",
+  "prodFilterActive": "En ligne",
+  "prodFilterDraft": "Brouillons",
+  "prodFilterArchived": "Archivés",
+  "prodActionsTooltip": "Actions",
+  "prodMenuOpen": "Voir le détail",
+  "prodMenuPublish": "Mettre en ligne",
+  "prodMenuDraft": "Repasser en brouillon",
+  "prodMenuArchive": "Archiver",
+  "prodUpdated": "Produit mis à jour.",
+  "pdTitle": "Fiche produit",
+  "pdActionsTooltip": "Actions",
+  "pdMenuPreview": "Aperçu client",
+  "pdEditSheet": "Modifier la fiche",
+  "pdUnlist": "Retirer de la vente",
+  "pdMenuPublish": "Mettre en ligne",
+  "pdMenuDraft": "Repasser en brouillon",
+  "pdMenuArchive": "Archiver",
+  "pdUnlistTitle": "Retirer de la vente ?",
+  "pdUnlistBody": "Les {count} mise(s) en vente active(s) de « {name} » seront mises en pause : le produit ne pourra plus être acheté. Vos photos, votre stock et vos prix sont conservés — vous pourrez le remettre en vente quand vous voudrez.",
+  "@pdUnlistBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pdUnlistSuccess": "Produit retiré de la vente.",
+  "pdDeleteTitle": "Supprimer ce produit ?",
+  "pdDeleteBody": "Le produit, ses photos et ses déclinaisons seront supprimés. Cette action est définitive — préférez « Archiver » pour le retirer de la vente en gardant l'historique.",
+  "pdDeleteSuccess": "Produit supprimé.",
+  "pdUpdated": "Produit mis à jour.",
+  "pdPhotosTooLargeIgnored": "{count} photo(s) dépassent 5 Mo et ont été ignorées.",
+  "@pdPhotosTooLargeIgnored": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pdPhotosAdded": "{count} photo(s) ajoutée(s).",
+  "@pdPhotosAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pdGalleryEmpty": "Aucune photo — vos acheteurs ne verront rien.",
+  "pdAddPhotos": "Ajouter des photos",
+  "pdPhotoCount": "{count} photo(s)",
+  "@pdPhotoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pdPrimarySet": "Photo principale définie.",
+  "pdPhotoDeleted": "Photo supprimée.",
+  "pdPrimaryHint": "La photo « Principale » est celle que voit l'acheteur dans les listes.",
+  "pdPrimaryBadge": "Principale",
+  "pdSetPrimary": "Définir comme photo principale",
+  "pdDeletePhoto": "Supprimer la photo",
+  "pdInfoSection": "Informations",
+  "pdInfoCategory": "Catégorie",
+  "pdInfoVariants": "Déclinaisons",
+  "pdInfoNoDescription": "Aucune description. Les acheteurs achètent ce qu'ils comprennent : ajoutez-en une.",
+  "pdVariantsSection": "Déclinaisons ({count})",
+  "@pdVariantsSection": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pdSectionAdd": "AJOUTER",
+  "pdVariantsEmpty": "Aucune déclinaison. Le stock et les mises en vente se rattachent à un SKU : créez au moins une déclinaison pour pouvoir vendre ce produit.",
+  "pdCreateVariant": "Créer une déclinaison",
+  "pdDeleteVariantTitle": "Supprimer la déclinaison ?",
+  "pdDeleteVariantBody": "La déclinaison « {label} » et le stock rattaché au SKU {sku} ne seront plus proposés.",
+  "@pdDeleteVariantBody": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "sku": {
+        "type": "String"
+      }
+    }
+  },
+  "pdVariantDeleted": "Déclinaison supprimée.",
+  "pdVariantAdded": "Déclinaison ajoutée.",
+  "pdNewVariant": "Nouvelle déclinaison",
+  "pdVariantSkuIntro": "Le SKU est votre référence interne : il porte le stock et la mise en vente. Il doit être unique.",
+  "pdSkuHelper": "Généré automatiquement — modifiable. Laissé vide, il sera régénéré.",
+  "pdAttrLabel": "Attribut",
+  "pdAttrHintSize": "Taille",
+  "pdValueLabel": "Valeur",
+  "pdRemoveAttr": "Retirer cet attribut",
+  "pdAddAttr": "Ajouter un attribut",
+  "pdBarcodeOptional": "Code-barres (facultatif)",
+  "pdWeight": "Poids",
+  "pdAddVariant": "Ajouter la déclinaison",
+  "pdLocationShort": "Lieu",
+  "pdStockUnavailable": "Stock indisponible : {error}",
+  "@pdStockUnavailable": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "pdNoStockForSku": "Aucun stock enregistré pour ce SKU.",
+  "pdLocationFallback": "Lieu",
+  "pdStockAvailable": "{count} dispo",
+  "@pdStockAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pdStockLow": "Bas",
+  "pdStockLine": "En stock {onHand} · Réservé {reserved} · Seuil d''alerte {threshold}",
+  "@pdStockLine": {
+    "placeholders": {
+      "onHand": {
+        "type": "int"
+      },
+      "reserved": {
+        "type": "int"
+      },
+      "threshold": {
+        "type": "int"
+      }
+    }
+  },
+  "pdStockReceive": "Réceptionner",
+  "pdStockAdjust": "Ajuster ±",
+  "pdThresholdShort": "Seuil",
+  "pdReceiveTitle": "Réceptionner du stock",
+  "pdReceiveHint": "Quantité reçue (entrée de marchandise).",
+  "pdQuantity": "Quantité",
+  "pdAdjustTitle": "Ajuster le stock",
+  "pdAdjustHint": "Correction signée : −2 pour une perte, +2 pour un retour en rayon.",
+  "pdAdjustLabel": "Écart (+ / −)",
+  "pdAlertThreshold": "Seuil d'alerte",
+  "pdThresholdHint": "En dessous de ce niveau, le stock est signalé comme bas.",
+  "pdEnterInteger": "Saisissez un nombre entier.",
+  "pdValuePositive": "La valeur doit être positive.",
+  "pdAdjustZero": "Un ajustement de zéro ne change rien.",
+  "pdStockUpdated": "Stock mis à jour.",
+  "pdValidate": "Valider",
+  "pdChooseLocation": "Choisissez un lieu.",
+  "pdStockCreated": "Stock créé.",
+  "pdStockSkuTitle": "Stock — SKU {sku}",
+  "@pdStockSkuTitle": {
+    "placeholders": {
+      "sku": {
+        "type": "String"
+      }
+    }
+  },
+  "pdLocationsUnavailable": "Lieux indisponibles : {error}",
+  "@pdLocationsUnavailable": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "pdNoShipLocation": "Aucun lieu d'expédition. Créez-en un depuis une mise en vente avant d'enregistrer du stock.",
+  "pdShipLocation": "Lieu d'expédition",
+  "pdStockQty": "Quantité en stock",
+  "pdCreateStock": "Créer le stock",
+  "pdOffersSection": "Mises en vente ({count})",
+  "@pdOffersSection": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pdOffersUnavailable": "Mises en vente indisponibles : {error}",
+  "@pdOffersUnavailable": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "pdNoOfferCanCreate": "Aucune mise en vente : ce produit n'est pas achetable, même en ligne. Créez une mise en vente pour fixer votre prix.",
+  "pdNoOfferNoVariant": "Aucune mise en vente possible : créez d'abord une déclinaison, c'est elle qui porte le SKU de la mise en vente.",
+  "pdPutOnSale": "Mettre en vente",
+  "pdNameMin3": "Le nom doit faire au moins 3 caractères.",
+  "pdSheetUpdated": "Fiche mise à jour.",
+  "pdName": "Nom",
+  "pdGtinOptional": "GTIN (facultatif)",
+  "pdEanOptional": "EAN (facultatif)",
+  "pwChooseCategory": "Choisissez une catégorie.",
+  "pwNameMin3": "Le nom doit faire au moins 3 caractères.",
+  "pwDescribeMin10": "Décrivez le produit (10 caractères minimum).",
+  "pwAddPhoto": "Ajoutez au moins une photo.",
+  "pwPhotoTooLarge": "Une photo dépasse 5 Mo. Retirez-la.",
+  "pwSkuRequired": "Le SKU de la déclinaison est obligatoire.",
+  "pwPriceInvalid": "Indiquez un prix valide.",
+  "pwChooseLocation": "Choisissez un lieu d'expédition.",
+  "pwStockMin1": "Indiquez un stock d'au moins 1 unité.",
+  "pwStepProduct": "produit",
+  "pwStepVariant": "déclinaison",
+  "pwStepOffer": "mise en vente",
+  "pwStepStock": "stock",
+  "pwCreatedSuccess": "Produit prêt : déclinaison, mise en vente et stock créés.",
+  "pwNothingKept": "Rien n'a été conservé.",
+  "pwDraftKept": "Le brouillon a été gardé — supprimez-le depuis Produits.",
+  "pwStepFailed": "Échec à l''étape « {step} » : {error} {tail}",
+  "@pwStepFailed": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      },
+      "tail": {
+        "type": "String"
+      }
+    }
+  },
+  "pwNewProduct": "Nouveau produit",
+  "pwCategoriesUnavailable": "Catégories indisponibles.",
+  "pwProductName": "Nom du produit",
+  "pwProductNameHint": "ex. Robe wax grande taille",
+  "pwDescriptionHelper": "Matière, dimensions, ce qui est inclus — c'est ce qui déclenche l'achat.",
+  "pwMoreInfo": "Informations complémentaires (facultatif)",
+  "pwBrandOptional": "Marque (facultatif)",
+  "pwNone": "Aucune",
+  "pwGtinOptional": "Code GTIN (facultatif)",
+  "pwEanOptional": "Code EAN (facultatif)",
+  "pwTagsOptional": "Tags (facultatif)",
+  "pwTagsHint": "ex. wax, coton, fait main",
+  "pwTagsHelper": "Séparez les tags par une virgule.",
+  "pwVariantInfo": "Une déclinaison est une version de votre produit (ex. une taille, une couleur). Un produit simple n'en a qu'une. Le SKU l'identifie et porte le stock.",
+  "pwSkuLabel": "SKU (référence interne)",
+  "pwSkuHelper": "Généré automatiquement. Modifiable si vous avez votre propre système.",
+  "pwAttrLogistics": "Attributs & logistique (facultatif)",
+  "pwAttrIntro": "Attributs (taille, couleur…) — seulement si cette déclinaison en a.",
+  "pwAttrLabel": "Attribut",
+  "pwValueLabel": "Valeur",
+  "pwAddAttr": "Ajouter un attribut",
+  "pwBarcodeOptional": "Code-barres (facultatif)",
+  "pwWeightG": "Poids (g)",
+  "pwCondition": "État du produit",
+  "pwYourPrice": "Votre prix (net perçu)",
+  "pwLocationsUnavailable": "Lieux indisponibles.",
+  "pwShipLocation": "Lieu d'expédition",
+  "pwAddLocation": "Ajouter un lieu",
+  "pwStockQty": "Stock (quantité)",
+  "pwAlertThreshold": "Seuil d'alerte",
+  "pwHandlingTime": "Délai de préparation",
+  "pwDays": "{count, plural, =1{1 jour} other{{count} jours}}",
+  "@pwDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pwReviewTitle": "Vérifiez avant de créer",
+  "pwSummaryProduct": "Produit",
+  "pwName": "Nom",
+  "pwCategory": "Catégorie",
+  "pwPhotosCount": "Photos ({count})",
+  "@pwPhotosCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pwSummaryVariant": "Déclinaison",
+  "pwAttributes": "Attributs",
+  "pwSummaryOffer": "Mise en vente & stock",
+  "pwConditionShort": "État",
+  "pwNetPrice": "Votre prix net",
+  "pwDisplayedPrice": "Prix affiché client",
+  "pwConfirmNote": "En confirmant, le produit, sa déclinaison, sa mise en vente et son stock sont créés d'un coup. Le produit sera visible des acheteurs une fois votre boutique validée (KYB).",
+  "pwAddress": "Adresse",
+  "pwCreateAndSell": "Créer et mettre en vente",
+  "pwStepBarProduct": "Produit",
+  "pwStepBarVariant": "Déclinaison",
+  "pwStepBarOffer": "Mise en vente",
+  "pwStepBarSummary": "Résumé",
+  "pwStepIndicator": "Étape {current}/{total} — {label}",
+  "@pwStepIndicator": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pwNoLocationBody": "Aucun lieu d'expédition. Il en faut un pour mettre en vente (l'adresse d'où partent vos colis).",
+  "pwAddShipLocation": "Ajouter un lieu d'expédition",
+  "pcChooseCategory": "Choisissez une catégorie.",
+  "pcAddPhoto": "Ajoutez au moins une photo : sans image, le produit ne peut pas être créé.",
+  "pcPhotosTooLarge": "{count} photo(s) dépassent 5 Mo. Retirez-les ou réessayez le détourage.",
+  "@pcPhotosTooLarge": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pcDuplicateAttr": "Attribut « {key} » en double.",
+  "@pcDuplicateAttr": {
+    "placeholders": {
+      "key": {
+        "type": "String"
+      }
+    }
+  },
+  "pcCreatedDraft": "Produit créé en brouillon.",
+  "pcDiscardTitle": "Abandonner ce produit ?",
+  "pcDiscardBody": "Ce que vous avez saisi, photos comprises, sera perdu.",
+  "pcKeepEditing": "Continuer la saisie",
+  "pcDiscard": "Abandonner",
+  "pcNewProduct": "Nouveau produit",
+  "pcDraftNote": "Le produit est créé en brouillon. Vous créerez ensuite une mise en vente (prix, stock) pour le mettre en vente.",
+  "pcLegendInfo": "Informations",
+  "pcCategoriesUnavailable": "Catégories indisponibles.",
+  "pcProductName": "Nom du produit",
+  "pcProductNameHint": "ex. Robe wax grande taille",
+  "pcNameMin3": "3 caractères minimum",
+  "pcDescriptionHelper": "Matière, dimensions, ce qui est inclus — c'est ce qui déclenche l'achat.",
+  "pcDescribeMin10": "Décrivez le produit (10 caractères minimum)",
+  "pcLegendId": "Identification",
+  "pcBrandsUnavailable": "Marques indisponibles — vous pouvez créer le produit sans.",
+  "pcBrandOptional": "Marque (facultatif)",
+  "pcNone": "Aucune",
+  "pcGtinOptional": "Code GTIN (facultatif)",
+  "pcGtinHint": "8 à 14 chiffres",
+  "pcEanOptional": "Code EAN (facultatif)",
+  "pcEanHint": "8 ou 13 chiffres",
+  "pcGroupOptional": "Groupe de produit (facultatif)",
+  "pcGroupHint": "Identifiant du groupe",
+  "pcGroupHelper": "Regroupe des produits liés (même modèle, coloris différents).",
+  "pcInvalidId": "Identifiant invalide",
+  "pcAddTag": "Ajouter un tag (facultatif)",
+  "pcTagHint": "ex. wax, coton, fait main",
+  "pcTagHelper": "Aide les acheteurs à trouver le produit. Entrée pour valider.",
+  "pcLegendAttr": "Attributs",
+  "pcAttrIntro": "Caractéristiques communes à toutes les déclinaisons (matière, garantie…). Ce qui change d'une déclinaison à l'autre — taille, couleur — se règle dans les déclinaisons.",
+  "pcKey": "Clé",
+  "pcValueLabel": "Valeur",
+  "pcRemoveAttr": "Retirer l'attribut",
+  "pcAddAttr": "Ajouter un attribut",
+  "pcCreateProduct": "Créer le produit",
+  "pcBarcodeDigits": "{lengths} chiffres",
+  "@pcBarcodeDigits": {
+    "placeholders": {
+      "lengths": {
+        "type": "String"
+      }
+    }
+  },
+  "pcMaxPhotos": "{count} photos au maximum.",
+  "@pcMaxPhotos": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pcOnlyAdded": "Seules {room} photo(s) ont été ajoutées ({max} au maximum).",
+  "@pcOnlyAdded": {
+    "placeholders": {
+      "room": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "pcRetryFailed": "Le détourage a encore échoué. La photo partira telle quelle.",
+  "pcPrimaryHint": "La 1re photo est l'image principale — la seule visible dans les listes. Appuyez sur une photo pour la déplacer en tête ou la retirer.",
+  "pcFailedBanner": "{count} photo(s) n''ont pas pu être détourées : elles partiront avec leur fond d''origine. Appuyez dessus pour réessayer.",
+  "@pcFailedBanner": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pcOversizedBanner": "{count} photo(s) dépassent 5 Mo et seront refusées par le serveur. Retirez-les.",
+  "@pcOversizedBanner": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pcPhotoRequired": "Au moins une photo est requise.",
+  "pcPrimaryBadge": "Principale",
+  "pcSetPrimary": "Définir comme photo principale",
+  "pcSetPrimarySub": "C'est l'image que verront les acheteurs dans les listes.",
+  "pcRetryProcessing": "Réessayer le détourage",
+  "pcRetrySub": "Fond blanc automatique via le serveur.",
+  "pcRemovePhoto": "Retirer la photo",
+  "pcAddPhotos": "Ajouter des photos",
+  "pcPickerSubtitle": "Détourage automatique sur fond blanc · 8 photos maximum",
+  "pcFromGallery": "Depuis la galerie",
+  "pcMultiSelect": "Sélection multiple possible.",
+  "pcTakePhoto": "Prendre une photo",
+  "pcOptional": "facultatif",
+  "cpChooseCategory": "Choisissez une catégorie",
+  "cpChooseThis": "Choisir « {name} »",
+  "@cpChooseThis": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSubcategories": "Sous-catégories",
+  "cpCategory": "Catégorie",
+  "ppvTitle": "Aperçu client",
+  "ppvPriceUnavailable": "Prix indisponible",
+  "ppvNoDescription": "Aucune description — l'acheteur ne saura pas ce qu'il achète.",
+  "ppvAddToCart": "Ajouter au panier",
+  "ppvUnavailable": "Indisponible",
+  "ppvPreviewNote": "Aperçu — aucune action réelle depuis cet écran.",
+  "ppvBuyable": "Ce produit est visible et achetable.",
+  "ppvReasonBoth": "Le produit est en brouillon ET n'a aucune mise en vente active.",
+  "ppvReasonDraft": "Le produit est en brouillon : les acheteurs ne le voient pas.",
+  "ppvReasonNoOffer": "Aucune mise en vente active : le produit est visible mais NE PEUT PAS être acheté.",
+  "ppvNoPhoto": "Aucune photo — le produit ne sera pas remarqué.",
+  "ppvInStock": "En stock",
+  "ppvOutOfStock": "Rupture de stock",
+  "ppvShippedIn": "Expédié sous {days} j",
+  "@ppvShippedIn": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "imgpReady": "Photos préparées",
+  "imgpPreparing": "Préparation des photos…",
+  "imgpDoneDesc": "Détourées sur fond blanc. Comparez, puis validez.",
+  "imgpInProgress": "Détourage en cours — {done}/{total}",
+  "@imgpInProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "imgpAllFailed": "Le détourage a échoué. Vous pouvez envoyer les photos d'origine, mais elles n'auront pas le fond blanc du catalogue.",
+  "imgpSomeFailed": "{count} photo(s) n''ont pas pu être détourées. Elles seront envoyées telles quelles.",
+  "@imgpSomeFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "imgpRetry": "Réessayer le détourage",
+  "imgpUse": "Utiliser",
+  "imgpBefore": "Avant",
+  "imgpAfter": "Après",
+  "imgpNotProcessed": "Non détourée",
+  "authLoginTagline": "Boutique, restaurant, commandes et revenus au même endroit.",
+  "authLoginEmailLabel": "Téléphone ou e-mail",
+  "authLoginEmailInvalid": "Saisissez un e-mail valide",
+  "authLoginPasswordLabel": "Mot de passe",
+  "authLoginPasswordMin": "6 caractères minimum",
+  "authLoginForgotPassword": "Mot de passe oublié ?",
+  "authLoginEnableBio": "Activer {label} pour les prochaines connexions",
+  "@authLoginEnableBio": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "authLoginMfaLabel": "Code de vérification",
+  "authLoginResendVerification": "Renvoyer le code de vérification",
+  "authLoginSignIn": "Se connecter",
+  "authLoginSignInWithBio": "Se connecter avec {label}",
+  "@authLoginSignInWithBio": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "authLoginNoAccount": "Vous n'avez pas encore de compte vendeur ?",
+  "authLoginCreateAccount": "Créer un compte partenaire",
+  "authLoginEnterEmail": "Saisissez votre adresse e-mail.",
+  "authLoginNoAccountToVerify": "Aucun compte à vérifier pour cette adresse.",
+  "authLoginBiometricReason": "Connectez-vous à HbaExpress PRO",
+  "authRegisterTitle": "Créer un compte vendeur",
+  "authRegisterHeadline": "Ouvrez votre boutique",
+  "authRegisterSubtitle": "Créez votre compte en quelques minutes. Vous pourrez publier vos produits une fois votre profil validé par notre équipe.",
+  "authRegisterShopNameLabel": "Nom de la boutique",
+  "authRegisterShopNameHint": "Ma Boutique",
+  "authRegisterShopNameRequired": "Nom de boutique requis",
+  "authRegisterFirstNameLabel": "Prénom",
+  "authRegisterLastNameLabel": "Nom",
+  "authRegisterRequired": "Requis",
+  "authRegisterEmailLabel": "Email",
+  "authRegisterEmailInvalid": "E-mail invalide",
+  "authRegisterPhoneLabel": "Téléphone",
+  "authRegisterPhoneRequired": "Téléphone requis",
+  "authRegisterPasswordLabel": "Mot de passe",
+  "authRegisterPasswordMin": "6 caractères minimum",
+  "authRegisterLegalNameLabel": "Raison sociale",
+  "authRegisterActivityLabel": "Activité",
+  "authRegisterActivityHint": "Prêt-à-porter, électronique…",
+  "authRegisterAddressLabel": "Adresse",
+  "authRegisterAddressHint": "Rue, quartier",
+  "authRegisterCityLabel": "Commune",
+  "authRegisterManagerLabel": "Gérant",
+  "authRegisterManagerHint": "Nom du représentant légal",
+  "authRegisterCompanyPhoneLabel": "Téléphone société",
+  "authRegisterCompanyToggle": "Informations société (facultatif)",
+  "authRegisterContinue": "Continuer",
+  "authRegisterHaveAccount": "J'ai déjà un compte — Se connecter",
+  "authVerifyEnterCode": "Entrez le code à 6 chiffres.",
+  "authVerifyEnterShopName": "Entrez le nom de votre boutique.",
+  "authVerifyAccountCreated": "Compte créé. Connectez-vous pour accéder à votre boutique.",
+  "authVerifyCodeResent": "Un nouveau code vous a été envoyé.",
+  "authVerifyTitle": "Vérification",
+  "authVerifyHeadline": "Entrez votre code",
+  "authVerifySentTo": "Nous avons envoyé un code à 6 chiffres à\n",
+  "authVerifyShopNameLabel": "Nom de votre boutique",
+  "authVerifyShopNameHint": "Ma Boutique",
+  "authVerifyValidate": "Valider",
+  "authVerifySending": "Envoi…",
+  "authVerifyResend": "Renvoyer le code",
+  "authForgotTitle": "Mot de passe oublié",
+  "authForgotHeadline": "Réinitialiser le mot de passe",
+  "authForgotSubtitle": "Entrez l’e-mail de votre compte : nous vous enverrons un code à 6 chiffres pour choisir un nouveau mot de passe.",
+  "authForgotEmailInvalid": "E-mail invalide",
+  "authForgotSendCode": "Envoyer le code",
+  "authForgotBackToLogin": "Retour à la connexion",
+  "authResetSuccess": "Mot de passe réinitialisé. Connectez-vous.",
+  "authResetCodeResent": "Un nouveau code vous a été envoyé.",
+  "authResetTitle": "Nouveau mot de passe",
+  "authResetHeadline": "Choisir un nouveau mot de passe",
+  "authResetSentTo": "Entrez le code à 6 chiffres envoyé à\n",
+  "authResetCodeLabel": "Code de vérification",
+  "authResetCodeRequired": "Code à 6 chiffres requis",
+  "authResetPasswordLabel": "Nouveau mot de passe",
+  "authResetPasswordMin": "6 caractères minimum",
+  "authResetSubmit": "Réinitialiser",
+  "authResetSending": "Envoi…",
+  "authResetResend": "Renvoyer le code",
+  "authSplashTagline": "Votre boutique, dans votre poche",
+  "offListTitle": "Mises en vente",
+  "offListNewOffer": "Nouvelle mise en vente",
+  "offListEmpty": "Aucune mise en vente.\nUne mise en vente, c'est le prix auquel vous vendez un produit.",
+  "offCardActionsTooltip": "Actions",
+  "offCardEditPrice": "Modifier le prix",
+  "offCardRemoveDiscount": "Retirer la remise",
+  "offCardApplyDiscount": "Appliquer une remise",
+  "offCardPause": "Mettre en pause",
+  "offCardReactivate": "Réactiver",
+  "offCardHandling": "Préparation {days} j",
+  "@offCardHandling": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "offCardYouReceive": "Vous percevez",
+  "offCardCustomerPays": "Le client paie",
+  "offCardPromo": "Promo",
+  "offCardBefore": "avant {price}",
+  "@offCardBefore": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "offCardSpreadNote": "Écart : commission plateforme ({commission} %) + frais de paiement ({fee} %).",
+  "@offCardSpreadNote": {
+    "placeholders": {
+      "commission": {
+        "type": "int"
+      },
+      "fee": {
+        "type": "int"
+      }
+    }
+  },
+  "offSheetDiscountRemoved": "Remise retirée.",
+  "offSheetBackOnSale": "Remise en vente.",
+  "offSheetSalePaused": "Vente mise en pause.",
+  "offSheetYouReceive": "Vous percevez",
+  "offSheetCommission": "Commission plateforme",
+  "offSheetPaymentFees": "Frais de paiement",
+  "offSheetDisplayedPrice": "Prix affiché au client",
+  "offSheetChooseProduct": "Choisissez un produit.",
+  "offSheetChooseVariant": "Choisissez la déclinaison (SKU) concernée.",
+  "offSheetChooseStore": "Choisissez une boutique",
+  "offSheetStore": "Boutique",
+  "offSheetChooseProductFirst": "Choisissez d’abord un produit.",
+  "offSheetNoVariants": "Ce produit n’a aucune déclinaison. Ajoutez-en une depuis sa fiche avant de le mettre en vente.",
+  "offSheetNoStores": "Aucune boutique sur ce compte. Créez-en une avant de mettre un article en vente.",
+  "offSheetChooseLocation": "Choisissez un lieu d'expédition.",
+  "offSheetOfferCreated": "Mise en vente créée.",
+  "offSheetDuplicateTitle": "Cette déclinaison a déjà une mise en vente",
+  "offSheetDuplicateBody": "Chaque déclinaison ne porte qu'une seule mise en vente : son stock est unique et ne peut pas être à la fois neuf et d'occasion.\n\nPour vendre ce produit dans une autre condition, créez une seconde déclinaison (ex. « Occasion ») depuis la fiche produit, puis ajoutez-y son mise en vente.",
+  "offSheetGotIt": "Compris",
+  "offSheetNewOfferTitle": "Nouvelle mise en vente",
+  "offSheetProductsUnavailable": "Produits indisponibles : {error}",
+  "@offSheetProductsUnavailable": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "offSheetProduct": "Produit",
+  "offSheetVariantSku": "Déclinaison (SKU)",
+  "offSheetSkuInternalRef": "SKU (référence interne)",
+  "offSheetSkuRequired": "SKU obligatoire",
+  "offSheetCondition": "État du produit",
+  "offSheetConditionHint": "Une déclinaison = une seule mise en vente. Pour vendre en Neuf ET Occasion, créez une déclinaison par condition.",
+  "offSheetYourPrice": "Votre prix (net perçu)",
+  "offSheetInvalidPrice": "Prix invalide",
+  "offSheetLocationsUnavailable": "Lieux d''expédition indisponibles : {error}",
+  "@offSheetLocationsUnavailable": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "offSheetNoLocations": "Aucun lieu d'expédition. Ajoutez-en un avant de mettre en vente.",
+  "offSheetShipFrom": "Lieu d'expédition",
+  "offSheetHandlingTime": "Délai de préparation",
+  "offSheetDay1": "1 jour",
+  "offSheetDays2": "2 jours",
+  "offSheetDays3": "3 jours",
+  "offSheetDays5": "5 jours",
+  "offSheetPublish": "Mettre en vente",
+  "offSheetInvalidPriceNotice": "Prix invalide.",
+  "offSheetPriceUpdated": "Prix mis à jour.",
+  "offSheetSave": "Enregistrer",
+  "offSheetInvalidDiscount": "Remise invalide : le prix réduit doit rester positif et inférieur au prix actuel.",
+  "offSheetDiscountApplied": "Remise appliquée.",
+  "offSheetApplyDiscountTitle": "Appliquer une remise",
+  "offSheetCurrentPriceNote": "Prix actuel : {price}. La remise réduit votre prix net ; la commission est recalculée sur le prix réduit.",
+  "@offSheetCurrentPriceNote": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "offSheetDiscountType": "Type de remise",
+  "offSheetPercentage": "Pourcentage (%)",
+  "offSheetFixedAmount": "Montant fixe",
+  "offSheetPercentageLabel": "Pourcentage",
+  "offSheetAmountLabel": "Montant",
+  "offSheetPromoEndOptional": "Fin de la promo (optionnel)",
+  "offSheetUntil": "Jusqu''au {date}",
+  "@offSheetUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "offSheetNoEndDate": "Sans échéance",
+  "offSheetApplyDiscountBtn": "Appliquer la remise",
+  "offLocationsTitle": "Lieux d'expédition",
+  "offLocationsAdd": "Ajouter",
+  "offLocationsEmpty": "Aucun lieu d'expédition.\nAjoutez l'adresse d'où partent vos colis : elle est indispensable pour mettre en vente.",
+  "offLocationsDeleteTitle": "Supprimer ce lieu ?",
+  "offLocationsDeleteBody": "« {label} » ne sera plus proposé comme point de départ. Les mises en vente qui l''utilisent devront pointer vers un autre lieu.",
+  "@offLocationsDeleteBody": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "offLocationsCancel": "Annuler",
+  "offLocationsDelete": "Supprimer",
+  "offLocationsDeleted": "Lieu supprimé.",
+  "offLocationsDeleteTooltip": "Supprimer",
+  "offLocationsAdded": "Lieu ajouté.",
+  "offLocationsNewTitle": "Nouveau lieu d'expédition",
+  "offLocationsNewSubtitle": "L'adresse d'où partent vos colis. Elle sert de point de départ à vos mises en vente.",
+  "offLocationsAddressLabel": "Adresse",
+  "offLocationsAddressHint": "Rue, numéro, quartier",
+  "offLocationsAddressRequired": "Adresse obligatoire",
+  "offLocationsAddBtn": "Ajouter le lieu",
+  "msgActionUnavailable": "Cette action n'est pas encore disponible sur le serveur.",
+  "msgEmpty": "Aucun message. Écrivez le premier.",
+  "msgDeleted": "Message supprimé",
+  "msgHideForMe": "Supprimer pour moi",
+  "msgHideForMeHint": "Le client continuera de le voir",
+  "msgDeleteForEveryone": "Supprimer pour tout le monde",
+  "msgDeleteForEveryoneHint": "Le message sera remplacé par « Message supprimé »",
+  "msgAttachImage": "Joindre une image",
+  "msgInputHint": "Votre message…",
+  "msgNoConversations": "Aucune conversation.\nVos clients vous écriront ici.",
+  "msgNewThread": "Nouveau fil",
+  "revTitle": "Avis",
+  "revEmpty": "Aucun avis pour le moment.",
+  "revYourReply": "Votre réponse",
+  "revReply": "Répondre",
+  "revFlagTooltip": "Signaler cet avis",
+  "revReplyTitle": "Répondre à cet avis",
+  "revReplyPublicNote": "Votre réponse est publique : elle sera lue par tous vos futurs clients.",
+  "revReplyHint": "Votre réponse…",
+  "revReplyPublished": "Réponse publiée.",
+  "revPublish": "Publier",
+  "revFlagConfirmTitle": "Signaler cet avis ?",
+  "revFlagConfirmBody": "L'avis sera examiné par la modération. Il reste visible tant qu'aucune décision n'est prise.",
+  "revCancel": "Annuler",
+  "revFlag": "Signaler",
+  "revFlaggedSuccess": "Avis signalé à la modération.",
+  "dispTitle": "Litige",
+  "dispEmpty": "Aucun échange pour le moment.",
+  "dispReplySent": "Réponse envoyée.",
+  "dispStatusResolved": "Résolu",
+  "dispStatusEscalated": "Escaladé à la plateforme",
+  "dispStatusUnderReview": "En cours d’examen",
+  "dispStatusOpen": "Ouvert",
+  "dispOpenedAge": "Ouvert {age}",
+  "@dispOpenedAge": {
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "dispEscalatedWarning": "La plateforme va arbitrer. Apportez vos éléments maintenant : sans réponse de votre part, la décision se prendra sur les seuls arguments de l'acheteur.",
+  "dispClosedTitle": "Litige clos",
+  "dispRefundedToBuyer": "Remboursé à l'acheteur",
+  "dispComposerHint": "Votre réponse : faits, dates, preuves…",
+  "finTitle": "Finances",
+  "finRange12Months": "12 mois",
+  "finRangeDays": "{days} jours",
+  "@finRangeDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "finGrossSales": "Ventes brutes",
+  "finPlatformCommission": "Commission plateforme",
+  "finPaymentFees": "Frais de paiement",
+  "finRefunds": "Remboursements",
+  "finNetForYou": "Net pour vous",
+  "finDetail": "Détail",
+  "finNoMovements": "Aucun mouvement sur la période.",
+  "finPayouts": "Versements",
+  "finPayoutProviderDate": "{provider} · {date}",
+  "@finPayoutProviderDate": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "walTitle": "Portefeuille",
+  "walWithdrawalHistory": "Historique des retraits",
+  "walNoWithdrawals": "Aucun retrait pour le moment.",
+  "walMovements": "Mouvements",
+  "walAvailableBalance": "Solde disponible",
+  "walPendingDelivery": "En attente de livraison · {amount}",
+  "@walPendingDelivery": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walPendingWithdrawals": "Retraits en cours",
+  "walInvalidAmount": "Montant invalide.",
+  "walRequestSaved": "Demande enregistrée. Elle sera versée après validation.",
+  "walRequestWithdrawal": "Demander un retrait",
+  "walNoMobileMoneyAccount": "Aucun compte Mobile Money enregistré. Renseignez-le dans votre boutique : sans lui, aucun versement n'est possible.",
+  "walAmount": "Montant",
+  "walAvailableAmount": "Disponible : {amount}",
+  "@walAvailableAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walRequestWithdrawalButton": "Demander le retrait",
+  "walFundsHeldNotice": "Les fonds sont retenus dès la demande, puis versés après validation par l’administrateur.",
+  "walWithdrawalProcessing": "Versement transmis à votre opérateur. Il est confirmé dès que l'argent arrive — cela peut prendre quelques minutes.",
+  "walFundsRecredited": "Les fonds ont été recrédités sur votre solde.",
+  "shpTitle": "Expéditions",
+  "shpEmptyTodo": "Rien à expédier.\nVos colis en attente apparaîtront ici.",
+  "shpEmptyOther": "Aucune expédition dans cette vue.",
+  "shpFilterTodo": "À traiter",
+  "shpFilterShipped": "Expédiées",
+  "shpFilterDelivered": "Livrées",
+  "shpFilterCancelled": "Annulées",
+  "shpFilterAll": "Toutes",
+  "shpFilterWithCount": "{label} ({count})",
+  "@shpFilterWithCount": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shpCustomerItems": "{customer} · {count} article(s)",
+  "@shpCustomerItems": {
+    "placeholders": {
+      "customer": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shpTracking": "Suivi",
+  "shpMarkPrepared": "Marquer préparée",
+  "shpMarkedPrepared": "Colis marqué comme préparé.",
+  "shpShip": "Expédier",
+  "shpConfirmDelivery": "Confirmer la livraison",
+  "shpDeliveryConfirmed": "Livraison confirmée.",
+  "shpCancel": "Annuler",
+  "shpCancelDialogTitle": "Annuler cette expédition ?",
+  "shpCancelDialogBody": "La commande {orderReference} sera signalée comme annulée au client. Cette action ne peut pas être défaite.",
+  "@shpCancelDialogBody": {
+    "placeholders": {
+      "orderReference": {
+        "type": "String"
+      }
+    }
+  },
+  "shpBack": "Retour",
+  "shpCancelShipment": "Annuler l’expédition",
+  "shpShipmentCancelled": "Expédition annulée.",
+  "shpShipmentSaved": "Expédition enregistrée.",
+  "shpShipSheetTitle": "Expédier {orderReference}",
+  "@shpShipSheetTitle": {
+    "placeholders": {
+      "orderReference": {
+        "type": "String"
+      }
+    }
+  },
+  "shpTrackingHint": "Le numéro de suivi est communiqué au client : sans lui, la moindre contestation devient invérifiable.",
+  "shpCarrier": "Transporteur",
+  "shpCarrierRequired": "Transporteur obligatoire",
+  "shpTrackingNumber": "Numéro de suivi",
+  "shpTrackingRequired": "Numéro obligatoire",
+  "shpConfirmShipment": "Confirmer l’expédition",
+  "retTitle": "Retours",
+  "retEmptyTodo": "Aucun retour à traiter.",
+  "retEmptyOther": "Aucun retour dans cette vue.",
+  "retFilterTodo": "À traiter",
+  "retFilterRefunded": "Remboursés",
+  "retFilterRejected": "Refusés",
+  "retFilterAll": "Tous",
+  "retFilterWithCount": "{label} ({count})",
+  "@retFilterWithCount": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retStatusRefunded": "Remboursé",
+  "retStatusRefundPending": "Versement en cours",
+  "retStatusRejected": "Refusé",
+  "retStatusReceived": "Colis reçu",
+  "retStatusApproved": "Accepté",
+  "retStatusToReview": "À examiner",
+  "retTracking": "Suivi",
+  "retLabelRefunded": "Remboursé",
+  "retLabelToPay": "À verser",
+  "retRefundValidatedNote": "Remboursement validé. Le versement à l'acheteur est effectué par HBA Express sous 24 à 72 heures. Aucune action de votre part.",
+  "retAccept": "Accepter",
+  "retReturnAccepted": "Retour accepté. Attendez le colis.",
+  "retReject": "Refuser",
+  "retNoTrackingWarning": "Aucun numéro de suivi : vous ne pourrez pas prouver le retour du colis.",
+  "retEditTracking": "Modifier le suivi",
+  "retEnterTracking": "Saisir le suivi",
+  "retParcelReceived": "Colis reçu",
+  "retValidateRefund": "Valider le remboursement",
+  "retConfirmReceiptTitle": "Confirmer la réception ?",
+  "retConfirmReceiptBody": "Déclarez le colis reçu seulement après avoir vérifié son contenu. Vous pourrez ensuite rembourser — en totalité ou en partie si l'article est abîmé.",
+  "retCancel": "Annuler",
+  "retReceiptSaved": "Réception enregistrée.",
+  "retExplainRejection": "Expliquez votre refus (10 caractères minimum).",
+  "retReturnRejected": "Retour refusé.",
+  "retRejectReturn": "Refuser le retour",
+  "retRejectReasonHint": "Votre motif sera communiqué à l'acheteur. Un refus clairement expliqué évite le litige.",
+  "retRejectReasonExample": "Ex. : l'article a été utilisé et ne peut pas être revendu.",
+  "retCarrierTrackingRequired": "Transporteur et numéro sont requis.",
+  "retTrackingSaved": "Suivi enregistré.",
+  "retTrackingSheetTitle": "Suivi du colis retour",
+  "retCarrier": "Transporteur",
+  "retTrackingNumber": "Numéro de suivi",
+  "retSave": "Enregistrer",
+  "retInvalidAmount": "Montant invalide.",
+  "retValidateRefundTitle": "Valider ce remboursement ?",
+  "retValidateRefundBody": "{amount} seront remboursés à l''acheteur par HBA Express, et déduits de votre solde. Cette décision est définitive.",
+  "@retValidateRefundBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "retValidate": "Valider",
+  "retRefundValidatedNotify": "Remboursement validé. HBA Express verse la somme à l'acheteur sous 24 à 72 h.",
+  "retPartialRefundHint": "Vous pouvez rembourser partiellement si l'article revient abîmé ou incomplet.",
+  "retRefundAmount": "Montant à rembourser",
+  "profTitle": "Profil et sécurité",
+  "profName": "Nom",
+  "profEmail": "E-mail",
+  "profPhone": "Téléphone",
+  "profShop": "Boutique",
+  "profEditInfo": "Modifier mes informations",
+  "profChangePassword": "Changer mon mot de passe",
+  "profMfa": "Double authentification",
+  "profEnabled": "Activée",
+  "profDisabled": "Désactivée",
+  "profMyInfo": "Mes informations",
+  "profFirstName": "Prénom",
+  "profUpdated": "Profil mis à jour.",
+  "profSave": "Enregistrer",
+  "profCurrentPassword": "Mot de passe actuel",
+  "profNewPassword": "Nouveau mot de passe",
+  "profPasswordMinLength": "8 caractères minimum.",
+  "profPasswordChanged": "Mot de passe modifié.",
+  "profModify": "Modifier",
+  "profEnableMfa": "Activer la double authentification",
+  "profMfaStep1": "1. Ouvrez une application d'authentification (Google Authenticator, Authy…).\n2. Ajoutez un compte en saisissant cette clé :",
+  "profKeyCopied": "Clé copiée.",
+  "profMfaStep3": "3. Entrez le code à 6 chiffres affiché par l’application :",
+  "profCodeRequired": "Code à 6 chiffres requis.",
+  "profMfaEnabled": "Double authentification activée.",
+  "profEnable": "Activer",
+  "profDisableMfa": "Désactiver la double authentification",
+  "profDisableMfaBody": "Entrez un code de votre application d’authentification pour confirmer.",
+  "profMfaDisabled": "Double authentification désactivée.",
+  "profDisable": "Désactiver",
+  "notifTitle": "Notifications",
+  "notifPreferences": "Préférences",
+  "notifMarkAllRead": "Tout marquer lu",
+  "notifEmpty": "Aucune notification.",
+  "notifprefTitle": "Préférences de notification",
+  "notifprefIntro": "Choisissez les notifications push que vous souhaitez recevoir. Les notifications restent consultables dans votre boîte de réception, même coupées.",
+  "notifprefOrdersTitle": "Commandes & expéditions",
+  "notifprefOrdersDesc": "Nouvelles commandes, préparation, expédition",
+  "notifprefReturnsTitle": "Retours & litiges",
+  "notifprefReturnsDesc": "Demandes de retour, remboursements, litiges",
+  "notifprefReviewsTitle": "Avis clients",
+  "notifprefReviewsDesc": "Nouveaux avis sur vos produits",
+  "notifprefMessagesTitle": "Messages",
+  "notifprefMessagesDesc": "Nouveaux messages des acheteurs",
+  "notifprefAccountTitle": "Compte & paiements",
+  "notifprefAccountDesc": "Validation de boutique, retraits, versements",
+  "privTitle": "Confidentialité",
+  "privHeaderTitle": "Vos données",
+  "termsTitle": "Conditions générales",
+  "shopTitle": "Ma boutique",
+  "shopCompanyInfo": "Informations société",
+  "shopCompanyInfoEmpty": "Renseignez les informations de votre entreprise (raison sociale, RCCM, IFU…). Elles facilitent la validation de votre profil.",
+  "shopFillIn": "Renseigner",
+  "shopLegalName": "Raison sociale",
+  "shopActivity": "Activité",
+  "shopAddress": "Adresse",
+  "shopCity": "Commune",
+  "shopManager": "Gérant",
+  "shopPhone": "Téléphone",
+  "shopEdit": "Modifier",
+  "shopPayoutAccount": "Compte de versement",
+  "shopOperator": "Opérateur",
+  "shopNumber": "Numéro",
+  "shopAccountHolder": "Titulaire",
+  "shopNoPayoutAccount": "Aucun compte Mobile Money enregistré. Sans lui, vos gains ne peuvent pas vous être versés.",
+  "shopSaveMyAccount": "Enregistrer mon compte",
+  "shopDocumentsKyb": "Documents (KYB)",
+  "shopAdd": "AJOUTER",
+  "shopNoDocuments": "Aucun document déposé. La vérification de votre entreprise est requise pour activer votre boutique et recevoir vos versements.",
+  "shopUploadDocument": "Déposer un document",
+  "shopDocumentsSecure": "Vos pièces sont stockées de façon sécurisée et ne sont jamais visibles par les acheteurs.",
+  "shopLogoUpdated": "Logo mis à jour.",
+  "shopDocumentRejected": "Refusée — déposez une nouvelle pièce",
+  "shopDelete": "Supprimer",
+  "shopDeleteDocumentTitle": "Supprimer ce document ?",
+  "shopDeleteDocumentBody": "« {label} » sera retiré de votre dossier. Vous devrez le redéposer pour que votre boutique soit vérifiée.",
+  "@shopDeleteDocumentBody": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "shopCancel": "Annuler",
+  "shopDocumentDeleted": "Document supprimé.",
+  "shopFileTooLarge": "Fichier trop volumineux (max 10 Mo).",
+  "shopChooseFileError": "Choisissez un fichier.",
+  "shopDocumentSent": "Document envoyé. Il sera examiné sous peu.",
+  "shopKybTitle": "Vérification de compte (KYB)",
+  "shopKybSubtitle": "Ces pièces prouvent l'existence de votre entreprise. Elles sont examinées manuellement et restent confidentielles.",
+  "shopDocumentType": "Type de document",
+  "shopChooseFile": "Choisir un fichier",
+  "shopFileFormats": "PDF, JPG, PNG ou WebP — 10 Mo maximum",
+  "shopSubmitForVerification": "Soumettre pour vérification",
+  "shopNameRequired": "Le nom est obligatoire.",
+  "shopShopUpdated": "Boutique mise à jour.",
+  "shopProfileTitle": "Profil de la boutique",
+  "shopShopName": "Nom de la boutique",
+  "shopDescription": "Description",
+  "shopSave": "Enregistrer",
+  "shopCompanyInfoUpdated": "Informations société mises à jour.",
+  "shopAllFieldsOptional": "Tous les champs sont facultatifs. Ces informations aident à valider votre profil.",
+  "shopPayoutSaved": "Compte de versement enregistré.",
+  "shopPayoutHint": "C'est sur ce numéro que vos retraits seront versés. Vérifiez-le : un numéro erroné envoie l'argent à quelqu'un d'autre.",
+  "shopMobileMoneyNumber": "Numéro Mobile Money",
+  "shopInvalidNumber": "Numéro invalide",
+  "shopAccountHolderName": "Nom du titulaire",
+  "shopHolderNameRequired": "Nom obligatoire",
+  "helpTitle": "Aide & support",
+  "helpNeedHelp": "Besoin d'aide ?",
+  "helpBrowseFaq": "Parcourez les questions fréquentes, ou écrivez-nous directement.",
+  "helpContactSupport": "Contacter le support",
+  "helpSearchHint": "Rechercher une question…",
+  "helpNoResults": "Aucune réponse pour « {query} ».",
+  "@helpNoResults": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "helpAskSupport": "Poser la question au support",
+  "helpEmailCopied": "Adresse copiée : {email}",
+  "@helpEmailCopied": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "helpEmailSubject": "Support vendeur — HbaExpress PRO",
+  "helpEmailBody": "\n\n———\nMerci de décrire votre problème ci-dessus.\n(App HbaExpress PRO — réf. CGU {version})",
+  "@helpEmailBody": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "consentTitle": "Avant de continuer",
+  "consentIntro": "Nous avons besoin de votre accord sur nos conditions générales et sur notre politique de confidentialité. Prenez le temps de les lire : elles disent ce à quoi vous vous engagez, et ce à quoi nous nous engageons.",
+  "consentTermsTab": "Conditions",
+  "consentPrivacyTab": "Confidentialité",
+  "consentScrollHint": "Faites défiler les deux documents jusqu’au bout pour pouvoir les accepter.",
+  "consentCheckbox": "J’ai lu et j’accepte les conditions générales et la politique de confidentialité.",
+  "consentAcceptContinue": "Accepter et continuer",
+  "consentDecline": "Refuser",
+  "consentDeclineTitle": "Refuser les conditions ?",
+  "consentDeclineBody": "Sans votre accord, l'application ne peut pas être utilisée : vous serez déconnecté. Votre boutique et vos données ne sont pas supprimées.",
+  "consentGoBack": "Revenir",
+  "consentDeclineAndLeave": "Refuser et quitter",
+  "consentSaveError": "Votre accord n''a pas pu être enregistré : {error}",
+  "@consentSaveError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "legalVersion": "Version du {date} · {company}",
+  "@legalVersion": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "company": {
+        "type": "String"
+      }
+    }
+  },
+  "statTitle": "Statistiques",
+  "stat30Days": "30 jours",
+  "stat90Days": "90 jours",
+  "stat12Months": "12 mois",
+  "statRevenue": "Chiffre d'affaires",
+  "statNoSales": "Aucune vente sur cette période.\nVos ventes apparaîtront ici.",
+  "statOrders": "Commandes",
+  "statItemsSold": "Articles vendus",
+  "statOrdersByStatus": "Commandes par statut",
+  "statOrdersByStatusSub": "Toutes vos commandes, réparties par état.",
+  "statGrossToNet": "Brut → net",
+  "statGrossToNetSub": "30 derniers jours, après commission de la marketplace.",
+  "statBucketToProcess": "À traiter",
+  "statBucketShipped": "Expédiées",
+  "statBucketDelivered": "Livrées",
+  "statBucketCancelled": "Annulées",
+  "statBucketOther": "Autres",
+  "statOrdersLabel": "commandes",
+  "statAxisGross": "Brut",
+  "statAxisNet": "Net",
+  "statCommissionTaken": "Commission prélevée",
+  "condNew": "Neuf",
+  "condUsed": "Occasion",
+  "condRefurbished": "Reconditionné",
+  "payoutMtn": "MTN Mobile Money (Bénin)",
+  "payoutMoov": "Moov Money (Bénin)",
+  "payoutCeltis": "Celtis Cash (Bénin)",
+  "kybBusinessRegistry": "Registre du commerce",
+  "kybIdCard": "Pièce d'identité",
+  "kybTaxId": "Identifiant fiscal",
+  "kybProofOfAddress": "Justificatif de domicile",
+  "kybFallbackDocument": "Document",
+  "ageJustNow": "À l'instant",
+  "ageMinutes": "il y a {n} min",
+  "ageHours": "il y a {n} h",
+  "ageDays": "il y a {n} j",
+  "@ageMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@ageHours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@ageDays": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "carrierLoading": "Chargement des transporteurs…",
+  "carrierSelectHint": "Choisir un transporteur",
+  "carrierOther": "Autre (préciser)",
+  "carrierOtherLabel": "Nom du transporteur",
+  "shpTrackingOpenError": "Impossible d'ouvrir le lien de suivi.",
+  "commonFeatureUnavailable": "Cette fonctionnalité n'est pas encore disponible sur le serveur.",
+  "commonNoResultsFor": "Aucun résultat pour « {query} ».",
+  "@commonNoResultsFor": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "pillPaid": "Payé",
+  "pillPayoutProcessing": "Versement en cours",
+  "pillPending": "En attente",
+  "pillRejectedM": "Refusé",
+  "pillFailed": "Échec",
+  "pillProcessing": "En traitement",
+  "pillDelivered": "Livrée",
+  "pillShipped": "Expédiée",
+  "pillToProcess": "À traiter",
+  "pillCancelled": "Annulée",
+  "pillRefunded": "Remboursée",
+  "pillPrepared": "Préparée",
+  "pillToPrepare": "À préparer",
+  "pillOnline": "En ligne",
+  "pillPaused": "En pause",
+  "pillDraft": "Brouillon",
+  "pillArchived": "Archivé",
+  "pillVerified": "Vérifiée",
+  "pillRejectedF": "Refusée",
+  "pillInReview": "En vérification",
+  "pillToComplete": "À compléter",
+  "commonSeeAll": "VOIR TOUT",
+  "legalFrenchNote": "Ce document est publié en français, sa langue qui fait foi.",
+  "ordShipmentSection": "Expédition",
+  "ordNoShipmentYet": "L'expédition est créée automatiquement une fois le paiement encaissé. Si elle n'apparaît pas encore, patientez un instant puis rafraîchissez.",
+  "commonDescription": "Description",
+  "commonSku": "SKU",
+  "commonStock": "Stock",
+  "routeNotFoundTitle": "Page introuvable",
+  "routeBackHome": "Retour à l'accueil",
+  "updTitle": "Mise à jour requise",
+  "updBody": "Cette version de l'application n'est plus prise en charge. Mettez-la à jour pour continuer à gérer votre boutique.",
+  "updButton": "Mettre à jour",
+  "updAlreadyUpdated": "J'ai déjà mis à jour",
+  "updNoStoreLink": "Lien de mise à jour indisponible. Recherchez « HbaExpress PRO » dans votre store.",
+  "notifprefDeviceTitle": "Cet appareil",
+  "notifprefDeviceHint": "Si vous ne recevez pas les notifications alors qu'elles sont autorisées, réactivez-les ici pour réenregistrer cet appareil.",
+  "notifprefDeviceButton": "Activer les notifications sur cet appareil",
+  "notifprefDeviceEnabling": "Activation…",
+  "notifprefDeviceRegistered": "Cet appareil est enregistré pour les notifications.",
+  "notifprefDevicePermissionDenied": "Notifications refusées. Activez-les dans les Réglages du téléphone, puis réessayez.",
+  "notifprefDeviceApnsUnavailable": "Impossible d'obtenir le jeton de notification pour l'instant. Réessayez dans un instant, avec une bonne connexion, sur un appareil réel.",
+  "notifprefDeviceError": "Échec de l'activation. Vérifiez votre connexion et réessayez.",
+  "authLoginBrandKicker": "HBA PARTNER",
+  "authLoginTitle": "Gérez votre activité avec HBA",
+  "navActivities": "Activités",
+  "navFinance": "Finances",
+  "navAccount": "Compte"
+}

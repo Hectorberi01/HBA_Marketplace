@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package hba.engagement.v1;
+
+option csharp_namespace = "HBA.Engagement.Grpc.V1";
+
+service EngagementApi {
+  rpc GetReview(GetReviewRequest) returns (GetReviewResponse);
+  rpc ListReviewsByProduct(ListReviewsByProductRequest) returns (ListReviewsResponse);
+  rpc GetProductRating(GetProductRatingRequest) returns (RatingResponse);
+  rpc GetSellerRating(GetSellerRatingRequest) returns (RatingResponse);
+  rpc GetProductRecommendations(GetProductRecommendationsRequest) returns (RecommendationsResponse);
+  rpc GetUserRecommendations(GetUserRecommendationsRequest) returns (RecommendationsResponse);
+  rpc GetWishlist(GetWishlistRequest) returns (WishlistResponse);
+}
+
+message GetReviewRequest {
+  string review_id = 1;
+}
+
+message GetReviewResponse {
+  bool found = 1;
+  ReviewSummary review = 2;
+}
+
+message ListReviewsByProductRequest {
+  string product_id = 1;
+}
+
+message ListReviewsResponse {
+  repeated ReviewSummary reviews = 1;
+}
+
+message GetProductRatingRequest {
+  string product_id = 1;
+}
+
+message GetSellerRatingRequest {
+  string seller_id = 1;
+}
+
+message RatingResponse {
+  string aggregate_id = 1;
+  double average = 2;
+  int32 count = 3;
+}
+
+message GetProductRecommendationsRequest {
+  string product_id = 1;
+  string type = 2;
+}
+
+message GetUserRecommendationsRequest {
+  string user_id = 1;
+}
+
+message RecommendationsResponse {
+  repeated RecommendationSummary items = 1;
+}
+
+message GetWishlistRequest {
+  string user_id = 1;
+}
+
+message WishlistResponse {
+  repeated WishlistItem items = 1;
+}
+
+message ReviewSummary {
+  string review_id = 1;
+  string product_id = 2;
+  string order_id = 3;
+  string buyer_id = 4;
+  int32 rating = 5;
+  string title = 6;
+  string body = 7;
+  string status = 8;
+}
+
+message RecommendationSummary {
+  string product_id = 1;
+  string type = 2;
+  double score = 3;
+  string reason = 4;
+}
+
+message WishlistItem {
+  string product_id = 1;
+  optional string offer_id = 2;
+  bool price_alert = 3;
+  bool stock_alert = 4;
+}

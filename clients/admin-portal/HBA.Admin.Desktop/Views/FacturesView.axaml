@@ -1,0 +1,277 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             x:Class="HBA.Admin.Desktop.Views.FacturesView"
+             x:DataType="vm:FacturesViewModel">
+
+  <DockPanel>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="12" Margin="4,0,4,14">
+
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Text="Factures de frais" Classes="titre" />
+          <TextBlock Classes="attenue" Text="{Binding Position}" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                    VerticalAlignment="Center">
+          <Button Classes="discret" Content="Précédente" Command="{Binding Precedente}" />
+          <Button Classes="discret" Content="Suivante" Command="{Binding Suivante}" />
+          <Button Classes="discret" Content="Actualiser" Command="{Binding Rafraichir}" />
+          <Button Classes="principal" Content="Nouvelle facture" Command="{Binding Nouvelle}" />
+        </StackPanel>
+      </Grid>
+
+      <!--
+        TROIS ÉTATS, ET « ÉMISES » EST CELUI QUI ATTEND QUELQUE CHOSE.
+
+        `Draft` se compose, `Issued` attend son paiement, `Paid` est soldée. Le
+        filtre s'ouvre donc sur « Émises ». Un onglet vidé reste visible tant
+        qu'il est actif, sinon le filtre disparaît sous la main de celui qui
+        vient de solder la dernière facture.
+      -->
+      <ItemsControl ItemsSource="{Binding Facettes}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel Orientation="Horizontal" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:LigneFacette">
+            <Button Classes="discret" Classes.actif="{Binding Actif}"
+                    Content="{Binding Libelle}" Margin="0,0,10,10"
+                    Command="{Binding $parent[ItemsControl].((vm:FacturesViewModel)DataContext).Filtrer}"
+                    CommandParameter="{Binding Cle}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!--
+        LES COMPTES DES ONGLETS SUIVENT LE FILTRE VENDEUR.
+
+        Le dépôt groupe par statut sur la requête DÉJÀ restreinte au vendeur,
+        puis applique le statut. Avec un vendeur choisi, les trois comptes
+        portent donc sur lui seul — d'où la mention sous le champ.
+      -->
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Column="0" Text="Vendeur" Classes="attenue" FontSize="12"
+                   VerticalAlignment="Center" Margin="0,0,10,0" />
+
+        <Border Grid.Column="1" Classes="creux" Margin="0,0,10,0">
+          <TextBox Text="{Binding VendeurFiltre}"
+                   Watermark="identifiant, vide = toute la plateforme" />
+        </Border>
+
+        <Button Grid.Column="2" Classes="discret" Content="Filtrer"
+                Command="{Binding AppliquerVendeur}" VerticalAlignment="Center" />
+      </Grid>
+
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding EnCours}" Height="3" />
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding EnErreur}">
+        <TextBlock Text="{Binding Erreur}" TextWrapping="Wrap" Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding AConfirmation}">
+        <TextBlock Text="{Binding Confirmation}" TextWrapping="Wrap" Foreground="{DynamicResource Succes}" />
+      </Border>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="*,420">
+
+      <Border Grid.Column="0" Classes="carte" Margin="4,0,10,0" Padding="8">
+        <ListBox ItemsSource="{Binding Factures}" SelectedItem="{Binding Selection}"
+                 Background="Transparent" BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="vm:LigneFacture">
+              <Grid ColumnDefinitions="*,Auto" Margin="6">
+                <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,10,0">
+                  <TextBlock Text="{Binding Numero}" FontWeight="SemiBold"
+                             FontFamily="Consolas,Menlo,monospace" />
+                  <TextBlock Text="{Binding Periode}" Classes="attenue" FontSize="11" />
+                  <TextBlock Text="{Binding Vendeur}" Classes="attenue" FontSize="11"
+                             FontFamily="Consolas,Menlo,monospace" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center"
+                            HorizontalAlignment="Right">
+                  <TextBlock Text="{Binding Total}" FontWeight="SemiBold"
+                             HorizontalAlignment="Right" />
+
+                  <!--
+                    UN BROUILLON À ZÉRO NE S'ÉMETTRA PAS.
+
+                    `Issue` refuse une facture sans ligne. Un total nul sur un
+                    brouillon signale un poste manquant, pas une facture
+                    gratuite — et c'est la seule alerte possible, le détail des
+                    lignes n'étant relu par aucune route.
+                  -->
+                  <Border Classes="pastille" IsVisible="{Binding Vide}"
+                          HorizontalAlignment="Right">
+                    <TextBlock Text="sans ligne" FontSize="10"
+                               Foreground="{DynamicResource Alerte}" />
+                  </Border>
+
+                  <Border Classes="pastille" IsVisible="{Binding !Vide}"
+                          HorizontalAlignment="Right">
+                    <TextBlock Text="{Binding Etat}" FontSize="10" />
+                  </Border>
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <Border Grid.Column="1" Classes="carte" Margin="0,0,4,0">
+        <ScrollViewer>
+          <StackPanel Spacing="16">
+
+            <!-- ═══ Création ═══ -->
+            <StackPanel Spacing="12" IsVisible="{Binding EnCreation}">
+              <TextBlock Text="Nouvelle facture" Classes="titre" FontSize="18" />
+
+              <TextBlock Classes="attenue" FontSize="11" TextWrapping="Wrap"
+                         Text="La facture naît à l'état brouillon. Rien ne part chez le vendeur avant l'émission, et l'émission exige au moins une ligne." />
+
+              <StackPanel Spacing="8">
+                <TextBlock Text="Vendeur" Classes="attenue" FontSize="12" />
+                <Border Classes="creux">
+                  <TextBox Text="{Binding Vendeur}" Watermark="identifiant du vendeur" />
+                </Border>
+              </StackPanel>
+
+              <!--
+                PAS DE `ColumnSpacing` SUR `Grid` DANS AVALONIA 11.2 : la
+                propriété n'existe qu'en WPF et en WinUI, et son emploi échoue à
+                la COMPILATION (AVLN2000). Marge droite sur toutes les colonnes
+                sauf la dernière.
+              -->
+              <Grid ColumnDefinitions="*,*">
+                <StackPanel Grid.Column="0" Spacing="8" Margin="0,0,10,0">
+                  <TextBlock Text="Début de période" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux">
+                    <TextBox Text="{Binding Debut}" Watermark="2026-07-01" />
+                  </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <TextBlock Text="Fin de période" Classes="attenue" FontSize="12" />
+                  <Border Classes="creux">
+                    <TextBox Text="{Binding Fin}" Watermark="2026-08-01" />
+                  </Border>
+                </StackPanel>
+              </Grid>
+
+              <StackPanel Spacing="8">
+                <TextBlock Text="Devise" Classes="attenue" FontSize="12" />
+                <Border Classes="creux"><TextBox Text="{Binding Devise}" Watermark="XOF" /></Border>
+              </StackPanel>
+
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="principal" Content="Créer" Command="{Binding Creer}" />
+                <Button Classes="discret" Content="Annuler" Command="{Binding Annuler}" />
+              </StackPanel>
+            </StackPanel>
+
+            <!-- ═══ Fiche ═══ -->
+            <TextBlock Classes="attenue" TextWrapping="Wrap"
+                       IsVisible="{Binding !ADesSelection}"
+                       Text="Sélectionnez une facture, ou créez-en une. Les gestes disponibles dépendent de son état : une facture émise est figée." />
+
+            <!--
+              LE CHEMIN PART DE LA VUE-MODÈLE, ON NE DÉPLACE PAS LE DataContext.
+
+              Poser `DataContext="{Binding Selection}"` sur ce bloc changerait le
+              type attendu par les liaisons compilées, qui resteraient pourtant
+              vérifiées contre le `x:DataType` de la racine : cela compile, et
+              cela ne lie rien à l'exécution. Même choix que l'écran Marques.
+            -->
+            <StackPanel Spacing="14" IsVisible="{Binding ADesSelection}">
+
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Selection.Numero}" Classes="titre" FontSize="18"
+                           FontFamily="Consolas,Menlo,monospace" />
+                <TextBlock Text="{Binding Selection.Periode}" Classes="attenue" />
+              </StackPanel>
+
+              <Border Classes="creux" Padding="16,14">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="{Binding Selection.Total}" Classes="chiffre" />
+                  <TextBlock Text="Total facturé" Classes="attenue" FontSize="11" />
+                </StackPanel>
+              </Border>
+
+              <StackPanel Spacing="4">
+                <TextBlock Text="Vendeur" Classes="attenue" FontSize="12" />
+                <TextBlock Text="{Binding Selection.VendeurComplet}" FontSize="11"
+                           FontFamily="Consolas,Menlo,monospace" TextWrapping="Wrap" />
+              </StackPanel>
+
+              <TextBlock Text="{Binding EtatExplique}" Classes="attenue" FontSize="11"
+                         TextWrapping="Wrap" />
+
+              <!--
+                LE DÉTAIL DES LIGNES N'EST RENDU PAR AUCUNE ROUTE, ET L'ÉCRAN LE
+                DIT PLUTÔT QUE DE MONTRER UN TABLEAU VIDE.
+
+                `Invoice` possède ses `InvoiceLine`, le dépôt les charge, et
+                `InvoiceMapper.ToSummary` les laisse tomber. `GetInvoiceQuery`
+                rend ce même résumé : on peut ajouter une ligne et ne jamais la
+                relire. Un cadre « Lignes » vide ferait croire à une facture sans
+                postes ; c'est le contraire qu'il faut dire.
+
+                CE QUE CE BANDEAU NE COUVRE PAS : la correction elle-même.
+                Élargir `InvoiceSummary` touche un contrat que les clients
+                vendeur consomment déjà.
+              -->
+              <Border Classes="creux" Padding="16,12">
+                <TextBlock TextWrapping="Wrap" Classes="attenue" FontSize="11"
+                           Text="Le détail des lignes n'est exposé par aucune route : une ligne ajoutée n'est jamais relue, seul le total change. Le libellé saisi ci-dessous est la seule trace lisible du poste — de votre côté." />
+              </Border>
+
+              <StackPanel Spacing="10" IsVisible="{Binding Modifiable}">
+                <TextBlock Text="Ajouter une ligne" Classes="attenue" FontSize="12" />
+
+                <Border Classes="creux">
+                  <TextBox Text="{Binding LibelleLigne}" Watermark="commission de juillet" />
+                </Border>
+
+                <Grid ColumnDefinitions="*,Auto">
+                  <Border Grid.Column="0" Classes="creux" Margin="0,0,10,0">
+                    <TextBox Text="{Binding MontantLigne}" Watermark="montant" />
+                  </Border>
+
+                  <Button Grid.Column="1" Classes="discret" Content="Ajouter"
+                          Command="{Binding AjouterLigne}" VerticalAlignment="Center" />
+                </Grid>
+              </StackPanel>
+
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="principal" Content="Émettre" Command="{Binding Emettre}" />
+                <Button Classes="discret" Content="Marquer payée" Command="{Binding MarquerPayee}" />
+              </StackPanel>
+
+              <!--
+                « MARQUER PAYÉE » N'ENCAISSE RIEN.
+
+                `MarkPaid` change le statut, point : ni prélèvement, ni mouvement
+                de portefeuille, ni rapprochement avec un paiement. C'est une
+                constatation faite à la main. La route ne transporte aucun corps,
+                donc la référence demandée à la saisie n'est PAS enregistrée —
+                l'écran le répète après coup plutôt que de laisser croire.
+              -->
+              <TextBlock Classes="attenue" FontSize="11" TextWrapping="Wrap"
+                         Text="Émettre fige la facture : plus aucune ligne ne s'y ajoute, et rien ne l'annule depuis cette console. Marquer payée ne fait que constater un encaissement reçu ailleurs — aucun mouvement de portefeuille n'en découle, et la référence saisie n'est pas conservée par le serveur." />
+
+            </StackPanel>
+
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+    </Grid>
+
+  </DockPanel>
+</UserControl>

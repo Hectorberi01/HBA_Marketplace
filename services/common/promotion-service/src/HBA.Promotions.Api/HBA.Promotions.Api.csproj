@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Promotions.Application\HBA.Promotions.Application.csproj" />
+    <ProjectReference Include="..\HBA.Promotions.Infrastructure\HBA.Promotions.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+
+    <!-- Les trois RPC du §10.16 : c'est ce projet qui porte le serveur. -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts.Grpc\HBA.Promotions.Contracts.Grpc.csproj" />
+
+    <!--
+      AJOUTÉ POUR LA GARDE D'APPARTENANCE DE `/api/v1/merchant/promotions` (D28).
+
+      Les trois routes marchand étaient fermées à `RequireAdmin` faute de
+      propriétaire. `Promotion.OwnerSellerId` fournit enfin la prise ; mais le
+      jeton porte un identifiant d'UTILISATEUR et la campagne un identifiant de
+      VENDEUR, et seul seller-service connaît la correspondance — y compris pour
+      les MEMBRES d'équipe, qui n'ont pas de dossier vendeur à leur nom.
+
+      À l'Api et pas plus bas : c'est le bord HTTP qui autorise. Faire descendre
+      cette référence dans l'Infrastructure lierait la persistance de promotion au
+      vocabulaire de seller-service, ce que le commentaire de son `.csproj`
+      interdit explicitement.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+
+    <!--
+      LES CONTRATS DES DEUX UNIVERS, ET SEULEMENT ICI.
+
+      Le §10.16 fait consommer `marketplace.order.cancelled` et
+      `food.order.cancelled`. Les deux contrats sont donc nécessaires — mais à
+      l'Api, pas plus bas : c'est elle qui écoute les faits des autres services.
+      Faire descendre ces références dans l'Infrastructure aurait lié la
+      persistance de promotion au vocabulaire de deux autres domaines, et
+      `PromotionsDbContext` n'a aucune raison de savoir ce qu'est une cuisine.
+    -->
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\food\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

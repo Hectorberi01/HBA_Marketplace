@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Financial.Payments.Domain\HBA.Financial.Payments.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Financial.Payments.Contracts\HBA.Financial.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+
+    <!--
+      LE SECOND UNIVERS DE COMMANDES (lot 6.1, ISSUE-059).
+
+      `IPayableOrderReader` lit la commande à payer chez Ordering OU chez
+      FoodOrders selon l'univers annoncé. Sans cette référence, une commande de
+      repas répondait « introuvable » et aucun `MealOrder` ne dépassait jamais
+      `AwaitingPayment`.
+
+      C'est un projet de CONTRATS — il ne dépend que du socle, comme
+      `HBA.Order.Contracts` juste au-dessus. Aucun cycle : food-order-service ne
+      référence pas l'application de paiement, seulement
+      `HBA.Financial.Payments.Contracts` pour ses gestionnaires d'événements.
+    -->
+    <ProjectReference Include="..\..\..\..\food\food-order-service\src\HBA.Food.Order.Contracts\HBA.Food.Order.Contracts.csproj" />
+
+    <!--
+      LE PORTEFEUILLE CLIENT EST DEVENU UN CHEMIN DE REMBOURSEMENT (D33).
+
+      FedaPay n'expose aucune API de remboursement : rendre l'argent par le
+      chemin qui l'a apporté est IMPOSSIBLE, et quatre adaptateurs sur six
+      répondaient « refusé » en dur. Le client n'était jamais remboursé.
+
+      `RefundPaymentCommandHandler` crédite désormais le portefeuille du client
+      quand le prestataire ne sait pas rembourser. C'est un CONTRAT de module —
+      `HBA.Financial.Wallet.Contracts` ne dépend que du socle —, pas
+      l'application de wallet : aucun cycle n'en résulte, wallet référençant de
+      son côté `HBA.Financial.Payments.Contracts`.
+    -->
+    <ProjectReference Include="..\..\..\wallet-service\src\HBA.Financial.Wallet.Contracts\HBA.Financial.Wallet.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+
+    <!-- Un remboursement refusé par le prestataire, ou parti sans avoir été
+         enregistré, ne se découvre que dans le journal. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Payments.UnitTests" />
+  </ItemGroup>
+
+</Project>

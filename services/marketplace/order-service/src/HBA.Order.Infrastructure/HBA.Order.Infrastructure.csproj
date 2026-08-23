@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Order.Domain\HBA.Order.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Order.Application\HBA.Order.Application.csproj" />
+    <ProjectReference Include="..\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+  
+    <!--
+      LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.
+
+      Ces événements étaient déclarés DEUX FOIS : ici via un contrat partagé,
+      et chez leur propriétaire. L'enveloppe Kafka ne portant que le nom court,
+      le consommateur en résolvait un des deux au hasard de l'ordre de
+      chargement — et un gestionnaire enregistré sur l'autre n'était jamais
+      appelé, sans la moindre erreur.
+
+      Le duplicata partagé a été supprimé. Un fait métier, un contrat, un
+      propriétaire.
+    -->
+    <ProjectReference Include="..\..\..\..\common\payment-service\src\HBA.Financial.Payments.Contracts\HBA.Financial.Payments.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+</Project>

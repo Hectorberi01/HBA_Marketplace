@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ══════════════════════════════════════════════════════════════════════════
+    DEUX RÉFÉRENCES VERS LE DOMAINE D'AUTRES SERVICES ONT ÉTÉ RETIRÉES.
+
+    Ce projet référençait `HBA.Delivery.Driver.Domain` (driver-service) et
+    `HBA.Delivery.Dispatch.Domain` (dispatch-service). Comme ces deux projets
+    référençaient en retour `HBA.Delivery.Core.Domain`, le graphe formait un
+    CYCLE entre trois services : aucun ne pouvait être versionné ni déployé
+    seul.
+
+    Ce que ces références apportaient réellement — l'agrégat `Driver`,
+    `IDriverRepository`, `VehicleCapacity` et `DispatchPolicy` — était du code
+    de delivery-service égaré dans le dossier du voisin : même namespace
+    `HBA.Deliveries.Domain.*`, aucun appelant hors d'ici. Il a été rapatrié
+    dans `HBA.Delivery.Core.Domain` (lot 5.4, ISSUE-069 / ISSUE-070). Aucun
+    `using` de ce projet n'a changé.
+
+    CE QUE CELA NE COUVRE PAS : delivery-service pilote toujours lui-même
+    le dispatch et le cycle de vie du livreur. Ce lot démêle le graphe de
+    compilation, il ne déplace pas la responsabilité. Le jour où driver-service
+    et dispatch-service seront réels (lots 5.2 et 5.3), le dialogue passera par
+    `shared/contracts/` — jamais par une `ProjectReference` de domaine.
+    ══════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Delivery.Core.Domain\HBA.Delivery.Core.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+    <!-- `DriverVerifiedDomainEventHandler` publie `DriverVerifiedIntegrationEvent`,
+         dont la déclaration a été retirée de HBA.Deliveries.Contracts : elle y
+         doublait celle de Drivers et rendait le même « driver.verified ». Un
+         gestionnaire enregistré pour l'autre des deux types n'était jamais
+         appelé, sans erreur. L'agrégat décrit est le livreur, pas la course. -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <!--
+    DEUX NOMS, PARCE QUE LE PREMIER NE DÉSIGNAIT RIEN.
+
+    « Delivery.UnitTests » était déclaré depuis des mois vers une assemblée qui
+    n'existait pas : le projet créé au lot 5.1 s'appelle
+    `HBA.Delivery.UnitTests`, et c'est ce nom-là que le compilateur compare.
+    L'ancienne ligne est conservée — la retirer casserait un projet de test qui
+    porterait ce nom ailleurs, et elle ne coûte rien.
+
+    (Le dépôt hésite entre les deux formes : `HBA.Merchants.Domain` déclare
+    « HBA.Merchants.UnitTests », `HBA.Inventory.Application` déclare
+    « Inventory.UnitTests » alors que le projet est `HBA.Inventory.UnitTests` —
+    donc cette ouverture-là ne désigne rien non plus, et personne ne l'a vu
+    parce que ces tests n'utilisent que l'API publique.)
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Delivery.UnitTests" />
+    <InternalsVisibleTo Include="HBA.Delivery.UnitTests" />
+  </ItemGroup>
+
+</Project>

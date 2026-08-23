@@ -1,0 +1,129 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# REDIS — CACHE, RATE LIMITING, SESSIONS, VERROUS (§10).
+#
+# UN StatefulSet, ET NON UN OPÉRATEUR, PARCE QUE LA PERTE EST TOLÉRÉE.
+#
+# Le §10 le cantonne au « cache, rate limiting, sessions temporaires et verrous ».
+# Rien de tout cela n'est une source de vérité : perdre l'instance déconnecte les
+# sessions et vide le cache, elle ne perd aucune commande ni aucun paiement.
+#
+# C'est ce qui justifie ici un objet simple là où Postgres a mérité un opérateur.
+# La persistance existe quand même — un redémarrage ne doit pas déconnecter tout
+# le monde — mais elle n'est pas sauvegardée : le §18 ne liste pas Redis.
+#
+# SI UN JOUR REDIS PORTE AUTRE CHOSE, CE RAISONNEMENT TOMBE.
+#
+# Le §10 mentionne aussi « réservations TTL » pour inventory et « positions temps
+# réel » pour delivery. Une réservation de stock perdue, c'est un article vendu
+# deux fois. Le jour où Redis en devient la seule trace, il lui faut la même
+# discipline qu'à Postgres.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/part-of: hba-express
+        hba.express/role: datastore
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          args:
+            - redis-server
+            - --requirepass
+            - $(REDIS_PASSWORD)
+            - --appendonly
+            - "yes"
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis
+                  key: password
+          ports:
+            - name: redis
+              containerPort: 6379
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # `redis-cli ping` RÉPOND MÊME SANS MOT DE PASSE — d'où l'authentification.
+          #
+          # Une sonde qui interroge sans s'authentifier reçoit « NOAUTH » et
+          # considère le serveur en panne. Le pod serait redémarré en boucle sur un
+          # Redis parfaitement sain.
+          # ═══════════════════════════════════════════════════════════════
+          # SANS CETTE SONDE, UN GROS AOF PROVOQUE UNE BOUCLE DE REDÉMARRAGE.
+          #
+          # `appendonly yes` fait rejouer le journal au démarrage. Sur un fichier
+          # de plusieurs gigaoctets, le rejeu prend des minutes pendant lesquelles
+          # Redis ne répond pas — la liveness échoue trois fois, Kubernetes tue le
+          # pod, et le rejeu recommence depuis le début. Redis ne finit jamais de
+          # démarrer, et rien dans les journaux ne dit que c'est la sonde qui
+          # l'empêche.
+          #
+          # La startupProbe suspend la liveness tant qu'elle n'a pas réussi :
+          # 60 × 5 s laissent cinq minutes de rejeu avant tout verdict.
+          # ═══════════════════════════════════════════════════════════════
+          startupProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep -q PONG"]
+            periodSeconds: 5
+            failureThreshold: 60
+
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep -q PONG"]
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep -q PONG"]
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    - name: redis
+      port: 6379

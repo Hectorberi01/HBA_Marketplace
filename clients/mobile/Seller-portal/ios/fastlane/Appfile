@@ -1,0 +1,4 @@
+# Identité de l'app sur l'App Store. L'authentification se fait par CLÉ API
+# App Store Connect (définie dans le Fastfile via des secrets CI) — pas d'apple_id
+# ni de mot de passe stockés ici.
+app_identifier("fr.hbamarketplace.seller")

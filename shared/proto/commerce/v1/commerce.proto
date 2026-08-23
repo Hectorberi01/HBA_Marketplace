@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package hba.commerce.v1;
+
+option csharp_namespace = "HBA.Commerce.Grpc.V1";
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LE PANIER VALORISÉ, LU PAR order-service AU MOMENT DE COMMANDER.
+//
+// CE CONTRAT NE SERT QU'À FIGER UNE COMMANDE.
+//
+// Les mutations du panier — ajouter, retirer, vider, passer commande — étaient
+// déclarées ici et n'ont jamais été implémentées. Elles ont été retirées : un
+// RPC déclaré mais absent rend UNIMPLEMENTED à l'exécution, ce qui se découvre
+// au premier appel réel plutôt qu'à la lecture du contrat. Le panier se modifie
+// par les routes HTTP de commerce-service, appelées par l'application ; le seul
+// besoin INTER-SERVICES est la lecture au checkout.
+//
+// LES MONTANTS VOYAGENT EN CHAÎNE, PAS EN double.
+//
+// `double` ne représente pas exactement 0,10 — et ici il s'agit de prix figés
+// dans une commande, comparés ensuite à un encaissement. Les autres contrats de
+// la plateforme font le même choix : la chaîne est convertie en `decimal` en
+// culture invariante des deux côtés.
+// ═════════════════════════════════════════════════════════════════════════════
+
+service CommerceApi {
+  rpc GetActiveCart(GetActiveCartRequest) returns (GetCartResponse);
+  rpc GetCart(GetCartRequest) returns (GetCartResponse);
+}
+
+message GetActiveCartRequest {
+  string buyer_id = 1;
+}
+
+message GetCartRequest {
+  string cart_id = 1;
+}
+
+message GetCartResponse {
+  bool found = 1;
+  CartView cart = 2;
+}
+
+message CartView {
+  string cart_id = 1;
+  string buyer_id = 2;
+  string status = 3;
+  string currency = 4;
+
+  // « Goods », « Food », ou vide si le panier n'a aucune ligne.
+  string kind = 5;
+
+  string subtotal = 6;
+  string total_seller_discount = 7;
+  string total_platform_discount = 8;
+  string grand_total = 9;
+
+  // Vide s'il n'y a pas de code promo. Il est FIGÉ dans la commande : sans lui,
+  // une remise appliquée au panier disparaîtrait au passage en commande.
+  string promotion_code = 10;
+
+  repeated CartLine lines = 11;
+}
+
+// DEUX NATURES DANS UN SEUL MESSAGE, ET `kind` DIT LAQUELLE LIRE.
+//
+// « Goods » renseigne l'offre, le SKU et le lieu d'expédition ; « Food »
+// renseigne le restaurant, le plat et ses options. Les champs de l'autre nature
+// sont vides.
+//
+// Déduire la nature de la vacuité d'un champ marche jusqu'au jour où l'on en
+// ajoute un — d'où le discriminant explicite. order-service REFUSE une nature
+// qu'il ne connaît pas plutôt que de retomber sur « Goods » : une troisième
+// nature deviendrait sinon silencieusement de la marchandise, avec réservation
+// sur un SKU vide et expédition d'un colis inexistant.
+message CartLine {
+  string line_id = 1;
+  string kind = 2;
+
+  // ── Marchandise ──────────────────────────────────────────────────────────
+  string offer_id = 3;
+  string product_id = 4;
+  string category_id = 5;
+  string seller_id = 6;
+  string sku = 7;
+  string ship_from_location_id = 8;
+
+  // ── Commun ───────────────────────────────────────────────────────────────
+  int32 quantity = 9;
+  string unit_base_amount = 10;
+  string seller_discount = 11;
+  string platform_discount = 12;
+  string final_unit_price = 13;
+  string line_total = 14;
+  string currency = 15;
+
+  // ── Restauration ─────────────────────────────────────────────────────────
+  string restaurant_id = 16;
+  string menu_item_id = 17;
+  string notes = 18;
+  repeated CartLineOption options = 19;
+}
+
+message CartLineOption {
+  string option_group_id = 1;
+  string option_id = 2;
+}

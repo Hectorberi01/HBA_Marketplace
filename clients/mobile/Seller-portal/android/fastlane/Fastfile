@@ -1,0 +1,116 @@
+# =====================================================================
+#  Fastlane Android — HbaExpress Pro (vendeur)
+#
+#  Publie l'AAB (déjà construit par le workflow via `flutter build appbundle`)
+#  sur Google Play. Aucune clé/secret ici : tout vient de l'environnement CI.
+#
+#  Lanes :
+#    fastlane android internal   → piste « internal » (testeurs internes)
+#    fastlane android beta       → piste « beta » (test fermé/ouvert)
+#    fastlane android production  → piste « production » (release, en brouillon)
+#
+#  Le chemin de l'AAB est passé par le workflow (option `aab:`) en absolu.
+# =====================================================================
+
+default_platform(:android)
+
+platform :android do
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PROCHAIN versionCode, DEMANDÉ À GOOGLE PLAY.
+  #
+  #  Un versionCode doit être unique ET strictement croissant. Le déduire du
+  #  compteur d'un workflow marche tant qu'un seul workflow publie ; dès qu'il
+  #  y en a deux (« Release mobile » et « Release Android »), leurs compteurs
+  #  sont indépendants et finissent par se croiser — Play refuse alors l'envoi,
+  #  ou pire, accepte une régression.
+  #
+  #  Play connaît le plus grand numéro déjà reçu. C'est la seule autorité.
+  #
+  #  Au tout premier envoi, aucune piste n'existe encore : l'appel échoue,
+  #  on retombe sur 1. C'est le comportement voulu, pas un rattrapage.
+  # ═══════════════════════════════════════════════════════════════════════
+  desc "Calcule le versionCode suivant à partir des pistes Play existantes"
+  lane :next_version_code do
+    codes = %w[internal alpha beta production].flat_map do |t|
+      begin
+        Array(google_play_track_version_codes(track: t))
+      rescue StandardError => e
+        UI.important("Piste « #{t} » inaccessible ou vide (#{e.class}). Ignorée.")
+        []
+      end
+    end.compact
+
+    value = (codes.max || 0) + 1
+    UI.success("Plus grand versionCode connu de Play : #{codes.max || 'aucun'} → prochain : #{value}")
+
+    # Le workflow lit ce fichier : une lane Fastlane ne peut pas rendre de
+    # valeur à une étape GitHub Actions autrement que par le disque.
+    out = ENV["VERSION_CODE_OUT"]
+    File.write(out, value.to_s) if out && !out.empty?
+
+    value
+  end
+
+  desc "Téléverse l'AAB sur une piste Play (par défaut : internal, statut brouillon)"
+  lane :deploy do |options|
+    track          = options[:track]          || "internal"
+    release_status = options[:release_status]  || "draft"
+    # Chemin par défaut : celui de la saveur `prod`. Le projet définit deux
+    # saveurs, donc il n'existe AUCUN `bundle/release/app-release.aab`.
+    aab            = options[:aab]             || "../build/app/outputs/bundle/prodRelease/app-prod-release.aab"
+
+    # Fichier de correspondance R8. Facultatif : « Release mobile » ne le passe
+    # pas. Sans lui, les traces de plantage d'un build obscurci sont illisibles,
+    # et il n'existe plus une fois le runner détruit.
+    mapping = options[:mapping]
+    mapping = nil if mapping.to_s.strip.empty? || !File.exist?(mapping.to_s)
+
+    upload_to_play_store(
+      track: track,
+      aab: aab,
+      release_status: release_status,
+      mapping_paths: mapping ? [mapping] : nil,
+      # On ne pousse que le binaire : les fiches, images et captures se gèrent
+      # dans la console Play (évite d'écraser la fiche par un dossier vide).
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true
+    )
+  end
+
+  desc "Piste internal"
+  lane :internal do |o|
+    deploy(o.merge(track: "internal"))
+  end
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  TEST FERMÉ = PISTE « alpha ». Ce n'est PAS « beta ».
+  #
+  #  La nomenclature de Play est trompeuse :
+  #    internal    → test interne (jusqu'à 100 testeurs, diffusion immédiate)
+  #    alpha       → TEST FERMÉ    (liste de testeurs, examen requis)
+  #    beta        → test OUVERT   (n'importe qui peut s'inscrire)
+  #    production  → public
+  #
+  #  Cette lane manquait, et c'est bloquant : un compte développeur personnel créé
+  #  après le 13 novembre 2023 doit prouver 14 jours consécutifs de TEST FERMÉ avec
+  #  au moins 12 testeurs réels avant de pouvoir demander l'accès à la production.
+  #  Publier en « beta » ne compte pas pour cette obligation.
+  # ═══════════════════════════════════════════════════════════════════════
+  desc "Piste alpha — TEST FERMÉ (celui qu'exige Google avant la production)"
+  lane :alpha do |o|
+    deploy(o.merge(track: "alpha"))
+  end
+
+  desc "Piste beta — test OUVERT (inscription libre)"
+  lane :beta do |o|
+    deploy(o.merge(track: "beta"))
+  end
+
+  desc "Piste production (release en brouillon — à publier manuellement dans la console)"
+  lane :production do |o|
+    deploy(o.merge(track: "production", release_status: "draft"))
+  end
+end

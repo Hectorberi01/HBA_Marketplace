@@ -1,0 +1,197 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+        x:Class="HBA.Admin.Desktop.Views.FenetrePrincipale"
+        x:DataType="vm:FenetrePrincipaleViewModel"
+        Title="HBA · Console Admin"
+        Width="1320" Height="820"
+        MinWidth="1040" MinHeight="660"
+        WindowStartupLocation="CenterScreen">
+
+  <!--
+    `x:DataType` EST OBLIGATOIRE SUR CHAQUE VUE.
+
+    `AvaloniaUseCompiledBindingsByDefault` est activé dans le `.csproj` : sans ce
+    type, chaque `{Binding}` échoue À LA COMPILATION.
+
+    LES ENTRÉES REMONTENT JUSQU'À `$parent[Window]`, PAS À L'`ItemsControl`.
+
+    Le panneau imbrique deux `ItemsControl` — les groupes, puis leurs sections.
+    `$parent[ItemsControl]` désignerait donc le plus PROCHE, dont le contexte est
+    un `GroupeAdmin` et non la vue-modèle de la fenêtre. La remontée jusqu'à la
+    fenêtre est sans ambiguïté quel que soit le nombre de niveaux.
+  -->
+
+  <Grid ColumnDefinitions="Auto,*">
+
+    <!--
+      LE PANNEAU N'EXISTE PAS AVANT LA CONNEXION.
+
+      `IsVisible` plutôt qu'une largeur nulle : une colonne de largeur zéro
+      conserve ses marges et laisse une bande claire à gauche de l'écran de
+      connexion, qu'on prend pour un défaut de rendu.
+    -->
+    <Border Grid.Column="0"
+            Classes="carte"
+            Margin="14"
+            Padding="10"
+            IsVisible="{Binding SessionOuverte}"
+            Width="{Binding LargeurPanneau}">
+
+      <!--
+        LA TRANSITION EST SUR LA LARGEUR, ET ELLE EST COURTE.
+
+        Sans elle, le panneau saute d'une largeur à l'autre et l'œil perd la
+        ligne qu'il suivait. 150 ms suffisent ; au-delà, on attend le panneau.
+      -->
+      <Border.Transitions>
+        <Transitions>
+          <DoubleTransition Property="Width" Duration="0:0:0.15" />
+        </Transitions>
+      </Border.Transitions>
+
+      <DockPanel>
+
+        <!-- Marque : à quoi l'on est connecté. -->
+        <Border DockPanel.Dock="Top" Margin="2,2,2,14">
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Border Classes="creux" Padding="9" Width="42" Height="42">
+              <PathIcon Data="{Binding IconeMarque}"
+                        Width="20" Height="20"
+                        Foreground="{DynamicResource Accent}" />
+            </Border>
+            <StackPanel VerticalAlignment="Center" IsVisible="{Binding Deploye}">
+              <TextBlock Text="HBA Express" FontWeight="SemiBold" />
+              <TextBlock Text="Console Admin" Classes="attenue" FontSize="12" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Pied : réduire, qui est connecté, et la sortie. -->
+        <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,12,0,0">
+
+          <Border Height="1" Background="#22252B41" Margin="2,0,2,6" />
+
+          <Button Classes="nav"
+                  Command="{Binding Basculer}"
+                  ToolTip.Tip="{Binding InfoBulleBascule}">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <PathIcon Data="{Binding IconeBascule}" Width="18" Height="18" />
+              <TextBlock Text="Réduire"
+                         VerticalAlignment="Center"
+                         IsVisible="{Binding Deploye}" />
+            </StackPanel>
+          </Button>
+
+          <StackPanel Margin="12,4,4,0" Spacing="1" IsVisible="{Binding Deploye}">
+            <TextBlock Text="{Binding Administrateur}"
+                       FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding Courriel}"
+                       Classes="attenue"
+                       FontSize="12"
+                       TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+
+          <Border Classes="creux"
+                  Padding="10"
+                  IsVisible="{Binding Reduit}"
+                  ToolTip.Tip="{Binding Administrateur}">
+            <TextBlock Text="{Binding Initiale}"
+                       HorizontalAlignment="Center"
+                       FontWeight="SemiBold" />
+          </Border>
+
+          <Button Classes="discret"
+                  Click="SurDeconnexion"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Center"
+                  ToolTip.Tip="Se déconnecter">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <PathIcon Data="{Binding IconeSortie}"
+                        Width="16" Height="16"
+                        Foreground="{DynamicResource Danger}" />
+              <TextBlock Text="Se déconnecter"
+                         VerticalAlignment="Center"
+                         IsVisible="{Binding Deploye}" />
+            </StackPanel>
+          </Button>
+
+        </StackPanel>
+
+        <!--
+          VINGT-HUIT ENTRÉES NE TIENNENT PAS SUR UN ÉCRAN D'ORDINATEUR PORTABLE.
+
+          Le `ScrollViewer` est donc indispensable, et la barre reste masquée
+          tant qu'on ne survole pas : une barre permanente sur un panneau étroit
+          mange la largeur du libellé le plus long.
+        -->
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Groupes}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="vm:GroupeAdmin">
+                <StackPanel Margin="0,0,0,10">
+
+                  <TextBlock Text="{Binding Titre}"
+                             Classes="groupe"
+                             IsVisible="{Binding $parent[Window].((vm:FenetrePrincipaleViewModel)DataContext).Deploye}" />
+
+                  <ItemsControl ItemsSource="{Binding Sections}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="vm:SectionAdmin">
+
+                        <Button Classes="nav"
+                                Classes.actif="{Binding Active}"
+                                ToolTip.Tip="{Binding Libelle}"
+                                Command="{Binding $parent[Window].((vm:FenetrePrincipaleViewModel)DataContext).Aller}"
+                                CommandParameter="{Binding}">
+
+                          <Grid ColumnDefinitions="Auto,*,Auto">
+                            <PathIcon Grid.Column="0"
+                                      Data="{Binding Icone}"
+                                      Width="18" Height="18"
+                                      Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding Libelle}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       IsVisible="{Binding $parent[Window].((vm:FenetrePrincipaleViewModel)DataContext).Deploye}" />
+
+                            <!--
+                              LA PASTILLE DIT CE QUI MANQUE, ET SEULEMENT QUAND
+                              QUELQUE CHOSE MANQUE.
+
+                              « à écrire » et « amont absent » ne coûtent pas le
+                              même travail. Les afficher toutes deux en gris
+                              pâle les met au second plan sans les cacher —
+                              l'administrateur qui clique sait à quoi s'attendre
+                              avant d'ouvrir.
+                            -->
+                            <Border Grid.Column="2"
+                                    Classes="pastille"
+                                    IsVisible="{Binding AUneMarque}">
+                              <TextBlock Text="{Binding Marque}" FontSize="10" />
+                            </Border>
+                          </Grid>
+                        </Button>
+
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+      </DockPanel>
+    </Border>
+
+    <ContentControl Grid.Column="1" Content="{Binding Contenu}" Margin="0,14,14,14" />
+
+  </Grid>
+
+</Window>

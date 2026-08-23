@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    Le domaine ET les contrats, pas l'hôte.
+
+    Les règles testées ici — visibilité imposée, liste blanche de formats,
+    construction de la clé d'objet, rétention — ne touchent ni le stockage objet
+    ni la base : elles n'ont besoin d'aucun serveur pour être fausses.
+
+    `HBA.Media.Contracts` vient en plus parce que les événements d'intégration
+    sont un contrat public : c'est le seul endroit où un renommage de champ se
+    voit avant qu'un consommateur ne cesse silencieusement de comprendre.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\common\media-service\src\HBA.Media.Domain\HBA.Media.Domain.csproj" />
+    <ProjectReference Include="..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             xmlns:svc="clr-namespace:HBA.Admin.Desktop.Services"
+             x:Class="HBA.Admin.Desktop.Views.LivreursView"
+             x:DataType="vm:LivreursViewModel">
+
+  <DockPanel>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="12" Margin="4,0,4,14">
+
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Text="Livreurs" Classes="titre" />
+          <TextBlock Classes="attenue" Text="{Binding Position}" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="discret" Content="Actualiser"
+                Command="{Binding Rafraichir}" VerticalAlignment="Center" />
+      </Grid>
+
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button Classes="discret" Classes.actif="{Binding SurEnAttente}"
+                Content="À vérifier" Command="{Binding Choisir}" CommandParameter="UnderReview" />
+        <Button Classes="discret" Classes.actif="{Binding SurIncomplets}"
+                Content="Dossier incomplet" Command="{Binding Choisir}" CommandParameter="PendingDocuments" />
+        <Button Classes="discret" Classes.actif="{Binding SurVerifies}"
+                Content="Vérifiés" Command="{Binding Choisir}" CommandParameter="Verified" />
+        <Button Classes="discret" Classes.actif="{Binding SurSuspendus}"
+                Content="Suspendus" Command="{Binding Choisir}" CommandParameter="Suspended" />
+      </StackPanel>
+
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding EnCours}" Height="3" />
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding EnErreur}">
+        <TextBlock Text="{Binding Erreur}" TextWrapping="Wrap" Foreground="{DynamicResource Danger}" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding AConfirmation}">
+        <TextBlock Text="{Binding Confirmation}" TextWrapping="Wrap" Foreground="{DynamicResource Succes}" />
+      </Border>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="*,340">
+      <Border Grid.Column="0" Classes="carte" Margin="4,0,10,0" Padding="8">
+        <ListBox ItemsSource="{Binding Livreurs}" SelectedItem="{Binding Selection}"
+                 Background="Transparent" BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="vm:LigneLivreur">
+              <Grid ColumnDefinitions="*,150,130,110" Margin="6">
+                <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Nom}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+
+                  <!-- Les pièces manquantes viennent du serveur : c'est ce qui dit
+                       pourquoi le dossier n'avance pas. -->
+                  <TextBlock Text="{Binding PiecesManquantes}" Classes="attenue" FontSize="12"
+                             TextTrimming="CharacterEllipsis"
+                             IsVisible="{Binding APiecesManquantes}" />
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" Text="{Binding Telephone}" Classes="attenue"
+                           FontFamily="Consolas,Menlo,monospace" FontSize="13" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="{Binding Statut}" Classes="attenue" VerticalAlignment="Center" />
+
+                <TextBlock Grid.Column="3" Text="dispatchable" Classes="attenue" FontSize="12"
+                           VerticalAlignment="Center" IsVisible="{Binding Dispatchable}" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <Border Grid.Column="1" Classes="carte" Margin="0,0,4,0">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,16">
+            <TextBlock Text="Décisions" Classes="titre" FontSize="18" />
+
+            <TextBlock Classes="attenue" TextWrapping="Wrap" IsVisible="{Binding !ADesSelection}"
+                       Text="Sélectionnez un dossier dans la liste." />
+
+            <TextBlock TextWrapping="Wrap" FontWeight="SemiBold" IsVisible="{Binding ADesSelection}"
+                       Text="{Binding Selection.Nom}" />
+
+            <Border Classes="creux" Padding="12" Margin="0,8,0,0"
+                    IsVisible="{Binding Selection.APiecesManquantes, FallbackValue=False}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Pièces manquantes" Classes="attenue" FontSize="11" />
+                <TextBlock Text="{Binding Selection.PiecesManquantes}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="creux" Padding="12" Margin="0,8,0,0"
+                    IsVisible="{Binding Selection.AMotif, FallbackValue=False}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Motif de la décision précédente" Classes="attenue" FontSize="11" />
+                <TextBlock Text="{Binding Selection.Motif}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <ItemsControl ItemsSource="{Binding Gestes}" VerticalAlignment="Top">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="svc:GesteLivreur">
+                <Button Classes="discret" Classes.danger="{Binding Destructeur}"
+                        Content="{Binding Libelle}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left" Margin="0,0,0,8"
+                        Command="{Binding $parent[ItemsControl].((vm:LivreursViewModel)DataContext).Agir}"
+                        CommandParameter="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </DockPanel>
+      </Border>
+    </Grid>
+
+  </DockPanel>
+</UserControl>

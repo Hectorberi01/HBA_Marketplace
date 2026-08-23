@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cadre cible, nullable et usings implicites viennent de Directory.Build.props.
+
+    Cette couche orchestre : elle charge, appelle le domaine, enregistre. Elle ne
+    connaît ni EF ni ASP.NET — la persistance n'entre ici que par les interfaces
+    de dépôt déclarées dans le domaine.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Promotions.Domain\HBA.Promotions.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+  </ItemGroup>
+
+  <!--
+    L'INSTALLEUR VIT DANS L'INFRASTRUCTURE ET DOIT NOMMER DES TYPES D'ICI.
+
+    Les gestionnaires d'événements de domaine sont `internal` — comme les
+    gestionnaires MediatR à côté d'eux, et pour la même raison : ils ne sont un
+    contrat pour personne. Mais leur inscription DI est explicite, ligne par
+    ligne, et ces lignes s'écrivent dans `PromotionsModuleInstaller`.
+
+    L'alternative aurait été de les rendre publics. Elle élargit la surface du
+    module pour un besoin qui n'est pas fonctionnel mais mécanique : un installeur
+    qui doit citer un nom.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="HBA.Promotions.Infrastructure" />
+  </ItemGroup>
+
+</Project>

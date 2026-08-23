@@ -1,0 +1,95 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Order.Domain\HBA.Order.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\cart-service\src\HBA.Commerce.Contracts\HBA.Commerce.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\inventory-service\src\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
+
+    <!--
+      LE CATALOGUE — SANS LUI, LE PRIX N ETAIT JAMAIS REVERIFIE (ISSUE-048).
+
+      order-service ne referencait AUCUN contrat de catalogue : ni
+      `HBA.Products.Contracts`, ni `HBA.Catalog.Contracts`, ni leur client gRPC.
+      La revalidation du prix, du statut « publie » et de l achetabilite etait donc
+      techniquement IMPOSSIBLE, pas seulement oubliee.
+
+      Tout ce qui finit sur une ligne de commande venait du panier, qui fige son
+      prix a l ajout et ne le rafraichit jamais — et rien ne fait expirer un panier.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Pricing.Contracts\HBA.Pricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Payments.Contracts\HBA.Payments.Contracts.csproj" />
+    <!--
+      DELIVERY A REMPLACÉ SHIPPING, ET CE N'EST PAS UN RENOMMAGE.
+
+      `HBA.Shipping.Contracts` était référencé ici pour `IShippingModuleApi` et
+      `ShipmentDeliveredIntegrationEvent`. Le module Shipping n'ayant jamais été
+      extrait, aucun service n'implémentait cette interface : order-service ne
+      démarrait pas. La clôture de commande écoute désormais les événements de
+      delivery-service, qui existe et publie réellement.
+    -->
+    <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+
+    <!--
+      LE DEVIS DE COURSE SE RELIT CHEZ delivery-pricing, PLUS CHEZ delivery.
+      `DeliveryApi.LookupQuote` n'a jamais eu de corps de serveur, et
+      delivery-service n'a plus de domaine de tarification : le seul magasin de
+      devis vivant est celui-ci.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
+  
+    <!--
+      LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.
+
+      Ces événements étaient déclarés DEUX FOIS : ici via un contrat partagé,
+      et chez leur propriétaire. L'enveloppe Kafka ne portant que le nom court,
+      le consommateur en résolvait un des deux au hasard de l'ordre de
+      chargement — et un gestionnaire enregistré sur l'autre n'était jamais
+      appelé, sans la moindre erreur.
+
+      Le duplicata partagé a été supprimé. Un fait métier, un contrat, un
+      propriétaire.
+    -->
+    <ProjectReference Include="..\..\..\..\common\payment-service\src\HBA.Financial.Payments.Contracts\HBA.Financial.Payments.Contracts.csproj" />
+  
+    <!--
+      Le refus du restaurant annule la commande, et la remise du repas la clôt :
+      contrat de food-service, son publieur.
+
+      SANS `FoodOrderDelivered`, AUCUNE COMMANDE DE REPAS NE SE TERMINAIT.
+      Elle restait « confirmée », l'escrow n'était jamais levé et le restaurateur
+      n'était jamais payé.
+    -->
+    <ProjectReference Include="..\..\..\..\food\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+
+    <!--
+      ORDER-SERVICE ÉCOUTE LES RETOURS PARCE QU'IL NE LES POSSÈDE PAS.
+
+      `GetOrderReturnContextAsync` répondait `AlreadyReturnedQuantity: 0` et
+      `AlreadyRefundedAmount: 0m` en dur (ISSUE-014) : rien ne lui apprenait
+      jamais qu'un article était déjà revenu, et le même exemplaire se
+      remboursait autant de fois qu'on ouvrait de dossiers.
+
+      Contrat porté par `shared/contracts` et non par return-refund : il est
+      consommé par wallet, notification et order — trois services qui n'ont
+      aucune raison de dépendre du service de retours.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+
+    <!-- Un échec de clôture bloque le règlement du vendeur : il se journalise. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ordering.UnitTests" />
+  </ItemGroup>
+
+</Project>

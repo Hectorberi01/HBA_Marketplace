@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Sans cette clé, iOS ne délivre AUCUNE notification : le jeton APNs n'est
+	     même pas émis. « development » vaut pour les builds locaux ; Xcode le
+	     bascule automatiquement en « production » à l'archivage. -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

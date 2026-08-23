@@ -1,0 +1,141 @@
+name: hba_express_pro
+description: HbaExpress PRO — application vendeur de la marketplace (Flutter).
+publish_to: "none"
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.0.0 — ET NON 2.2.x.
+#
+# Ce dépôt Flutter partage son bundle `fr.hbamarketplace.seller` avec l'ancienne
+# application MAUI. App Store Connect ne voit donc qu'UNE application, dont
+# l'historique de versions est celui de MAUI. La version 2.2.1 y existe déjà et
+# son « train » est CLOS : Apple refuse tout nouveau build dessus
+# (« Invalid Pre-Release Train », 409).
+#
+# Incrémenter le nombre après le « + » n'y change rien : le train est identifié
+# par 2.2.1, pas par le numéro de build.
+#
+# On passe donc à 3.0.0. Ce n'est pas qu'un moyen de sortir de l'ornière : c'est
+# une réécriture complète, de MAUI vers Flutter, et le numéro majeur le dit.
+# Cela libère aussi tout l'espace 2.x, dont on ignore jusqu'où MAUI est allé.
+#
+# Vérifiez dans App Store Connect qu'aucune version ≥ 3.0.0 n'existe déjà.
+# Le numéro APRÈS le « + » (build) est de toute façon recalculé par la CI.
+# ─────────────────────────────────────────────────────────────────────────────
+version: 3.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Traductions Material (dates, boutons système…) + base de l'i18n de l'app.
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # État (mêmes choix que l'app cliente : une seule culture technique à maintenir).
+  flutter_riverpod: ^2.5.1
+
+  # Réseau
+  dio: ^5.4.3+1
+
+  # Navigation
+  go_router: ^14.2.0
+
+  # Jetons : Keychain (iOS) / Keystore (Android). Jamais en clair.
+  flutter_secure_storage: ^9.2.2
+  local_auth: ^2.3.0
+
+  # Divers
+  intl: ^0.20.2
+  cached_network_image: ^3.3.1
+
+  # Ouvre l'app mail / téléphone (« Contacter le support »).
+  url_launcher: ^6.3.0
+
+  # ── Position et carte : gratuit, sans clé d'API ─────────────────────────────
+  # `geolocator` capte la position. `flutter_map` n'affiche une carte QUE sur
+  # l'écran d'ajustement, ouvert à la demande — le parcours courant (« utiliser ma
+  # position ») ne charge aucune tuile. Le volume reste donc compatible avec la
+  # politique d'usage d'OpenStreetMap ; basculer vers un fournisseur payant
+  # (MapTiler, Stadia) le jour venu ne demandera que de changer une URL de gabarit.
+  geolocator: ^13.0.1
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Typographie de la marque (Plus Jakarta Sans), comme l'app cliente.
+  google_fonts: ^6.2.1
+
+  # Graphes des statistiques vendeur (courbe ventes, donut statuts, brut/net).
+  fl_chart: ^0.69.0
+
+  # Messagerie temps réel : client SignalR pur Dart.
+  #
+  # PLUS AUCUN CODE NE L'IMPORTE AUJOURD'HUI. Le hub visé (`/seller/hubs/chat`)
+  # appartenait au monolithe ; côté HBA, aucun service n'expose de hub et la
+  # passerelle n'a pas de route WebSocket — voir `features/messaging/chat_realtime.dart`.
+  # La dépendance reste déclarée parce que le besoin, lui, n'a pas disparu : le
+  # jour où communication-service publiera son `ChatHub`, il n'y aura qu'à
+  # reconnecter le service. La retirer maintenant ferait croire que le temps réel
+  # a été abandonné.
+  signalr_netcore: ^1.3.7
+
+  # Sélection d'images produit (galerie / appareil photo).
+  image_picker: ^1.1.2
+
+  # Type MIME des fichiers envoyés en multipart (traitement Cloudinary).
+  http_parser: ^4.0.2
+
+  # Sélection de fichiers KYB (PDF inclus — image_picker ne gère que les images).
+  file_picker: ^8.1.2
+
+  # Notifications push : une commande arrivée n'a de valeur que si le vendeur
+  # l'apprend tout de suite.
+  firebase_core: ^3.15.2
+  firebase_messaging: ^15.2.10
+
+  # Rapports de crash. Sans eux, un plantage chez un vendeur au Bénin reste
+  # invisible : on ne le découvre que par une mauvaise note sur le store.
+  firebase_crashlytics: ^4.1.3
+
+  # Lecture du build installé (versionCode / CFBundleVersion) pour la porte de
+  # « mise à jour requise » au démarrage.
+  package_info_plus: ^8.0.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+
+  # Simule la couche HTTP de Dio dans les tests (aucun appel réseau réel).
+  http_mock_adapter: ^0.6.1
+
+  # Génère les icônes iOS + Android à partir des masters d'assets/icon/.
+  # Régénérer après toute modification : `dart run flutter_launcher_icons`.
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  # Génère AppLocalizations à partir des fichiers .arb (voir l10n.yaml).
+  generate: true
+  # Déclaration fichier par fichier, PAS le dossier : déclarer « assets/brand/ »
+  # embarquerait tout ce qui s'y trouve, y compris les masters non utilisés
+  # (logo.png, logo_mark.png) — du poids mort dans chaque téléchargement.
+  assets:
+    - assets/brand/symbol_white.png
+
+# Icône : monogramme HBA blanc sur vert forêt.
+# Régénérer après toute modification : `dart run flutter_launcher_icons`.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  min_sdk_android: 21
+  # iOS refuse toute transparence dans l'icône et applique SON propre masque
+  # arrondi : on lui livre un carré plein, aplati sur le fond.
+  remove_alpha_ios: true
+  # Le fond de l'icône adaptative Android DOIT être exactement celui de la
+  # vignette, sinon le monogramme flotte sur un vert qui n'est pas le sien.
+  adaptive_icon_background: "#0F3A22"
+  adaptive_icon_foreground: "assets/icon/foreground.png"

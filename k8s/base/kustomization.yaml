@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# LA BASE N'EST DÉPLOYABLE PAR PERSONNE TELLE QUELLE.
+#
+# Elle ne porte ni namespace réel, ni tag d'image, ni nombre de replicas : ce sont
+# les trois choses qui distinguent dev, staging et production (§2). `kustomize
+# build base` doit RÉUSSIR — c'est ce qui la valide — mais son résultat ne
+# s'applique pas : il déploierait `hba/identity-service` sans tag dans le
+# namespace « hba ».
+#
+# `observability/` reste absent : c'est une brique tierce installée par Helm
+# (kube-prometheus-stack), pas des manifests que l'on réécrit.
+#
+# `data/` et `kafka/` sont ici en revanche : les CR de CloudNativePG et de Strimzi
+# décrivent NOTRE base et NOTRE bus, pas l'opérateur qui les pilote. Les deux
+# opérateurs, eux, s'installent séparément — et sans eux ces objets sont inertes
+# dans etcd : aucun pod, aucune erreur.
+resources:
+  - namespaces
+  - common
+  - policies
+  - services
+  - apps
+  - data
+  - kafka

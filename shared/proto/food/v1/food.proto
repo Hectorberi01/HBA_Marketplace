@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package hba.food.v1;
+
+option csharp_namespace = "HBA.Food.Grpc.V1";
+
+service FoodApi {
+  rpc GetRestaurant(GetRestaurantRequest) returns (GetRestaurantResponse);
+  rpc GetMenu(GetMenuRequest) returns (GetMenuResponse);
+  rpc GetMenuItem(GetMenuItemRequest) returns (GetMenuItemResponse);
+  rpc AcceptFoodOrder(FoodOrderActionRequest) returns (FoodOperationResponse);
+  rpc RejectFoodOrder(RejectFoodOrderRequest) returns (FoodOperationResponse);
+  rpc MarkFoodOrderReady(FoodOrderActionRequest) returns (FoodOperationResponse);
+
+  // CES TROIS LECTURES ÉTAIENT DÉCLARÉES DANS LE CONTRAT ET ABSENTES DU
+  //    TRANSPORT — le client rendait `null` en dur.
+  //
+  // Sans effet tant que seuls les appelants internes de food-service les
+  // utilisaient, via l'implémentation en processus. Elles auraient menti au
+  // premier service qui les aurait appelées par le réseau — et financial
+  // référence déjà ce client.
+  rpc GetRestaurantByOwner(GetRestaurantByOwnerRequest) returns (GetRestaurantResponse);
+  rpc GetStaffMembership(GetStaffMembershipRequest) returns (GetStaffMembershipResponse);
+  rpc GetFoodOrder(GetFoodOrderRequest) returns (GetFoodOrderResponse);
+}
+
+message GetRestaurantByOwnerRequest {
+  string owner_user_id = 1;
+}
+
+message GetStaffMembershipRequest {
+  string user_id = 1;
+}
+
+message GetStaffMembershipResponse {
+  bool found = 1;
+  StaffMembership membership = 2;
+}
+
+// Le rattachement d'un compte à un restaurant, et ce qu'il a le droit d'y faire.
+message StaffMembership {
+  string restaurant_id = 1;
+  string staff_id = 2;
+  string user_id = 3;
+  string role = 4;
+  bool is_active = 5;
+  bool is_founder = 6;
+  repeated string permissions = 7;
+}
+
+message GetFoodOrderRequest {
+  string food_order_id = 1;
+}
+
+message GetFoodOrderResponse {
+  bool found = 1;
+  FoodOrderRef order = 2;
+}
+
+// Le strict minimum pour rattacher un ticket à sa commande — pas le contenu.
+message FoodOrderRef {
+  string food_order_id = 1;
+  string order_id = 2;
+  string restaurant_id = 3;
+  string status = 4;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DE QUEL UNIVERS VIENT `order_id` — « Marketplace » ou « Food ».
+  //
+  // Ecrit parce que `order_id` portait DEUX choses. Deux ponts ouvrent un ticket
+  // de cuisine, avec des identifiants d'agregats distincts. Le retour de course
+  // annulee relisait ce champ nu et envoyait un identifiant de `MealOrder` a
+  // order-service, qui ne le connait pas.
+  //
+  // AJOUT ADDITIF : numero neuf, aucun champ touche. Vide chez un producteur
+  // d'avant ce lot — le consommateur traite alors le ticket comme
+  // « Marketplace », ce qui est exact pour tout ce qui existait.
+  // ═══════════════════════════════════════════════════════════════════════════
+  string origin = 5;
+}
+
+message GetRestaurantRequest {
+  string restaurant_id = 1;
+}
+
+message GetRestaurantResponse {
+  bool found = 1;
+  RestaurantSummary restaurant = 2;
+}
+
+message GetMenuRequest {
+  string restaurant_id = 1;
+  string audience = 2;
+}
+
+message GetMenuResponse {
+  bool found = 1;
+  repeated MenuItemSummary items = 2;
+}
+
+message GetMenuItemRequest {
+  string restaurant_id = 1;
+  string menu_item_id = 2;
+}
+
+message GetMenuItemResponse {
+  bool found = 1;
+  MenuItemSummary item = 2;
+}
+
+message FoodOrderActionRequest {
+  string restaurant_id = 1;
+  string food_order_id = 2;
+  string actor_user_id = 3;
+}
+
+message RejectFoodOrderRequest {
+  string restaurant_id = 1;
+  string food_order_id = 2;
+  string actor_user_id = 3;
+  string reason = 4;
+  optional string comment = 5;
+}
+
+message FoodOperationResponse {
+  bool succeeded = 1;
+  string reason = 2;
+}
+
+message RestaurantSummary {
+  string restaurant_id = 1;
+  string owner_user_id = 2;
+  string name = 3;
+  string status = 4;
+  string phone = 5;
+  optional string description = 6;
+}
+
+message MenuItemSummary {
+  string menu_item_id = 1;
+  string restaurant_id = 2;
+  string name = 3;
+  string status = 4;
+  string base_amount = 5;
+  string currency = 6;
+  optional string image_url = 7;
+
+  // CES DEUX CHAMPS EXISTENT POUR QUE LE PANIER CESSE DE CROIRE LE CLIENT.
+  //
+  // Tant que le panier des repas vivait dans cart-service, celui-ci n'avait
+  // aucun client Food : le prix unitaire arrivait dans le corps HTTP, et
+  // l'écart de prix des options avec lui. N'importe qui pouvait donc commander
+  // un plat à un franc — aucun contrôle n'existait sur ce chemin.
+  //
+  // food-cart-service, lui, est DANS le domaine restauration : il lit la carte
+  // et calcule le montant. Pour cela il lui faut les groupes d'options et leur
+  // écart de prix, que ce message ne portait pas.
+  bool is_orderable = 8;
+  repeated OptionGroupSummary option_groups = 9;
+}
+
+message OptionGroupSummary {
+  string option_group_id = 1;
+  string name = 2;
+  int32 min_selections = 3;
+  int32 max_selections = 4;
+  bool is_required = 5;
+  repeated OptionSummary options = 6;
+}
+
+message OptionSummary {
+  string option_id = 1;
+  string name = 2;
+
+  // Décimal en CHAÎNE, comme `base_amount` : un `double` arrondirait un écart
+  // de 0,05 en une valeur qui ne se rejoue pas à l'identique, et un total de
+  // panier qui ne retombe pas sur ses pieds est un litige.
+  string price_delta = 3;
+  bool is_available = 4;
+}

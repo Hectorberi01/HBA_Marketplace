@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    CE PROJET RÉFÉRENÇAIT LES DOMAINES DE delivery-service ET DE
+    driver-service. UN SEUL FICHIER EN ÉTAIT LA CAUSE.
+
+    `Policies/DispatchPolicy.cs` déclarait le namespace
+    `HBA.Deliveries.Domain.Dispatch`, manipulait l'agrégat `Delivery`, l'agrégat
+    `Driver` et `VehicleCapacity`, et n'avait qu'un seul appelant au monde :
+    `DispatchDeliveryCommand`, dans delivery-service. Rien dans dispatch-service
+    ne l'utilisait. C'est le classement de la boucle de dispatch INTERNE à
+    delivery-service, pas la politique de ce service — elle est partie dans
+    `HBA.Delivery.Core.Domain/Policies/` (lot 5.4, ISSUE-069).
+
+    Les deux références de projet qui l'accompagnaient sont tombées avec lui.
+
+    CE QUE CE PROJET GARDE : son propre domaine — `DispatchJob`, `Assignment`,
+    `DeliveryOffer`, `DriverCandidate`, ses politiques de score, d'offre et de
+    réessai. Il ne dépend plus que de `HBA.Shared.Domain`.
+
+    IL Y A DONC AUJOURD'HUI DEUX `DriverCandidate` DANS LE DÉPÔT, ET C'EST
+    DÉLIBÉRÉ : celui de `HBA.Delivery.Dispatch.Domain.Entities` appartient à
+    dispatch-service, celui de `HBA.Deliveries.Domain.Dispatch` appartient à la
+    boucle interne de delivery-service. Ils ne portent pas la même chose — le
+    second tient un agrégat `Driver` complet, le premier un identifiant et un
+    score. Les fusionner recréerait exactement la dépendance qu'on vient de
+    couper. Quand dispatch-service prendra en charge le dispatch pour de vrai
+    (lot 5.2), c'est le second qui disparaîtra, remplacé par un appel de
+    contrat — pas par une référence de projet.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Domain\HBA.Shared.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

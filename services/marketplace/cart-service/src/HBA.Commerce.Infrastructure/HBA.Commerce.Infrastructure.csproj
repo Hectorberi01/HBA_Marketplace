@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Commerce.Domain\HBA.Commerce.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Commerce.Application\HBA.Commerce.Application.csproj" />
+    <ProjectReference Include="..\HBA.Commerce.Contracts\HBA.Commerce.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+  
+    <!--
+      LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.
+
+      Ces événements étaient déclarés DEUX FOIS : ici via un contrat partagé,
+      et chez leur propriétaire. L'enveloppe Kafka ne portant que le nom court,
+      le consommateur en résolvait un des deux au hasard de l'ordre de
+      chargement — et un gestionnaire enregistré sur l'autre n'était jamais
+      appelé, sans la moindre erreur.
+
+      Le duplicata partagé a été supprimé. Un fait métier, un contrat, un
+      propriétaire.
+    -->
+    <ProjectReference Include="..\..\..\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+
+    <!--
+      LE CONTRAT DE PROMOTION, ET PAS SON PROJET gRPC.
+
+      `PromotionPricingModuleApi` dépend d'`IPromotionModuleApi` — une interface —
+      et ignore par quel transport elle est servie. C'est ce qui permet de
+      rebrancher une implémentation en processus par une seule ligne
+      d'enregistrement, et c'est aussi pourquoi son bloc `catch` attrape
+      `Exception` et non `RpcException` : nommer le transport ici l'y ferait entrer.
+
+      `HBA.Promotions.Contracts.Grpc` est référencé par l'Api, qui appelle
+      `AddPromotionGrpcClient` — c'est elle, le composition root, qui choisit le
+      transport.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+
+    <!--
+      AJOUTÉ POUR `PromotionPricingModuleApi` (ISSUE-033).
+
+      Le repli « promotion-service injoignable » doit se VOIR : un panier valorisé
+      sans remise ressemble exactement à un panier sans coupon, et c'est
+      précisément l'ambiguïté qui a laissé `NeutralPricingModuleApi` vivre en
+      production. Sans `ILogger<T>`, la compilation échoue en CS0246 — et le
+      message ne nomme pas le paquet manquant.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+</Project>

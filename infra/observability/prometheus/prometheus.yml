@@ -1,0 +1,73 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# PROMETHEUS — UNE SEULE CIBLE, ET C'EST UNE CORRECTION, PAS UNE SIMPLIFICATION.
+#
+# CE FICHIER MOISSONNAIT TREIZE POINTS D'ENTRÉE QUI N'EXISTENT PAS.
+#
+# Il déclarait `identity-service:8080/metrics`, `catalog-service:8080/metrics`,
+# et onze autres. Aucun de ces services n'expose `/metrics` : ils POUSSENT leurs
+# métriques en OTLP vers le collecteur, qui les réexpose lui-même sur `:8889`.
+#
+# Ce qui se serait passé au premier démarrage : treize jobs en échec permanent,
+# zéro métrique, et un tableau de bord vide. Le diagnostic aurait commencé par
+# « l'instrumentation ne marche pas » alors qu'elle aurait très bien marché — la
+# donnée était au bon endroit, personne n'allait la chercher là.
+#
+# POURQUOI NE PAS PLUTÔT AJOUTER UN `/metrics` À CHAQUE SERVICE.
+#
+# Il faudrait le paquet `OpenTelemetry.Exporter.Prometheus.AspNetCore` sur les
+# quinze processus, un point d'entrée de plus à exclure de l'authentification, et
+# un second chemin par lequel la donnée sort. Le collecteur existe précisément
+# pour être ce point unique : c'est lui qu'on moissonne.
+#
+# CE QU'ON PERD, ET IL FAUT LE SAVOIR.
+#
+# Avec un moissonnage direct, un service injoignable se voyait dans `up == 0`.
+# Ici, un service muet est indiscernable d'un service inactif : ses séries
+# cessent simplement d'être alimentées. La détection d'un service tombé revient
+# donc aux sondes de santé et aux alertes d'absence de données, pas à `up`.
+#
+# ET CE FICHIER A DÉCRIT PENDANT DES SEMAINES UNE SITUATION QUI N'EXISTAIT
+#    PAS. « Les métriques des quinze processus y arrivent » : une seule y
+#    arrivait.
+#
+# `AddHbaTelemetry` était bien appelé par tous les services, mais
+# `TelemetryExtensions` n'ajoute l'exportateur OTLP QUE si une adresse est
+# lisible — et seule la passerelle en portait une, dans son `appsettings.json`.
+# Les treize autres démarraient, servaient, passaient leurs tests, et
+# n'envoyaient rien.
+#
+# Le défaut se lit exactement comme l'encadré ci-dessus le décrit : des séries
+# jamais alimentées, indiscernables d'un service inactif. Personne ne l'a vu,
+# parce que la seule façon de s'en apercevoir était d'aller chercher les traces
+# d'un service pendant un incident.
+#
+# `OpenTelemetry__Endpoint` est désormais posé dans le bloc `environment:` des
+# quatorze processus — la source à laquelle un service ne peut pas échapper —
+# et `scripts/check-infra.py` refuse un service qui n'en aurait pas.
+# ═══════════════════════════════════════════════════════════════════════════
+
+global:
+
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  - job_name: "prometheus"
+
+    static_configs:
+      - targets:
+          - prometheus:9090
+
+  # Le point d'entrée Prometheus du collecteur OTLP : les métriques des quatorze
+  # processus y arrivent, chacune portant l'étiquette `service_name` issue de la
+  # ressource OpenTelemetry. C'est cette étiquette qui remplace les treize
+  # `job_name` d'avant — et elle, au moins, ne peut pas diverger du nom réel du
+  # service, puisque c'est le service qui la pose.
+  - job_name: "hba-services"
+
+    metrics_path: /metrics
+
+    static_configs:
+      - targets:
+          - otel-collector:8889

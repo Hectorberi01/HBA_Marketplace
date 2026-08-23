@@ -1,0 +1,68 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    CE PROJET DEMANDE UN DOCKER EN MARCHE. LES AUTRES SUITES, NON.
+
+    Même arbitrage que pour `HBA.Merchants.IntegrationTests` : Testcontainers
+    démarre un vrai PostgreSQL et un vrai Kafka, et sur une machine sans Docker
+    ces tests échouent tous ensemble au démarrage de la fixture. Chaque classe
+    porte donc `[Trait("Docker", "true")]`, et le Makefile filtre dessus —
+    `make test` les écarte, `make test-integration` ne lance qu'eux.
+
+    ET IL DOIT RESTER SÉPARÉ DE `HBA.Order.AuthorizationTests`.
+
+    Les deux référencent `HBA.Order.Api`, donc le même `public partial class
+    Program`. Mais l'un pose `Database__MigrateOnStartup=false` et
+    `Kafka__Enabled=false` pour n'éprouver que le pipeline d'autorisation, quand
+    l'autre pose exactement l'inverse. Ces réglages sont des VARIABLES
+    D'ENVIRONNEMENT — donc partagées par tout le processus (voir l'encadré de
+    `OrderIntegrationFixture`). Réunis, les deux jeux se contrediraient selon
+    l'ordre d'exécution.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+
+  <ItemGroup>
+    <!--
+      LIÉ, PAS RECOPIÉ. Le jour où le socle change de nom de claim, une copie
+      locale ferait passer cette suite contre un format que personne n'émet.
+    -->
+    <Compile Include="..\Shared\TestTokens.cs" Link="Shared\TestTokens.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.Kafka" />
+
+    <!--
+      ON LIT LE COURTIER ET LA BASE COMME UN TIERS LES LIRAIT.
+
+      `Confluent.Kafka` pour injecter l'événement de paiement et relire ce que
+      order-service publie en retour ; `Npgsql` pour constater l'état de la
+      commande EN SQL plutôt que par `OrderingDbContext`. Vérifier avec le
+      mécanisme qui a produit l'écriture rendrait un mauvais mapping de colonne
+      invisible des deux côtés à la fois — et les dix-sept migrations de ce service
+      n'ont jamais été rejouées à froid.
+    -->
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\order-service\src\HBA.Order.Api\HBA.Order.Api.csproj" />
+  </ItemGroup>
+
+</Project>

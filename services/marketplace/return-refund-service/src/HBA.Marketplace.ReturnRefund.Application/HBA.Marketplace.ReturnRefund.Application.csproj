@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Marketplace.ReturnRefund.Domain\HBA.Marketplace.ReturnRefund.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+
+    <!--
+      Déclaré ICI bien qu'il arrive déjà par `HBA.Shared.Application` : depuis le
+      lot 3.4, ces gestionnaires en dépendent DIRECTEMENT. Une course d'enlèvement
+      créée pour un dossier qui n'a pas pu s'enregistrer, ou une marchandise
+      revenue que l'inventaire refuse de reprendre, ne remontent nulle part
+      ailleurs que dans ce journal — s'en remettre à une dépendance transitive
+      ferait disparaître la seule trace le jour où le socle change de paquet.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+</Project>

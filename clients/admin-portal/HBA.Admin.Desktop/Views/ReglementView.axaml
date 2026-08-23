@@ -1,0 +1,181 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:HBA.Admin.Desktop.ViewModels"
+             x:Class="HBA.Admin.Desktop.Views.ReglementView"
+             x:DataType="vm:ReglementViewModel">
+
+  <DockPanel>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="12" Margin="4,0,4,14">
+
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Text="Reversements" Classes="titre" />
+          <TextBlock Classes="attenue" Text="{Binding Position}" />
+        </StackPanel>
+
+        <Button Grid.Column="1" Classes="discret" Content="Actualiser"
+                Command="{Binding Rafraichir}" VerticalAlignment="Center" />
+      </Grid>
+
+      <ProgressBar IsIndeterminate="True" IsVisible="{Binding EnCours}" Height="3" />
+
+      <!--
+        LA FRONTIÈRE EST ANNONCÉE, PAS DEVINÉE.
+
+        Quatre gestes ne passent pas par la passerelle, délibérément. Les taire
+        laisserait croire à un écran incomplet ; afficher des boutons qui
+        rendraient 404 serait pire. On les nomme, avec l'endroit où ils se font.
+      -->
+      <Border Classes="creux" Padding="16,12">
+        <TextBlock Text="{Binding Frontiere}" TextWrapping="Wrap"
+                   Classes="attenue" FontSize="12" />
+      </Border>
+
+      <Border Classes="carte" Padding="16,12" IsVisible="{Binding EnErreur}">
+        <TextBlock Text="{Binding Erreur}" TextWrapping="Wrap" Foreground="{DynamicResource Danger}" />
+      </Border>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="340,*">
+
+      <Border Grid.Column="0" Classes="carte" Margin="4,0,10,0" Padding="8">
+        <ListBox ItemsSource="{Binding Lots}" SelectedItem="{Binding Selection}"
+                 Background="Transparent" BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="vm:LigneLot">
+              <StackPanel Spacing="2" Margin="6">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{Binding Periode}" FontWeight="SemiBold" />
+                  <Border Grid.Column="1" Classes="pastille" IsVisible="{Binding EnAttente}">
+                    <TextBlock Text="{Binding Etat}" FontSize="10" />
+                  </Border>
+                </Grid>
+                <TextBlock Text="{Binding Total}" FontSize="13" />
+                <TextBlock Text="{Binding Cree}" Classes="attenue" FontSize="11" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <Border Grid.Column="1" Classes="carte" Margin="0,0,4,0">
+        <DockPanel>
+
+          <TextBlock DockPanel.Dock="Top" Classes="attenue" TextWrapping="Wrap"
+                     IsVisible="{Binding !ADesSelection}"
+                     Text="Sélectionnez un lot." />
+
+          <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,12"
+                      IsVisible="{Binding ADesSelection}">
+
+            <TextBlock Text="{Binding Selection.Periode}" Classes="titre" FontSize="18" />
+            <TextBlock Text="{Binding Repartition}" Classes="attenue" FontSize="12"
+                       TextWrapping="Wrap" />
+
+            <!-- Les deux totaux viennent du même agrégat : s'ils divergent, ce
+                 n'est pas un décalage de période, c'est une donnée abîmée. -->
+            <Border Classes="carte" Padding="16,12" IsVisible="{Binding AEcart}">
+              <TextBlock Text="{Binding Ecart}" TextWrapping="Wrap"
+                         Foreground="{DynamicResource Danger}" />
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Spacing="10"
+                        IsVisible="{Binding ADesVersement}">
+              <Button Classes="discret" Content="Relevé du vendeur sur la période"
+                      Command="{Binding LireReleve}" />
+            </StackPanel>
+
+            <TextBlock Classes="attenue" FontSize="12" TextWrapping="Wrap"
+                       IsVisible="{Binding AErreurReleve}"
+                       Foreground="{DynamicResource Danger}"
+                       Text="{Binding ErreurReleve}" />
+
+            <!--
+              LE RELEVÉ N'EST PAS UN CONTRÔLE DU VERSEMENT.
+
+              Il filtre les gains sur leur date de CRÉATION ; le lot les filtre
+              sur leur date de LIBÉRATION, et ne retient que les libérés. Deux
+              axes de temps : un écart entre les deux est normal, et l'écran ne
+              calcule volontairement aucune différence.
+            -->
+            <Border Classes="creux" Padding="16,14" IsVisible="{Binding ADesReleve}">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Relevé du vendeur sur la même période"
+                           Classes="attenue" FontSize="12" />
+
+                <Grid ColumnDefinitions="*,*,*,*">
+                  <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Ventes brutes" Classes="attenue" FontSize="11" />
+                    <TextBlock Text="{Binding ReleveBrut}" FontWeight="SemiBold" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Text="Commissions" Classes="attenue" FontSize="11" />
+                    <TextBlock Text="{Binding ReleveCommissions}" FontWeight="SemiBold" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="2">
+                    <TextBlock Text="Frais opérateur" Classes="attenue" FontSize="11" />
+                    <TextBlock Text="{Binding ReleveFrais}" FontWeight="SemiBold" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="3" Spacing="2">
+                    <TextBlock Text="Net à percevoir" Classes="attenue" FontSize="11" />
+                    <TextBlock Text="{Binding ReleveNet}" FontWeight="SemiBold" />
+                  </StackPanel>
+                </Grid>
+
+                <TextBlock Text="{Binding ReleveLignes}" Classes="attenue" FontSize="11" />
+
+                <TextBlock TextWrapping="Wrap" Classes="attenue" FontSize="11"
+                           Text="Ce relevé compte les gains nés sur la période ; le lot paie ceux libérés sur la période, et seulement ceux-là. Les deux totaux n'ont pas à coïncider." />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <ListBox ItemsSource="{Binding Versements}" SelectedItem="{Binding SelectionVersement}"
+                   Background="Transparent" BorderThickness="0"
+                   IsVisible="{Binding ADesSelection}">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:LigneVersement">
+                <Grid ColumnDefinitions="*,Auto" Margin="6">
+                  <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="{Binding VendeurAffiche}" FontSize="11"
+                               FontFamily="Consolas,Menlo,monospace" />
+                    <!--
+                      UNE CHAÎNE COMPOSÉE DANS LA VUE-MODÈLE, PAS DES `Run`.
+
+                      `<Run Text="{Binding …}" />` fonctionne, mais c'est une
+                      construction qu'aucune autre vue de cette application
+                      n'emploie : elle passerait sous le radar du contrôle
+                      d'attributs, et c'est en XAML que les régressions
+                      n'apparaissent qu'à la compilation.
+                    -->
+                    <TextBlock Text="{Binding Detail}" FontSize="12" Classes="attenue" />
+                    <TextBlock Text="{Binding Reference}" Classes="attenue" FontSize="11" />
+                  </StackPanel>
+
+                  <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                    <TextBlock Text="{Binding Net}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Quand}" Classes="attenue" FontSize="11"
+                               HorizontalAlignment="Right" />
+
+                    <!-- Payé sans référence opérateur : déclaré à la main, sans
+                         trace côté prestataire. C'est le seul état de cette liste
+                         qui mérite qu'on s'arrête. -->
+                    <Border Classes="pastille" IsVisible="{Binding SansPreuve}"
+                            HorizontalAlignment="Right">
+                      <TextBlock Text="sans preuve" FontSize="10"
+                                 Foreground="{DynamicResource Alerte}" />
+                    </Border>
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+
+        </DockPanel>
+      </Border>
+
+    </Grid>
+
+  </DockPanel>
+</UserControl>

@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Food.Cart.Domain\HBA.Food.Cart.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Food.Cart.Contracts\HBA.Food.Cart.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Pricing.Contracts\HBA.Pricing.Contracts.csproj" />
+
+    <!-- La carte du restaurant : c'est elle qui donne le prix, et non le client. -->
+    <ProjectReference Include="..\..\..\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+
+    <!--
+      LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.
+
+      Le panier écoute « commande de repas passée » pour se clore. Il référence
+      donc les Contracts de food-order-service — jamais son interne, et jamais
+      une copie partagée : un contrat déclaré deux fois se résout au hasard de
+      l'ordre de chargement, et le gestionnaire enregistré sur l'autre n'est
+      jamais appelé, sans erreur.
+    -->
+    <ProjectReference Include="..\..\..\food-order-service\src\HBA.Food.Order.Contracts\HBA.Food.Order.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FoodCart.UnitTests" />
+  </ItemGroup>
+
+</Project>

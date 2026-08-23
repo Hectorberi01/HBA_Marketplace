@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Catalog.Application\HBA.Catalog.Application.csproj" />
+    <ProjectReference Include="..\HBA.Catalog.Infrastructure\HBA.Catalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Catalog.Contracts.Grpc\HBA.Catalog.Contracts.Grpc.csproj" />
+    <!--
+      LE CONTRAT ÉTAIT DÉJÀ LÀ, PAS LE CLIENT.
+
+      `HBA.Merchants.Contracts` arrive transitivement par HBA.Catalog.Application,
+      et le `COPY` du Dockerfile ainsi que `SERVICES__MERCHANT` existent depuis
+      longtemps. Seul le projet .Grpc — qui porte `AddMerchantsGrpcClient` —
+      manquait. C'est lui qui rend `ISellerModuleApi` résoluble à l'exécution.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+    <!--
+      Même schéma pour le média : le contrat arrive transitivement par
+      HBA.Catalog.Application, le client gRPC — donc `AddMediaGrpcClient` — vient
+      d'ici. Sans lui, `IMediaModuleApi` n'est pas résoluble et le rattachement
+      d'image échoue à l'exécution, pas à la compilation.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts.Grpc\HBA.Media.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

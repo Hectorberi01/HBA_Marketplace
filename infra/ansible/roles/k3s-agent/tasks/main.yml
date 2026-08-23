@@ -1,0 +1,55 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES NŒUDS AGENTS — CE QUI PORTE LES CHARGES (§4).
+# ═══════════════════════════════════════════════════════════════════════════════
+---
+- name: Vérifier que l'adresse privée est connue
+  ansible.builtin.assert:
+    that:
+      - ip_privee is defined
+      - ip_privee | length > 0
+    fail_msg: "`ip_privee` manque pour {{ inventory_hostname }}."
+
+- name: Retrouver le serveur et son jeton
+  # ON LIT LES FAITS DU NŒUD SERVEUR, ON NE LES RECOPIE PAS.
+  #
+  # Le jeton n'existe qu'après l'installation du serveur. Le figer dans
+  # l'inventaire obligerait à le mettre à jour à chaque reconstruction — et un
+  # jeton périmé produit un agent qui démarre, échoue à s'enrôler, et réessaie
+  # en boucle sans jamais apparaître dans `kubectl get nodes`.
+  ansible.builtin.set_fact:
+    k3s_url: "https://{{ hostvars[groups['serveurs'][0]].ip_privee }}:6443"
+    k3s_jeton: "{{ hostvars[groups['serveurs'][0]].k3s_jeton }}"
+
+- name: Vérifier que le jeton a bien été récupéré
+  ansible.builtin.assert:
+    that:
+      - k3s_jeton is defined
+      - k3s_jeton | length > 0
+    fail_msg: >-
+      Jeton absent — le playbook a-t-il bien joué `serveurs` avant `agents` ?
+      Un `--limit agents` seul ne peut pas fonctionner sur un cluster neuf.
+
+- name: Récupérer l'installateur k3s
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/bin/k3s-install.sh
+    mode: "0755"
+
+- name: Installer k3s (agent)
+  ansible.builtin.command:
+    cmd: /usr/local/bin/k3s-install.sh
+    creates: /usr/local/bin/k3s-agent
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    K3S_URL: "{{ k3s_url }}"
+    K3S_TOKEN: "{{ k3s_jeton }}"
+    INSTALL_K3S_EXEC: >-
+      agent
+      --node-ip {{ ip_privee }}
+      --flannel-iface {{ interface_privee | default('ens4') }}
+
+- name: Attendre que le service soit actif
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: started
+    enabled: true

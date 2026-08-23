@@ -1,0 +1,134 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DURCISSEMENT DE L'OS, AVANT k3s (§19).
+#
+# CE RÔLE TOURNE SUR TOUS LES NŒUDS, SERVEUR COMME AGENTS.
+#
+# Ce qu'il fait est ce que personne ne refait après coup : une VM mise en service
+# « le temps de tester » reste en service, et son SSH ouvert par mot de passe avec
+# elle. Le §19 demande « accès administrateur via VPN/bastion/SSO + MFA » ; à
+# défaut de bastion pour l'instant, au minimum : pas de mot de passe, pas de root.
+# ═══════════════════════════════════════════════════════════════════════════════
+---
+- name: Mettre à jour le cache APT
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Installer l'outillage minimal
+  ansible.builtin.apt:
+    name:
+      - curl
+      - nftables
+      - unattended-upgrades
+      - chrony          # voir l'encadré « horloge » plus bas
+      - open-iscsi      # requis par les volumes persistants
+    state: present
+
+# L'HORLOGE N'EST PAS UN DÉTAIL DE CONFORT.
+#
+# Les jetons JWT du §12 portent `nbf`/`exp`. Deux nœuds dont les horloges
+# divergent de deux minutes produisent des rejets d'authentification qui
+# n'arrivent QUE sur l'un des deux — donc une requête sur trois qui échoue, sans
+# rien dans les journaux applicatifs qui ressemble à un problème d'heure.
+# Les certificats ACME et les offsets Kafka souffrent du même mal.
+- name: Activer la synchronisation d'horloge
+  ansible.builtin.systemd:
+    name: chrony
+    enabled: true
+    state: started
+
+# LE SWAP DOIT ÊTRE COUPÉ — kubelet REFUSE DE DÉMARRER SINON.
+#
+# Et la raison de fond vaut mieux que la contrainte : avec du swap, un pod qui
+# dépasse sa limite mémoire ralentit au lieu d'être tué. Le scheduler continue de
+# le croire sain, les sondes finissent par expirer, et l'on passe une soirée à
+# chercher une lenteur réseau qui n'existe pas.
+- name: Désactiver le swap (session courante)
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+  failed_when: false
+
+- name: Désactiver le swap (au redémarrage)
+  ansible.posix.mount:
+    path: none
+    fstype: swap
+    state: absent
+
+- name: Poser les paramètres noyau requis par Kubernetes
+  ansible.posix.sysctl:
+    name: "{{ item.nom }}"
+    value: "{{ item.valeur }}"
+    state: present
+    reload: true
+  loop:
+    # Sans ceux-ci, le trafic entre pods de nœuds différents est routé sans
+    # passer par les règles de filtrage — les NetworkPolicies deviennent
+    # partiellement inopérantes, ce qui est pire que pas de politique du tout
+    # puisqu'on les croit appliquées.
+    - { nom: net.bridge.bridge-nf-call-iptables, valeur: "1" }
+    - { nom: net.bridge.bridge-nf-call-ip6tables, valeur: "1" }
+    - { nom: net.ipv4.ip_forward, valeur: "1" }
+    # Postgres, Kafka et Elasticsearch ouvrent beaucoup de descripteurs ; la
+    # valeur par défaut d'Ubuntu (65530 zones mémoire) fait échouer Kafka au
+    # démarrage avec un message qui parle de mmap, pas de limite.
+    - { nom: vm.max_map_count, valeur: "262144" }
+    - { nom: fs.inotify.max_user_instances, valeur: "1024" }
+    - { nom: fs.inotify.max_user_watches, valeur: "524288" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SSH (§19)
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: Interdire l'authentification par mot de passe et la connexion root
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/10-hba.conf
+    mode: "0644"
+    content: |
+      # Posé par Ansible — rôle `commun`. Ne pas modifier à la main.
+      PasswordAuthentication no
+      PermitRootLogin prohibit-password
+      KbdInteractiveAuthentication no
+      X11Forwarding no
+      MaxAuthTries 3
+  notify: Recharger sshd
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARE-FEU (§1, §5)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# CETTE LISTE EST LA PREMIÈRE DES DEUX BARRIÈRES DU §1.
+#
+# La seconde est `k8s/base/policies/`. Celle-ci protège de ce qui arrive par
+# l'interface PUBLIQUE ; celle-là, de ce qui se parle à l'intérieur du cluster.
+# Aucune ne remplace l'autre — c'est la confusion qui laisse un Postgres joignable
+# depuis Internet parce que « les NetworkPolicies sont en place ».
+#
+# 6443 (API Kubernetes) n'est PAS ouvert au public : il n'écoute que sur
+# l'interface privée, et l'administration passe par SSH.
+
+- name: Poser la politique nftables
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    mode: "0644"
+    # `validate` REFUSE UNE RÈGLE MALFORMÉE AVANT DE L'ÉCRIRE.
+    #
+    # Sans lui, un template cassé remplace le fichier, le service recharge, et
+    # l'on perd SSH sur une machine distante — sans autre recours qu'une console
+    # de secours OVH.
+    validate: nft --check --file %s
+  notify: Recharger nftables
+
+- name: Activer nftables au démarrage
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started
+
+- name: Activer les mises à jour de sécurité automatiques
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";

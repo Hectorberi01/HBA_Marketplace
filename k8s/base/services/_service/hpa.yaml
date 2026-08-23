@@ -1,0 +1,41 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# HorizontalPodAutoscaler (§7) — CPU ET MÉMOIRE D'ABORD, MÉTRIQUES MÉTIER ENSUITE.
+#
+# LA MÉMOIRE EST UN MAUVAIS SIGNAL D'AUTOSCALING POUR .NET, ET ELLE EST
+#    DÉLIBÉRÉMENT ABSENTE.
+#
+# Le ramasse-miettes de .NET ne rend pas la mémoire au système tant qu'il n'y est
+# pas contraint : l'occupation monte, se stabilise haut, et ne redescend pas.
+# Une règle sur la mémoire ajouterait donc des pods sans jamais les retirer, puis
+# resterait bloquée au maximum. Le CPU, lui, suit la charge réelle.
+#
+# Le §7 dit « CPU/mémoire puis métriques applicatives » : les secondes viendront
+# quand Prometheus Adapter exposera le RPS et la latence, qui sont les vrais
+# signaux pour un service web.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: service
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    # Monter vite, redescendre lentement : une descente trop réactive coupe des
+    # pods pendant un creux de dix secondes, et la remontée coûte un démarrage
+    # complet — celui-là même que la startupProbe prévoit long.
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 30

@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    `GrpcServices="Both"` : SERVEUR ET CLIENT DANS LE MÊME ASSEMBLAGE.
+
+    promotion-service utilise la moitié serveur ; cart-service, order-service et
+    food-order-service utiliseront la moitié cliente pour les deux checkouts du
+    §11. Séparer en deux projets éviterait ce code mort, au prix d'un second
+    fichier à tenir en phase pour un gain nul — les stubs inutilisés pèsent
+    quelques kilo-octets.
+
+    CE PROJET NE CONTIENT AUCUNE RÈGLE MÉTIER.
+
+    Il porte le transport et la traduction depuis et vers `HBA.Promotions.Contracts`.
+    Le code applicatif ne le voit jamais : il dépend de `IPromotionModuleApi`, et
+    c'est ce qui permet de rebrancher l'implémentation en processus par une seule
+    ligne d'enregistrement.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <Protobuf Include="..\..\proto\promotion\v1\promotion.proto" GrpcServices="Both" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+    <ProjectReference Include="..\..\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+</Project>

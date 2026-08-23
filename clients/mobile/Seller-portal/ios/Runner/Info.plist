@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  EXCEPTION DE DÉVELOPPEMENT — LA PILE LOCALE PARLE EN CLAIR.
+
+	  Sans elle, un appareil PHYSIQUE ne peut pas joindre la passerelle qui
+	  tourne sur le Mac : App Transport Security refuse tout HTTP non chiffré,
+	  et l'échec se présente comme « Impossible de joindre le serveur » — le
+	  même message qu'une mauvaise adresse, ce qui envoie chercher la panne du
+	  mauvais côté.
+
+	  `NSAllowsLocalNetworking` n'ouvre QUE le réseau local. C'est
+	  volontairement plus étroit que `NSAllowsArbitraryLoads`, qui ouvrirait
+	  Internet en clair et qu'Apple refuse à la revue sans justification écrite.
+
+	  Le simulateur n'en a PAS besoin : ATS ne s'applique pas au bouclage,
+	  donc `http://localhost:8080` y fonctionne sans cette clé. Elle ne sert
+	  qu'à l'appareil physique sur le même Wi-Fi.
+
+	  À retirer avant toute distribution : la production parle HTTPS, et cette
+	  clé n'y a aucun usage.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>$(APP_DISPLAY_NAME)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>hba_express_pro</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+
+	<!-- Permissions OBLIGATOIRES. iOS ne demande pas l'autorisation : il TUE le
+	     processus si la clé est absente au moment où l'app ouvre la galerie ou
+	     l'appareil photo. Sans elles, les photos produit et le dépôt des pièces
+	     KYB font planter l'app, et l'App Store rejette le binaire.
+	     Le texte est affiché tel quel à l'utilisateur : il doit dire POURQUOI. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HbaExpress Pro accède à vos photos pour ajouter les images de vos produits et déposer vos documents de vérification.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>HbaExpress Pro utilise l’appareil photo pour photographier vos produits et vos documents de vérification.</string>
+
+	<!-- Évite la question sur le chiffrement à chaque envoi sur TestFlight :
+	     l'app n'utilise que le HTTPS standard d'iOS (exempt). -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<!-- Portrait uniquement : aucun écran n'a été conçu ni testé en paysage.
+	     Autoriser une orientation qu'on n'a jamais regardée, c'est promettre des
+	     mises en page cassées. -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Utilisez Face ID pour vous connecter rapidement et en toute sécurité à votre boutique.</string>
+	<!-- Texte propre à l'application VENDEUR. Celui de l'application acheteur
+	     (« préciser le lieu de livraison… vous pouvez commander sans la partager »)
+	     avait été recopié ici : un vendeur ne commande pas, il expédie. Un motif
+	     d'usage qui ne correspond pas à ce que fait l'app est un motif de rejet
+	     au titre de la ligne directrice 5.1.1, et l'examinateur lit cette chaîne
+	     au moment où la demande d'autorisation s'affiche. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Votre position sert uniquement à situer votre lieu de retrait sur la carte, pour que le coursier trouve votre dépôt. Elle est facultative : vous pouvez enregistrer un lieu de retrait sans la partager.</string>
+	<!-- ─────────────────────────────────────────────────────────────────────────
+	     Même raison que dans l'application acheteur : App Store Connect refuse
+	     l'envoi (90683) si le binaire RÉFÉRENCE `requestAlwaysAuthorization` sans
+	     en déclarer le motif. Le greffon `geolocator` l'embarque ; l'analyse
+	     statique d'Apple la voit, alors que l'application ne l'appelle jamais.
+
+	     Texte identique au motif « pendant l'utilisation », parce que l'usage est
+	     le même et qu'il n'y a aucun relevé en arrière-plan.
+	     ───────────────────────────────────────────────────────────────────────── -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Votre position sert uniquement à situer votre lieu de retrait sur la carte, pour que le coursier trouve votre dépôt. Elle est facultative, et n'est jamais relevée en arrière-plan.</string>
+</dict>
+</plist>

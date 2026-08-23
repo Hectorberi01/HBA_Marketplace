@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Merchants.Domain\HBA.Merchants.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+
+    <!--
+      `AddKybDocumentCommandHandler` INTERROGE LE SERVICE MÉDIA AVANT DE
+      RATTACHER UNE PIÈCE.
+
+      Sans cette référence, le handler acceptait n'importe quel GUID : le domaine
+      renvoyait le contrôle « à la couche qui voit les deux », et cette couche
+      n'existait nulle part. Un vendeur rattachait donc à son dossier la pièce
+      d'identité d'un concurrent, puis s'en faisait signer l'URL.
+
+      Le CONTRAT seul, jamais le client gRPC : celui-ci vient de la composition
+      root, comme chez catalog.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+
+    <!--
+      MÊME RAISON POUR LE LIEU D'EXPÉDITION.
+
+      `AttachStoreLocationCommand` acceptait n'importe quel GUID : celui d'un
+      concurrent, un entrepôt plateforme, ou un identifiant inexistant — qui ne se
+      manifestait qu'APRÈS le paiement de l'acheteur, sur la jambe coursier.
+
+      Le commentaire du handler disait « Sellers ne connaît pas Inventory ».
+      `IInventoryModuleApi.GetLocationAsync` transporte pourtant `OwnerId` : le
+      contrat était là, il n'était pas appelé.
+    -->
+    <ProjectReference Include="..\..\..\inventory-service\src\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sellers.UnitTests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Marketplace.ReturnRefund.Application\HBA.Marketplace.ReturnRefund.Application.csproj" />
+    <ProjectReference Include="..\HBA.Marketplace.ReturnRefund.Infrastructure\HBA.Marketplace.ReturnRefund.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+</Project>

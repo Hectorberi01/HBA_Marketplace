@@ -1,0 +1,82 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# KAFKA PAR STRIMZI (§9).
+#
+# SUPPOSE L'OPÉRATEUR INSTALLÉ — même piège que CloudNativePG :
+#
+#   kubectl create -f 'https://strimzi.io/install/latest?namespace=hba-prod'
+#
+# Sans lui, ce `Kafka` reste un objet inerte dans etcd. Aucun pod, aucune erreur.
+#
+# TROIS BROKERS, ET CE N'EST PAS UNE QUESTION DE DÉBIT.
+#
+# Le §9 exige `replication factor 3` et `min.insync.replicas 2` en production.
+# Ces deux valeurs ensemble veulent dire : une écriture n'est acquittée que si
+# DEUX copies l'ont reçue, et le cluster survit à la perte d'un broker sans
+# perdre d'écriture ni bloquer les producteurs.
+#
+# À deux brokers, `min.insync.replicas 2` bloque toute écriture dès qu'un broker
+# tombe — la disponibilité s'effondre au moment précis où on en a besoin. Trois
+# est le premier nombre qui tienne la promesse.
+#
+# Les overlays dev et staging descendent à 1 broker avec replication factor 1 :
+# ces garanties n'y sont pas observables, et trois brokers y coûteraient trois
+# fois le stockage pour rien.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: kafka
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+spec:
+  kafka:
+    version: 3.8.0
+    metadataVersion: 3.8-IV0
+
+    listeners:
+      # LISTENER INTERNE UNIQUEMENT (§5 : Kafka reste privé).
+      #
+      # Aucun listener `external` : le §1 pose que seuls l'Ingress et les
+      # endpoints explicitement publics sortent. Un listener externe ouvrirait le
+      # bus d'événements de toute la plateforme.
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+
+    config:
+      # Les trois valeurs du §9. Les écrire ici plutôt que par topic évite qu'un
+      # topic créé à la volée hérite de garanties plus faibles sans qu'on le voie.
+      default.replication.factor: 3
+      min.insync.replicas: 2
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+
+      # lz4 : le §9 laisse le choix entre lz4 et zstd. lz4 compresse moins mais
+      # coûte nettement moins de CPU — ce qui compte sur des nœuds partagés avec
+      # quinze services applicatifs.
+      compression.type: lz4
+
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "2Gi"
+
+    storage:
+      type: persistent-claim
+      size: 30Gi
+      deleteClaim: false
+
+  entityOperator:
+    # C'EST LUI QUI CRÉE LES TOPICS DÉCLARÉS DANS `topics.yaml`.
+    #
+    # Sans `topicOperator`, les `KafkaTopic` sont des objets sans effet : les
+    # topics naîtraient par création automatique, avec les valeurs par défaut du
+    # broker — donc sans le partitionnement voulu, et sans DLQ.
+    topicOperator: {}
+    userOperator: {}

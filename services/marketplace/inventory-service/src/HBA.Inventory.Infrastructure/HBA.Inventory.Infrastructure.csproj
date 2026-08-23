@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Inventory.Domain\HBA.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Inventory.Application\HBA.Inventory.Application.csproj" />
+    <ProjectReference Include="..\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+
+    <!--
+      AJOUTÉS POUR LE BALAYEUR D'EXPIRATION (ISSUE-031), ET RIEN D'AUTRE.
+
+      `BackgroundService` vit dans `Hosting.Abstractions`, `ILogger<T>` dans
+      `Logging.Abstractions`. Ce projet n'en tirait aucun : inventory n'avait
+      jamais eu de travail d'arrière-plan à lui (l'outbox vient du socle, qui les
+      référence pour son propre compte). Sans ces deux lignes, la compilation
+      échoue en CS0246 sur `BackgroundService` — et le message ne nomme pas le
+      paquet manquant.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+</Project>

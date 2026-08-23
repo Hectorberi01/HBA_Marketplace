@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Food.Restaurant.Domain\HBA.Food.Restaurant.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Food.UnitTests" />
+    <InternalsVisibleTo Include="HBA.Food.Infrastructure" />
+  </ItemGroup>
+
+</Project>

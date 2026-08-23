@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════════
+    POURQUOI CE PROJET EXISTE, ET POURQUOI IL RÉFÉRENCE `Application`.
+
+    LE CONTRÔLE ÉPROUVÉ ICI NE PEUT PAS L'ÊTRE PAR `AuthorizationTests`.
+
+    Les suites `*.AuthorizationTests` du dépôt vérifient ce qui se décide dans
+    le pipeline, AVANT le handler : politiques de groupe et FallbackPolicy, sans
+    base ni voisin joignable. Or la garde de la réponse aux avis a besoin du
+    `SellerId` de l'avis — donc de l'avoir chargé. Elle vit dans le handler, et
+    une requête qui l'atteint échouerait en 500 faute de PostgreSQL.
+
+    D'où la référence à `*.Application`, que `HBA.Merchants.UnitTests` s'était
+    délibérément refusée : là-bas les règles vivent dans le domaine, ici la
+    règle EST dans le handler. Le handler est `internal` — voir
+    l'`InternalsVisibleTo` du projet référencé.
+
+    Aucune référence à `*.Infrastructure` : les trois collaborateurs sont
+    remplacés par des doubles écrits sur place.
+    ═════════════════════════════════════════════════════════════════════════
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\common\review-service\src\HBA.Engagement.Reviews.Application\HBA.Engagement.Reviews.Application.csproj" />
+  </ItemGroup>
+
+</Project>

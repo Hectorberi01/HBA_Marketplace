@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Domain\HBA.Shared.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      `SellerMember.Owner` ET `SellerRole.System` SONT `internal`, ET DOIVENT LE RESTER.
+
+      Ce sont les deux seules créations sans acteur du module : la naissance du
+      premier membre, que personne ne peut autoriser, et l'amorçage des rôles
+      système. Les ouvrir reviendrait à offrir un chemin pour fabriquer un
+      propriétaire ou un rôle à permissions arbitraires sans passer par la moindre
+      garde. Les tests, eux, doivent pouvoir monter ces états de départ.
+    -->
+    <InternalsVisibleTo Include="HBA.Merchants.UnitTests" />
+
+    <!--
+      `SellerMember.Owner` (inscription d'un vendeur) et `SellerMember.FromInvitation`
+      (acceptation) sont les deux seules naissances de membre. Elles appartiennent à
+      la couche Application, qui a vérifié ce que le domaine ne peut pas voir : que
+      le compte existe chez identity, que l'invitation n'a pas expiré, que celui qui
+      l'a émise est toujours là.
+    -->
+    <InternalsVisibleTo Include="HBA.Merchants.Application" />
+  </ItemGroup>
+
+</Project>

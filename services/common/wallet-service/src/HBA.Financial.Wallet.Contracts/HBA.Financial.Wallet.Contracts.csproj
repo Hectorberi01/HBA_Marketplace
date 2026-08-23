@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+    <!--
+      `Result<T>` et `Error`, pour `ICustomerWalletApi` (D33).
+
+      AUCUN CYCLE POSSIBLE : `HBA.Shared.Domain` ne référence RIEN — c'est la
+      racine de la pyramide de dépendances, et son propre .csproj le dit.
+
+      C'EST LE PREMIER `*.Contracts` DU DÉPÔT À RÉFÉRENCER `HBA.Shared.Domain`,
+      ET IL FAUT LE SAVOIR.
+
+      Les autres contrats de module ne rendent que des `record` nus : leurs
+      implémentations rendent `null` pour « absent » et l'appelant traduit. Ce
+      contrat-ci porte une opération d'ARGENT, dont les refus sont métier —
+      montant invalide, clé d'idempotence absente, solde. Les aplatir en `null`
+      ferait perdre à payment-service le code et le message du refus au moment
+      exact où il doit décider quoi inscrire dans son dossier de remboursement,
+      et irait contre la règle du dépôt : « `Result<T>` + `Error` partout, jamais
+      d'exception pour un refus métier ».
+
+      Si le dépôt décide un jour que les contrats doivent rester sans dépendance,
+      c'est ce contrat-ci qu'il faudra rouvrir — pas la règle.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Domain\HBA.Shared.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

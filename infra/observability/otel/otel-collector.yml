@@ -1,0 +1,91 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# LE COLLECTEUR — SEUL INTERLOCUTEUR DES QUINZE PROCESSUS.
+#
+# LE PIPELINE DE TRACES N'EXPORTAIT QUE VERS `debug`. C'EST CORRIGÉ ICI.
+#
+# `debug` écrit sur la sortie standard du collecteur. Les traces étaient donc
+# reçues, mises en lot, formatées — puis imprimées. Interrogeables nulle part.
+# Elles partent maintenant vers Tempo, et `debug` est retiré : le garder aurait
+# doublé le volume des journaux du collecteur pour une lecture que personne ne
+# fait une fois Grafana en place.
+# ═══════════════════════════════════════════════════════════════════════════
+
+receivers:
+
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+
+  batch: {}
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+exporters:
+
+  # `otlp` ET NON `otlphttp` POUR TEMPO : son point d'entrée gRPC écoute sur
+  # 4317. `tls.insecure` parce que tout ceci vit sur un réseau Docker privé —
+  # exiger un certificat entre deux conteneurs de développement ferait échouer la
+  # pile au démarrage, et la réponse serait de désactiver la vérification, donc
+  # le même résultat en moins lisible.
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # C'EST CE POINT D'ENTRÉE QUE PROMETHEUS DOIT MOISSONNER, PAS LES SERVICES.
+  #
+  # Les quinze processus POUSSENT leurs métriques en OTLP ; aucun n'expose de
+  # `/metrics`. L'ancien `prometheus.yml` moissonnait pourtant
+  # `catalog-service:8080/metrics` et douze autres — treize cibles qui n'existent
+  # pas, donc treize jobs en échec permanent et zéro métrique.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+
+service:
+
+  pipelines:
+    traces:
+      receivers:
+        - otlp
+
+      processors:
+        - memory_limiter
+        - batch
+
+      exporters:
+        - otlp/tempo
+
+    metrics:
+
+      receivers:
+        - otlp
+
+      processors:
+        - memory_limiter
+        - batch
+
+      exporters:
+        - prometheus
+
+    logs:
+
+      receivers:
+        - otlp
+
+      processors:
+        - memory_limiter
+        - batch
+
+      exporters:
+        - otlphttp/loki

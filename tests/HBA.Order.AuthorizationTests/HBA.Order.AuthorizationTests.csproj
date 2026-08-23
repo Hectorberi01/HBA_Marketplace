@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    UN PROJET DE TEST PAR SERVICE, ET CE N'EST PAS DE LA CÉRÉMONIE.
+
+    Deux raisons rendent le projet unique impossible :
+
+      • chaque `*.Api` déclare `public partial class Program` dans l'espace de
+        noms global. Deux d'entre eux référencés ensemble, et toute mention de
+        `Program` devient ambiguë (CS0433) — or c'est exactement le type que
+        `WebApplicationFactory<Program>` attend, et pour lequel ces `Program`
+        partiels ont été rendus publics ;
+
+      • `Microsoft.NET.Sdk.Web` copie l'`appsettings.json` de chaque projet
+        référencé dans le répertoire de sortie. Trois services, trois fichiers
+        du même nom, un seul répertoire : la configuration d'un service en
+        écraserait une autre, silencieusement.
+
+    L'outillage — xunit, FluentAssertions, Mvc.Testing, jetons HS256 forgés — est
+    celui de `HBA.Gateway.IntegrationTests`, et les deux fichiers communs sont
+    LIÉS depuis `tests/Shared` plutôt que recopiés.
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <Compile Include="..\Shared\TestTokens.cs" Link="Shared\TestTokens.cs" />
+    <Compile Include="..\Shared\AuthorizationTestFactory.cs" Link="Shared\AuthorizationTestFactory.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\services\marketplace\order-service\src\HBA.Order.Api\HBA.Order.Api.csproj" />
+  </ItemGroup>
+
+</Project>

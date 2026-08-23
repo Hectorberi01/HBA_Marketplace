@@ -1,0 +1,79 @@
+# =====================================================================
+#  Fastlane iOS — HbaExpress Pro (vendeur)
+#
+#  Compile l'app (Flutter, sans signature), l'archive et la signe avec une
+#  distribution certificate + un profil App Store fournis par la CI, puis
+#  téléverse le build sur TestFlight via une clé API App Store Connect.
+#
+#  Aucun secret dans ce fichier : tout arrive par variables d'environnement,
+#  écrites par le workflow depuis les secrets GitHub.
+#
+#  Variables attendues :
+#    ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_CONTENT (base64 du .p8)
+#    IOS_DIST_CERT_PATH, IOS_DIST_CERT_PASSWORD (chemin du .p12 + mot de passe)
+#    IOS_PROFILE_NAME (nom du provisioning profile App Store)
+#    API_BASE_URL (URL du BFF vendeur — PRODUCTION pour une vraie diffusion)
+#    BUILD_NUMBER (numéro de build unique, ex. numéro de run CI)
+# =====================================================================
+
+require "securerandom"
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Compile, signe et envoie sur TestFlight"
+  lane :beta do
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_content: ENV.fetch("ASC_KEY_CONTENT"),
+      is_key_content_base64: true
+    )
+
+    # Trousseau temporaire dédié à la CI : on n'écrit jamais dans le trousseau
+    # de session, et il disparaît avec la machine éphémère.
+    keychain_name = "hba_ci.keychain-db"
+    keychain_password = SecureRandom.hex(16)
+    create_keychain(
+      name: keychain_name,
+      password: keychain_password,
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600,
+      lock_when_sleeps: false
+    )
+    import_certificate(
+      certificate_path: ENV.fetch("IOS_DIST_CERT_PATH"),
+      certificate_password: ENV.fetch("IOS_DIST_CERT_PASSWORD", ""),
+      keychain_name: keychain_name,
+      keychain_password: keychain_password
+    )
+
+    # Compilation Flutter (Dart + assets) SANS signature, depuis la racine du
+    # projet. L'archivage signé est ensuite fait par build_app.
+    sh(
+      "cd ../.. && flutter build ios --release --no-codesign " \
+      "--build-number=#{ENV.fetch('BUILD_NUMBER', '1')} " \
+      "--dart-define=API_BASE_URL=#{ENV.fetch('API_BASE_URL')}"
+    )
+
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "../build/ios/ipa",
+      export_options: {
+        signingStyle: "manual",
+        provisioningProfiles: {
+          "fr.hbamarketplace.seller" => ENV.fetch("IOS_PROFILE_NAME")
+        }
+      }
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true
+    )
+  end
+end
