@@ -33,8 +33,10 @@ builder.Services.AddMerchantsGrpcClient(builder.Configuration);
 // démarre, la vitrine fonctionne, et SEUL le rattachement d'image casse — avec
 // une 500 que rien ne relie à une configuration manquante.
 //
-// `SERVICES__MEDIA` est déjà dans `infra/docker/env/catalog.env` et dans le
-// compose ; là encore, il ne manquait que l'enregistrement.
+// `SERVICES__MEDIA` est déjà posé par `docker-compose.dev.yml` et par le
+// ConfigMap de déploiement ; là encore, il ne manquait que l'enregistrement.
+// (Cette ligne citait `infra/docker/env/catalog.env`, dossier retiré du dépôt
+// le 27 août.)
 // ═════════════════════════════════════════════════════════════════════════
 builder.Services.AddMediaGrpcClient(builder.Configuration);
 

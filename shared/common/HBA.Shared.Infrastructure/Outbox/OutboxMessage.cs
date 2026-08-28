@@ -62,9 +62,16 @@ public sealed class OutboxMessage
     ///
     /// Une lettre morte est une perte métier réelle : un e-mail jamais envoyé, un gain
     /// vendeur jamais crédité, un stock jamais libéré. Elle DOIT être vue par un humain —
-    /// d'où le log Critical et l'endpoint <c>GET /admin/outbox/dead-letters</c>. Enterrer un
-    /// message en silence serait pire que de le rejouer sans fin : au moins, la boucle
-    /// finissait par se remarquer.
+    /// d'où le log Critical. Enterrer un message en silence serait pire que de le rejouer
+    /// sans fin : au moins, la boucle finissait par se remarquer.
+    ///
+    /// IL N'Y A AUCUNE SURFACE DE REJEU, ET CE PARAGRAPHE EN PROMETTAIT UNE. Il citait
+    /// <c>GET /admin/outbox/dead-letters</c> ; cette route n'est montée nulle part. Le
+    /// seul geste possible aujourd'hui est manuel et en base : remettre
+    /// <c>DeadLetteredOnUtc</c> à NULL, <c>AttemptCount</c> à 0 et
+    /// <c>NextAttemptAtUtc</c> à NULL sur la ligne, une fois la cause corrigée. L'index
+    /// partiel sur <c>DeadLetteredOnUtc IS NOT NULL</c> existe précisément pour retrouver
+    /// ces lignes.
     /// </summary>
     public DateTime? DeadLetteredOnUtc { get; set; }
 

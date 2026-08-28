@@ -55,7 +55,15 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
 
         // Socle du §5 et du §19.5.
         services.AddScoped<IConsumerInbox, EfConsumerInbox<IdentityDbContext>>();
-        services.AddScoped<IIdempotencyStore, EfIdempotencyStore<IdentityDbContext>>();
+        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
+        //
+        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
+        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
+        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
+        // désormais indissociables — voir `IdempotencyRegistration` pour la
+        // raison, qui tient en une phrase : un huitième service qui ne copierait
+        // que la première ligne n'aurait jamais de purge, sans rien signaler.
+        services.AddIdempotence<IdentityDbContext>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IIdentityModuleApi, IdentityModuleApi>();
         services.AddScoped<AuthTokenIssuer>();

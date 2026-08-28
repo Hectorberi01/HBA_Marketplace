@@ -1,3 +1,4 @@
+using HBA.Shared.Infrastructure.Hosting;
 using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Idempotency;
 using System.Reflection;
@@ -59,7 +60,15 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         // Socle du §5 et du §19.5 — mêmes enregistrements que user-service et
         // identity-service, pour que les trois se comportent pareil.
         services.AddScoped<IConsumerInbox, EfConsumerInbox<PaymentsDbContext>>();
-        services.AddScoped<IIdempotencyStore, EfIdempotencyStore<PaymentsDbContext>>();
+        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
+        //
+        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
+        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
+        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
+        // désormais indissociables — voir `IdempotencyRegistration` pour la
+        // raison, qui tient en une phrase : un huitième service qui ne copierait
+        // que la première ligne n'aurait jamais de purge, sans rien signaler.
+        services.AddIdempotence<PaymentsDbContext>();
         services.AddScoped<ISavedPaymentMethodRepository, SavedPaymentMethodRepository>();
         services.AddScoped<IPaymentsModuleApi, PaymentsModuleApi>();
 
@@ -553,25 +562,31 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
 
     /// <summary>
     /// Sommes-nous en production ?
-    ///
-    /// L'installer ne reçoit qu'un <see cref="IConfiguration"/> — pas d'IHostEnvironment,
-    /// car les modules s'installent avant que l'hôte ne soit construit. On lit donc la
-    /// variable d'environnement standard, qu'ASP.NET expose dans la configuration.
-    ///
-    /// FAIL-SAFE : les deux variables sont lues, et l'inconnu est traité comme
-    /// « pas la production » — sinon un environnement mal nommé refuserait de démarrer
-    /// en développement. Le risque assumé est l'inverse : une PROD dont
-    /// ASPNETCORE_ENVIRONMENT serait mal renseigné retomberait sur des simulations.
-    /// C'est pourquoi le message d'avertissement ci-dessus est aussi bruyant : il doit
-    /// être visible dans les logs de démarrage, même quand personne ne les cherche.
     /// </summary>
+    /// <remarks>
+    /// L'installeur ne reçoit qu'un <see cref="IConfiguration"/> — les modules
+    /// s'installent avant que l'hôte ne soit construit, donc pas
+    /// d'<c>IHostEnvironment</c>. La règle elle-même vit dans
+    /// <c>EnvironnementDeploiement</c>, en un seul exemplaire.
+    ///
+    /// CE PARAGRAPHE DÉCRIVAIT AUPARAVANT UN FAIL-OPEN ASSUMÉ : « l'inconnu est
+    /// traité comme pas la production, sinon un nom mal orthographié empêcherait
+    /// de travailler ». Ce n'est plus vrai, et ce n'était pas défendable : une
+    /// variable ABSENTE tombait du même côté qu'une faute de frappe, alors
+    /// qu'ASP.NET Core considère une variable absente comme la production.
+    /// Désormais l'inconnu et l'absent sont la production ; seuls les noms
+    /// explicitement listés en dispensent.
+    /// </remarks>
     private static bool IsProduction(IConfiguration configuration)
     {
-        var environment = configuration["ASPNETCORE_ENVIRONMENT"]
-            ?? configuration["DOTNET_ENVIRONMENT"]
-            ?? string.Empty;
-
-        return string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase);
+        // DÉLÉGUÉ À `EnvironnementDeploiement`, ET C'EST LA CORRECTION.
+        //
+        // Ce corps était une copie parmi six d'une règle FAIL-OPEN : tout ce qui
+        // n'était pas littéralement « Production » — variable absente, chaîne
+        // vide, faute de frappe — était traité comme du développement, alors
+        // qu'ASP.NET Core, lui, considère une variable absente comme la
+        // production. Voir l'encadré de `EnvironnementDeploiement`.
+        return EnvironnementDeploiement.EstProduction(configuration);
     }
 
     private static MoovOptions BindMoovOptions(IConfiguration configuration)

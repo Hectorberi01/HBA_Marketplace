@@ -151,16 +151,6 @@
         "Type"
       ]
     },
-    "DeliveryEtaUpdatedIntegrationEvent": {
-      "champs": {
-        "DeliveryId": "Guid",
-        "EtaSeconds": "int"
-      },
-      "requis": [
-        "DeliveryId",
-        "EtaSeconds"
-      ]
-    },
     "DeliveryNoDriverAvailableIntegrationEvent": {
       "champs": {
         "DeliveryId": "Guid",
@@ -180,7 +170,8 @@
         "DeliveryId": "Guid",
         "Reference": "string",
         "Source": "string",
-        "DriverId": "Guid"
+        "DriverId": "Guid",
+        "ProtectedDeliveryPin": "string?"
       },
       "requis": [
         "DeliveryId",
@@ -225,16 +216,6 @@
         "PricingRuleId"
       ]
     },
-    "DeliveryProofCompletedIntegrationEvent": {
-      "champs": {
-        "DeliveryId": "Guid",
-        "ProofId": "Guid"
-      },
-      "requis": [
-        "DeliveryId",
-        "ProofId"
-      ]
-    },
     "DeliveryQuoteConsumedIntegrationEvent": {
       "champs": {
         "QuoteId": "Guid",
@@ -267,46 +248,6 @@
         "QuoteId"
       ]
     },
-    "DispatchNoDriverFoundIntegrationEvent": {
-      "champs": {
-        "DeliveryId": "Guid",
-        "Attempts": "int"
-      },
-      "requis": [
-        "Attempts",
-        "DeliveryId"
-      ]
-    },
-    "DispatchOfferCreatedIntegrationEvent": {
-      "champs": {
-        "DeliveryId": "Guid",
-        "DriverId": "Guid"
-      },
-      "requis": [
-        "DeliveryId",
-        "DriverId"
-      ]
-    },
-    "DispatchOfferExpiredIntegrationEvent": {
-      "champs": {
-        "DeliveryId": "Guid",
-        "DriverId": "Guid"
-      },
-      "requis": [
-        "DeliveryId",
-        "DriverId"
-      ]
-    },
-    "DispatchStartedIntegrationEvent": {
-      "champs": {
-        "DispatchJobId": "Guid",
-        "DeliveryId": "Guid"
-      },
-      "requis": [
-        "DeliveryId",
-        "DispatchJobId"
-      ]
-    },
     "DriverAvailabilityChangedIntegrationEvent": {
       "champs": {
         "DriverId": "Guid",
@@ -325,6 +266,22 @@
       "requis": [
         "DriverId",
         "UserId"
+      ]
+    },
+    "DriverDossierVerifiedIntegrationEvent": {
+      "champs": {
+        "DriverId": "Guid",
+        "UserId": "Guid",
+        "FullName": "string",
+        "Phone": "string",
+        "VehicleType": "string"
+      },
+      "requis": [
+        "DriverId",
+        "FullName",
+        "Phone",
+        "UserId",
+        "VehicleType"
       ]
     },
     "DriverEarningCreditedIntegrationEvent": {
@@ -405,7 +362,8 @@
         "OrderId": "Guid",
         "RestaurantId": "Guid",
         "EstimatedPreparationMinutes": "int",
-        "AcceptedByUserId": "Guid?"
+        "AcceptedByUserId": "Guid?",
+        "OrderOrigin": "string"
       },
       "requis": [
         "EstimatedPreparationMinutes",
@@ -420,7 +378,8 @@
         "OrderId": "Guid",
         "RestaurantId": "Guid",
         "Reason": "string?",
-        "WasInKitchen": "bool"
+        "WasInKitchen": "bool",
+        "OrderOrigin": "string"
       },
       "requis": [
         "FoodOrderId",
@@ -433,7 +392,8 @@
       "champs": {
         "FoodOrderId": "Guid",
         "OrderId": "Guid",
-        "RestaurantId": "Guid"
+        "RestaurantId": "Guid",
+        "OrderOrigin": "string"
       },
       "requis": [
         "FoodOrderId",
@@ -445,7 +405,8 @@
       "champs": {
         "FoodOrderId": "Guid",
         "OrderId": "Guid",
-        "RestaurantId": "Guid"
+        "RestaurantId": "Guid",
+        "OrderOrigin": "string"
       },
       "requis": [
         "FoodOrderId",
@@ -457,7 +418,8 @@
       "champs": {
         "FoodOrderId": "Guid",
         "OrderId": "Guid",
-        "RestaurantId": "Guid"
+        "RestaurantId": "Guid",
+        "OrderOrigin": "string"
       },
       "requis": [
         "FoodOrderId",
@@ -470,7 +432,8 @@
         "FoodOrderId": "Guid",
         "OrderId": "Guid",
         "RestaurantId": "Guid",
-        "ReadyAtUtc": "DateTime"
+        "ReadyAtUtc": "DateTime",
+        "OrderOrigin": "string"
       },
       "requis": [
         "FoodOrderId",
@@ -485,7 +448,8 @@
         "OrderId": "Guid",
         "RestaurantId": "Guid",
         "Total": "decimal",
-        "ItemCount": "int"
+        "ItemCount": "int",
+        "OrderOrigin": "string"
       },
       "requis": [
         "FoodOrderId",
@@ -501,7 +465,8 @@
         "OrderId": "Guid",
         "RestaurantId": "Guid",
         "Reason": "string",
-        "Comment": "string?"
+        "Comment": "string?",
+        "OrderOrigin": "string"
       },
       "requis": [
         "FoodOrderId",
@@ -777,6 +742,26 @@
         "Reason"
       ]
     },
+    "OtpChallengeIssuedIntegrationEvent": {
+      "champs": {
+        "UserId": "Guid",
+        "Channel": "string",
+        "Email": "string",
+        "PhoneNumber": "string",
+        "FirstName": "string",
+        "ProtectedCode": "string",
+        "ExpiresAtUtc": "DateTime"
+      },
+      "requis": [
+        "Channel",
+        "Email",
+        "ExpiresAtUtc",
+        "FirstName",
+        "PhoneNumber",
+        "ProtectedCode",
+        "UserId"
+      ]
+    },
     "PasswordResetRequestedIntegrationEvent": {
       "champs": {
         "UserId": "Guid",
@@ -1043,7 +1028,9 @@
         "StartsAtUtc": "DateTime",
         "EndsAtUtc": "DateTime",
         "Budget": "long?",
-        "Currency": "string"
+        "Currency": "string",
+        "SellerFundedShareBps": "int?",
+        "OwnerSellerId": "Guid?"
       },
       "requis": [
         "Currency",
@@ -1066,38 +1053,6 @@
         "BudgetConsumed",
         "Name",
         "PromotionId"
-      ]
-    },
-    "ProofRejectedIntegrationEvent": {
-      "champs": {
-        "ProofId": "Guid",
-        "DeliveryId": "Guid",
-        "Reason": "string"
-      },
-      "requis": [
-        "DeliveryId",
-        "ProofId",
-        "Reason"
-      ]
-    },
-    "ProofSubmittedIntegrationEvent": {
-      "champs": {
-        "ProofId": "Guid",
-        "DeliveryId": "Guid"
-      },
-      "requis": [
-        "DeliveryId",
-        "ProofId"
-      ]
-    },
-    "ProofVerifiedIntegrationEvent": {
-      "champs": {
-        "ProofId": "Guid",
-        "DeliveryId": "Guid"
-      },
-      "requis": [
-        "DeliveryId",
-        "ProofId"
       ]
     },
     "RestaurantApprovedIntegrationEvent": {
@@ -1170,7 +1125,9 @@
         "SellerId": "Guid",
         "RefundAmount": "decimal",
         "Currency": "string",
-        "RefundReference": "string"
+        "RefundReference": "string",
+        "Lines": "IReadOnlyCollection<ReturnedOrderLine>",
+        "ReturnTotalRefundedAmount": "decimal"
       },
       "requis": [
         "BuyerId",
@@ -1445,6 +1402,22 @@
         "SellerOrderId"
       ]
     },
+    "SellerOwnershipTransferredIntegrationEvent": {
+      "champs": {
+        "SellerId": "Guid",
+        "PreviousOwnerMemberId": "Guid",
+        "PreviousOwnerUserId": "Guid",
+        "NewOwnerMemberId": "Guid",
+        "NewOwnerUserId": "Guid"
+      },
+      "requis": [
+        "NewOwnerMemberId",
+        "NewOwnerUserId",
+        "PreviousOwnerMemberId",
+        "PreviousOwnerUserId",
+        "SellerId"
+      ]
+    },
     "SellerRatingRecomputedIntegrationEvent": {
       "champs": {
         "SellerId": "Guid",
@@ -1630,42 +1603,6 @@
         "Reason",
         "RevokedCount",
         "UserId"
-      ]
-    },
-    "TrackingLocationSampledIntegrationEvent": {
-      "champs": {
-        "DeliveryId": "Guid",
-        "DriverId": "Guid",
-        "Sequence": "long",
-        "Latitude": "double",
-        "Longitude": "double"
-      },
-      "requis": [
-        "DeliveryId",
-        "DriverId",
-        "Latitude",
-        "Longitude",
-        "Sequence"
-      ]
-    },
-    "TrackingSessionEndedIntegrationEvent": {
-      "champs": {
-        "DeliveryId": "Guid",
-        "DriverId": "Guid"
-      },
-      "requis": [
-        "DeliveryId",
-        "DriverId"
-      ]
-    },
-    "TrackingSessionStartedIntegrationEvent": {
-      "champs": {
-        "DeliveryId": "Guid",
-        "DriverId": "Guid"
-      },
-      "requis": [
-        "DeliveryId",
-        "DriverId"
       ]
     },
     "UserAddressCreatedIntegrationEvent": {

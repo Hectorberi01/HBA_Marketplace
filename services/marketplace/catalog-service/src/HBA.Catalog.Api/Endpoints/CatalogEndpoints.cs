@@ -1270,7 +1270,12 @@ public static class CatalogEndpoints
             MediaId: request.MediaId,
             Type: request.Type,
             AltText: request.AltText,
-            IsPrimary: request.IsPrimary), ct))
+            IsPrimary: request.IsPrimary,
+
+            // Le déposant du média doit être celui qui le rattache — voir
+            // l'encadré d'`AddProductMediaCommandHandler`. Sans ce paramètre le
+            // rattachement est REFUSÉ, pas autorisé : le défaut est fermé.
+            RequestedByUserId: CurrentUserId(user) ?? Guid.Empty), ct))
             .Match(mediaId => ApiResults.Created(new { id = mediaId }, $"/api/v1/catalog/seller/products/{id}/media/{mediaId}"));
 
     private static async Task<IResult> RemoveMediaAsync(

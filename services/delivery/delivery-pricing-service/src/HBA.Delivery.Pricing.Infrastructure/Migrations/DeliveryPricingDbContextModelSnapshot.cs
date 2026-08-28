@@ -50,6 +50,10 @@ namespace HBA.Delivery.Pricing.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal>("FacteurCorrectionApplique")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("numeric(4,2)");
+
                     b.Property<string>("PricingVersion")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -62,6 +66,11 @@ namespace HBA.Delivery.Pricing.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<string>("SourceEstimation")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
 
                     b.Property<string>("Status")
                         .IsRequired()

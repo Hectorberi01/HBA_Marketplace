@@ -47,13 +47,25 @@ patches:
   # de production (2) et un seul broker, TOUTE écriture Kafka bloquerait — le
   # cluster refuserait d'acquitter faute d'une seconde copie. Les services
   # démarreraient, et le premier événement publié resterait en attente.
-  - target:
-      kind: Cluster
-      name: postgres
-    patch: |-
-      - op: replace
-        path: /spec/instances
-        value: 1
+  # ═══════════════════════════════════════════════════════════════════════
+  # LE PATCH `Cluster/postgres` A ÉTÉ RETIRÉ : IL NE DÉSIGNAIT RIEN.
+  #
+  # Il posait `/spec/instances: 1` sur un `kind: Cluster` nommé `postgres` —
+  # une base gérée par CloudNativePG. Aucun objet de ce genre n'existe dans
+  # `k8s/base` : `grep -rn 'kind: Cluster' k8s/` ne rend que ce patch lui-même.
+  #
+  # ET CE N'EST PAS UNE ERREUR QUI SE VOIT. Kustomize n'échoue PAS sur une cible
+  # sans correspondance : le build réussit, le patch n'est appliqué à rien, et la
+  # sortie est identique à celle d'un patch qui a mordu. Le dépôt affichait donc
+  # une base à une instance là où il n'y a aucune base.
+  #
+  # La base de staging vit SUR L'HÔTE, installée par apt, hors du cluster — c'est
+  # la décision prise le 27 août, et `RUNBOOK-STAGING.md` la déroule. Ce patch
+  # était un reste du plan abandonné d'une base dans le cluster.
+  #
+  # `scripts/check-k8s.py` refuse désormais toute cible de patch sans
+  # correspondance, sans avoir besoin de kustomize.
+  # ═══════════════════════════════════════════════════════════════════════
 
   # LE POOL DESCEND À 1 BROKER, EN MÊME TEMPS QUE LES FACTEURS CI-DESSUS.
   #

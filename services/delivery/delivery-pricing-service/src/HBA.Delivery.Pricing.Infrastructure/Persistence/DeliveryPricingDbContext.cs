@@ -59,6 +59,13 @@ public sealed class DeliveryPricingDbContext : ModuleDbContext
             entity.Property(quote => quote.Currency).HasMaxLength(3);
             entity.Property(quote => quote.ServiceLevel).HasMaxLength(30);
             entity.Property(quote => quote.PricingVersion).HasMaxLength(40);
+
+            // Voir `SourcesEstimation` : ce qui a produit la distance et la durée
+            // qui ont chiffré ce devis. Colonne NOT NULL avec défaut vide — une
+            // chaîne vide se lit « on ne sait pas », ce qui est exact pour toute
+            // ligne écrite avant la migration.
+            entity.Property(quote => quote.SourceEstimation).HasMaxLength(40);
+            entity.Property(quote => quote.FacteurCorrectionApplique).HasPrecision(4, 2);
         });
 
         modelBuilder.Entity<PricingRule>(entity =>

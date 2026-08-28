@@ -1,6 +1,4 @@
 using HBA.Deliveries.Domain.Deliveries;
-using HBA.Dispatch.Application;
-using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Delivery.UnitTests;
 
@@ -109,137 +107,24 @@ public sealed class AcceptationUniqueTests
         course.AssignedDriverId.Should().BeNull();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // LA MAQUETTE DE DISPATCH — SIMULTANÉITÉ RÉELLE
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// LE TEST QUE L'AUDIT EXIGE : deux acceptations SIMULTANÉES, une seule
-    /// réussit.
-    ///
-    /// Ici la simultanéité n'est pas simulée : deux tâches entrent réellement en
-    /// même temps dans `AssignAsync`, et c'est `ConcurrentDictionary.TryAdd` qui
-    /// arbitre. Avant la correction, les DEUX repartaient avec une affectation.
-    /// </summary>
-    [Fact]
-    public async Task Deux_acceptations_simultanees_une_seule_reussit()
-    {
-        var store = new DispatchStore();
-        var publieur = new PublieurMuet();
-        var course = Guid.NewGuid();
-        var premier = Guid.NewGuid();
-        var second = Guid.NewGuid();
-
-        var barriere = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        async Task<(bool Assigned, Assignment Assignment)> Accepter(Guid livreur)
-        {
-            await barriere.Task;
-            return await store.AssignAsync(course, livreur, "AUTO", publieur);
-        }
-
-        var courseA = Accepter(premier);
-        var courseB = Accepter(second);
-
-        barriere.SetResult();
-        var resultats = await Task.WhenAll(courseA, courseB);
-
-        resultats.Count(r => r.Assigned).Should().Be(1, "une seule affectation peut gagner");
-
-        var gagnant = resultats.Single(r => r.Assigned).Assignment.DriverId;
-        var perdant = resultats.Single(r => !r.Assigned);
-
-        // Le perdant reçoit l'affectation QUI A GAGNÉ, pas la sienne : c'est ce
-        // qui permet à l'appelant de dire « quelqu'un a été plus rapide » plutôt
-        // que « erreur ».
-        perdant.Assignment.DriverId.Should().Be(gagnant);
-
-        store.TryGetAssignment(course, out var enregistree).Should().BeTrue();
-        enregistree!.DriverId.Should().Be(gagnant);
-    }
-
-    /// <summary>
-    /// Un rejeu du MÊME livreur n'est pas un conflit : l'appelant est derrière un
-    /// délai, sa seconde requête doit retrouver son affectation. Mais rien ne
-    /// doit être republié — sinon le livreur est notifié deux fois et la course
-    /// comptée deux fois en aval.
-    /// </summary>
-    [Fact]
-    public async Task Un_rejeu_du_meme_livreur_rend_son_affectation_sans_republier()
-    {
-        var store = new DispatchStore();
-        var publieur = new PublieurMuet();
-        var course = Guid.NewGuid();
-        var livreur = Guid.NewGuid();
-
-        var premiere = await store.AssignAsync(course, livreur, "MANUAL", publieur);
-        var publicationsApresPremiere = publieur.Publies;
-
-        var seconde = await store.AssignAsync(course, livreur, "MANUAL", publieur);
-
-        seconde.Assigned.Should().BeTrue();
-        seconde.Assignment.Id.Should().Be(premiere.Assignment.Id, "c'est la MÊME affectation");
-        publieur.Publies.Should().Be(publicationsApresPremiere, "un rejeu ne republie rien");
-    }
-
-    /// <summary>
-    /// LA RÉGRESSION QUE LA CORRECTION AURAIT PU CRÉER.
-    ///
-    /// Refuser d'écraser sans libérer l'affectation morte aurait rendu toute
-    /// course refusée DÉFINITIVEMENT non affectable : `TryAdd` serait retombé
-    /// éternellement sur l'affectation du tour précédent. Un défaut pire que
-    /// celui qu'on ferme — une course qui ne part jamais.
-    /// </summary>
-    [Fact]
-    public async Task Apres_un_nouveau_tour_de_dispatch_un_autre_livreur_peut_etre_affecte()
-    {
-        var store = new DispatchStore();
-        var publieur = new PublieurMuet();
-        var course = Guid.NewGuid();
-
-        (await store.AssignAsync(course, Guid.NewGuid(), "AUTO", publieur)).Assigned.Should().BeTrue();
-
-        await store.RetryAsync(course, publieur);
-
-        var suivant = Guid.NewGuid();
-        var apresRelance = await store.AssignAsync(course, suivant, "AUTO", publieur);
-
-        apresRelance.Assigned.Should().BeTrue("un nouveau tour rouvre l'affectation");
-        apresRelance.Assignment.DriverId.Should().Be(suivant);
-    }
-
-    [Fact]
-    public async Task Une_course_annulee_libere_son_affectation()
-    {
-        var store = new DispatchStore();
-        var publieur = new PublieurMuet();
-        var course = Guid.NewGuid();
-
-        await store.AssignAsync(course, Guid.NewGuid(), "AUTO", publieur);
-        store.Cancel(course);
-
-        var suivant = Guid.NewGuid();
-        (await store.AssignAsync(course, suivant, "AUTO", publieur)).Assigned.Should().BeTrue();
-    }
-
-    /// <summary>
-    /// Publieur d'événements qui ne fait que compter.
-    ///
-    /// Il ne remplace pas Kafka et ne prétend rien en dire : ISSUE-007 signale
-    /// que la file de ces maquettes n'est de toute façon jamais drainée. Ce qu'on
-    /// mesure ici, c'est le NOMBRE d'appels — c'est-à-dire qu'un rejeu ne
-    /// redéclenche pas la chaîne aval.
-    /// </summary>
-    private sealed class PublieurMuet : IIntegrationEventPublisher
-    {
-        private int _publies;
-
-        public int Publies => _publies;
-
-        public Task PublishAsync(IntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
-        {
-            Interlocked.Increment(ref _publies);
-            return Task.CompletedTask;
-        }
-    }
+    // ═════════════════════════════════════════════════════════════════════════
+    // LES QUATRE TESTS DE `DispatchStore` ONT ÉTÉ RETIRÉS AVEC LEUR SUJET (D42).
+    //
+    // Ils éprouvaient `AssignAsync` en SIMULTANÉITÉ RÉELLE — deux tâches entrant
+    // ensemble dans un `ConcurrentDictionary`, avec `TryAdd` pour arbitre. C'était
+    // le seul endroit du domaine livraison où une course entre deux écritures se
+    // testait pour de bon.
+    //
+    // CE QUI EST PERDU, ET IL FAUT LE SAVOIR. Les quatre tests ci-dessus éprouvent
+    // la garde APPLICATIVE de l'agrégat : la seconde acceptation est refusée parce
+    // que l'état a changé. Ils sont séquentiels. Ce qui ferme le cas VRAIMENT
+    // simultané, sur deux connexions PostgreSQL, est l'index unique partiel
+    // `ux_deliveries_engaged_driver` et le jeton `xmin` — et aucun test en mémoire
+    // ne peut les éprouver. La couverture de ce cas est donc passée de « éprouvée
+    // sur une maquette » à « éprouvée nulle part », et c'est un recul réel : la
+    // maquette n'était pas la production, mais elle était le seul banc d'essai.
+    //
+    // Le combler demande un projet d'intégration avec une base — il n'en existe
+    // aucun pour ce domaine.
+    // ═════════════════════════════════════════════════════════════════════════
 }

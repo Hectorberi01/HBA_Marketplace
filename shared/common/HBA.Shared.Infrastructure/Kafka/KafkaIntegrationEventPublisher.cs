@@ -84,8 +84,10 @@ public sealed class KafkaIntegrationEventPublisher : IKafkaIntegrationEventPubli
     ///
     /// En levant, on rend la main à la politique de reprise de l'outbox : trois
     /// warnings, un backoff, puis une LETTRE MORTE journalisée en Critical avec
-    /// sa métrique — et le message reste rejouable par
-    /// `/admin/outbox/dead-letters` une fois la configuration corrigée.
+    /// sa métrique — et le message reste en base, donc rejouable une fois la
+    /// configuration corrigée. REJOUABLE À LA MAIN : ce paragraphe citait
+    /// `/admin/outbox/dead-letters`, une route qui n'existe nulle part. Voir
+    /// `OutboxMessage.DeadLetteredOnUtc` pour le geste réel.
     ///
     /// Cause STRUCTURELLE, pas passagère : lever la fait tourner en boucle
     /// jusqu'au plafond. C'est assumé, et c'est pourquoi
@@ -102,7 +104,9 @@ public sealed class KafkaIntegrationEventPublisher : IKafkaIntegrationEventPubli
                 + "Kafka n'existe pas ("
                 + (_options.Enabled ? "Kafka:BootstrapServers absent" : "Kafka:Enabled=false")
                 + "). Le message reste dans l'outbox et finira en lettre morte. "
-                + "Renseigner Kafka:BootstrapServers, puis rejouer via /admin/outbox/dead-letters.");
+                + "Renseigner Kafka:BootstrapServers, puis remettre les lignes en file à la main "
+                + "(DeadLetteredOnUtc = NULL, AttemptCount = 0, NextAttemptAtUtc = NULL) : "
+                + "il n'existe aucune route de rejeu.");
         }
 
         var producer = KafkaEventNaming.Producer(_options.Producer, _configuration["SERVICE_NAME"]);

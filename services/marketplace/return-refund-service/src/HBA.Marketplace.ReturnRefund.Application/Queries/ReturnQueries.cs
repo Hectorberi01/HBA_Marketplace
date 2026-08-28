@@ -139,9 +139,32 @@ internal sealed class GetOrderReturnSummaryQueryHandler : IQueryHandler<GetOrder
 
     public GetOrderReturnSummaryQueryHandler(IReturnRequestRepository returns) => _returns = returns;
 
-    public Task<Result<OrderReturnSummaryDto>> Handle(GetOrderReturnSummaryQuery query, CancellationToken cancellationToken)
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// CE CORPS NE LISAIT RIEN (audit du 27 août, constat 1.5).
+    ///
+    /// Il valait exactement ceci :
+    ///
+    ///     return Task.FromResult&lt;Result&lt;OrderReturnSummaryDto&gt;&gt;(
+    ///         new OrderReturnSummaryDto(query.OrderId, 0m, "XOF", 0));
+    ///
+    /// Le dépôt était injecté et jamais appelé. Toutes les commandes de la
+    /// plateforme affichaient « 0 remboursé, 0 retour actif », y compris celles
+    /// remboursées la veille — et un zéro se lit comme une réponse, pas comme une
+    /// absence de réponse.
+    ///
+    /// AUCUN `NotFound` ICI, ET C'EST VOULU. Une commande sans aucun retour est le
+    /// cas NORMAL, pas une erreur : elle rend un résumé à zéro, qui est alors la
+    /// vérité. Ce service ne connaît d'ailleurs pas les commandes — il ne saurait
+    /// pas distinguer « commande inexistante » de « commande sans retour », et
+    /// prétendre le contraire demanderait un appel à order-service pour une
+    /// information que l'écran a déjà.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    public async Task<Result<OrderReturnSummaryDto>> Handle(GetOrderReturnSummaryQuery query, CancellationToken cancellationToken)
     {
-        return Task.FromResult<Result<OrderReturnSummaryDto>>(
-            new OrderReturnSummaryDto(query.OrderId, 0m, "XOF", 0));
+        var (montant, devise, actifs) = await _returns.GetOrderSummaryAsync(query.OrderId, cancellationToken);
+
+        return new OrderReturnSummaryDto(query.OrderId, montant, devise, actifs);
     }
 }

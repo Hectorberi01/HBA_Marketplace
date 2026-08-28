@@ -159,6 +159,42 @@ internal sealed class CustomerWithdrawalConfiguration : IEntityTypeConfiguration
 {
     public void Configure(EntityTypeBuilder<CustomerWithdrawal> builder)
     {
+        // ═════════════════════════════════════════════════════════════════════
+        // VERROU OPTIMISTE — IL MANQUAIT ICI, ET NULLE PART AILLEURS (audit 2.6).
+        //
+        // CE QUI ÉTAIT CASSÉ. `CustomerWithdrawal` était la SEULE entité mutable de
+        // ce module sans `UsePostgresRowVersion()`. Les quatre portefeuilles
+        // l'avaient, `WalletTransaction` l'avait ; la demande de retrait client, non.
+        // Rien ne le signalait : l'absence d'une ligne ne se voit pas.
+        //
+        // `MarkCustomerWithdrawalPaidCommandHandler` et
+        // `RejectCustomerWithdrawalCommandHandler` font tous deux une
+        // lecture-modification-écriture, et la garde d'état n'est vérifiée QU'EN
+        // MÉMOIRE. Deux opérateurs qui traitent la même demande à quelques secondes
+        // d'écart la lisent tous deux au statut `Requested` : l'un marque payé — le
+        // virement part —, l'autre rejette, ce qui exécute `wallet.Restore(montant)`
+        // et RECRÉDITE le client d'une somme déjà virée.
+        //
+        // Aucune exception, aucun journal : les deux écritures réussissent, chacune
+        // étant correcte de son point de vue.
+        //
+        // AUCUNE MIGRATION N'EST NÉCESSAIRE, ET C'EST LE POINT QUI SURPREND.
+        // `xmin` est une colonne SYSTÈME de PostgreSQL : elle existe déjà sur chaque
+        // ligne de `customer_withdrawals` et porte le numéro de la transaction qui
+        // l'a écrite en dernier. On ne l'ajoute pas, on la LIT. Seul le snapshot du
+        // modèle change — le schéma de la base, lui, ne bouge pas d'un octet.
+        //
+        // Le raisonnement complet — pourquoi `UsePostgresRowVersion` plutôt que
+        // l'API Npgsql dépréciée, et pourquoi AUCUN retry automatique — est dans
+        // l'encadré de `SellerWalletConfiguration`. Il vaut mot pour mot ici.
+        //
+        // CE QUE CE VERROU NE COUVRE PAS. Il fait échouer la SECONDE écriture, il ne
+        // dit pas laquelle des deux était la bonne : l'opérateur perdant reçoit un
+        // 409 et doit relire la demande. C'est le comportement voulu — la seule
+        // alternative serait de choisir à sa place entre « payé » et « rejeté », ce
+        // qu'aucune règle ne permet de trancher.
+        // ═════════════════════════════════════════════════════════════════════
+        builder.UsePostgresRowVersion();
         builder.ToTable("customer_withdrawals");
         builder.HasKey(w => w.Id);
         builder.Property(w => w.Id)

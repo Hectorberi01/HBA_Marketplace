@@ -82,11 +82,41 @@ public static class MediaEndpoints
     /// pose explicitement. Un client qui déclarerait « OwnerType=Product,
     /// OwnerId=celui d'un concurrent » rattacherait donc son fichier à autrui.
     ///
-    /// C'est pourquoi cette route est destinée aux BFF et aux services, PAS aux
-    /// applications clientes. Le raccordement de Catalog, Sellers et Food fera
-    /// passer chaque upload par la route métier correspondante, qui connaît le
-    /// propriétaire et vérifie qu'il appartient à l'appelant. Tant que ce n'est
-    /// pas fait, cette route reste réservée aux administrateurs — voir l'audit.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// CE PARAGRAPHE DISAIT « RÉSERVÉE AUX ADMINISTRATEURS ». C'ÉTAIT FAUX
+    /// (audit 2.2), ET LE RESTE — MAIS AUTREMENT.
+    ///
+    /// Aucun `.RequireAdmin()` n'a jamais été posé : la route est sur
+    /// `MapAuthenticatedGroup`, donc ouverte à TOUT compte connecté. Un
+    /// commentaire qui annonce une garde absente est pire qu'un commentaire
+    /// absent — c'est précisément ce qui fait qu'on ne relit pas la route.
+    ///
+    /// ET ON NE LA FERME PAS AUX ADMINISTRATEURS, PARCE QUE ÇA CASSERAIT LE
+    /// PRODUIT. L'application vendeur appelle cette route directement, avec
+    /// `OwnerType` valant tour à tour Product, Seller, MenuItem, Store et
+    /// Restaurant. La réserver aux administrateurs supprimerait le dépôt de
+    /// photos de tout le portail vendeur.
+    ///
+    /// CE QUI A ÉTÉ FAIT À LA PLACE, LE 28 AOÛT. `CreatedByUserId` — déjà
+    /// persisté ici, et invisible de l'extérieur — est désormais rendu par
+    /// `MediaView`. Il vient du JETON, c'est le seul champ de cette vue que
+    /// l'appelant ne choisit pas. `AddProductMediaCommandHandler` exige que le
+    /// déposant du média soit celui qui le rattache.
+    ///
+    /// CE QUI RESTE OUVERT, ET IL FAUT LE SAVOIR. N'importe quel compte connecté
+    /// peut toujours CRÉER une ligne de média portant une appartenance
+    /// mensongère — « OwnerType=Seller, OwnerId=<un concurrent> ». Ces lignes
+    /// occupent du stockage. Aucun chemin de lecture ne les expose aujourd'hui :
+    /// `ListMediaByOwnerQuery` n'a AUCUNE route, et `IMediaModuleApi.ListByOwnerAsync`
+    /// AUCUN appelant — vérifié sur tout le dépôt. Mais la méthode existe, et le
+    /// jour où quelqu'un l'emploie pour afficher « les pièces de ce vendeur »,
+    /// les fichiers forgés apparaîtront dans le dossier de leur victime, pièces
+    /// KYB comprises.
+    ///
+    /// Le remède complet suppose de trancher qui a le droit de déclarer quel
+    /// propriétaire — une décision de produit, parce que toute règle stricte
+    /// casse un parcours vendeur existant. Elle n'est pas prise.
+    /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     private static async Task<IResult> UploadAsync(
         IFormFile? file,

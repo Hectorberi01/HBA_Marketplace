@@ -97,18 +97,21 @@ public sealed class InternalCallOptions
     /// champ `producer` de Kafka. Il a été écarté pour deux raisons vérifiables
     /// dans le dépôt :
     ///
-    ///   1. LES DEUX COMPOSE NE S'ACCORDENT PAS SUR LES NOMS. Le même hôte est
+    ///   1. LES VOCABULAIRES NE S'ACCORDENT PAS SUR LES NOMS. Le même hôte est
     ///      `seller-service` dans `docker-compose.dev.yml` et `merchant-service`
-    ///      dans `infra/docker/compose.services.yml` ; de même cart/commerce,
+    ///      dans les déploiements Kubernetes ; de même cart/commerce,
     ///      restaurant/food, payment/financial, review/engagement. Une identité
     ///      d'autorisation qui change selon le fichier de déploiement n'est pas
-    ///      une identité.
+    ///      une identité. (Ce paragraphe citait `infra/docker/compose.services.yml`
+    ///      comme second vocabulaire ; ce dossier a été retiré du dépôt le
+    ///      27 août, et c'est désormais k8s qui porte les noms par domaine —
+    ///      l'écart, lui, n'a pas bougé.)
     ///
-    ///   2. `SERVICE_NAME` N'EST PAS POSÉ EN PRODUCTION. Il ne vit que dans les
-    ///      `infra/docker/env/*.env`, que `.gitignore` ignore et qui n'existent
-    ///      dans aucun clone — d'où `required: false` sur les `env_file`. La
-    ///      valeur effective de la pile `compose.services.yml` est donc le repli
-    ///      `"unknown-service"`, pour les quatorze hôtes à la fois.
+    ///   2. `SERVICE_NAME` N'EST PAS UNE IDENTITÉ FIABLE. Il est posé par le
+    ///      compose de développement et par les déploiements, donc par le
+    ///      fichier qui lance l'hôte et non par l'hôte lui-même : un service
+    ///      démarré autrement — un test, un `dotnet run`, un conteneur lancé à
+    ///      la main — n'en a aucun.
     ///
     /// Le nom d'assembly, lui, vient du code, est unique, et ne peut pas être
     /// oublié dans un fichier d'environnement. Le renommer sans mettre à jour la

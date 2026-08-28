@@ -53,6 +53,11 @@ COPY shared ./shared
 # celle-ci.
 #
 # Les références de projet sont tombées avec le lot 5.4 (ISSUE-069) : les quelques
+# NOTE DU 27 AOÛT : le chemin `dispatch-service/` cité ci-dessus n'existe plus.
+# Ce service a été retiré du dépôt — il dupliquait l'affectation que cette image
+# fait déjà. Le paragraphe reste tel quel : il raconte pourquoi ces `COPY` sont
+# tombés, et cette histoire est exacte.
+#
 # fichiers concernés étaient du code de delivery-service rangé chez le voisin, et
 # ils sont revenus dans `HBA.Delivery.Core.Domain`. Ces deux lignes n'ont donc
 # plus rien à copier.

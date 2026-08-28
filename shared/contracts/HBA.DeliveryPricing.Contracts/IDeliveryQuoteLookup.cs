@@ -56,7 +56,15 @@ public sealed record DeliveryQuoteDetails(
     string QuoteId,
     decimal Total,
     string Currency,
+
+    // UNE ESTIMATION BASSE QUAND `EstimationSource` VAUT « FALLBACK_HAVERSINE ».
+    //
+    // La durée vient alors d'une ligne droite divisée par une vitesse constante.
+    // Le trajet réel est TOUJOURS plus long : aucune rue n'est plus courte que la
+    // corde entre deux points. Ce nombre est un PLANCHER, pas une prévision, et
+    // s'affiche « à partir de N min » — jamais « N min ».
     int EstimatedMinutes,
+
     double DistanceKm,
     DateTime ExpiresAtUtc,
 
@@ -73,7 +81,24 @@ public sealed record DeliveryQuoteDetails(
     // énumération : les contrats ne connaissent pas les énumérations du domaine.
     string DeliveryType,
 
-    Guid? PartnerId);
+    Guid? PartnerId,
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // D'OÙ VIENNENT `EstimatedMinutes` ET `DistanceKm`.
+    //
+    // « CLIENT_PROVIDED » : l'appelant avait fourni la distance.
+    // « FALLBACK_HAVERSINE » : ligne droite corrigée par un facteur urbain, puis
+    // divisée par une vitesse moyenne constante. Ni rue, ni sens unique, ni
+    // trafic.
+    // Chaîne VIDE : devis antérieur à la migration qui a créé la colonne — se lit
+    // « on ne sait pas », et surtout pas « ligne droite ».
+    //
+    // PARAMÈTRE OPTIONNEL EN FIN D'ENREGISTREMENT, pour que les appelants et les
+    // fabriques de test existants continuent de compiler. La valeur par défaut
+    // est la chaîne vide, qui est exactement ce qu'un appelant non mis à jour
+    // sait de la provenance : rien.
+    // ═══════════════════════════════════════════════════════════════════════
+    string EstimationSource = "");
 
 /// <summary>
 /// Relire un devis de course, pour opposer son montant à l'acheteur.

@@ -603,7 +603,12 @@ public static class MerchantEndpoints
         Guid sellerId, AddKybDocumentRequest request,
         ClaimsPrincipal user, MemberAccessResolver acces, ISender sender, CancellationToken ct)
         => await DenyUnlessOwnSellerAsync(user, sellerId, acces, MerchantPermission.KybManage, ct)
-            ?? (await sender.Send(new AddKybDocumentCommand(sellerId, request.Type, request.MediaId), ct))
+            ?? (await sender.Send(new AddKybDocumentCommand(
+                sellerId, request.Type, request.MediaId,
+                // Le déposant de la pièce doit appartenir à CE dossier vendeur —
+                // voir le gestionnaire. Sans ce paramètre, le rattachement est
+                // REFUSÉ, pas autorisé.
+                RequestedByUserId: CurrentUserId(user) ?? Guid.Empty), ct))
                 .Match(id => ApiResults.Created(new { id }, $"/api/v1/merchants/{sellerId}/kyb/documents/{id}"));
 
     /// <remarks>

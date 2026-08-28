@@ -5,14 +5,69 @@ parce qu'un audit périmé lu comme s'il était courant est plus dangereux qu'un
 
 ```
 docs/audit/
-├── 2026-08-21-complet/     l'audit courant — 15 rapports, 12 000+ lignes
-├── anterieurs/             les audits précédents, partiels ou dépassés
-└── IMPLEMENTATION_STATUS.md   (état d'avancement, ce n'est pas un audit)
+├── 2026-08-27-defauts-et-deploiement/  le plus récent — défauts ouverts et
+│                                       couche de déploiement
+├── 2026-08-21-complet/          l'audit de référence — 15 rapports, 12 000+ lignes
+├── 2026-08-22-console-admin/    l'ordre des pages de la console — encore le seul
+│                                document qui explique les 8 sections sans amont
+├── 2026-08-23-pages-restantes/  les six lots d'écrans, tous faits — la section
+│                                « hors périmètre » reste, elle, d'actualité
+├── anterieurs/                  trois audits précédents, gardés parce que d'autres
+│                                documents s'appuient dessus
+└── IMPLEMENTATION_STATUS.md     (état d'avancement, ce n'est pas un audit)
 ```
+
+## Ce qui a été retiré le 27 août, et selon quel test
+
+Sept documents sont partis vers `_to_delete/2026-08-27-audits-remplaces/`. Le test
+appliqué n'était pas « est-ce ancien » mais **« un autre document s'appuie-t-il
+dessus, et son sujet existe-t-il encore »** :
+
+| Retiré | Pourquoi |
+|---|---|
+| `anterieurs/AUDIT-SAGAS.md`, `AUDIT-SAGAS-3.md` | remplacés par les cinq `SAGA_*.md` ; cités par personne |
+| `anterieurs/AUDIT-SELLER.md`, `AUDIT-CATALOG.md` | remplacés par `SERVICES_AUDIT.md` ; cités par personne |
+| `anterieurs/AUDIT-VENDEUR-100.md` | remplacé par `SAGA_SELLER.md` ; cité par personne |
+| `anterieurs/AUDIT_COMPLET_REEXECUTION_2026_08_20.md` | remplacé par l'audit du 21 ; cité par personne |
+| `2026-08-22-bff/AUDIT_BFF.md` | **le BFF n'existe plus dans le dépôt** — l'audit décrivait un composant retiré depuis |
+
+**CE QUI N'A PAS ÉTÉ RETIRÉ, ET C'EST LE POINT IMPORTANT.**
+
+`2026-08-21-complet/` reste **entier**. Ses 162 anomalies ne sont pas résolues : sa
+propre conclusion — 20 événements sur 136 raccordés, 31 RPC sur 116 — tient toujours.
+C'est le document de travail, pas un souvenir.
+
+`IMPLEMENTATION_STATUS.md` reste aussi, bien qu'il soit périmé — « Last verified :
+2026-08-20 », et il parle encore du Client BFF qui n'existe plus. Mais P0.3 à P0.6 y
+sont à `TODO` : ce sont des travaux ouverts, et aucun autre document ne les porte.
+**À rafraîchir, pas à retirer.**
 
 ---
 
-## `2026-08-21-complet/` — audit courant
+## `2026-08-27-defauts-et-deploiement/` — le plus récent
+
+Un fichier, `AUDIT.md`. **Il ne remplace pas l'audit du 21** : il couvre ce que
+celui-ci ne pouvait pas voir.
+
+- **Ce qui reste non implémenté**, revérifié fichier par fichier le 27 — quatre
+  services de livraison sans base, aucun moteur de routage, une affectation qui
+  propose deux comptes fictifs, trois adaptateurs gRPC simulés.
+- **Six bugs**, dont trois touchent de l'argent ou des secrets : la clé de
+  chiffrement de développement utilisable en production si une variable manque, un
+  téléversement média sans contrôle d'administrateur alors que son commentaire
+  l'annonce, un gain vendeur payé deux fois à l'annulation.
+- **La couche de déploiement**, qui n'existait pas le 21 août : huit défauts en une
+  journée, six corrigés, deux ouverts.
+
+Il contient aussi une section **« ce que cet audit a infirmé »** — un constat porté
+plusieurs jours qui ne résiste pas à la vérification.
+
+1 853 fichiers `.cs` lus par quatre analyses parallèles, plus les manifestes rendus
+par `kustomize build` pour les trois environnements.
+
+---
+
+## `2026-08-21-complet/` — l'audit de référence
 
 Audit statique complet du 21 août 2026 : architecture, services, communications, sécurité,
 base de données, parcours métier des cinq acteurs, machines d'état.
@@ -64,20 +119,21 @@ les citent encore par leur nom seul (`DECISIONS.md`, `ETAT-ET-PLAN.md`,
 `SOCLE-TRANSVERSE.md`, `PHASE3-OFFRES.md`) : les références restent lisibles, seuls
 les chemins ont changé.
 
-| Fichier | Date | Portée | Encore valable ? |
+| Fichier | Date | Portée | Pourquoi il reste |
 |---|---|---|---|
-| `AUDIT_COMPLET_REEXECUTION_2026_08_20.md` | 20 août | réexécution des contrôles automatiques | **largement remplacé** par l'audit du 21 |
-| `AUDIT-SELLER-RESTE.md` | 19 août | ce qu'il restait à faire côté vendeur | partiellement traité — voir `DECISIONS.md`, sept décisions le corrigent |
-| `AUDIT-SELLER.md` | 18 août | service vendeur | remplacé par `SERVICES_AUDIT.md` |
-| `AUDIT-CATALOG.md` | 18 août | service catalogue | remplacé par `SERVICES_AUDIT.md` |
-| `AUDIT-CONFORMITE.md` | 17 août | conformité des 16 services d'alors | dépassé — le dépôt en compte 31 |
-| `AUDIT-VENDEUR-100.md` | 17 août | complétude du parcours vendeur | remplacé par `SAGA_SELLER.md` |
-| `AUDIT-APP-VENDEUR.md` | 16 août | application vendeur | périmètre corrigé depuis par `PHASE3-OFFRES.md` |
-| `AUDIT-SAGAS-3.md` | 16 août | sagas, troisième passe | remplacé par les cinq `SAGA_*.md` |
-| `AUDIT-SAGAS.md` | 15 août | sagas, première passe | remplacé |
+| `AUDIT-SELLER-RESTE.md` | 19 août | ce qu'il restait à faire côté vendeur | **six entrées de `DECISIONS.md` s'y réfèrent** par numéro de section : « Corrige `AUDIT-SELLER-RESTE.md` §1 », §2, §3, §4, §5. Sans lui, ces décisions ne se lisent plus |
+| `AUDIT-CONFORMITE.md` | 17 août | conformité des 16 services d'alors | `SOCLE-TRANSVERSE.md` s'annonce en première ligne comme sa suite |
+| `AUDIT-APP-VENDEUR.md` | 16 août | application vendeur | `PHASE3-OFFRES.md` s'ouvre en corrigeant le périmètre qu'il annonçait |
 
-Ils sont conservés parce qu'ils portent l'historique du raisonnement — plusieurs décisions
-de `DECISIONS.md` ne se comprennent qu'en les lisant. **Ils ne décrivent plus l'état du code.**
+**CETTE JUSTIFICATION ÉTAIT TROP LARGE, ET C'EST CE QUI A PERMIS LE MÉNAGE.**
+
+Ce paragraphe disait que les neuf documents étaient gardés « parce que plusieurs
+décisions ne se comprennent qu'en les lisant ». Vérification faite, six d'entre eux
+n'étaient cités par aucun autre fichier du dépôt : la raison valait pour trois, elle
+protégeait les neuf.
+
+**Ces trois-là ne décrivent plus l'état du code.** Ils expliquent pourquoi d'autres
+documents disent ce qu'ils disent.
 
 ---
 

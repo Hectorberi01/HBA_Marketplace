@@ -208,7 +208,15 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         // contre le rejeu. C'est le pire des cas — la route a l'air protégée.
         // ═════════════════════════════════════════════════════════════════════
         services.AddScoped<IConsumerInbox, EfConsumerInbox<SellersDbContext>>();
-        services.AddScoped<IIdempotencyStore, EfIdempotencyStore<SellersDbContext>>();
+        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
+        //
+        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
+        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
+        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
+        // désormais indissociables — voir `IdempotencyRegistration` pour la
+        // raison, qui tient en une phrase : un huitième service qui ne copierait
+        // que la première ligne n'aurait jamais de purge, sans rien signaler.
+        services.AddIdempotence<SellersDbContext>();
 
         // ═════════════════════════════════════════════════════════════════════
         // LE DROIT À L'EFFACEMENT S'ARRÊTAIT À IDENTITY.

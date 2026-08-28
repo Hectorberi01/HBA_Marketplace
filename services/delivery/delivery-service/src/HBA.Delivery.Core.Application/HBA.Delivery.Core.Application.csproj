@@ -19,9 +19,25 @@
 
     CE QUE CELA NE COUVRE PAS : delivery-service pilote toujours lui-même
     le dispatch et le cycle de vie du livreur. Ce lot démêle le graphe de
-    compilation, il ne déplace pas la responsabilité. Le jour où driver-service
-    et dispatch-service seront réels (lots 5.2 et 5.3), le dialogue passera par
-    `shared/contracts/` — jamais par une `ProjectReference` de domaine.
+    compilation, il ne déplace pas la responsabilité.
+
+    MISE À JOUR DU 27 AOÛT — dispatch-service n'existe plus.
+
+    Ce commentaire annonçait « le jour où driver-service et dispatch-service
+    seront réels ». dispatch-service a été retiré du dépôt : il dupliquait
+    l'affectation de livreur que ce projet-ci fait déjà — `DispatchDeliveryCommand`
+    adossé à `IDriverLocationCache.FindNearbyAsync` — avec deux identifiants
+    codés en dur et sans base de données.
+
+    Le pilotage du dispatch par delivery-service n'est donc plus un état
+    transitoire à corriger : c'est la conception retenue. Reste à écrire ici
+    l'affectation manuelle, la relance, et la consultation d'affectation, que
+    dispatch-service exposait sans les faire fonctionner.
+
+    driver-service, lui, reste réel et distinct — il porte le compte et les
+    documents du livreur, pas sa position ni sa disponibilité. Le dialogue avec
+    lui passera par `shared/contracts/`, jamais par une `ProjectReference` de
+    domaine.
     ══════════════════════════════════════════════════════════════════════════
   -->
   <ItemGroup>

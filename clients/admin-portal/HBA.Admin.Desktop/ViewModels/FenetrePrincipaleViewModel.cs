@@ -433,8 +433,12 @@ public sealed class FenetrePrincipaleViewModel : ViewModelBase
                 + "vendeur."),
 
             SansAmont("monitoring", "Monitoring", Icones.Pouls,
-                "Prometheus et Grafana tournent déjà —\n"
-                + "voir infra/docker/compose.monitoring.yml.\n\n"
+                "Les tableaux de bord Prometheus et Grafana vivent dans\n"
+                + "infra/observability/ — grafana/, prometheus/, otel/.\n\n"
+                + "ATTENTION : ce dossier n'a plus aucun lecteur depuis le\n"
+                + "27 août. Son seul consommateur était compose.monitoring.yml,\n"
+                + "retiré avec infra/docker/ ; rien ne monte plus ces fichiers.\n"
+                + "Les tableaux existent, la pile qui les servait, non.\n\n"
                 + "Les recopier dans cette application n'apporterait rien :\n"
                 + "un lien vers Grafana est la bonne réponse, pas un écran."),
         ]),

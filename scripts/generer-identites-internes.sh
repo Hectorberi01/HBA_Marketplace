@@ -68,12 +68,9 @@ HOTES=(
   HBA.Commerce.Api
   HBA.Communication.Api
   HBA.Delivery.Core.Api
-  HBA.Delivery.Dispatch.Api
   HBA.Delivery.Driver.Api
   HBA.Delivery.Pricing.Api
-  HBA.Delivery.Proof.Api
   HBA.Delivery.Route.Api
-  HBA.Delivery.Tracking.Api
   HBA.Engagement.Api
   HBA.Financial.Api
   HBA.Food.Cart.Api

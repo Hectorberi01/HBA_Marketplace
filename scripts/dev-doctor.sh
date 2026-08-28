@@ -49,12 +49,13 @@ APPS=(
   payment-service promotion-service review-service seller-service catalog-service
   inventory-service cart-service order-service restaurant-service
   food-cart-service food-order-service
-  delivery-pricing-service delivery-service dispatch-service
-  driver-service tracking-service route-service proof-of-delivery-service
+  delivery-pricing-service delivery-service
+  driver-service route-service
   gateway
 )
 # Retirés : les quatre squelettes food (menu, availability, kitchen-prep,
-# food-review) au lot 6.4, les trois BFF (client, seller, driver) en D38. Ils
+# food-review) au lot 6.4, les trois BFF (client, seller, driver) en D38,
+# dispatch en D42, tracking et proof-of-delivery en D43. Ils
 # n'existent plus sur le disque — les laisser ici faisait échouer le diagnostic
 # sur des services absents, ce qui masque les vraies pannes.
 

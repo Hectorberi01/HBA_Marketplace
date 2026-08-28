@@ -12,6 +12,27 @@
 # Le §7 dit « CPU/mémoire puis métriques applicatives » : les secondes viendront
 # quand Prometheus Adapter exposera le RPS et la latence, qui sont les vrais
 # signaux pour un service web.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+# `minReplicas` EST LE VRAI NOMBRE DE PODS AU REPOS — PAS `spec.replicas`.
+#
+# Dès qu'un HPA cible un Deployment, c'est LUI qui écrit `spec.replicas` à chaque
+# réconciliation. La valeur posée sur le Deployment n'est plus que le point de
+# départ du premier lancement.
+#
+# C'est ce qui a produit le défaut relevé par l'audit : l'overlay prod passait dix
+# services critiques à `replicas: 2` et ne touchait pas aux HPA, restés à
+# `minReplicas: 1`. Quelques minutes après le déploiement, sous faible charge, les
+# dix retombaient à UN pod. La redondance était écrite dans le dépôt, relue en
+# revue, et jamais obtenue en production — sans qu'aucun signal ne la démente.
+#
+# Le gabarit garde `1` : c'est le bon défaut pour un service non critique, en dev
+# comme en staging. La prod patche désormais les DEUX valeurs, côte à côte dans
+# `overlays/prod/kustomization.yaml`, pour qu'elles ne puissent plus diverger.
+#
+# À VÉRIFIER APRÈS TOUT DÉPLOIEMENT : `kubectl get hpa` rend `MINPODS` et
+# `REPLICAS`. C'est la seule lecture qui dise ce qui tourne vraiment ;
+# `kubectl get deploy` montre ce que le HPA vient d'y écrire, pas une intention.
 # ═══════════════════════════════════════════════════════════════════════════════
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

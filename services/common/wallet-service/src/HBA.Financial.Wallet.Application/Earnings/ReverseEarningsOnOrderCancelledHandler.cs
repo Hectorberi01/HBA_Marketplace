@@ -112,16 +112,79 @@ public sealed class ReverseEarningsOnOrderCancelledHandler
         // donc au restaurateur un net calculé au taux marchandise alors qu'on lui
         // avait prélevé le taux restauration. Il relit désormais, et n'applique plus
         // qu'un prorata lorsque le remboursement est partiel.
+        // ═════════════════════════════════════════════════════════════════════
+        // LE GAIN TRANCHE, LES SOLDES SUIVENT — CE QUI MANQUAIT ICI (audit 2.6bis,
+        // constat 2.3).
+        //
+        // CE QUI ÉTAIT CASSÉ. Cette boucle débitait les trois soldes et ne touchait
+        // JAMAIS au gain. Le `SellerEarning` restait au statut `Released` avec son
+        // `NetAmount` intact, donc `ListReleasedInPeriodAsync` le ramassait, et le
+        // lot de reversement suivant le PAYAIT au vendeur — pour une commande
+        // annulée dont le solde avait déjà été repris.
+        //
+        // De l'argent versé deux fois, découvert au rapprochement bancaire, sur des
+        // fonds déjà partis. Et le journal de fin de méthode annonçait
+        // « N gain(s) contre-passé(s) » : la ligne qui aurait pu alerter affirmait
+        // le contraire de ce qui se passait.
+        //
+        // C'EST EXACTEMENT LE DÉFAUT DÉJÀ CORRIGÉ SUR LES RETOURS. L'encadré de
+        // `SellerEarning.ReversedGrossAmount` le disait mot pour mot :
+        // « L'annulation de commande ne les alimente PAS non plus : elle débite le
+        // portefeuille sans toucher au gain, exactement comme le faisait le retour
+        // avant ce travail. C'est le même défaut, sur un autre chemin, et il reste
+        // ouvert. » Il ne l'est plus.
+        //
+        // L'ORDRE EST CELUI DU HANDLER DE RETOUR, ET IL N'EST PAS ARBITRAIRE.
+        // `Reverse` BORNE la reprise à ce qui reste du gain et rend ce qu'elle a
+        // réellement pu inscrire. Débiter d'abord puis inscrire le raboté ferait
+        // diverger le grand livre du gain. Les trois débits portent donc les
+        // montants RENDUS par le domaine, pas ceux qu'on venait de lire.
+        //
+        // POURQUOI UNE REPRISE TOTALE ICI, ET PARTIELLE LÀ-BAS. Une annulation
+        // porte sur la commande entière : on rend les quatre montants inscrits.
+        // Un retour peut ne porter que sur un article, d'où le prorata côté retour.
+        // ═════════════════════════════════════════════════════════════════════
+        var refuses = 0;
+
         foreach (var gain in gains)
         {
+            var reprise = gain.Reverse(
+                gain.RemainingGrossAmount,
+                gain.RemainingCommissionAmount,
+                gain.RemainingProviderFeeAmount,
+                gain.RemainingNetAmount);
+
+            if (reprise.IsFailure)
+            {
+                // ON SAUTE LE GAIN, ON N'ÉCRIT RIEN, ET ON NE FAIT PAS ÉCHOUER LE
+                // MESSAGE — même raisonnement que sur les retours.
+                //
+                // Le seul refus possible est « déjà entièrement repris » : un retour
+                // antérieur avait déjà rendu la totalité de cette vente. Débiter
+                // malgré tout reprendrait au vendeur de l'argent qu'il n'a pas
+                // touché. Relancer ne changerait rien : le gain ne redeviendra
+                // jamais reprenable.
+                refuses++;
+
+                _logger.LogWarning(
+                    "Commande {OrderId} annulée : le gain {EarningId} refuse la reprise ({Code}) — "
+                    + "{Net} {Currency} NE sont pas repris au vendeur {SellerId}.",
+                    integrationEvent.OrderId, gain.Id.Value, reprise.Error.Code,
+                    gain.RemainingNetAmount, gain.Currency, gain.SellerId);
+
+                continue;
+            }
+
+            var applique = reprise.Value;
+
             await _wallets.DebitSellerForRefundAsync(
-                gain.SellerId, gain.NetAmount, gain.Currency, integrationEvent.OrderId, cancellationToken);
+                gain.SellerId, applique.NetAmount, gain.Currency, integrationEvent.OrderId, cancellationToken);
 
             await _wallets.DebitPlatformCommissionAsync(
-                gain.CommissionAmount, gain.Currency, integrationEvent.OrderId, cancellationToken);
+                applique.CommissionAmount, gain.Currency, integrationEvent.OrderId, cancellationToken);
 
             await _wallets.DebitPlatformProviderFeeAsync(
-                gain.ProviderFeeAmount, gain.Currency, integrationEvent.OrderId, cancellationToken);
+                applique.ProviderFeeAmount, gain.Currency, integrationEvent.OrderId, cancellationToken);
         }
 
         // ═════════════════════════════════════════════════════════════════════
@@ -149,8 +212,15 @@ public sealed class ReverseEarningsOnOrderCancelledHandler
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // LE COMPTE EST CELUI DES GAINS RÉELLEMENT REPRIS, PAS CELUI DES GAINS LUS.
+        //
+        // Cette ligne annonçait `gains.Count` « contre-passé(s) » alors qu'aucun ne
+        // l'était. Une ligne de journal qui affirme un effet qui n'a pas eu lieu est
+        // pire que pas de ligne du tout : elle ferme la question.
         _logger.LogInformation(
-            "Commande {OrderId} annulée ({Reason}) : {Count} gain(s) contre-passé(s).",
-            integrationEvent.OrderId, integrationEvent.Reason, gains.Count);
+            "Commande {OrderId} annulée ({Reason}) : {Repris} gain(s) contre-passé(s) sur {Total} "
+            + "({Refuses} déjà repris antérieurement).",
+            integrationEvent.OrderId, integrationEvent.Reason,
+            gains.Count - refuses, gains.Count, refuses);
     }
 }

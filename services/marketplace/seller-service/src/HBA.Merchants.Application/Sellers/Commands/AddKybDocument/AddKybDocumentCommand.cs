@@ -16,4 +16,12 @@ namespace HBA.Merchants.Application.Sellers.Commands.AddKybDocument;
 /// vérifier que le média est de nature `SellerDocument` et appartient à ce
 /// vendeur. Sellers ne connaît pas le service média.
 /// </summary>
-public sealed record AddKybDocumentCommand(Guid SellerId, string Type, Guid MediaId) : ICommand<Guid>;
+/// <param name="RequestedByUserId">
+/// Le compte qui rattache. Comparé au DÉPOSANT du média — voir le gestionnaire.
+///
+/// Optionnel en fin d'enregistrement pour ne pas casser les appelants existants à
+/// la compilation, mais le défaut est le cas FERMÉ : `Guid.Empty` est REFUSÉ. Un
+/// appelant qui oublie de le passer n'obtient pas un contrôle désactivé.
+/// </param>
+public sealed record AddKybDocumentCommand(
+    Guid SellerId, string Type, Guid MediaId, Guid RequestedByUserId = default) : ICommand<Guid>;

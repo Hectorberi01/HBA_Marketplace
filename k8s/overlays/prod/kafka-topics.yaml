@@ -152,24 +152,6 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: service.dispatch.v1
-  labels:
-    strimzi.io/cluster: kafka
-spec:
-  topicName: service.dispatch.v1
-  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
-  # à une partition, un second pod du service resterait inactif. On peut en
-  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
-  partitions: 3
-  replicas: 3
-  config:
-    retention.ms: "604800000"
-    compression.type: lz4
-    min.insync.replicas: "2"
----
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
   name: service.driver.v1
   labels:
     strimzi.io/cluster: kafka
@@ -386,24 +368,6 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: service.proof-of-delivery.v1
-  labels:
-    strimzi.io/cluster: kafka
-spec:
-  topicName: service.proof-of-delivery.v1
-  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
-  # à une partition, un second pod du service resterait inactif. On peut en
-  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
-  partitions: 3
-  replicas: 3
-  config:
-    retention.ms: "604800000"
-    compression.type: lz4
-    min.insync.replicas: "2"
----
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
   name: service.return-refund.v1
   labels:
     strimzi.io/cluster: kafka
@@ -427,24 +391,6 @@ metadata:
     strimzi.io/cluster: kafka
 spec:
   topicName: service.route.v1
-  # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
-  # à une partition, un second pod du service resterait inactif. On peut en
-  # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
-  partitions: 3
-  replicas: 3
-  config:
-    retention.ms: "604800000"
-    compression.type: lz4
-    min.insync.replicas: "2"
----
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
-  name: service.tracking.v1
-  labels:
-    strimzi.io/cluster: kafka
-spec:
-  topicName: service.tracking.v1
   # Le nombre de partitions borne le parallélisme d'un groupe de consommateurs :
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.

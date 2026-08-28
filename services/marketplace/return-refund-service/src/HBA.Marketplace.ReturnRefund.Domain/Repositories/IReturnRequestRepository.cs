@@ -131,4 +131,55 @@ public interface IReturnRequestRepository
     /// </param>
     Task<IReadOnlyDictionary<Guid, int>> ListOpenQuantitiesByOrderAsync(
         Guid orderId, Guid? exceptReturnId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Le résumé des retours d'une commande : ce qui a été REMBOURSÉ, et combien
+    /// de dossiers sont ENCORE OUVERTS.
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// CE QUI ÉTAIT CASSÉ (audit du 27 août, constat 1.5).
+    ///
+    /// `GetOrderReturnSummaryQueryHandler` ne lisait RIEN. Il injectait ce dépôt,
+    /// ne l'appelait jamais, et rendait une constante :
+    ///
+    ///     return new OrderReturnSummaryDto(query.OrderId, 0m, "XOF", 0);
+    ///
+    /// L'écran affichait donc « 0 remboursé, 0 retour actif » sur toutes les
+    /// commandes de la plateforme, y compris celles remboursées la veille. Le pire
+    /// n'est pas l'absence d'information : c'est qu'un zéro se lit comme une
+    /// réponse. Un conseiller qui voit « 0 remboursé » conclut qu'il n'y a rien eu.
+    ///
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// DEUX DÉCISIONS DE COMPTAGE, ET IL FAUT LES CONNAÎTRE.
+    ///
+    /// 1. LE MONTANT COMPTE L'ARGENT PARTI, PAS L'ARGENT PROMIS. On additionne les
+    ///    `Refund` en `Succeeded`, et non les `ApprovedRefundAmount` des dossiers.
+    ///    Un remboursement approuvé dont l'exécution échoue chez le fournisseur
+    ///    doit compter pour ZÉRO : le client n'a rien reçu. Compter l'approuvé
+    ///    afficherait un remboursement que la banque n'a jamais vu, et c'est
+    ///    exactement le genre de chiffre qu'on oppose à un client mécontent.
+    ///
+    /// 2. « ACTIF » REPREND LA MÊME DÉFINITION QUE `ListOpenQuantitiesByOrderAsync`.
+    ///    Six statuts terminaux — Refunded, Closed, Rejected, RejectedAfterInspection,
+    ///    Cancelled, Expired — tout le reste est ouvert. Deux définitions du mot
+    ///    « ouvert » dans le même dépôt divergeraient au premier statut ajouté.
+    ///
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// CE QUE CETTE LECTURE NE COUVRE PAS.
+    ///
+    ///   • LA DEVISE EST CELLE DU PREMIER REMBOURSEMENT TROUVÉ, et « XOF » quand
+    ///     il n'y en a aucun. La plateforme n'opère qu'au Bénin ; le jour où une
+    ///     commande mêle deux devises, cette somme sera FAUSSE SANS RIEN DIRE.
+    ///     C'est le défaut le plus probable de cette méthode, écrit ici pour qu'on
+    ///     le trouve. Le remède serait un montant par devise, donc un changement
+    ///     de forme du DTO — il n'est pas fait.
+    ///
+    ///   • ELLE NE DIT PAS CE QUI EST EN COURS D'EXÉCUTION. Un remboursement en
+    ///     `Processing` ne compte ni dans le montant, ni nulle part ailleurs dans
+    ///     ce résumé. Il n'est donc pas visible qu'un versement est en vol.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    Task<(decimal MontantRembourse, string Devise, int DossiersActifs)> GetOrderSummaryAsync(
+        Guid orderId, CancellationToken cancellationToken);
 }

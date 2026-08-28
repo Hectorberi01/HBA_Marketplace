@@ -6,16 +6,21 @@ using HBA.Delivery.Pricing.Domain.Policies;
 using HBA.DeliveryPricing.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace HBA.Delivery.Pricing.Infrastructure.Persistence;
 
 public sealed class EfDeliveryPricingStore : IPricingStore
 {
     private readonly DeliveryPricingDbContext _db;
+    private readonly EstimationItineraireOptions _estimation;
 
-    public EfDeliveryPricingStore(DeliveryPricingDbContext db)
+    public EfDeliveryPricingStore(
+        DeliveryPricingDbContext db,
+        IOptions<EstimationItineraireOptions> estimation)
     {
         _db = db;
+        _estimation = estimation.Value;
     }
 
     public async Task<DeliveryQuote> CreateQuoteAsync(
@@ -25,13 +30,105 @@ public sealed class EfDeliveryPricingStore : IPricingStore
     {
         await EnsureSeedAsync(cancellationToken);
 
-        var rule = await _db.PricingRules
-            .Where(r => r.Status == "ACTIVE" && r.ActiveFrom <= DateTimeOffset.UtcNow && (r.ActiveTo == null || r.ActiveTo > DateTimeOffset.UtcNow))
-            .OrderByDescending(r => r.Priority)
-            .FirstAsync(cancellationToken);
+        // ═════════════════════════════════════════════════════════════════════
+        // LA GRILLE EST CHOISIE SUR CE QU'ON DEMANDE (audit 2.5).
+        //
+        // CE QUI ÉTAIT CASSÉ. Cette requête ne filtrait QUE sur le statut et les
+        // dates, puis prenait la priorité la plus haute. `ServiceLevel` et
+        // `VehicleType` sont portés par `PricingRule`, remplis par la console
+        // d'administration, transmis par `CreateQuoteRequest` — et n'entraient
+        // dans AUCUNE sélection. Une course EXPRESS en voiture et une course
+        // STANDARD en moto recevaient le même prix.
+        //
+        // Aucun commentaire ne présentait ce comportement comme voulu,
+        // contrairement aux autres compromis de ce dépôt. C'est ce qui le
+        // distingue d'une simplification assumée : personne ne l'avait décidé.
+        //
+        // LA CORRESPONDANCE, ET SA PRÉCÉDENCE.
+        //
+        //   • `ServiceLevel` doit correspondre EXACTEMENT. Il n'y a pas de
+        //     joker : une grille est écrite pour un niveau de service, et en
+        //     inventer un ici — « ANY », « * » — poserait une convention que la
+        //     console d'administration ne connaît pas et ne sait pas produire.
+        //
+        //   • `VehicleType` est NULLABLE, et le nul EST le joker. C'est déjà le
+        //     sens de la colonne : une grille sans véhicule vaut pour tous. On
+        //     préfère donc la grille spécifique au véhicule quand elle existe,
+        //     et on retombe sur la générique sinon.
+        //
+        //   • `Priority` départage ce qui reste, comme avant.
+        //
+        // `Scope` N'ENTRE PAS DANS LA SÉLECTION, et l'audit se trompait sur ce
+        // point : il affirmait que `CreateQuoteRequest` le transmet. Ce n'est pas
+        // le cas — l'enregistrement ne porte aucun champ de portée. Filtrer
+        // dessus supposerait d'abord de décider ce qu'une portée désigne (une
+        // zone ? un vendeur ?) et de la faire remonter jusqu'ici. Non fait, et
+        // écrit pour qu'on ne le croie pas fait.
+        //
+        // CE QUE ÇA CHANGE POUR L'EXPLOITATION, ET IL FAUT LE SAVOIR. Demander un
+        // niveau de service pour lequel AUCUNE grille active n'existe ne rend plus
+        // le prix d'un autre niveau : la création du devis ÉCHOUE, avec un message
+        // qui nomme le niveau manquant. C'est voulu — un prix emprunté à une autre
+        // grille est facturé au client et ne se voit nulle part, tandis qu'un
+        // devis refusé se voit tout de suite. Le seul jeu de données semé ne
+        // contient qu'une grille STANDARD / MOTORBIKE.
+        // ═════════════════════════════════════════════════════════════════════
+        var niveau = request.ServiceLevel ?? "STANDARD";
+        var vehicule = request.VehicleType;
+        var maintenant = DateTimeOffset.UtcNow;
 
-        var distance = request.DistanceMeters ?? ServiceabilityPolicy.HaversineMeters(request.Pickup, request.Dropoff);
-        var duration = request.DurationSeconds ?? Math.Max(60, (int)(distance / 5.8));
+        var rule = await _db.PricingRules
+            .Where(r => r.Status == "ACTIVE"
+                        && r.ActiveFrom <= maintenant
+                        && (r.ActiveTo == null || r.ActiveTo > maintenant)
+                        && r.ServiceLevel == niveau
+                        && (r.VehicleType == null || r.VehicleType == vehicule))
+            // La grille qui NOMME le véhicule passe devant celle qui vaut pour
+            // tous : `false` trie avant `true`, donc `VehicleType == null` en
+            // dernier.
+            .OrderBy(r => r.VehicleType == null)
+            .ThenByDescending(r => r.Priority)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (rule is null)
+        {
+            throw new InvalidOperationException(
+                $"Aucune grille tarifaire active pour le niveau de service « {niveau} »"
+                + (vehicule is null ? string.Empty : $" et le véhicule « {vehicule} »")
+                + ". Créer la grille correspondante dans la console d'administration, ou "
+                + "publier une grille sans véhicule qui vaudra pour tous. Le devis est REFUSÉ "
+                + "plutôt que chiffré avec la grille d'un autre niveau — voir l'encadré ci-dessus.");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // D'OÙ VIENNENT LES DEUX CHIFFRES QUI FONT LE PRIX — ET ON LE DIT.
+        //
+        // Ces deux lignes valaient auparavant :
+        //     distance = request.DistanceMeters ?? HaversineMeters(...)
+        //     duration = request.DurationSeconds ?? Math.Max(60, (int)(distance / 5.8))
+        //
+        // Le devis produit était identique dans les deux cas — mesure de
+        // l'appelant, ou ligne droite calculée ici — et rien, ni dans la réponse
+        // ni en base, ne permettait de savoir lequel avait chiffré la course.
+        // Sur un litige de facturation, la question ne pouvait plus être posée.
+        //
+        // La constante 5,8 est devenue `VitesseMoyenneMetresParSeconde`, et un
+        // facteur de correction urbaine s'applique à la ligne droite. CE FACTEUR
+        // VAUT 1,0 PAR DÉFAUT : le prix calculé ici est aujourd'hui EXACTEMENT
+        // celui d'avant. Voir `EstimationItineraireOptions` pour ce que ça laisse
+        // ouvert — notamment que la plateforme sous-facture tant qu'il vaut 1,0.
+        // ─────────────────────────────────────────────────────────────────────
+        var distanceFournie = request.DistanceMeters is not null;
+
+        var distance = request.DistanceMeters
+            ?? ServiceabilityPolicy.DistanceRoutiereEstimeeMetres(
+                   request.Pickup, request.Dropoff, _estimation.FacteurCorrectionUrbaine);
+
+        var duration = request.DurationSeconds
+            ?? Math.Max(
+                   _estimation.DureeMinimaleSecondes,
+                   (int)(distance / _estimation.VitesseMoyenneMetresParSeconde));
+
         var breakdown = PricingPolicy.BuildBreakdown(rule, distance, duration, request.Discount);
         var subtotal = PricingPolicy.CalculateSubtotal(rule, breakdown);
         var total = PricingPolicy.CalculateTotal(subtotal, request.Discount);
@@ -53,7 +150,16 @@ public sealed class EfDeliveryPricingStore : IPricingStore
             request.Currency ?? "XOF",
             DateTimeOffset.UtcNow.AddMinutes(10),
             "2026.08.1",
-            "ACTIVE");
+            "ACTIVE")
+        {
+            SourceEstimation = distanceFournie
+                ? SourcesEstimation.FournieParAppelant
+                : SourcesEstimation.LigneDroiteCorrigee,
+
+            // Aucun facteur n'est appliqué à une distance fournie : la corriger
+            // reviendrait à majorer une mesure déjà routière.
+            FacteurCorrectionApplique = distanceFournie ? 0m : _estimation.FacteurCorrectionUrbaine
+        };
 
         _db.DeliveryQuotes.Add(quote);
 
@@ -284,7 +390,15 @@ public sealed class EfDeliveryPricingStore : IPricingStore
 
     public Task<Serviceability> GetServiceabilityAsync(ServiceabilityRequest request, CancellationToken cancellationToken = default)
     {
-        var distance = ServiceabilityPolicy.HaversineMeters(request.Pickup, request.Dropoff);
+        // LE MÊME FACTEUR QUE POUR LE PRIX, ET C'EST LE POINT.
+        //
+        // Cette méthode appelait `HaversineMeters` directement, `CreateQuoteAsync`
+        // aussi : deux chemins vers le même chiffre, que rien n'obligeait à rester
+        // d'accord. Corriger un seul des deux produirait une plateforme qui refuse
+        // une course puis la facture — ou l'inverse, ce qui est pire.
+        var distance = ServiceabilityPolicy.DistanceRoutiereEstimeeMetres(
+            request.Pickup, request.Dropoff, _estimation.FacteurCorrectionUrbaine);
+
         return Task.FromResult(new Serviceability(
             ServiceabilityPolicy.IsServiceable(distance),
             distance,

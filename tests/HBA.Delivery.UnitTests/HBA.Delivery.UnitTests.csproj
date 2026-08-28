@@ -33,10 +33,18 @@
         reprise des livreurs déjà engagés sur plusieurs courses : elle est
         écrite en SQL brut, que `check-migrations.py` ignore délibérément.
 
-      • LES TROIS MAQUETTES (dispatch, tracking, proof-of-delivery) n'ont
-        ni base ni domaine persistant. `DispatchStore` est néanmoins éprouvé
-        ici EN CONCURRENCE RÉELLE — c'est un `ConcurrentDictionary`, donc la
-        simultanéité y est testable pour de bon, contrairement à la base.
+      • LES TROIS MAQUETTES ONT ÉTÉ RETIRÉES (D42, D43), et leurs tests avec
+        elles. Ce qu'ils éprouvaient n'est PAS perdu pour autant : les règles
+        de preuve vivent maintenant dans `PreuveDeRemiseTests`, réécrit contre
+        l'agrégat `Delivery` qui les porte réellement. Le contrôle
+        d'affectation d'ISSUE-058, lui, n'a plus de test unitaire — voir plus
+        bas pourquoi il n'en a plus besoin.
+
+      • LA CONCURRENCE RÉELLE N'EST PLUS ÉPROUVÉE NULLE PART. `DispatchStore`
+        étant un `ConcurrentDictionary`, deux acceptations vraiment simultanées
+        y étaient testables ; sur l'agrégat persisté, elles ne le sont pas — il
+        faudrait une base et deux transactions. Ce qui reste éprouvé est la
+        garde applicative, séquentielle.
 
       • LES ROUTES et leurs politiques d'autorisation. Cela demande le service
         entier ; c'est le rôle des projets `*.AuthorizationTests`, qu'aucun
@@ -59,13 +67,31 @@
   </ItemGroup>
 
   <!--
-    LES MAQUETTES SONT RÉFÉRENCÉES ICI, ET CE N'EST PAS UNE ENTORSE
-    AU DÉCOUPLAGE DU LOT 5.4.
+    ═════════════════════════════════════════════════════════════════════════
+    LES TROIS MAQUETTES ONT ÉTÉ RETIRÉES DU DÉPÔT (D42, D43), ET CE FICHIER
+    LES A RÉFÉRENCÉES TROIS JOURS DE TROP.
 
-    D34 interdit une `ProjectReference` croisée entre les DOMAINES de deux
-    SERVICES : elle les fait déployer ensemble. Un projet de test n'est déployé
-    nulle part, n'entre dans aucun Dockerfile, et `check-dockerfiles.py` ne le
-    voit pas. La règle protège les images, pas les tests.
+    `dispatch`, `proof-of-delivery` et `tracking` sont partis les 27 et 28 août.
+    Leurs `ProjectReference` sont restées ici : MSBuild rend alors un
+    AVERTISSEMENT MSB9008 — « le projet référencé n'existe pas » — puis compile
+    quand même, et échoue sur les `using` en CS0234. Le message qui désigne la
+    vraie cause est un warning au milieu de cinq erreurs qui n'en sont que la
+    conséquence.
+
+    L'INVENTAIRE DE RETRAIT NE COUVRAIT PAS `tests/`. Il vérifiait la solution,
+    le compose, les autorisations gRPC, les topics, les scripts et les
+    manifestes — neuf points, tous côté production. Aucun ne regardait un projet
+    de test, précisément parce qu'un test « n'est déployé nulle part ». C'est ce
+    raisonnement qui a produit l'oubli.
+
+    `scripts/check-refs.py` refuse désormais toute `ProjectReference` dont la
+    cible n'existe pas, sur TOUT le dépôt, tests compris.
+    ═════════════════════════════════════════════════════════════════════════
+
+    CE QUI RESTE ICI RESPECTE D34, QUI INTERDIT UNE `ProjectReference` CROISÉE
+    ENTRE LES DOMAINES DE DEUX SERVICES. Un projet de test n'est déployé nulle
+    part, n'entre dans aucun Dockerfile, et `check-dockerfiles.py` ne le voit
+    pas. La règle protège les images, pas les tests.
   -->
   <ItemGroup>
     <ProjectReference Include="..\..\services\delivery\delivery-service\src\HBA.Delivery.Core.Domain\HBA.Delivery.Core.Domain.csproj" />
@@ -85,9 +111,6 @@
     -->
     <ProjectReference Include="..\..\services\delivery\delivery-service\src\HBA.Delivery.Core.Application\HBA.Delivery.Core.Application.csproj" />
     <ProjectReference Include="..\..\services\delivery\driver-service\src\HBA.Delivery.Driver.Domain\HBA.Delivery.Driver.Domain.csproj" />
-    <ProjectReference Include="..\..\services\delivery\dispatch-service\src\HBA.Delivery.Dispatch.Application\HBA.Delivery.Dispatch.Application.csproj" />
-    <ProjectReference Include="..\..\services\delivery\proof-of-delivery-service\src\HBA.Delivery.Proof.Application\HBA.Delivery.Proof.Application.csproj" />
-    <ProjectReference Include="..\..\services\delivery\tracking-service\src\HBA.Delivery.Tracking.Application\HBA.Delivery.Tracking.Application.csproj" />
   </ItemGroup>
 
 </Project>

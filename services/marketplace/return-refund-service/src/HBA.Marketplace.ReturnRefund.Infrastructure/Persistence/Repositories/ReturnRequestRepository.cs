@@ -179,6 +179,55 @@ internal sealed class ReturnRequestRepository : IReturnRequestRepository
             .ToDictionary(g => g.Key, g => g.Sum(l => l.Quantite));
     }
 
+    /// <summary>
+    /// Voir l'encadré de <c>IReturnRequestRepository.GetOrderSummaryAsync</c> pour
+    /// les deux décisions de comptage. Ici, la mécanique.
+    /// </summary>
+    /// <remarks>
+    /// DEUX REQUÊTES, PAS UNE JOINTURE. Compter les dossiers ouverts et sommer les
+    /// remboursements réussis dans une seule requête produirait un produit
+    /// cartésien : un dossier à trois remboursements serait compté trois fois
+    /// comme actif. C'est le défaut classique de ce genre d'agrégat, et il ne se
+    /// voit qu'avec des données réelles.
+    ///
+    /// `AsNoTracking` des deux côtés : rien n'est muté ici, et suivre les entités
+    /// ferait porter au contexte des dossiers entiers pour deux colonnes.
+    /// </remarks>
+    public async Task<(decimal MontantRembourse, string Devise, int DossiersActifs)> GetOrderSummaryAsync(
+        Guid orderId, CancellationToken cancellationToken)
+    {
+        // L'ARGENT PARTI, PAS L'ARGENT PROMIS : `Succeeded` uniquement.
+        var reussis = await (
+                from remboursement in _db.Set<Refund>().AsNoTracking()
+                join dossier in _db.ReturnRequests.AsNoTracking()
+                    on remboursement.ReturnId equals dossier.Id
+                where dossier.OrderId == orderId
+                    && remboursement.Status == RefundStatus.Succeeded
+                select new { remboursement.Amount, remboursement.Currency })
+            .ToListAsync(cancellationToken);
+
+        var actifs = await _db.ReturnRequests.AsNoTracking()
+            .CountAsync(
+                dossier => dossier.OrderId == orderId
+                    && dossier.Status != ReturnStatus.Refunded
+                    && dossier.Status != ReturnStatus.Closed
+                    && dossier.Status != ReturnStatus.Rejected
+                    && dossier.Status != ReturnStatus.RejectedAfterInspection
+                    && dossier.Status != ReturnStatus.Cancelled
+                    && dossier.Status != ReturnStatus.Expired,
+                cancellationToken);
+
+        // MONODEVISE ASSUMÉE. On additionne sans regarder la devise et on rend
+        // celle du premier remboursement — voir « ce que cette lecture ne couvre
+        // pas » dans l'interface. « XOF » quand il n'y a rien à rendre, parce que
+        // c'est la devise de la plateforme et qu'une chaîne vide obligerait chaque
+        // écran à décider quoi afficher.
+        var montant = reussis.Sum(r => r.Amount);
+        var devise = reussis.Count > 0 ? reussis[0].Currency : "XOF";
+
+        return (montant, devise, actifs);
+    }
+
     private IQueryable<ReturnRequest> Query()
         => _db.ReturnRequests
             .Include(r => r.Items)

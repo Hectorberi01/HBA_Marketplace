@@ -2119,3 +2119,638 @@ chaque hôte aux RPC qu'il appelle réellement. Elle est **engendrée depuis le 
   l'enregistrement de `DisjoncteurClientInterceptor`, oublié au lot 8.8 parce que la passerelle
   n'appelle pas `AddHbaGrpc`.
 
+## D42 — dispatch-service est retiré : l'affectation vit là où sont les données
+
+**Date** : 27 août 2026 · **Statut** : tranchée · **Corrige** : `audit/2026-08-27-defauts-et-deploiement/AUDIT.md` §1.3
+
+Le dépôt contenait **deux affectations de livreur**. La décision retire la fausse.
+
+| | delivery-service | dispatch-service |
+|---|---|---|
+| base de données | `DeliveriesDbContext`, 17 migrations | aucune |
+| état | table `deliveries.drivers` — position, disponibilité | `ConcurrentDictionary` en mémoire de processus |
+| recherche de proximité | `IDriverLocationCache.FindNearbyAsync`, adossé à Redis | **deux GUID codés en dur** |
+| ce qui l'alimente | `POST /api/deliveries/mine/online\|offline\|position` | rien |
+| affectation | `DispatchDeliveryCommand`, réelle | `BuildCandidates`, fictive |
+| manifeste Kubernetes | aucun (domaine delivery non déployé) | aucun |
+| appelants dans le dépôt | — | **zéro** |
+
+**LE CONSTAT D'AUDIT VISAIT D'ABORD LE MAUVAIS SERVICE.** Il disait qu'il manquait
+« un appel de dispatch vers driver-service ». Vérification faite, driver-service ne
+porte **délibérément** ni disponibilité ni position — son agrégat le documente, et
+son RPC `SetBusyState` renvoie `Unimplemented` en désignant delivery-service. La
+capacité manquante n'était pas absente : elle était à côté, et privée.
+
+### Pourquoi retirer plutôt que brancher
+
+Brancher aurait demandé d'exposer `FindNearbyAsync` en RPC, de donner une base à
+dispatch-service, un manifeste, une identité gRPC, une clé dans le Secret — pour
+qu'il refasse ce que son voisin fait déjà avec les données en main.
+
+**CE QUE LE RETRAIT COÛTE, ET IL FAUT L'ÉCRIRE.** dispatch-service exposait trois
+capacités d'exploitation sans équivalent côté delivery-service :
+
+- `POST /{deliveryId}/manual-assign` — affectation manuelle par un exploitant
+- `POST /{deliveryId}/retry` — relance explicite
+- `GET /{deliveryId}/assignment` et `/jobs/{deliveryId}` — consultation
+
+Elles reposaient sur un dictionnaire perdu à chaque redéploiement, dans un service
+sans base ni manifeste : **elles ne fonctionnaient pas**. Les retirer ne retire rien
+qui marche. Mais elles restent à écrire dans delivery-service, où elles auront la
+base et le cache de proximité. C'est une dette, pas une suppression de périmètre.
+
+### Ce que le retrait a touché
+
+Neuf points, tous vérifiés après coup :
+
+- 4 projets `HBA.Delivery.Dispatch.*` et 2 paquets `shared/contracts/HBA.Dispatch.Contracts*`
+  — ces derniers n'étaient **dans aucune solution**, donc jamais compilés
+- `HBA.sln` : 232 → 228 projets, aucun GUID orphelin en configuration
+- `docker-compose.dev.yml` : 32 → 31 services, plus la route `SERVICES__DISPATCH`
+- `AutorisationsGrpc` : 24 → 23 appelants
+- `HbaTopics` et les 3 overlays Kafka : 23 → 22 topics
+- `generer-identites-internes.sh` : 24 → 23 hôtes
+- `dev-up.sh`, `dev-doctor.sh`
+
+**UN COMMENTAIRE FAUX TROUVÉ AU PASSAGE.** L'en-tête d'`AutorisationsGrpc`
+annonçait « six hôtes de livraison n'ont plus AUCUN droit d'appel sortant ». Ils
+étaient **cinq** avant ce retrait — le compte n'avait jamais été recalculé après
+que Delivery.Core et Delivery.Pricing ont reçu des droits. Ils sont quatre
+aujourd'hui. Un commentaire qui annonce un chiffre de sécurité plus favorable que
+la réalité est pire qu'un commentaire absent : on ne revérifie pas ce qu'on croit
+déjà compté.
+
+## D43 — tracking-service et proof-of-delivery-service sont retirés : la preuve et le suivi vivent dans delivery-service
+
+**28 août 2026.** Deux services de plus quittent le dépôt, pour la même raison que
+`dispatch-service` en D42 : ils dupliquaient en mémoire une capacité que
+`delivery-service` persiste déjà, et personne ne les appelait.
+
+### Ce qui a été vérifié avant de les retirer
+
+Le choix n'a pas été fait sur la lecture d'un README. Cinq constats, chacun
+vérifiable dans le dépôt à la date de cette décision :
+
+1. **Aucune entrée dans la passerelle.** `ServicesOptions` déclare dix-neuf
+   adresses de service ; ni `Tracking`, ni `ProofOfDelivery` n'y figurent, et
+   `ServiceKeys` ne les nomme pas non plus. La passerelle étant la seule entrée
+   depuis l'extérieur, **ces deux services n'étaient joignables par aucun client**.
+   Les variables `SERVICES__TRACKING` et `SERVICES__PROOFOFDELIVERY` posées sur
+   la passerelle dans `docker-compose.dev.yml` ne se liaient donc à rien : elles
+   avaient l'air d'un câblage et n'en étaient pas un.
+
+2. **Aucun appelant gRPC.** Aucun `AddTrackingGrpcClient` ni `AddProofGrpcClient`
+   n'était enregistré nulle part, et la table d'autorisations les listait tous
+   deux avec un ensemble d'appels sortants VIDE.
+
+3. **Aucune référence de projet, aucun `using`.** En dehors de leurs propres
+   arborescences, zéro `ProjectReference` vers `HBA.Tracking.Contracts*` ou
+   `HBA.ProofOfDelivery.Contracts*`, et zéro fichier `.cs` important ces espaces
+   de noms. Ces quatre projets de contrats n'étaient d'ailleurs même pas dans
+   `HBA.sln` : ils ne se compilaient plus.
+
+4. **Aucun consommateur de leurs événements.** `check-event-consumers.py` compte
+   0 perte après retrait. Les douze ruptures signalées par
+   `check-event-contracts.py` sont exactement les événements des trois services
+   sortis (dispatch, tracking, proof) — aucun n'avait de gestionnaire.
+
+5. **Et surtout : ni base, ni migration.** `TrackingStore` et `ProofStore`
+   tiennent tout dans des `ConcurrentDictionary` de processus. L'état disparaît
+   au redémarrage et n'est pas partagé entre deux réplicas. L'en-tête de
+   `ProofStore` le disait lui-même, et posait la question qu'on tranche ici :
+   « la question n'est pas comment le persister mais lequel des deux garde-t-on ».
+
+### Ce que delivery-service fait déjà, et qui est persisté
+
+**La preuve.** `POST /api/v1/driver/deliveries/{id}/delivered` porte un corps
+`ProofRequest`. `Delivery.MarkDelivered` appelle `ProofOfDelivery.Capture`, qui
+compare le PIN **à temps constant** contre `IssuedPin` — que le livreur ne voit
+jamais — et refuse pour photo et signature tout ce qui n'a pas la forme d'une
+référence de stockage. `FailedProofAttempts` verrouille après cinq mauvaises
+réponses, sans compter les absences. `ProofPolicy` choisit le genre exigé à la
+création. Le tout est dans `DeliveriesDbContext`, avec ses migrations.
+
+**Le suivi.** `POST /api/v1/driver/position` reçoit les positions,
+`GET /api/v1/deliveries/{id}/tracking` les expose, et le RPC gRPC
+`DeliveryApi/GetTracking` est autorisé pour six hôtes dans la table d'autorisations.
+
+### Ce que ce retrait NE COUVRE PAS
+
+- **La photo n'a pas d'écran de dépôt dédié.** `proof-of-delivery-service`
+  offrait un `POST /{id}/media/presign` que `delivery-service` n'a pas. Ce n'est
+  pas une perte : ce presign était lui aussi en mémoire, sans stockage derrière.
+  Le chemin réel d'envoi existe et vit ailleurs — `media-service` expose
+  `POST /api/v1/media` puis `GET /{id}/download-url`. **Ce qui manque est le
+  raccordement** : rien, aujourd'hui, ne dit à l'application livreur d'envoyer
+  d'abord la photo à media-service et de passer l'identifiant obtenu comme
+  `ProofValue`. C'est une dette, elle est ici, elle n'est pas résolue.
+
+- **`ProofPolicy` ne produit jamais `Signature`.** Le genre existe, l'agrégat
+  sait le vérifier, aucune règle ne le choisit — délibérément, faute d'écran de
+  signature.
+
+- **`route-service` reste**, bien qu'il ait exactement le même profil : zéro
+  appelant, aucune entrée dans `ServicesOptions`. Il n'est pas retiré parce que
+  le calcul d'itinéraire a un remplaçant qui tourne (`FALLBACK_HAVERSINE`) et
+  une décision propre à prendre, qui n'est pas celle-ci.
+
+### Ce qui a été touché
+
+`HBA.sln` (228 → 220 projets, 104 lignes de configuration, aucun GUID orphelin) ·
+`docker-compose.dev.yml` (31 → 29 services, deux variables mortes de la
+passerelle) · `AutorisationsGrpc.cs` (23 → 21 appelants) · `HbaTopics.cs` ·
+les trois `k8s/overlays/*/kafka-topics.yaml` (22 → 20 sujets chacun) ·
+`generer-identites-internes.sh` · `dev-up.sh` · `dev-doctor.sh` ·
+`k8s/base/services/kustomization.yaml`. Les six projets sont dans
+`_to_delete/2026-08-28-tracking-et-proof/`.
+
+## D44 — le routage reste dégradé, mais il le dit, et le levier est posé
+
+**28 août 2026.** Le calcul d'itinéraire de la plateforme est une ligne droite.
+Il le restera tant qu'aucun moteur de routage n'est branché. Ce qui change ici :
+il ne le cache plus, et la correction se règle sans toucher au code.
+
+### L'audit désignait le mauvais service
+
+Le §1.2 de l'audit du 27 août plaçait le défaut dans `route-service`
+(`RouteStore.cs`, `source = "FALLBACK_HAVERSINE"`). C'est exact, et sans
+conséquence : `route-service` n'a **aucun appelant** et **aucune entrée dans
+`ServicesOptions`** — exactement le profil des trois services retirés en D42 et
+D43. Corriger là n'aurait rien changé pour personne.
+
+Le Haversine qui compte est dans **`delivery-pricing-service`**, appelé en gRPC
+par delivery-service :
+
+```csharp
+var distance = request.DistanceMeters ?? ServiceabilityPolicy.HaversineMeters(...);
+var duration = request.DurationSeconds ?? Math.Max(60, (int)(distance / 5.8));
+var breakdown = PricingPolicy.BuildBreakdown(rule, distance, duration, ...);
+//   distanceFee = distance/1000 × PerKmFee
+//   minuteFee   = duration/60   × PerMinuteFee
+```
+
+**Ce n'est donc pas une estimation d'affichage : c'est le prix facturé.** Et la
+même ligne droite décide de la desserte, comparée au plafond de 25 km de
+`ServiceabilityPolicy`. La constante `5.8` — 20,9 km/h — était le seul modèle de
+circulation de toute la plateforme, dupliqué à l'identique dans `route-service`
+sans que rien ne relie les deux.
+
+### Ce qui a été fait
+
+1. **Les deux constantes sont sorties du code** dans `EstimationItineraireOptions` :
+   `VitesseMoyenneMetresParSeconde` (5,8) et `FacteurCorrectionUrbaine` (1,0),
+   plus `DureeMinimaleSecondes` (60). Validées au démarrage : une vitesse nulle
+   ou un facteur inférieur à 1,0 empêche le service de démarrer, au lieu de
+   produire des devis faux en silence. La lecture est faite à la main en
+   `InvariantCulture` plutôt qu'avec `Get<T>()` : d'une part les paquets du
+   binder ne sont pas déclarés par ce projet, d'autre part « 1.3 » lu sous une
+   locale française vaut **13** — un facteur multiplié par dix ne lève aucune
+   exception, il multiplie par dix le prix de toutes les courses. Une valeur
+   présente mais illisible est une erreur de démarrage, jamais un repli
+   silencieux sur le défaut.
+
+2. **Un seul chemin vers la distance.** `ServiceabilityPolicy.DistanceRoutiereEstimeeMetres`
+   applique le facteur ; `CreateQuoteAsync` et `GetServiceabilityAsync` passent
+   tous deux par elle. Auparavant chacun appelait `HaversineMeters` directement :
+   deux chemins que rien n'obligeait à rester d'accord, donc une plateforme qui
+   aurait pu refuser une course puis la facturer.
+
+3. **La provenance est persistée et rendue.** `DeliveryQuote.SourceEstimation`
+   (`CLIENT_PROVIDED` / `FALLBACK_HAVERSINE`) et `FacteurCorrectionApplique`,
+   migration `20260828120000_SourceEstimationDevis` écrite à la main sur le
+   modèle de `JournalDAuditDeliveryPricing`. Le facteur est **persisté et non
+   relu de la configuration** : un devis chiffré à 1,0 doit rester explicable
+   après un passage à 1,3.
+
+4. **La durée est déclarée comme un plancher**, dans le proto et dans
+   `DeliveryQuoteDetails` : « à partir de N min », jamais « N min ».
+
+### Le facteur vaut 1,0, et c'est le cœur de la décision
+
+Un facteur de détour urbain vaut typiquement 1,2 à 1,4 en tissu dense. Le poser à
+1,3 « parce que c'est l'usage » majorerait le prix de **toutes** les courses
+d'environ trente pour cent, sur la foi d'un chiffre que **personne n'a mesuré à
+Cotonou**. On pose donc le levier sans le tirer : le prix produit aujourd'hui est
+**exactement** celui d'avant ce commit. Le jour où l'écart réel est mesuré, il se
+règle par configuration.
+
+### CE QUE CETTE DÉCISION NE COUVRE PAS
+
+- **La plateforme sous-facture, et ce commit ne le corrige pas.** Le trajet réel
+  est toujours plus long que la ligne droite ; l'écart croît avec la distance.
+  Le défaut devient réglable et visible, il ne disparaît pas.
+
+- **Et elle accepte des courses hors zone.** Une course de 30 km par la route
+  mais 24 km à vol d'oiseau passe sous le plafond de 25 km. Le même facteur
+  corrige les deux, quand il sera réglé.
+
+- **Un facteur unique pour tout le pays.** Le détour n'est pas le même dans le
+  centre de Cotonou et sur la route de Porto-Novo. `DeliveryZone` sait déjà
+  situer un point : c'est le prolongement naturel, il n'est pas fait.
+
+- **Aucune reprise des devis existants.** Ils reçoivent `''` et `0`. On pourrait
+  les marquer `FALLBACK_HAVERSINE` — c'était le seul chemin avant ce commit —
+  mais ce serait une déduction, pas une donnée : rien en base ne dit si
+  l'appelant avait fourni sa propre distance.
+
+- **`route-service` n'est pas touché.** Il garde sa constante `5.8` en dur et son
+  état en mémoire. Il n'a toujours aucun appelant. Sa disposition — le retirer
+  comme les trois autres, ou en faire le futur porteur d'un vrai moteur — reste
+  ouverte.
+
+- **La migration a été écrite à la main, sans `dotnet ef`.** Le snapshot a été
+  mis à jour dans le même commit et `check-migrations.py` rejoue les 24 contextes
+  sans incohérence, mais **aucun `dotnet ef migrations list` n'a été exécuté**.
+  À relire avant de l'appliquer en production.
+
+## D45 — un environnement inconnu est la production, pas le développement
+
+**28 août 2026.** Six installeurs portaient chacun une copie de la même méthode
+`IsProduction`, toutes **fail-open**. Elles délèguent désormais à
+`EnvironnementDeploiement.EstProduction`, en un seul exemplaire.
+
+### Ce qui était cassé
+
+```csharp
+var env = configuration["ASPNETCORE_ENVIRONMENT"] ?? configuration["DOTNET_ENVIRONMENT"] ?? "";
+return string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase);
+```
+
+Tout ce qui n'était pas littéralement « Production » était traité comme du
+développement — **y compris la chaîne vide, y compris une variable absente**. Or
+ASP.NET Core, lui, considère une variable absente comme la production : le socle
+et le framework se contredisaient sur le cas exact où ça compte le plus.
+
+Ce que ces six copies gardaient : la **clé de chiffrement** des codes de
+réinitialisation et de vérification (sans clé configurée et hors production,
+`AesGcmSecretProtector` retombe sur une clé dérivée d'une phrase fixe et publique,
+présente dans ce dépôt — les codes traversent alors l'outbox et Kafka
+« chiffrés » avec une clé que quiconque lit le code peut recalculer), le refus de
+démarrer avec des **adaptateurs gRPC simulés**, et le refus de démarrer avec des
+**fournisseurs de paiement simulés**. Un `ASPNETCORE_ENVIRONMENT` oublié sur un
+vrai serveur donnait un démarrage normal, sans erreur, avec des effets métier
+fictifs et une cryptographie décorative.
+
+### La règle retenue
+
+1. **Variable absente ou vide → production.** Défaut d'ASP.NET Core, et seul
+   défaut sûr.
+2. **Nom explicitement listé hors production → pas la production.** La liste est
+   courte, en dur : Development, Local, Test, Testing, CI, Staging.
+3. **Tout autre nom → production**, avec un avertissement qui nomme les valeurs
+   acceptées.
+
+Le point 3 change un comportement, et c'est le cœur. L'ancien commentaire
+justifiait le repli permissif par « un nom mal orthographié empêcherait de
+travailler ». C'est vrai, et incomparable : une faute de frappe produit désormais
+un refus de démarrer avec la liste des noms valides — une minute de correction,
+immédiatement visible. La même faute sur un serveur de production produisait une
+clé publique et des remboursements fictifs, invisibles jusqu'à ce que quelqu'un
+compare des données.
+
+### CE QUE CETTE DÉCISION NE COUVRE PAS
+
+- **« Staging » reste hors production**, sciemment : une préproduction ne doit pas
+  encaisser de vrai argent. Conséquence : un staging sans `Secrets:Key` utilise la
+  clé de développement publique. Le remède est de poser la clé.
+- **Aucune porte de sortie configurable.** On ne peut pas étendre la liste par
+  variable d'environnement, et c'est délibéré : c'est exactement le mécanisme par
+  lequel ce genre de garde finit désactivé « le temps d'un test ».
+- **Les trois adaptateurs gRPC de return-refund restent simulés.** Le garde mord
+  mieux ; il ne remplit pas ce qu'il garde. `return-refund-service` ne peut donc
+  toujours pas démarrer en production, par construction.
+
+
+## D46 — la durée de vie des clés d'idempotence est enfin lue
+
+**28 août 2026.** `IdempotencyRecord.ExpiresAtUtc` existait depuis l'origine :
+déclarée dans l'entité, initialisée à 24 h, `IsRequired()` dans la configuration,
+et portant un **index dédié** — `ix_idempotency_keys_expires_at`, commenté
+« index de purge » — dans la migration de chacun des sept services concernés.
+**Aucune ligne de code ne la lisait.**
+
+C'est ce qui rendait le défaut invisible : tout avait l'apparence d'un mécanisme
+réglé. Un index dédié dit à qui relit « quelqu'un interroge cette colonne ».
+
+### Ce que ça coûtait
+
+Une réservation n'est complétée que si le gestionnaire rend la main, normalement
+ou par une exception attrapée. Si le processus meurt entre la réservation et la
+complétion — OOM, `kill`, éviction de pod, redéploiement — la ligne reste
+inachevée **pour toujours**, et toute nouvelle tentative avec la même clé reçoit
+409. En plein paiement, c'est une commande que le client ne peut ni finir ni
+recommencer, sans aucun recours automatique.
+
+### Ce qui a été fait, sans aucune migration
+
+Le schéma était déjà là, dans les sept services.
+
+1. `TryBeginAsync` reprend une réservation inachevée dont l'échéance est passée :
+   la ligne est supprimée, et la contrainte d'unicité arbitre à nouveau — comme au
+   premier passage. La reprise est bornée à **une seule** par un drapeau explicite,
+   et non par un appel récursif : la récursion marcherait presque toujours et
+   n'aurait aucune borne prouvable, sous verrou de base, dans une requête HTTP.
+2. `IdempotencyPurger` efface les lignes périmées par tranches, sur un **curseur
+   d'échéance**. On ne pouvait pas copier la mécanique par identifiants
+   d'`OutboxPurger` : `IdempotencyRecord` n'a pas de clé simple mais le triplet
+   (Key, Scope, Endpoint), et un `Contains` sur des n-uplets ne se traduit pas de
+   façon fiable.
+3. `AddIdempotence<TDbContext>()` pose les deux **ensemble**. Les enregistrer en
+   deux lignes dans les sept installeurs aurait reconduit le mécanisme qui a
+   produit le défaut : il aurait suffi qu'un huitième service ne copie que la
+   première ligne pour n'avoir jamais de purge, sans rien casser ni rien signaler.
+
+### CE QUE CETTE DÉCISION NE COUVRE PAS
+
+- **Un effet métier déjà produit sera reproduit.** Si la première exécution avait
+  payé, envoyé ou expédié avant de mourir, le rejeu après 24 h recommence.
+  L'idempotence de la couche HTTP ne remplace pas celle du domaine ; les
+  opérations qui déplacent de l'argent ont la leur (`Refund.IdempotencyKey`,
+  l'inbox des consommateurs). Vingt-quatre heures est le compromis : assez long
+  pour toute reprise réseau normale, assez court pour qu'un client bloqué ne le
+  reste pas plus d'une journée.
+- **Rien ne compte les réservations mortes.** Le purgeur les efface sans trace.
+  Savoir combien de processus meurent en pleine réservation demanderait une
+  métrique dans `TryBeginAsync`, pas une ligne conservée en base.
+
+
+## D47 — la route de rejeu des lettres mortes n'existe pas, et on cesse de la promettre
+
+**28 août 2026.** Quatre endroits du socle renvoyaient vers
+`GET /admin/outbox/dead-letters`. **Aucune route de ce nom n'est montée nulle part
+dans le dépôt.**
+
+Le pire des quatre est le message `LogCritical` émis au moment exact où un
+événement métier est définitivement perdu : « Corriger la cause, puis rejouer via
+/admin/outbox/dead-letters ». Un exploitant réveillé par cette ligne partait
+chercher une surface absente, à l'heure où il en avait le plus besoin.
+
+Le portail d'administration, lui, avait raison depuis le début : il classe sa
+section « Outbox » comme SANS AMONT, avec la bonne raison — la table est interne
+au service, et l'exposer donnerait accès aux charges utiles des événements, dont
+certaines portent un secret.
+
+**On corrige donc les messages, pas le manque.** Les quatre mentions décrivent
+maintenant le geste réel : remettre `DeadLetteredOnUtc` à NULL, `AttemptCount` à 0
+et `NextAttemptAtUtc` à NULL sur la ligne, une fois la cause corrigée. L'index
+partiel sur `DeadLetteredOnUtc IS NOT NULL` existe précisément pour retrouver ces
+lignes.
+
+**CE QUE ÇA NE COUVRE PAS.** Il n'y a toujours aucune surface de rejeu, et le
+geste reste manuel, en base, sur le bon service. Construire cette surface suppose
+de trancher ce qu'on accepte d'exposer d'une charge utile qui peut contenir un
+secret — c'est une décision, pas un oubli. Le jour où elle est prise, c'est dans
+ces quatre messages qu'il faudra la nommer.
+
+## D48 — un contrôle d'appartenance ne compare pas une valeur fournie par celui qu'il contrôle
+
+**28 août 2026.** Le média rattaché à une fiche produit était vérifié par
+`media.OwnerType == "Product" && media.OwnerId == productId`. Ces deux valeurs sont
+**déclarées par l'appelant au téléversement**, et media-service ne les vérifie pas —
+il ignore ce qu'est un produit (§20), et son propre commentaire le dit.
+
+`MediaAsset.CreatedByUserId` existait depuis la migration initiale, `IsRequired()`,
+et ne sortait par aucun contrat. Il est désormais rendu par `MediaView` : il vient
+du **jeton**, c'est le seul champ de cette vue que l'appelant ne choisit pas.
+`AddProductMediaCommandHandler` exige que le déposant du média soit celui qui le
+rattache, et le paramètre absent vaut REFUS.
+
+**La route de téléversement n'a PAS été fermée aux administrateurs**, malgré ce que
+son commentaire annonçait : l'application vendeur l'appelle directement pour cinq
+types de propriétaire, et la fermer supprimerait le dépôt de photos de tout le
+portail vendeur. Le commentaire promettait une garde qui aurait cassé le produit.
+
+### CORRIGÉ DANS LA FOULÉE : « LE MÊME COMPTE » ÉTAIT TROP STRICT
+
+La première version exigeait `CreatedByUserId == RequestedByUserId`. C'était faux
+pour toute boutique à plusieurs membres : un `SellerMember` téléverse les photos,
+un autre monte la fiche. La route accepte les deux — elle raisonne sur la
+CAPACITÉ, pas sur la personne — et le gestionnaire les aurait départagés en
+refusant le second. Un contrôle de sécurité qui casse un parcours légitime se fait
+retirer, et emporte la propriété qu'il défendait.
+
+La règle retenue : le déposant doit avoir LUI AUSSI le droit sur ce vendeur.
+Catalog interroge `IMerchantAccessApi.HasCapabilityAsync` ; seller-service, qui
+EST le service vendeur, résout la question en local par `MemberAccessResolver` —
+aucun appel distant. Le cas courant — même personne des deux côtés — prend un
+chemin rapide, sans aller-retour.
+
+### LES DEUX POINTS DE RATTACHEMENT SONT TRAITÉS
+
+`AddProductMediaCommandHandler` et `AddKybDocumentCommandHandler` sont les deux
+seuls consommateurs d'`IMediaModuleApi` dans le dépôt — vérifié. Le second est le
+plus sensible : c'est la pièce d'identité d'un commerçant.
+
+Son encadré annonçait que ses deux contrôles « ferment les deux exploitations ».
+C'est exact pour les deux décrites — aucune ne permet de RÉÉCRIRE l'appartenance
+d'un média existant — mais aucun des deux ne ferme la CRÉATION d'un média neuf à
+l'appartenance mensongère. L'encadré le dit désormais.
+
+### CE QUE CETTE DÉCISION NE COUVRE PAS
+
+- **N'importe quel compte peut toujours créer un média à l'appartenance
+  mensongère.** Vérifié : aucun chemin de lecture ne l'expose aujourd'hui —
+  `ListMediaByOwnerQuery` n'a aucune route, `IMediaModuleApi.ListByOwnerAsync`
+  aucun appelant. Mais la méthode existe, et le premier écran « les pièces de ce
+  vendeur » rendra ces fichiers visibles chez leur victime. **Les deux contrôles
+  posés ici sont donc préventifs** : ils ferment un chemin LATENT, pour que le
+  jour où cette route existera, elle n'ouvre pas la brèche en même temps qu'elle
+  rend service.
+- **Décider qui peut déclarer quel propriétaire est une décision de produit** :
+  toute règle stricte casse un parcours vendeur existant.
+- **Restaurant, boutique et plat ne vérifient rien** — mais ils n'appellent pas
+  media-service du tout : ils stockent un identifiant sans le relire. Ce n'est
+  pas le même défaut, et il n'est pas traité ici.
+
+
+## D49 — renommer une catégorie déplace sa branche
+
+**28 août 2026.** `Category.Update` recalculait le chemin de la catégorie et
+d'aucun descendant. Renommer « Animaux » laissait `/animaux/chiens` sous un
+`/animaux` qui n'existait plus : `ListDescendantsAsync` cherchant par PRÉFIXE, la
+branche entière devenait introuvable — publication en cascade, dépublication et
+filtres par catégorie la perdaient, sans erreur.
+
+`Category.RebasePath` réécrit par **substitution de préfixe**, et le gestionnaire
+l'applique à la branche. Deux choix à connaître : les descendants sont chargés
+AVANT la mutation, parce que l'ancien chemin est la clé de recherche ; et la
+substitution est préférée à une reconstruction par `BuildPath`, qui exigerait de
+traiter la branche par profondeur en tenant une carte des chemins déjà réécrits.
+
+Aucun contrôle d'unicité n'est refait sur les descendants : la structure relative
+est conservée, donc si la nouvelle racine est libre — vérifié par l'appelant —
+aucun descendant ne peut entrer en collision.
+
+
+## D50 — la grille tarifaire est choisie sur ce qu'on demande, et un niveau sans grille refuse le devis
+
+**28 août 2026.** La sélection ne filtrait que sur le statut et les dates, puis
+prenait la priorité la plus haute. `ServiceLevel` et `VehicleType` étaient portés
+par `PricingRule`, remplis par la console d'administration, transmis par la
+demande — et n'entraient dans aucune sélection. EXPRESS en voiture et STANDARD en
+moto recevaient le même prix.
+
+`ServiceLevel` doit désormais correspondre exactement ; `VehicleType` est nullable
+et le nul EST le joker — c'est déjà le sens de la colonne. La grille qui nomme le
+véhicule passe devant la générique, `Priority` départage le reste.
+
+**LE CHANGEMENT DE COMPORTEMENT EST ASSUMÉ.** Un niveau sans grille active ne rend
+plus le prix d'un autre niveau : le devis ÉCHOUE, avec un message qui nomme le
+niveau manquant. Un prix emprunté est facturé au client et ne se voit nulle part ;
+un devis refusé se voit tout de suite.
+
+### CE QUE CETTE DÉCISION NE COUVRE PAS
+
+- **`Scope` n'entre pas dans la sélection**, contrairement à ce que l'audit
+  affirmait : `CreateQuoteRequest` ne porte aucun champ de portée. L'y faire entrer
+  supposerait d'abord de décider ce qu'une portée désigne.
+- **Aucun joker sur le niveau de service.** En inventer un — « ANY », « * » —
+  poserait une convention que la console d'administration ne sait pas produire.
+- **Le jeu semé ne contient qu'une grille STANDARD / MOTORBIKE.** Aucun appelant
+  n'envoie aujourd'hui de niveau sur une demande de devis, mais il faut le savoir
+  avant d'en envoyer un.
+
+## D51 — le nombre de pods au repos se règle sur le HPA, et une cible de patch qui ne désigne rien est une erreur
+
+**28 août 2026.** Deux défauts de la couche de déploiement, dont le second n'avait
+été vu par personne.
+
+### Le HPA écrit `spec.replicas`, pas nous
+
+Dès qu'un HorizontalPodAutoscaler cible un Deployment, c'est lui qui écrit
+`spec.replicas` à chaque réconciliation. La valeur posée par l'overlay n'est que le
+point de départ du premier lancement. L'overlay prod passait dix services à
+`replicas: 2` sans toucher aux HPA, restés à `minReplicas: 1` : quelques minutes
+après le déploiement, tous retombaient à un pod. La redondance était écrite, relue
+en revue, et jamais obtenue.
+
+Chaque patch de `replicas` est désormais **collé** à un patch `minReplicas` sur le
+HPA du même service. Les séparer laisserait un jour ajouter un service à l'un des
+deux endroits seulement.
+
+### Cinq de ces dix patches ne désignaient rien
+
+`commerce-service`, `financial-service` et `merchant-service` : la base produit
+`cart-service`, `payment-service` et `seller-service`. `delivery-service` et
+`food-service` : pas de manifeste du tout.
+
+**Kustomize n'échoue pas sur une cible sans correspondance.** Le build réussit, le
+patch n'est appliqué à rien, la sortie est identique à celle d'un patch qui a
+mordu. Cinq services « critiques » n'avaient donc jamais reçu leur second replica,
+pas même au premier lancement.
+
+Les trois premiers sont le **même** défaut que documente `InternalRoutes.cs`
+depuis des semaines : la plateforme porte deux vocabulaires, par domaine et par
+dépôt. Cet écart a fini par produire cinq patches morts dans le fichier qui décide
+combien de pods servent la production.
+
+`scripts/check-k8s.py` résout maintenant chaque cible contre les objets que la base
+produit, **sans kustomize** — c'est tout son intérêt : sur un poste sans l'outil,
+ce fichier ne vérifiait rien. Il a trouvé deux cibles mortes de plus :
+`Cluster/postgres` dans dev et staging, un reste du plan abandonné d'une base dans
+le cluster.
+
+### Le PDB bloquait le drain, et le commentaire disait le contraire
+
+`pdb.yaml` reconnaissait le problème puis le désamorçait : « Kubernetes tranche en
+faveur du drain après un délai. » C'est faux. L'API d'éviction rend 429 tant que le
+budget n'est pas satisfait, `kubectl drain` réessaie indéfiniment, et `--timeout`
+fait échouer la commande sans autoriser l'éviction.
+
+`minAvailable: 1` → `maxUnavailable: 1`. Équivalents à deux replicas ; à un seul,
+l'ancien autorisait zéro éviction et bloquait pour toujours, le nouveau en autorise
+une. À trois et plus, le nouveau est même plus strict.
+
+### CE QUE CETTE DÉCISION NE COUVRE PAS
+
+- **À un replica, il n'y a plus aucune protection** — seulement l'absence de
+  blocage. C'est honnête : il n'y a rien à protéger avec un seul pod. La vraie
+  réponse est deux replicas.
+- **Rien n'empêche un drain de vider plusieurs services à la fois.** Chaque budget
+  raisonne sur son service ; dix services à un replica sur le même nœud partent
+  ensemble, chacun dans son droit.
+- **Le contrôle des cibles ne remplace pas `kustomize build`.** Il reconstitue les
+  noms produits en appliquant les `namePrefix` à la main — assez pour attraper une
+  cible morte, pas pour valider un rendu.
+- **`delivery` et `food` devront retrouver leurs patches** quand leur lot sera
+  déployé, sous le nom que produira réellement leur `namePrefix` — pas celui du
+  domaine.
+
+## D52 — un retrait de service doit passer par `tests/`, et une référence de projet morte est une erreur
+
+**28 août 2026.** Le retrait de `dispatch`, `tracking` et `proof-of-delivery`
+(D42, D43) a laissé trois `ProjectReference` mortes dans
+`tests/HBA.Delivery.UnitTests`. La compilation a échoué le lendemain.
+
+### Pourquoi l'inventaire de retrait ne l'a pas vu
+
+Il couvrait neuf points — `HBA.sln`, le compose, `AutorisationsGrpc`,
+`HbaTopics`, les trois `kafka-topics.yaml`, `generer-identites-internes.sh`,
+`dev-up.sh`, `dev-doctor.sh`, les manifestes. **Tous côté production.** Aucun ne
+regardait un projet de test, exactement parce qu'un test « n'est déployé nulle
+part » — le raisonnement qui figure d'ailleurs, écrit noir sur blanc, dans le
+`.csproj` fautif.
+
+**Et `check-solution.py` ne pouvait pas l'attraper** : les projets de test ne
+sont pas dans `HBA.sln`. Il n'y avait rien à vérifier de son côté. Le défaut est
+passé dans l'espace entre deux contrôles, pas au travers de l'un d'eux.
+
+### Le symptôme désigne la mauvaise cause
+
+MSBuild rend un **avertissement** MSB9008 — « le projet référencé n'existe pas » —
+puis compile quand même, et échoue ensuite sur les `using` en CS0234 : « le nom
+d'espace de noms n'existe pas ». On lit cinq erreurs qui parlent d'espaces de
+noms, et la seule ligne qui dit la vraie cause est un warning au milieu.
+
+### `scripts/check-refs.py`
+
+Il part des `.csproj` **du disque** — tous, y compris ceux qu'aucune solution ne
+référence — et refuse toute `ProjectReference` dont la cible n'existe pas.
+178 projets, 547 références.
+
+**Il a été éprouvé en le faisant échouer**, sur un dépôt synthétique portant une
+référence morte : un contrôle qui n'a jamais été rouge n'est pas un contrôle
+vérifié.
+
+### Ce qui a été fait des tests eux-mêmes
+
+- **`SuiviDeCourseTests`** (5 tests, ISSUE-058) : retiré. La règle qu'il protégeait
+  — « n'importe qui publiait la position de n'importe quel livreur » — est
+  **structurellement impossible** dans le survivant : `ReportPositionAsync` tire
+  l'identité du JETON via `ResolveDriverQuery`, et `PositionRequest` ne porte
+  aucun `DriverId`. Vérifié avant de retirer.
+- **`AcceptationUniqueTests`** : quatre tests sur l'agrégat conservés, quatre sur
+  `DispatchStore` retirés.
+- **`PreuveDeRemiseTests`** (12 tests) : **réécrit** contre `Delivery` /
+  `ProofOfDelivery`, 11 tests. C'est la vérification de l'affirmation de D43 —
+  « delivery-service porte la même capacité, persistée ». Sans ces tests, cette
+  phrase n'était qu'une lecture.
+
+### CE QUE CE RETRAIT A RÉELLEMENT COÛTÉ, ET QUI N'AVAIT PAS ÉTÉ DIT
+
+- **La concurrence réelle n'est plus éprouvée nulle part.** `DispatchStore` et
+  `ProofStore` étant des `ConcurrentDictionary`, deux acceptations — ou deux
+  soumissions du même code — vraiment simultanées y étaient testables. Sur un
+  agrégat persisté, ce qui arbitre est l'index unique partiel
+  `ux_deliveries_engaged_driver` et le jeton `xmin` : il faudrait une base et deux
+  transactions. La couverture est passée de « éprouvée sur une maquette » à
+  « éprouvée nulle part ». La maquette n'était pas la production, mais elle était
+  le seul banc d'essai.
+- **Le code de preuve n'expire plus.** `ProofStore` posait quinze minutes sur
+  l'OTP, et deux tests l'éprouvaient. `Delivery.IssuedPin` n'a **aucune
+  échéance** : le code émis à la prise en charge reste valable jusqu'à la remise.
+  Le retrait a rendu cette différence effective **sans que personne ne la
+  décide**. Écrit dans l'en-tête du fichier de tests réécrit.
+
+### ET UNE ERREUR DE PLUS, RATTRAPÉE PAR UN CONTRÔLE
+
+En nettoyant `AuthorizationTestFactory`, j'ai retiré `Services__Routes` avec les
+trois autres, en écrivant qu'aucune n'était jamais lue.
+`check-service-addresses.py` l'a refusé : `AddRoutesGrpcClient` existe toujours et
+lève si la clé est absente. Aucun hôte ne l'appelle aujourd'hui ; le jour où l'un
+le fera, ses tests d'autorisation échoueraient à la construction. La ligne a été
+remise.
+
+**On ne retire pas une adresse parce qu'on croit qu'elle ne sert pas — on la
+retire quand le code qui la lit a disparu.**
+

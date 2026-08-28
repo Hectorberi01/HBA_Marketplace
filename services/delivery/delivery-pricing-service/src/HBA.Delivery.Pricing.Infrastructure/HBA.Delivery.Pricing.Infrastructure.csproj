@@ -14,6 +14,16 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+
+    <!--
+      `IOptions<T>` et `Options.Create` sont utilisés explicitement par
+      `DeliveryPricingInfrastructureModule` et `EfDeliveryPricingStore`. Ils
+      arrivaient probablement par transitivité via EF Core ; un projet qui se
+      sert d'un type déclare le paquet qui le porte, sans quoi une mise à jour de
+      la dépendance intermédiaire casse une compilation sans rapport apparent.
+      Pas d'attribut Version : la gestion centralisée le refuserait (NU1008).
+    -->
+    <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
 
 </Project>

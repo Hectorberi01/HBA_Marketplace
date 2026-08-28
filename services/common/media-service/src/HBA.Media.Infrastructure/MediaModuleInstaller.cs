@@ -1,3 +1,4 @@
+using HBA.Shared.Infrastructure.Hosting;
 using System.Reflection;
 using FluentValidation;
 using HBA.Media.Application.Abstractions;
@@ -182,23 +183,31 @@ public sealed class MediaModuleInstaller : IModuleInstaller
 
     /// <summary>
     /// Sommes-nous en production ?
-    ///
-    /// Même détection que <c>PaymentsModuleInstaller</c> et
-    /// <c>NotificationsModuleInstaller</c> : un <see cref="IModuleInstaller"/> ne
-    /// reçoit pas d'<c>IHostEnvironment</c> — les modules s'installent avant que
-    /// l'hôte ne soit construit — donc on lit la variable d'environnement standard,
-    /// qu'ASP.NET expose dans la configuration.
-    ///
-    /// L'inconnu est traité comme « pas la production », sinon un environnement
-    /// mal nommé refuserait de démarrer en développement.
     /// </summary>
+    /// <remarks>
+    /// L'installeur ne reçoit qu'un <see cref="IConfiguration"/> — les modules
+    /// s'installent avant que l'hôte ne soit construit, donc pas
+    /// d'<c>IHostEnvironment</c>. La règle elle-même vit dans
+    /// <c>EnvironnementDeploiement</c>, en un seul exemplaire.
+    ///
+    /// CE PARAGRAPHE DÉCRIVAIT AUPARAVANT UN FAIL-OPEN ASSUMÉ : « l'inconnu est
+    /// traité comme pas la production, sinon un nom mal orthographié empêcherait
+    /// de travailler ». Ce n'est plus vrai, et ce n'était pas défendable : une
+    /// variable ABSENTE tombait du même côté qu'une faute de frappe, alors
+    /// qu'ASP.NET Core considère une variable absente comme la production.
+    /// Désormais l'inconnu et l'absent sont la production ; seuls les noms
+    /// explicitement listés en dispensent.
+    /// </remarks>
     private static bool IsProduction(IConfiguration configuration)
     {
-        var environnement = configuration["ASPNETCORE_ENVIRONMENT"]
-            ?? configuration["DOTNET_ENVIRONMENT"]
-            ?? string.Empty;
-
-        return string.Equals(environnement, "Production", StringComparison.OrdinalIgnoreCase);
+        // DÉLÉGUÉ À `EnvironnementDeploiement`, ET C'EST LA CORRECTION.
+        //
+        // Ce corps était une copie parmi six d'une règle FAIL-OPEN : tout ce qui
+        // n'était pas littéralement « Production » — variable absente, chaîne
+        // vide, faute de frappe — était traité comme du développement, alors
+        // qu'ASP.NET Core, lui, considère une variable absente comme la
+        // production. Voir l'encadré de `EnvironnementDeploiement`.
+        return EnvironnementDeploiement.EstProduction(configuration);
     }
 }
 

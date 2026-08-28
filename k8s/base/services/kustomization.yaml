@@ -19,13 +19,16 @@ kind: Kustomization
 #
 # ═══ CE QUE CETTE LISTE NE COUVRE PAS, ET CE QUE ÇA DONNE ═══
 #
-# Les domaines `delivery` (delivery, driver, dispatch, delivery-pricing,
-# proof-of-delivery, route, tracking) et `food` (restaurant, food-cart,
-# food-order) ne sont PAS ici : ils font l'objet d'un second lot.
+# Les domaines `delivery` (delivery, driver, delivery-pricing, route) et
+# `food` (restaurant, food-cart, food-order) ne sont PAS ici : ils font
+# l'objet d'un second lot. Dispatch (D42), tracking et proof-of-delivery
+# (D43) n'y figurent plus du tout : ils ont été retirés du dépôt.
 #
 # CONSÉQUENCE À CONNAÎTRE, ET ELLE EST VISIBLE DÈS LE PREMIER DÉPLOIEMENT : la
 # passerelle déclare leurs adresses en `[Required, Url]` — elle démarrera donc
-# normalement, mais chaque route vers ces dix services répondra 502. Ce n'est pas
+# normalement, mais chaque route vers ces SIX services répondra 502 —
+# six et non sept : `route-service` n'a aucune entrée dans `ServicesOptions`,
+# la passerelle ne lui parle donc jamais, déployé ou non. Ce n'est pas
 # une panne à chercher, c'est le périmètre du lot. Les écrans concernés de la
 # console d'administration l'annoncent de la même façon.
 # ═══════════════════════════════════════════════════════════════════════════════

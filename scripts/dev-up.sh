@@ -129,11 +129,8 @@ FOOD_SERVICES=(
 DELIVERY_SERVICES=(
   delivery-pricing-service
   delivery-service
-  dispatch-service
   driver-service
-  tracking-service
   route-service
-  proof-of-delivery-service
 )
 
 # VIDE DEPUIS D38 — LA PASSERELLE EST LE BFF.

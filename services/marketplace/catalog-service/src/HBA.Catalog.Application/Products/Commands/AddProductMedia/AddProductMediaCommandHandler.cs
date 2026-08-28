@@ -4,6 +4,7 @@ using HBA.Shared.Application.Messaging;
 using HBA.Shared.Domain.Results;
 using HBA.Catalog.Domain.Products;
 using HBA.Media.Contracts;
+using HBA.Merchants.Contracts;
 
 namespace HBA.Catalog.Application.Products.Commands.AddProductMedia;
 
@@ -39,15 +40,18 @@ internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProduct
 
     private readonly IProductRepository _productRepository;
     private readonly IMediaModuleApi _media;
+    private readonly IMerchantAccessApi _merchants;
     private readonly ICatalogUnitOfWork _unitOfWork;
 
     public AddProductMediaCommandHandler(
         IProductRepository productRepository,
         IMediaModuleApi media,
+        IMerchantAccessApi merchants,
         ICatalogUnitOfWork unitOfWork)
     {
         _productRepository = productRepository;
         _media = media;
+        _merchants = merchants;
         _unitOfWork = unitOfWork;
     }
 
@@ -83,6 +87,85 @@ internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProduct
             return Error.Forbidden(
                 "catalog.media.not_owned",
                 "Ce média n'appartient pas à ce produit.");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // ET IL DOIT AVOIR ÉTÉ DÉPOSÉ PAR CELUI QUI LE RATTACHE (audit 2.2).
+        //
+        // POURQUOI LE CONTRÔLE PRÉCÉDENT NE SUFFIT PAS — ET C'EST LE POINT.
+        //
+        // `OwnerType` et `OwnerId` sont DÉCLARÉS PAR L'APPELANT au téléversement,
+        // et media-service ne les vérifie pas : il ignore ce qu'est un produit
+        // (§20), et son propre commentaire le dit. N'importe quel compte connecté
+        // peut donc déposer un fichier en annonçant « OwnerType=Product,
+        // OwnerId=<le produit d'un concurrent> », et le contrôle ci-dessus
+        // PASSERA — il compare une valeur fournie par celui qu'il contrôle.
+        //
+        // `CreatedByUserId`, lui, vient du JETON présenté au téléversement. C'est
+        // le seul champ de `MediaView` que l'appelant ne choisit pas.
+        //
+        // CE QUE ÇA FERME EXACTEMENT, ET C'EST PLUS ÉTROIT QU'IL N'Y PARAÎT.
+        // Un tiers qui aurait forgé un média au nom d'un produit ne peut pas le
+        // rattacher — mais il ne le pouvait déjà pas, `DenyUnlessProductOwnerAsync`
+        // gardant la route. Ce qui est fermé ICI est le cas inverse et plus
+        // retors : le VENDEUR LÉGITIME qui rattacherait, de bonne foi, un média
+        // forgé par un tiers au nom de son produit — parce qu'un écran le lui
+        // aurait présenté comme faisant partie de sa fiche.
+        //
+        // CE CHEMIN EST LATENT, PAS ACTIF. Aucun écran ne peut aujourd'hui
+        // présenter à un vendeur un média qu'il n'a pas déposé : il n'existe
+        // aucune route de listage par propriétaire. Ce contrôle est donc posé
+        // AVANT le besoin, pour que le jour où cette route existera, elle n'ouvre
+        // pas la brèche en même temps qu'elle rend service.
+        //
+        // CE QUE ÇA NE FERME PAS. N'importe quel compte peut toujours CRÉER de
+        // telles lignes chez media-service : elles occupent du stockage et portent
+        // une appartenance mensongère. Aucun chemin de lecture ne les expose
+        // aujourd'hui — `ListByOwnerAsync` n'a ni route ni appelant — mais la
+        // méthode existe, et le jour où quelqu'un l'emploie, ces lignes
+        // apparaîtront dans le dossier de leur victime. Le remède est au dépôt,
+        // pas ici.
+        // ═════════════════════════════════════════════════════════════════════
+        if (command.RequestedByUserId == Guid.Empty)
+        {
+            return Error.Forbidden(
+                "catalog.media.not_uploader",
+                "Appelant inconnu : impossible de vérifier qui a déposé ce fichier.");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // « LE MÊME COMPTE » AURAIT ÉTÉ TROP STRICT, ET AURAIT CASSÉ UNE ÉQUIPE.
+        //
+        // Une première version exigeait `CreatedByUserId == RequestedByUserId`.
+        // C'était faux pour la moitié des boutiques : un `SellerMember` téléverse
+        // les photos, un autre monte la fiche. La route accepte les deux —
+        // `DenyUnlessProductOwnerAsync` raisonne sur la CAPACITÉ, pas sur la
+        // personne — et le handler les aurait départagés en refusant le second.
+        //
+        // La règle est donc : le déposant doit avoir, LUI AUSSI, le droit de
+        // modifier les fiches de CE vendeur. Cela couvre l'équipe entière et
+        // exclut tout compte extérieur, ce qui est exactement la propriété
+        // recherchée.
+        //
+        // LE CHEMIN RAPIDE ÉVITE UN APPEL. Dans le cas courant — la même personne
+        // dépose et rattache — la question est déjà tranchée, et on n'ouvre pas
+        // un aller-retour vers seller-service pour se le confirmer.
+        // ─────────────────────────────────────────────────────────────────────
+        if (media.CreatedByUserId != command.RequestedByUserId)
+        {
+            var deposantAutorise = await _merchants.HasCapabilityAsync(
+                media.CreatedByUserId,
+                product.SellerId,
+                storeId: null,
+                MerchantCapabilities.ProductUpdate,
+                cancellationToken);
+
+            if (!deposantAutorise)
+            {
+                return Error.Forbidden(
+                    "catalog.media.not_uploader",
+                    "Ce fichier a été déposé par un compte étranger à cette boutique.");
+            }
         }
 
         // Le §12 réserve les images produit à cette nature. Un justificatif de

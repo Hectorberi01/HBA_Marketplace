@@ -32,11 +32,19 @@ Usage :
 """
 from __future__ import annotations
 
+import glob
 import os
 import re
 import shutil
 import subprocess
 import sys
+
+# PyYAML sert au contrôle des cibles de patch, qui tourne SANS kustomize. Son
+# absence ne doit pas faire échouer le reste : on dégrade, on ne casse pas.
+try:
+    import yaml
+except ImportError:  # pragma: no cover
+    yaml = None  # type: ignore[assignment]
 
 try:
     import yaml
@@ -206,12 +214,171 @@ def version_kustomize() -> tuple[int, ...] | None:
     return tuple(int(x) for x in trouve.groups()) if trouve else None
 
 
+def objets_de_base() -> set[tuple[str, str]]:
+    """
+    (kind, nom) que la base produira, en appliquant les `namePrefix` à la main.
+
+    Volontairement APPROXIMATIF ET SUFFISANT : on ne réimplémente pas kustomize,
+    on reconstitue la seule chose dont le contrôle ci-dessous a besoin — la liste
+    des noms qu'une cible de patch peut légitimement désigner.
+    """
+    produits: set[tuple[str, str]] = set()
+
+    for chemin in glob.glob(os.path.join(RACINE, "k8s", "base", "**", "*.yaml"), recursive=True):
+        dossier = os.path.dirname(chemin)
+        kustom = os.path.join(dossier, "kustomization.yaml")
+
+        prefixe = ""
+        if os.path.isfile(kustom):
+            try:
+                k = yaml.safe_load(open(kustom, encoding="utf-8")) or {}
+                prefixe = k.get("namePrefix", "") or ""
+            except Exception:
+                prefixe = ""
+
+        # Le gabarit `_service` n'est pas déployé tel quel : il est inclus par
+        # chaque service, qui lui applique SON préfixe. On le traite donc depuis
+        # les dossiers qui l'incluent, pas depuis lui-même.
+        if os.path.basename(dossier) == "_service":
+            continue
+
+        try:
+            texte = open(chemin, encoding="utf-8").read()
+        except Exception:
+            continue
+
+        for doc in texte.split("\n---\n"):
+            try:
+                o = yaml.safe_load(doc)
+            except Exception:
+                continue
+            if not isinstance(o, dict):
+                continue
+            kind = o.get("kind")
+            nom = (o.get("metadata") or {}).get("name")
+            if kind and nom:
+                produits.add((kind, prefixe + nom))
+
+    # Les objets du gabarit, une fois préfixés par chaque service qui l'inclut.
+    gabarit = os.path.join(RACINE, "k8s", "base", "services", "_service")
+    noyaux: set[tuple[str, str]] = set()
+    for chemin in glob.glob(os.path.join(gabarit, "*.yaml")):
+        for doc in open(chemin, encoding="utf-8").read().split("\n---\n"):
+            try:
+                o = yaml.safe_load(doc)
+            except Exception:
+                continue
+            if isinstance(o, dict) and o.get("kind") and (o.get("metadata") or {}).get("name"):
+                noyaux.add((o["kind"], o["metadata"]["name"]))
+
+    # ON CHERCHE QUI INCLUT LE GABARIT, ON NE SUPPOSE PAS OÙ IL EST INCLUS.
+    #
+    # Une première version ne regardait que `k8s/base/services/*`. Elle a signalé
+    # `gateway-service` comme introuvable — un FAUX POSITIF : la passerelle vit
+    # dans `k8s/base/apps/gateway/` et inclut le même gabarit avec son propre
+    # préfixe. Un contrôle qui invente des fautes se fait désactiver, et emporte
+    # avec lui les vraies.
+    for kustom in glob.glob(
+            os.path.join(RACINE, "k8s", "base", "**", "kustomization.yaml"), recursive=True):
+        dossier = os.path.dirname(kustom)
+        if os.path.basename(dossier) == "_service":
+            continue
+
+        try:
+            k = yaml.safe_load(open(kustom, encoding="utf-8")) or {}
+        except Exception:
+            continue
+
+        inclut_gabarit = any(
+            "_service" in str(r) for r in (k.get("resources") or []))
+
+        if not inclut_gabarit:
+            continue
+
+        prefixe = k.get("namePrefix", "") or ""
+        for kind, nom in noyaux:
+            produits.add((kind, prefixe + nom))
+
+    return produits
+
+
+def verifier_cibles_de_patch() -> list[str]:
+    """
+    ═════════════════════════════════════════════════════════════════════════════
+    UNE CIBLE DE PATCH QUI NE DÉSIGNE RIEN NE FAIT PAS ÉCHOUER LE BUILD.
+
+    Kustomize applique un patch aux objets qui correspondent à sa cible. Zéro
+    correspondance n'est PAS une erreur : le build réussit, l'objet n'est pas
+    modifié, et rien ne le dit. Un `name:` mal orthographié, un service renommé,
+    un patch écrit pour un objet retiré du dépôt — les trois donnent la même
+    sortie qu'un patch qui a mordu.
+
+    C'est exactement le défaut qui a laissé dix HPA de production à
+    `minReplicas: 1` pendant que le dépôt affichait `replicas: 2` : le patch du
+    Deployment existait, celui du HPA n'existait pas. Ici on vérifie l'inverse —
+    qu'aucun patch ne vise le vide — ce qui attrape le renommage et la coquille.
+
+    NE REMPLACE PAS `kustomize build`, et ne prétend pas le faire : ce contrôle
+    tourne SANS kustomize, c'est tout son intérêt sur un poste qui ne l'a pas.
+    ═════════════════════════════════════════════════════════════════════════════
+    """
+    produits = objets_de_base()
+    fautes: list[str] = []
+
+    for overlay in OVERLAYS:
+        chemin = os.path.join(RACINE, "k8s", "overlays", overlay, "kustomization.yaml")
+        if not os.path.isfile(chemin):
+            continue
+
+        try:
+            k = yaml.safe_load(open(chemin, encoding="utf-8")) or {}
+        except Exception as erreur:
+            fautes.append(f"{overlay} : kustomization illisible ({erreur})")
+            continue
+
+        for patch in k.get("patches", []) or []:
+            cible = patch.get("target") or {}
+            kind, nom = cible.get("kind"), cible.get("name")
+
+            # Sans nom, la cible vise TOUS les objets de ce genre : rien à
+            # résoudre, et c'est un usage légitime (le patch de `maxReplicas`).
+            if not kind or not nom:
+                continue
+
+            # Le patch de Namespace renomme l'objet lui-même : il désigne le nom
+            # d'AVANT, qui est bien celui de la base.
+            if (kind, nom) not in produits:
+                fautes.append(
+                    f"{overlay} : le patch vise {kind}/{nom}, qu'aucun objet de la base ne produit "
+                    "— kustomize l'appliquera à RIEN, sans erreur.")
+
+    return fautes
+
+
 def main() -> int:
+    # ═════════════════════════════════════════════════════════════════════════
+    # CE CONTRÔLE-CI TOURNE MÊME SANS KUSTOMIZE, ET C'EST VOLONTAIRE.
+    #
+    # Il est placé AVANT le garde-fou ci-dessous : sur un poste sans kustomize —
+    # le cas courant — tout ce fichier rendait 0 sans rien vérifier. Une cible de
+    # patch qui ne désigne rien se lit dans les fichiers, sans construire quoi que
+    # ce soit.
+    # ═════════════════════════════════════════════════════════════════════════
+    cibles = verifier_cibles_de_patch() if yaml is not None else []
+    if yaml is None:
+        print("   PyYAML absent — contrôle des cibles de patch ignoré (pip install pyyaml).")
+
+    if cibles:
+        print("❌ Cibles de patch sans correspondance")
+        for faute in cibles:
+            print(f"     {faute}")
+        print()
+
     if not shutil.which("kustomize"):
-        print("   kustomize absent — contrôle ignoré.")
+        print("   kustomize absent — le reste du contrôle est ignoré.")
         print("     https://kubectl.docs.kubernetes.io/installation/kustomize/")
         # Non bloquant : l'outil n'est pas une dépendance de compilation.
-        return 0
+        return 1 if cibles else 0
 
     # ═════════════════════════════════════════════════════════════════════════
     # LA VERSION SE VÉRIFIE ICI, SINON L'ÉCHEC DÉSIGNE LE MAUVAIS COUPABLE.
@@ -233,7 +400,7 @@ def main() -> int:
         print("     Le transformateur `labels` avec `includeTemplates` n'existe qu'à partir de la 5.")
         print("     `kubectl apply -k` embarque sa propre copie et n'est PAS concerné.")
         print("     https://kubectl.docs.kubernetes.io/installation/kustomize/")
-        return 0
+        return 1 if cibles else 0
 
     voulus = [a for a in sys.argv[1:] if a in OVERLAYS] or list(OVERLAYS)
     total = 0
@@ -303,7 +470,7 @@ def main() -> int:
 
     print()
     print(f"{len(voulus)} overlay(s) construit(s), {total} écart(s) au cahier.")
-    return 1 if total else 0
+    return 1 if (total or cibles) else 0
 
 
 if __name__ == "__main__":

@@ -141,10 +141,18 @@ public sealed class SellerEarning : AggregateRoot<SellerEarningId>
     /// Répondre à « quels retours ont touché ce gain ? » suppose de rapprocher les
     /// deux, et rien ne le fait aujourd'hui.
     ///
-    /// L'annulation de commande (`ReverseEarningsOnOrderCancelledHandler`) ne les
-    /// alimente PAS non plus : elle débite le portefeuille sans toucher au gain,
-    /// exactement comme le faisait le retour avant ce travail. C'est le même défaut,
-    /// sur un autre chemin, et il reste ouvert.
+    /// L'ANNULATION DE COMMANDE LES ALIMENTE DEPUIS LE 28 AOÛT.
+    ///
+    /// `ReverseEarningsOnOrderCancelledHandler` débitait le portefeuille sans
+    /// toucher au gain — exactement comme le faisait le retour avant ce travail. Le
+    /// gain restait `Released` avec son net intact, donc le lot de reversement
+    /// suivant le payait au vendeur, pour une commande annulée dont le solde avait
+    /// déjà été repris. Il appelle désormais `Reverse` sur les quatre montants
+    /// RESTANTS, et débite les soldes avec ce que la reprise a réellement inscrit.
+    ///
+    /// LES DEUX CHEMINS SONT DONC FERMÉS. Reste vrai, pour les deux : ces cumuls
+    /// sont une somme et non un journal — ils ne disent pas QUEL retour ou QUELLE
+    /// annulation a repris quoi.
     /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     public decimal ReversedGrossAmount { get; private set; }

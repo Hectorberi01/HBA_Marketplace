@@ -26,12 +26,31 @@ public sealed class EfIdempotencyStore<TContext> : IIdempotencyStore
 
     public EfIdempotencyStore(TContext context) => _context = context;
 
-    public async Task<IdempotencyReservation> TryBeginAsync(
+    public Task<IdempotencyReservation> TryBeginAsync(
         string key,
         string scope,
         string endpoint,
         string requestFingerprint,
         CancellationToken cancellationToken = default)
+        => TryBeginAsync(key, scope, endpoint, requestFingerprint, repriseAutorisee: true, cancellationToken);
+
+    /// <remarks>
+    /// UNE SEULE REPRISE, ET LE PARAMÈTRE EST LÀ POUR LE GARANTIR.
+    ///
+    /// La reprise d'une réservation périmée supprime la ligne puis recommence.
+    /// Écrire cela par appel récursif marcherait presque toujours et n'aurait
+    /// aucune borne : il suffirait d'un entrelacement où chaque tour retrouve une
+    /// ligne périmée pour boucler sans fin, sous verrou de base, dans une requête
+    /// HTTP. Le drapeau rend la terminaison évidente à la lecture — le second
+    /// passage ne peut pas en déclencher un troisième.
+    /// </remarks>
+    private async Task<IdempotencyReservation> TryBeginAsync(
+        string key,
+        string scope,
+        string endpoint,
+        string requestFingerprint,
+        bool repriseAutorisee,
+        CancellationToken cancellationToken)
     {
         var record = new IdempotencyRecord
         {
@@ -77,7 +96,59 @@ public sealed class EfIdempotencyStore<TContext> : IIdempotencyStore
 
         if (existing.CompletedAtUtc is null)
         {
-            return new IdempotencyReservation(IdempotencyOutcome.InFlight);
+            // ═════════════════════════════════════════════════════════════════
+            // UNE RÉSERVATION INACHEVÉE ET PÉRIMÉE SE REPREND (audit 1.8).
+            //
+            // CE QUI ÉTAIT CASSÉ. Cette branche rendait `InFlight` — donc 409 —
+            // sans jamais regarder `ExpiresAtUtc`. La ligne n'est complétée que
+            // si le gestionnaire rend la main, normalement ou par une exception
+            // ATTRAPÉE. Si le processus meurt entre la réservation et la
+            // complétion — OOM, `kill`, éviction de pod, redéploiement — la ligne
+            // reste inachevée POUR TOUJOURS : ni durée de vie, ni purge, ni
+            // reprise. Le client qui réémet sa clé reçoit 409 indéfiniment, et
+            // aucun geste automatique ne le débloque. En plein paiement, c'est
+            // une commande qu'il ne peut ni finir ni recommencer.
+            //
+            // ET LE MÉCANISME EXISTAIT DÉJÀ, ÉTEINT. `ExpiresAtUtc` est déclarée
+            // dans l'entité, `IsRequired()` dans la configuration, et porte un
+            // INDEX DÉDIÉ dans la migration de CHACUN des services. Une colonne,
+            // un défaut de 24 h et un index décrivaient une durée de vie que
+            // personne n'appliquait. C'est ce qui rend le défaut invisible : tout
+            // a l'air prévu.
+            //
+            // POURQUOI `Proceed` ET PAS UNE ERREUR PLUS DOUCE. Passé l'échéance,
+            // la première exécution n'a laissé aucune réponse à rejouer et n'en
+            // laissera jamais. Il n'y a que deux issues : refuser à vie, ou
+            // réexécuter. On réexécute.
+            //
+            // CE QUE ÇA NE COUVRE PAS, ET C'EST À SAVOIR : si la première
+            // exécution avait déjà produit son effet métier AVANT de mourir —
+            // paiement parti, message envoyé — le rejeu après 24 h le produira
+            // une SECONDE FOIS. L'idempotence de la couche HTTP ne remplace pas
+            // celle du domaine ; les opérations qui déplacent de l'argent ont la
+            // leur (`Refund.IdempotencyKey`, l'inbox des consommateurs). Vingt-
+            // quatre heures est le compromis : assez long pour que toute reprise
+            // réseau normale retrouve sa réponse, assez court pour qu'un client
+            // bloqué ne le reste pas plus d'une journée.
+            // ═════════════════════════════════════════════════════════════════
+            if (existing.ExpiresAtUtc > DateTime.UtcNow || !repriseAutorisee)
+            {
+                return new IdempotencyReservation(IdempotencyOutcome.InFlight);
+            }
+
+            // La ligne périmée est retirée, puis on repart du début : c'est la
+            // CONTRAINTE D'UNICITÉ qui doit à nouveau arbitrer, comme au premier
+            // passage. Rendre `Proceed` sans supprimer laisserait une ligne
+            // inachevée que `CompleteAsync` retrouverait — et l'appelant croirait
+            // avoir réservé ce qu'il n'a pas réservé.
+            await _context.Set<IdempotencyRecord>()
+                .Where(r => r.Key == key && r.Scope == scope && r.Endpoint == endpoint
+                            && r.CompletedAtUtc == null
+                            && r.ExpiresAtUtc <= DateTime.UtcNow)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            return await TryBeginAsync(
+                key, scope, endpoint, requestFingerprint, repriseAutorisee: false, cancellationToken);
         }
 
         return new IdempotencyReservation(

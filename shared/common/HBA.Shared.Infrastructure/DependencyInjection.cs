@@ -1,3 +1,4 @@
+using HBA.Shared.Infrastructure.Hosting;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,10 +48,24 @@ public static class DependencyInjection
         // Singleton : la clé est lue une fois, et `AesGcm` est instancié par appel.
         // En faire un scoped relirait la configuration à chaque requête.
         //
-        // IL LÈVE AU DÉMARRAGE EN PRODUCTION SI LA CLÉ MANQUE. Voir
-        // `AesGcmSecretProtector.Depuis` — un secret qu'on croit chiffré et qui ne
-        // l'est pas est pire que pas de chiffrement du tout, parce que personne ne
-        // le vérifie deux fois.
+        // IL LÈVE EN PRODUCTION SI LA CLÉ MANQUE — MAIS PAS AU DÉMARRAGE, ET LA
+        // NUANCE COMPTE.
+        //
+        // Ce paragraphe annonçait « au démarrage ». C'est faux : la fabrique est
+        // PARESSEUSE. Un singleton enregistré par lambda n'est construit qu'à la
+        // PREMIÈRE RÉSOLUTION d'`ISecretProtector`, c'est-à-dire à la première
+        // demande de réinitialisation de mot de passe ou de vérification
+        // d'adresse — pas au boot.
+        //
+        // Conséquence à connaître : un service déployé en production sans
+        // `Security:SecretProtection:Key` démarre NORMALEMENT, passe ses sondes,
+        // sert son trafic, et n'échoue que le jour où un utilisateur demande un
+        // code. Le refus est correct ; ce qui était trompeur, c'est de croire
+        // qu'un déploiement réussi valait vérification de la clé.
+        //
+        // Voir `AesGcmSecretProtector.Depuis` — un secret qu'on croit chiffré et
+        // qui ne l'est pas est pire que pas de chiffrement du tout, parce que
+        // personne ne le vérifie deux fois.
         // ═════════════════════════════════════════════════════════════════════
         services.AddSingleton<ISecretProtector>(_ =>
             AesGcmSecretProtector.Depuis(configuration, EstProduction(configuration)));
@@ -252,16 +267,31 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Même détection que `PaymentsModuleInstaller`, `NotificationsModuleInstaller`
-    /// et `MediaModuleInstaller` : on lit la variable d'environnement standard, car
-    /// ce socle s'installe avant que l'hôte ne soit construit.
+    /// Sommes-nous en production ?
     /// </summary>
+    /// <remarks>
+    /// L'installeur ne reçoit qu'un <see cref="IConfiguration"/> — les modules
+    /// s'installent avant que l'hôte ne soit construit, donc pas
+    /// d'<c>IHostEnvironment</c>. La règle elle-même vit dans
+    /// <c>EnvironnementDeploiement</c>, en un seul exemplaire.
+    ///
+    /// CE PARAGRAPHE DÉCRIVAIT AUPARAVANT UN FAIL-OPEN ASSUMÉ : « l'inconnu est
+    /// traité comme pas la production, sinon un nom mal orthographié empêcherait
+    /// de travailler ». Ce n'est plus vrai, et ce n'était pas défendable : une
+    /// variable ABSENTE tombait du même côté qu'une faute de frappe, alors
+    /// qu'ASP.NET Core considère une variable absente comme la production.
+    /// Désormais l'inconnu et l'absent sont la production ; seuls les noms
+    /// explicitement listés en dispensent.
+    /// </remarks>
     private static bool EstProduction(IConfiguration configuration)
     {
-        var environnement = configuration["ASPNETCORE_ENVIRONMENT"]
-            ?? configuration["DOTNET_ENVIRONMENT"]
-            ?? string.Empty;
-
-        return string.Equals(environnement, "Production", StringComparison.OrdinalIgnoreCase);
+        // DÉLÉGUÉ À `EnvironnementDeploiement`, ET C'EST LA CORRECTION.
+        //
+        // Ce corps était une copie parmi six d'une règle FAIL-OPEN : tout ce qui
+        // n'était pas littéralement « Production » — variable absente, chaîne
+        // vide, faute de frappe — était traité comme du développement, alors
+        // qu'ASP.NET Core, lui, considère une variable absente comme la
+        // production. Voir l'encadré de `EnvironnementDeploiement`.
+        return EnvironnementDeploiement.EstProduction(configuration);
     }
 }

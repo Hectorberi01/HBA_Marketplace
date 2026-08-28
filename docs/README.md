@@ -2,6 +2,10 @@
 
 Décisions d'architecture, contrats publics, runbooks d'exploitation.
 
+## Guides principaux
+
+- [Guide de deploiement Kubernetes dev/staging/prod](/Users/hector/Documents/HBA/docs/GUIDE_DEPLOIEMENT_K8S_DEV_STAGING_PROD.md)
+
 **Ce qui doit y être écrit AVANT la première extraction :**
 
 - **La politique de cohérence.** Quelles opérations acceptent d'être éventuellement

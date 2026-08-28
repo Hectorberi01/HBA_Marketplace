@@ -89,7 +89,15 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         // protégée, le filtre est posé, et un double appel crée deux produits.
         // ═════════════════════════════════════════════════════════════════════
         services.AddScoped<IConsumerInbox, EfConsumerInbox<CatalogDbContext>>();
-        services.AddScoped<IIdempotencyStore, EfIdempotencyStore<CatalogDbContext>>();
+        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
+        //
+        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
+        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
+        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
+        // désormais indissociables — voir `IdempotencyRegistration` pour la
+        // raison, qui tient en une phrase : un huitième service qui ne copierait
+        // que la première ligne n'aurait jamais de purge, sans rien signaler.
+        services.AddIdempotence<CatalogDbContext>();
 
         // ═════════════════════════════════════════════════════════════════════
         // LE BARÈME DES OFFRES — SOURCE UNIQUE, VALIDÉE AU DÉMARRAGE.

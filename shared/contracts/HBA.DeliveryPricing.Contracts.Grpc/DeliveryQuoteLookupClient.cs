@@ -66,7 +66,13 @@ public sealed class DeliveryQuoteLookupClient : IDeliveryQuoteLookup
 
             // Voir l'encadré de `DeliveryQuoteDetails.PartnerId` : delivery-pricing
             // n'a aucune notion de partenaire. Nul, toujours, et sciemment.
-            PartnerId: null);
+            PartnerId: null,
+
+            // Recopié tel quel, sans repli sur « FALLBACK_HAVERSINE ». Un serveur
+            // d'une version antérieure renvoie une chaîne vide, et vide se lit
+            // « on ne sait pas ». Deviner ici transformerait une absence
+            // d'information en affirmation.
+            EstimationSource: response.EstimationSource);
     }
 
     /// <remarks>

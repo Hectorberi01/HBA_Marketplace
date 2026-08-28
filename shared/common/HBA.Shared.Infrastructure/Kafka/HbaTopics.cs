@@ -86,11 +86,8 @@ public static class HbaTopics
             ["food-order-service"] = "food-order",
             ["return-refund-service"] = "return-refund",
             ["delivery-pricing-service"] = "delivery-pricing",
-            ["dispatch-service"] = "dispatch",
             ["driver-service"] = "driver",
-            ["tracking-service"] = "tracking",
             ["route-service"] = "route",
-            ["proof-of-delivery-service"] = "proof-of-delivery",
 
             // ═════════════════════════════════════════════════════════════════
             // LES NOMS DE KUBERNETES, QUI NE SONT PAS CEUX DU COMPOSE.

@@ -3,6 +3,7 @@ using Grpc.Core;
 using HBA.Delivery.Pricing.Application.Abstractions;
 using HBA.Delivery.Pricing.Application.DTOs;
 using HBA.Delivery.Pricing.Domain.Aggregates.DeliveryQuote;
+using HBA.Delivery.Pricing.Domain.Policies;
 using HBA.DeliveryPricing.Grpc.V1;
 using HBA.Shared.IntegrationEvents;
 
@@ -113,6 +114,11 @@ public sealed class DeliveryPricingGrpcService : DeliveryPricingApi.DeliveryPric
             DistanceKm = quote.DistanceMeters / 1000.0,
             ExpiresAt = quote.ExpiresAt.ToString("O", CultureInfo.InvariantCulture),
 
+            // `EstimatedMinutes` ci-dessus est un PLANCHER quand ceci vaut
+            // « FALLBACK_HAVERSINE » — voir le proto. L'appelant a besoin des
+            // deux ensemble : le nombre seul se lit comme une prévision.
+            EstimationSource = quote.SourceEstimation,
+
             // DEUX ÉTATS DISTINCTS, JAMAIS FONDUS EN « INVALIDE » — voir le
             // proto. `GetQuoteAsync` a déjà périmé le devis si son échéance est
             // passée, donc le statut lu ici fait foi.
@@ -161,7 +167,11 @@ public sealed class DeliveryPricingGrpcService : DeliveryPricingApi.DeliveryPric
         var response = new GetServiceabilityResponse
         {
             Serviceable = serviceability.Serviceable,
-            DistanceMeters = serviceability.DistanceMeters
+            DistanceMeters = serviceability.DistanceMeters,
+
+            // La desserte ne prend jamais de distance en entrée : elle la calcule
+            // toujours elle-même, donc toujours par ligne droite corrigée.
+            EstimationSource = SourcesEstimation.LigneDroiteCorrigee
         };
 
         if (!string.IsNullOrWhiteSpace(serviceability.Reason))
@@ -192,7 +202,14 @@ public sealed class DeliveryPricingGrpcService : DeliveryPricingApi.DeliveryPric
             ExpiresAt = quote.ExpiresAt.ToString("O", CultureInfo.InvariantCulture),
             PricingVersion = quote.PricingVersion,
             Status = quote.Status,
-            ServiceLevel = quote.ServiceLevel
+            ServiceLevel = quote.ServiceLevel,
+            EstimationSource = quote.SourceEstimation,
+
+            // INVARIANT, PAS LOCALISÉ. `ToString(InvariantCulture)` donne
+            // « 1.30 » ; la culture par défaut d'un conteneur donnerait « 1,30 »
+            // ici et « 1.30 » ailleurs, pour la même valeur. Un contrat ne se lit
+            // pas différemment selon la machine qui le sérialise.
+            UrbanCorrectionFactor = quote.FacteurCorrectionApplique.ToString(CultureInfo.InvariantCulture)
         };
 
         if (quote.SellerId is { } sellerId)

@@ -20,6 +20,9 @@ public sealed record MediaVariantView(
 /// c'est un geste séparé, tracé, et à durée limitée.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+/// <param name="Url">
+/// <summary>URL permanente. NULLE si le média n'est pas public.</summary>
+/// </param>
 public sealed record MediaView(
     Guid Id,
     string OwnerType,
@@ -32,12 +35,30 @@ public sealed record MediaView(
     string Status,
     int? Width,
     int? Height,
-
-    /// <summary>URL permanente. NULLE si le média n'est pas public.</summary>
     string? Url,
 
     IReadOnlyList<MediaVariantView> Variants,
-    DateTime CreatedOnUtc);
+    DateTime CreatedOnUtc,
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // LE COMPTE QUI A DÉPOSÉ LE FICHIER — IL ÉTAIT PERSISTÉ ET INVISIBLE.
+    //
+    // `MediaAsset.CreatedByUserId` existe depuis la migration initiale, est
+    // `IsRequired()`, et ne sortait de media-service par AUCUN contrat. Les
+    // services qui rattachent un média ne pouvaient donc rien vérifier d'autre
+    // que `OwnerType`/`OwnerId`.
+    //
+    // OR CES DEUX-LÀ SONT DÉCLARÉS PAR L'APPELANT AU TÉLÉVERSEMENT, et
+    // media-service ne les vérifie pas — il ignore ce qu'est un produit ou un
+    // vendeur (§20), et le dit. Un contrôle d'appartenance qui compare une valeur
+    // fournie par celui qu'on contrôle ne contrôle rien. `CreatedByUserId`, lui,
+    // vient du JETON : c'est le seul fait de ce contrat que l'appelant ne choisit
+    // pas.
+    //
+    // PARAMÈTRE OPTIONNEL EN FIN D'ENREGISTREMENT, pour que les appelants
+    // existants continuent de compiler. `Guid.Empty` se lit « inconnu ».
+    // ═══════════════════════════════════════════════════════════════════════
+    Guid CreatedByUserId = default);
 
 /// <summary>Une URL signée et sa durée de validité (§10).</summary>
 public sealed record SignedMediaUrl(string Url, int ExpiresInSeconds);

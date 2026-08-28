@@ -7,6 +7,12 @@ set -uo pipefail
 # Chacun est né d'une panne réelle, et chacun attrape une classe d'erreurs que
 # le compilateur ne voit pas :
 #
+#   • check-refs.py        une `ProjectReference` dont la cible n'existe plus.
+#                          MSBuild n'en fait qu'un AVERTISSEMENT, puis échoue
+#                          plus loin sur des `using` — le message d'erreur
+#                          désigne alors des espaces de noms, jamais la ligne
+#                          fautive. Les projets de test ne sont dans aucune
+#                          solution : `check-solution.py` ne peut pas les voir.
 #   • check-di.py          une interface injectée que personne ne fournit.
 #   • check-usings.py      un type référencé sans `using` accessible — un namespace
 #                          FRÈRE ne compte pas, et c'est le piège qui a coûté trois
@@ -136,6 +142,23 @@ check_connection_strings() {
 # derrière des projets retirés — pendant que les quinze autres contrôles
 # passaient. Zéro fichier C# en cause. Voir l'en-tête de check-solution.py.
 run "Cohérence de la solution"     python3 "$ROOT_DIR/scripts/check-solution.py"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JUSTE APRÈS LA SOLUTION, ET C'EST VOLONTAIRE : LES DEUX SE COMPLÈTENT.
+#
+# `check-solution.py` vérifie `HBA.sln` — que chaque projet listé existe, qu'aucun
+# GUID n'est orphelin. Il ne voit QUE ce que la solution liste, et les projets de
+# TEST n'y sont pas.
+#
+# C'est exactement l'espace par lequel le défaut du 28 août est passé : le retrait
+# de dispatch, tracking et proof (D42, D43) a laissé trois `ProjectReference`
+# mortes dans `HBA.Delivery.UnitTests`, que rien ne regardait. MSBuild rend alors
+# un simple AVERTISSEMENT MSB9008 puis échoue sur les `using` en CS0234 — cinq
+# erreurs qui parlent d'espaces de noms, et la vraie cause en warning au milieu.
+#
+# Celui-ci part des `.csproj` du DISQUE, sans passer par aucune solution.
+# ═══════════════════════════════════════════════════════════════════════════════
+run "Références de projet"         python3 "$ROOT_DIR/scripts/check-refs.py"
 run "Structure des fichiers C#"    python3 "$ROOT_DIR/scripts/check-braces.py"
 run "Dépendances non résolues"     python3 "$ROOT_DIR/scripts/check-di.py"          "$@"
 run "Types hors portée"            python3 "$ROOT_DIR/scripts/check-usings.py"      "$@"

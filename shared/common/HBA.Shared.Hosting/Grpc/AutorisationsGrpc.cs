@@ -38,10 +38,39 @@ namespace HBA.Shared.Hosting.Grpc;
 /// qui est un lot en soi.
 ///
 /// CE QUE LA TABLE FERME QUAND MÊME, AUJOURD'HUI :
-///   • `RefundPayment` : vingt-quatre appelants possibles → UN.
-///   • `ReleaseCoupon` : vingt-quatre → deux.
-///   • `ReleaseReservation` : vingt-quatre → cinq.
-///   • six hôtes de livraison n'ont plus AUCUN droit d'appel sortant.
+///   • `RefundPayment` : vingt-et-un appelants possibles → UN.
+///   • `ReleaseCoupon` : vingt-et-un → deux.
+///   • `ReleaseReservation` : vingt-et-un → cinq.
+///   • deux hôtes de livraison n'ont AUCUN droit d'appel sortant :
+///     Driver et Route.
+///
+/// DEUX CHIFFRES ONT CHANGÉ ICI LE 27 AOÛT, POUR DEUX RAISONS DIFFÉRENTES.
+///
+/// « Vingt-quatre » est devenu « vingt-trois » : `HBA.Delivery.Dispatch.Api` a été
+/// retiré du dépôt. Ce service dupliquait une affectation de livreur que
+/// delivery-service fait déjà, avec deux identifiants codés en dur et sans base.
+///
+/// « Six » était FAUX AVANT CE RETRAIT, et vaut quatre aujourd'hui. Le compte
+/// n'avait jamais été recalculé après que Delivery.Core et Delivery.Pricing ont
+/// reçu des droits sortants. Un commentaire qui annonce un chiffre de sécurité
+/// plus favorable que la réalité est pire qu'un commentaire absent : on ne
+/// revérifie pas ce qu'on croit déjà compté.
+///
+/// LE 28 AOÛT, DEUX HÔTES DE PLUS SONT SORTIS : PROOF ET TRACKING.
+///
+/// « Vingt-trois » est devenu « vingt-et-un », et « quatre hôtes sans droit
+/// sortant » est devenu « deux ». Les deux services retirés tenaient leur état
+/// dans des `ConcurrentDictionary` de processus — sans base, sans migration,
+/// perdu au redémarrage et non partagé entre réplicas — pendant que
+/// delivery-service persistait déjà la preuve (`ProofOfDelivery`, `IssuedPin`,
+/// `FailedProofAttempts`) et exposait le suivi (`GetTracking`). Aucun des deux
+/// n'avait d'entrée dans `ServicesOptions` du gateway : ils n'étaient
+/// joignables par personne, de l'extérieur comme de l'intérieur.
+///
+/// CE QUE CE RETRAIT NE COUVRE PAS. `HBA.Delivery.Route.Api` reste dans la table
+/// avec zéro droit sortant et zéro appelant, comme les deux précédents. Il n'est
+/// pas retiré parce que le calcul d'itinéraire, lui, a un remplaçant dégradé qui
+/// tourne (`FALLBACK_HAVERSINE`) et une décision distincte à trancher.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public static class AutorisationsGrpc
@@ -167,9 +196,6 @@ public static class AutorisationsGrpc
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
-            // HBA.Delivery.Dispatch.Api : aucun appel gRPC sortant.
-            ["HBA.Delivery.Dispatch.Api"] = FrozenSet<string>.Empty,
-
             // HBA.Delivery.Driver.Api : aucun appel gRPC sortant.
             ["HBA.Delivery.Driver.Api"] = FrozenSet<string>.Empty,
 
@@ -180,14 +206,8 @@ public static class AutorisationsGrpc
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
-            // HBA.Delivery.Proof.Api : aucun appel gRPC sortant.
-            ["HBA.Delivery.Proof.Api"] = FrozenSet<string>.Empty,
-
             // HBA.Delivery.Route.Api : aucun appel gRPC sortant.
             ["HBA.Delivery.Route.Api"] = FrozenSet<string>.Empty,
-
-            // HBA.Delivery.Tracking.Api : aucun appel gRPC sortant.
-            ["HBA.Delivery.Tracking.Api"] = FrozenSet<string>.Empty,
 
             ["HBA.Engagement.Api"] =
             new[]

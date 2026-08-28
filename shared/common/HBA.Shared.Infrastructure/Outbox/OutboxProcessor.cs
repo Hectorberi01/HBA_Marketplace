@@ -237,12 +237,25 @@ public sealed class OutboxProcessor<TDbContext> : BackgroundService
             // CRITICAL, et pas Error. Ce n'est plus « une tentative a échoué » — c'est
             // « cet événement métier ne sera JAMAIS traité ». Un e-mail de réinitialisation
             // qui ne partira pas, un gain vendeur qui ne sera pas crédité, un stock qui ne
-            // sera pas libéré. Quelqu'un doit le voir, corriger la cause, et rejouer :
-            // GET /admin/outbox/dead-letters.
+            // sera pas libéré. Quelqu'un doit le voir et corriger la cause.
+            //
+            // CE MESSAGE RENVOYAIT VERS « GET /admin/outbox/dead-letters », QUI N'EXISTE
+            // PAS. Aucune route de ce nom n'est montée nulle part dans le dépôt, et le
+            // portail d'administration classe d'ailleurs sa section « Outbox » comme SANS
+            // AMONT, avec la raison : la table est interne au service et l'exposer
+            // donnerait accès aux charges utiles des événements — dont certaines portent
+            // un secret. L'instruction était donc doublement fausse : elle envoyait un
+            // exploitant chercher une route absente, dans le message même qui l'informe
+            // d'une perte définitive, à l'heure où il en a le plus besoin.
+            //
+            // On décrit désormais le geste RÉEL, qui est manuel et en base. Le jour où
+            // une surface de rejeu existera, c'est ici qu'il faudra la nommer.
             _logger.LogCritical(
                 exception,
                 "LETTRE MORTE — outbox {Context}, message {MessageId} de type {Type} abandonné après {Attempts} tentatives. "
-                + "CET ÉVÉNEMENT NE SERA JAMAIS TRAITÉ. Corriger la cause, puis rejouer via /admin/outbox/dead-letters.",
+                + "CET ÉVÉNEMENT NE SERA JAMAIS TRAITÉ, et aucune route de rejeu n'existe. Corriger la cause, puis "
+                + "remettre la ligne en file À LA MAIN : DeadLetteredOnUtc = NULL, AttemptCount = 0, "
+                + "NextAttemptAtUtc = NULL sur cette ligne de la table outbox_messages du service.",
                 typeof(TDbContext).Name, message.Id, message.Type, message.AttemptCount);
 
             // LA métrique qui doit rester à zéro. Une alerte y est adossée

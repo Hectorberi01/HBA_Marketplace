@@ -224,11 +224,31 @@ public class AuthorizationTestFactory<TEntryPoint> : WebApplicationFactory<TEntr
         Poser("Services__FoodOrder", "http://127.0.0.1:59115");
         Poser("Services__Promotion", "http://127.0.0.1:59116");
         Poser("Services__Drivers", "http://127.0.0.1:59117");
-        Poser("Services__Dispatch", "http://127.0.0.1:59118");
-        Poser("Services__Tracking", "http://127.0.0.1:59119");
-        Poser("Services__Routes", "http://127.0.0.1:59120");
-        Poser("Services__ProofOfDelivery", "http://127.0.0.1:59121");
         Poser("Services__DeliveryPricing", "http://127.0.0.1:59122");
+
+        // ═════════════════════════════════════════════════════════════════════
+        // `Services__Routes` RESTE, LES TROIS AUTRES SONT PARTIES — ET LA
+        // DIFFÉRENCE TIENT À UNE SEULE CHOSE.
+        //
+        // `Services__Dispatch`, `Services__Tracking` et `Services__ProofOfDelivery`
+        // désignaient des services retirés du dépôt (D42, D43). Leurs
+        // enregistrements de client gRPC sont partis avec eux : plus personne ne
+        // peut lire ces clés, ni aujourd'hui ni demain.
+        //
+        // `Services__Routes` EST DIFFÉRENTE, et j'ai d'abord cru le contraire.
+        // `route-service` n'a aucun appelant et aucune entrée dans
+        // `ServicesOptions` de la passerelle — c'est exact. Mais
+        // `RoutesGrpcRegistration.AddRoutesGrpcClient` existe toujours, et LÈVE si
+        // `Services:Routes` est absent. Aucun hôte ne l'appelle aujourd'hui ; le
+        // jour où l'un le fera, ses tests d'autorisation échoueraient À LA
+        // CONSTRUCTION, sur un message qui ne dit rien de cette ligne.
+        //
+        // C'est `check-service-addresses.py` qui l'a signalé, après que je l'aie
+        // retirée. Le contrôle avait raison et pas moi : on ne retire pas une
+        // adresse parce qu'on croit qu'elle ne sert pas, on la retire quand le
+        // code qui la lit a disparu.
+        // ═════════════════════════════════════════════════════════════════════
+        Poser("Services__Routes", "http://127.0.0.1:59120");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

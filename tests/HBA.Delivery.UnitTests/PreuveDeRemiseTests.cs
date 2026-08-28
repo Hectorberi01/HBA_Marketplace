@@ -1,311 +1,244 @@
-using HBA.ProofOfDelivery.Application;
-using HBA.Shared.IntegrationEvents;
+using HBA.Deliveries.Domain.Deliveries;
 
 namespace HBA.Delivery.UnitTests;
 
 /// <summary>
 /// ═════════════════════════════════════════════════════════════════════════════
-/// ISSUE-056 — l'OTP constant « 123456 » et la preuve rejouable.
+/// LA PREUVE DE REMISE — RÉÉCRIT LE 28 AOÛT CONTRE L'AGRÉGAT QUI LA PORTE.
 ///
-/// `VerifyOtp` calculait une empreinte SHA-256, en vérifiait la longueur — 64,
-/// toujours vraie — puis comparait la chaîne À UN LITTÉRAL. Le hachage donnait à
-/// la fonction l'apparence d'un mécanisme de sécurité, et c'est ce qui l'a fait
-/// passer en relecture. Et `submit` n'avait AUCUNE garde d'état : une preuve
-/// déjà vérifiée se resoumettait à l'infini, republiant à chaque fois la clôture
-/// de la course.
+/// CE FICHIER ÉPROUVAIT `ProofStore`, ET CE MAGASIN N'EXISTE PLUS (D43).
 ///
-/// CES TESTS PORTENT SUR UNE MAQUETTE EN MÉMOIRE. `ProofStore` n'a ni base ni
-/// migration : ce qui est éprouvé ici est vrai DANS un processus et ne survit ni
-/// au redémarrage, ni à un second réplica. C'est dit dans l'encadré de la classe,
-/// et ce n'est pas ces tests qui le corrigeront.
+/// `proof-of-delivery-service` tenait la preuve dans un `ConcurrentDictionary` de
+/// processus : sans base, sans migration, perdu au redémarrage, non partagé entre
+/// réplicas — et sans aucun appelant dans tout le dépôt. Il a été retiré parce que
+/// `delivery-service` porte la MÊME capacité, persistée.
+///
+/// CE FICHIER EST DONC LA VÉRIFICATION DE CETTE AFFIRMATION. Chacun des tests
+/// ci-dessous reprend une règle que les anciens éprouvaient sur la maquette, et
+/// l'éprouve sur `Delivery` / `ProofOfDelivery`. Si l'une d'elles manquait ici, le
+/// retrait aurait emporté une garantie — c'est exactement ce qu'un retrait de
+/// service doit prouver, et ce qu'aucun contrôle statique ne peut dire.
+///
+/// ═════════════════════════════════════════════════════════════════════════════
+/// CE QUI A CHANGÉ DE FORME EN CHANGEANT DE PORTEUR, ET IL FAUT LE SAVOIR.
+///
+///   • LE CODE N'EXPIRE PLUS TOUT SEUL. `ProofStore` posait une échéance de
+///     quinze minutes sur l'OTP, et deux tests l'éprouvaient. `Delivery.IssuedPin`
+///     n'a AUCUNE échéance : le code émis à la prise en charge reste valable
+///     jusqu'à la remise. Ce n'est pas un oubli de ce fichier, c'est une
+///     différence RÉELLE entre les deux implémentations — et le retrait l'a
+///     rendue effective sans que personne ne la décide. Les deux tests
+///     correspondants ne sont donc pas portés : ils échoueraient, et à juste
+///     titre.
+///
+///   • LA SIMULTANÉITÉ N'EST PLUS TESTABLE ICI. « Deux soumissions simultanées du
+///     bon code, une seule vérifie » s'éprouvait sur un `ConcurrentDictionary`.
+///     Sur un agrégat persisté, ce qui arbitre est le jeton `xmin` et une seconde
+///     transaction — donc une base. Non porté, et non couvert ailleurs.
+///
+///   • LE VERROU EST À CINQ TENTATIVES, PAS TROIS. `MaxFailedProofAttempts = 5`.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public sealed class PreuveDeRemiseTests
 {
-    private static readonly DateTimeOffset Maintenant = new(2026, 9, 4, 10, 0, 0, TimeSpan.Zero);
-
-    private static CreateProofRequest UneRemise() =>
-        new(Guid.NewGuid(), null, "DROPOFF", "Awa Sossou", Guid.NewGuid());
-
     /// <summary>
-    /// LE TEST QUI FERME LA FAILLE D'ORIGINE : « 123456 » ne vaut plus rien.
-    ///
-    /// Il est théoriquement possible que le code tiré au hasard SOIT « 123456 » —
-    /// une chance sur un million. On tire donc plusieurs preuves : la probabilité
-    /// qu'un échec soit dû au hasard devient négligeable, et surtout, avant la
-    /// correction, ce test échouait à TOUS les tirages.
+    /// Amène une course jusqu'au seuil de la remise, avec un livreur engagé.
+    /// On passe par toutes les transitions : un état fabriqué à la main serait un
+    /// état que la production ne peut pas produire.
     /// </summary>
-    [Fact]
-    public async Task Le_code_constant_123456_ne_verifie_plus_rien()
+    private static HBA.Deliveries.Domain.Deliveries.Delivery ADeuxDoigtsDeLaRemise(
+        decimal? valeurDeclaree = null, bool paiementALaLivraison = false)
     {
-        var store = new ProofStore();
-        var publieur = new PublieurMuet();
+        var livreur = DriverId.New();
+        var course = UneCourse.Express(valeurDeclaree, paiementALaLivraison);
 
-        for (var i = 0; i < 25; i++)
-        {
-            var emission = store.Create(UneRemise(), Maintenant);
+        course.StartSearching(UneCourse.Maintenant).IsSuccess.Should().BeTrue();
+        course.AssignTo(livreur).IsSuccess.Should().BeTrue();
+        course.AcceptByDriver(livreur).IsSuccess.Should().BeTrue();
+        course.MarkArrivedAtPickup().IsSuccess.Should().BeTrue();
+        course.MarkPickedUp().IsSuccess.Should().BeTrue();
+        course.MarkInTransit().IsSuccess.Should().BeTrue();
+        course.MarkArrivedAtDropoff().IsSuccess.Should().BeTrue();
 
-            var resultat = await store.SubmitAsync(
-                emission.Proof.Id, new SubmitProofRequest(null, "123456"), publieur, default, Maintenant);
-
-            resultat.Status.Should().NotBe(SubmitStatus.Verified);
-        }
+        return course;
     }
 
+    /// <summary>
+    /// ISSUE-057 : aucune course ne naît plus sans exigence de preuve.
+    ///
+    /// C'était le défaut d'origine — `RequiredProof` valait `None` sur TOUTE la
+    /// plateforme, donc `MarkDelivered` ne demandait jamais rien.
+    /// </summary>
+    [Fact]
+    public void Une_course_ordinaire_exige_au_moins_une_photo()
+    {
+        var course = UneCourse.Express();
+
+        course.RequiredProof.Should().Be(ProofOfDeliveryKind.Photo);
+        course.IssuedPin.Should().BeNull("une photo ne se dicte pas");
+    }
+
+    /// <summary>Paiement à la livraison : de l'argent change de main, donc un code.</summary>
+    [Fact]
+    public void Le_paiement_a_la_livraison_exige_un_code()
+    {
+        var course = UneCourse.Express(paiementALaLivraison: true);
+
+        course.RequiredProof.Should().Be(ProofOfDeliveryKind.Pin);
+        course.IssuedPin.Should().NotBeNullOrWhiteSpace();
+    }
+
+    /// <summary>Au-dessus du seuil, le litige coûte plus cher que la friction.</summary>
+    [Fact]
+    public void Une_valeur_declaree_elevee_exige_un_code()
+    {
+        var course = UneCourse.Express(valeurDeclaree: ProofPolicy.HighValueThreshold);
+
+        course.RequiredProof.Should().Be(ProofOfDeliveryKind.Pin);
+    }
+
+    /// <summary>
+    /// LE CODE EST ALÉATOIRE ET PROPRE À CHAQUE COURSE.
+    ///
+    /// L'ancien défaut était un OTP constant « 123456 ». Vingt tirages suffisent :
+    /// une constante donnerait vingt fois la même valeur.
+    /// </summary>
     [Fact]
     public void Le_code_emis_est_aleatoire_et_propre_a_chaque_course()
     {
-        var store = new ProofStore();
+        var codes = Enumerable.Range(0, 20)
+            .Select(_ => UneCourse.Express(paiementALaLivraison: true).IssuedPin)
+            .ToList();
 
-        var codes = Enumerable.Range(0, 50)
-            .Select(_ => store.Create(UneRemise(), Maintenant).Otp)
-            .ToArray();
-
-        codes.Should().OnlyContain(c => c.Length == ProofStore.OtpDigits && c.All(char.IsDigit));
-        codes.Distinct().Count().Should().BeGreaterThan(40, "un code par course, tiré au hasard");
+        codes.Should().OnlyContain(c => !string.IsNullOrWhiteSpace(c));
+        codes.Distinct().Should().HaveCountGreaterThan(1, "un code constant n'atteste de rien");
     }
 
     [Fact]
-    public async Task Le_bon_code_verifie_la_preuve()
+    public void Le_bon_code_verifie_la_preuve()
     {
-        var store = new ProofStore();
-        var emission = store.Create(UneRemise(), Maintenant);
+        var course = ADeuxDoigtsDeLaRemise(paiementALaLivraison: true);
+        var code = course.IssuedPin!;
 
-        var resultat = await store.SubmitAsync(
-            emission.Proof.Id, new SubmitProofRequest(null, emission.Otp), new PublieurMuet(), default, Maintenant);
+        course.MarkDelivered(code, 0.8m).IsSuccess.Should().BeTrue();
 
-        resultat.Status.Should().Be(SubmitStatus.Verified);
-        resultat.Proof!.OtpVerified.Should().BeTrue();
-        resultat.Proof.Status.Should().Be("VERIFIED");
+        course.Status.Should().Be(DeliveryStatus.Delivered);
+        course.Proof.Should().NotBeNull();
+        course.Proof!.Kind.Should().Be(ProofOfDeliveryKind.Pin);
     }
 
     /// <summary>
-    /// Le test que l'audit exige : une preuve DÉJÀ VÉRIFIÉE n'est pas rejouable.
+    /// UN CODE FAUX EST REFUSÉ, ET LA COURSE N'AVANCE PAS.
     ///
-    /// Le rejeu ne se contentait pas de réussir : il republiait `ProofVerified`
-    /// et `DeliveryProofCompleted`, donc autant de clôtures de course et de
-    /// déclenchements de paiement du livreur.
+    /// C'est la règle que l'ancien code violait le plus grossièrement : toute
+    /// chaîne non vide satisfaisait n'importe quel genre de preuve.
     /// </summary>
     [Fact]
-    public async Task Une_preuve_deja_verifiee_n_est_pas_rejouable()
+    public void Un_code_faux_est_refuse_et_la_course_reste_ouverte()
     {
-        var store = new ProofStore();
-        var publieur = new PublieurMuet();
-        var emission = store.Create(UneRemise(), Maintenant);
+        var course = ADeuxDoigtsDeLaRemise(paiementALaLivraison: true);
 
-        (await store.SubmitAsync(
-            emission.Proof.Id, new SubmitProofRequest(null, emission.Otp), publieur, default, Maintenant))
-            .Status.Should().Be(SubmitStatus.Verified);
+        var resultat = course.MarkDelivered("000000", 0.8m);
 
-        var publicationsApresPremiere = publieur.Publies;
-
-        var rejeu = await store.SubmitAsync(
-            emission.Proof.Id, new SubmitProofRequest("Quelqu'un d'autre", emission.Otp), publieur, default, Maintenant);
-
-        rejeu.Status.Should().Be(SubmitStatus.AlreadySubmitted);
-        publieur.Publies.Should().Be(publicationsApresPremiere, "un rejeu ne republie RIEN");
-
-        // ET LE NOM DU DESTINATAIRE N'A PAS BOUGÉ. Le rejeu permettait au
-        // livreur de réécrire, après coup et sans trace, le nom de la personne
-        // qui avait reçu le colis.
-        rejeu.Proof!.RecipientName.Should().Be("Awa Sossou");
-    }
-
-    [Fact]
-    public async Task Un_code_expire_est_refuse()
-    {
-        var store = new ProofStore();
-        var emission = store.Create(UneRemise(), Maintenant);
-
-        var apresExpiration = Maintenant.Add(ProofStore.OtpLifetime).AddSeconds(1);
-
-        var resultat = await store.SubmitAsync(
-            emission.Proof.Id, new SubmitProofRequest(null, emission.Otp), new PublieurMuet(), default, apresExpiration);
-
-        resultat.Status.Should().Be(SubmitStatus.OtpExpired);
+        resultat.IsFailure.Should().BeTrue();
+        resultat.Error.Code.Should().Be("delivery.proof.pin_mismatch");
+        course.Status.Should().NotBe(DeliveryStatus.Delivered);
+        course.Proof.Should().BeNull();
     }
 
     /// <summary>
-    /// L'expiration est franche : le code vaut jusqu'à sa date, pas au-delà.
-    /// </summary>
-    [Fact]
-    public async Task Un_code_est_encore_valable_juste_avant_son_echeance()
-    {
-        var store = new ProofStore();
-        var emission = store.Create(UneRemise(), Maintenant);
-
-        var justeAvant = Maintenant.Add(ProofStore.OtpLifetime).AddSeconds(-1);
-
-        var resultat = await store.SubmitAsync(
-            emission.Proof.Id, new SubmitProofRequest(null, emission.Otp), new PublieurMuet(), default, justeAvant);
-
-        resultat.Status.Should().Be(SubmitStatus.Verified);
-    }
-
-    /// <summary>
-    /// Le test que l'audit exige : un code faux ÉPUISE les tentatives.
+    /// LE COMPTEUR NE COMPTE QUE LES MAUVAISES RÉPONSES, PAS LES ABSENCES.
     ///
-    /// Sans plafond, six chiffres ne sont qu'un million d'essais — et « submit »
-    /// s'appelle en boucle. C'est le compteur, pas l'aléa, qui rend le code sûr.
+    /// Sans cette distinction, cinq appels sans corps verrouilleraient la course
+    /// d'un livreur — un déni de service à un appel près.
     /// </summary>
     [Fact]
-    public async Task Un_code_faux_epuise_les_tentatives_puis_bloque()
+    public void Une_preuve_absente_ne_consomme_pas_de_tentative()
     {
-        var store = new ProofStore();
-        var publieur = new PublieurMuet();
-        var emission = store.Create(UneRemise(), Maintenant);
+        var course = ADeuxDoigtsDeLaRemise(paiementALaLivraison: true);
 
-        var faux = Faux(emission.Otp);
-
-        for (var essai = 0; essai < ProofStore.MaxOtpAttempts; essai++)
+        for (var i = 0; i < HBA.Deliveries.Domain.Deliveries.Delivery.MaxFailedProofAttempts + 2; i++)
         {
-            var refus = await store.SubmitAsync(
-                emission.Proof.Id, new SubmitProofRequest(null, faux), publieur, default, Maintenant);
-
-            refus.Status.Should().Be(SubmitStatus.OtpInvalid);
+            course.MarkDelivered(null, 0.8m).IsFailure.Should().BeTrue();
         }
 
-        var bloque = await store.SubmitAsync(
-            emission.Proof.Id, new SubmitProofRequest(null, faux), publieur, default, Maintenant);
+        course.FailedProofAttempts.Should().Be(0);
+        course.IsProofLocked.Should().BeFalse();
 
-        bloque.Status.Should().Be(SubmitStatus.OtpLocked);
+        // Et le bon code passe encore.
+        course.MarkDelivered(course.IssuedPin, 0.8m).IsSuccess.Should().BeTrue();
+    }
 
-        // ET LE BLOCAGE TIENT MÊME CONTRE LE BON CODE. Sinon le plafond ne
-        // serait qu'un ralentisseur : on épuise, puis on continue.
-        var avecLeBon = await store.SubmitAsync(
-            emission.Proof.Id, new SubmitProofRequest(null, emission.Otp), publieur, default, Maintenant);
+    /// <summary>Cinq mauvaises réponses verrouillent la preuve.</summary>
+    [Fact]
+    public void Un_code_faux_epuise_les_tentatives_puis_bloque()
+    {
+        var course = ADeuxDoigtsDeLaRemise(paiementALaLivraison: true);
+        var max = HBA.Deliveries.Domain.Deliveries.Delivery.MaxFailedProofAttempts;
 
-        avecLeBon.Status.Should().Be(SubmitStatus.OtpLocked);
+        for (var i = 0; i < max; i++)
+        {
+            course.MarkDelivered("000000", 0.8m).Error.Code.Should().Be("delivery.proof.pin_mismatch");
+        }
+
+        course.IsProofLocked.Should().BeTrue();
+
+        // LE VERROU TIENT MÊME CONTRE LE BON CODE. C'est le point : après cinq
+        // essais, ce n'est plus au livreur de trancher, c'est au support.
+        var apresVerrou = course.MarkDelivered(course.IssuedPin, 0.8m);
+        apresVerrou.IsFailure.Should().BeTrue();
+        apresVerrou.Error.Code.Should().Be("delivery.proof.locked");
+        course.Status.Should().NotBe(DeliveryStatus.Delivered);
     }
 
     /// <summary>
-    /// Un code PÉRIMÉ ne consomme pas de tentative : ce n'est pas une erreur du
-    /// livreur, et le lui compter épuiserait ses essais sans qu'il puisse rien y
-    /// faire.
+    /// UNE COURSE DÉJÀ REMISE NE SE REMET PAS DEUX FOIS — le rejeu est refusé par
+    /// la machine à états, avant même de regarder la preuve.
     /// </summary>
     [Fact]
-    public async Task Un_code_expire_ne_consomme_pas_de_tentative()
+    public void Une_course_deja_remise_n_est_pas_rejouable()
     {
-        var store = new ProofStore();
-        var publieur = new PublieurMuet();
-        var emission = store.Create(UneRemise(), Maintenant);
-        var apresExpiration = Maintenant.Add(ProofStore.OtpLifetime).AddSeconds(1);
+        var course = ADeuxDoigtsDeLaRemise(paiementALaLivraison: true);
+        var code = course.IssuedPin!;
 
-        for (var i = 0; i < ProofStore.MaxOtpAttempts * 2; i++)
-        {
-            (await store.SubmitAsync(
-                emission.Proof.Id, new SubmitProofRequest(null, emission.Otp), publieur, default, apresExpiration))
-                .Status.Should().Be(SubmitStatus.OtpExpired, "et jamais « bloqué »");
-        }
+        course.MarkDelivered(code, 0.8m).IsSuccess.Should().BeTrue();
+
+        var rejeu = course.MarkDelivered(code, 0.8m);
+        rejeu.IsFailure.Should().BeTrue();
     }
 
     /// <summary>
-    /// USAGE UNIQUE, ÉPROUVÉ EN CONCURRENCE RÉELLE.
+    /// UNE PHOTO DOIT AVOIR LA FORME D'UNE RÉFÉRENCE DE STOCKAGE.
     ///
-    /// `ProofStore` est en mémoire : deux soumissions peuvent vraiment entrer en
-    /// même temps. Une seule doit vérifier — sinon la course est clôturée deux
-    /// fois et le livreur payé deux fois.
+    /// C'est ce qui écarte le cas qui a motivé la correction : le livreur qui tape
+    /// « ok » et clôt la course.
     /// </summary>
     [Fact]
-    public async Task Deux_soumissions_simultanees_du_bon_code_une_seule_verifie()
+    public void Une_photo_doit_ressembler_a_une_reference_de_stockage()
     {
-        var store = new ProofStore();
-        var publieur = new PublieurMuet();
-        var emission = store.Create(UneRemise(), Maintenant);
+        var course = ADeuxDoigtsDeLaRemise();
+        course.RequiredProof.Should().Be(ProofOfDeliveryKind.Photo);
 
-        var barriere = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        course.MarkDelivered("ok", 0.8m).IsFailure.Should().BeTrue("« ok » n'est pas un fichier");
 
-        async Task<SubmitProofOutcome> Soumettre()
-        {
-            await barriere.Task;
-            return await store.SubmitAsync(
-                emission.Proof.Id, new SubmitProofRequest(null, emission.Otp), publieur, default, Maintenant);
-        }
+        course.MarkDelivered("https://media.hba/preuves/9f2c1a4e.jpg", 0.8m)
+            .IsSuccess.Should().BeTrue();
 
-        var a = Soumettre();
-        var b = Soumettre();
-        barriere.SetResult();
-
-        var resultats = await Task.WhenAll(a, b);
-
-        resultats.Count(r => r.Status == SubmitStatus.Verified).Should().Be(1);
-        resultats.Count(r => r.Status == SubmitStatus.AlreadySubmitted).Should().Be(1);
+        course.Proof!.Kind.Should().Be(ProofOfDeliveryKind.Photo);
     }
 
     /// <summary>
-    /// Sans code du tout, la preuve par MÉDIA reste recevable : c'est ce qui
-    /// empêche cette correction de bloquer les remises tant qu'aucun canal ne
-    /// porte le code au destinataire.
+    /// UN CODE NE SE RATTRAPE PAS AVEC UNE PHOTO. Le genre exigé est décidé à la
+    /// création, jamais par celui qui remet.
     /// </summary>
     [Fact]
-    public async Task Sans_code_une_photo_suffit_encore()
+    public void Un_code_ne_se_rattrape_pas_avec_une_photo()
     {
-        var store = new ProofStore();
-        var emission = store.Create(UneRemise(), Maintenant);
+        var course = ADeuxDoigtsDeLaRemise(paiementALaLivraison: true);
 
-        store.Presign(emission.Proof.Id, new PresignProofMediaRequest(
-            "PHOTO", "remise.jpg", "image/jpeg", new string('a', 64), Maintenant, 120_000));
+        var resultat = course.MarkDelivered("https://media.hba/preuves/9f2c1a4e.jpg", 0.8m);
 
-        var resultat = await store.SubmitAsync(
-            emission.Proof.Id, new SubmitProofRequest(null, null), new PublieurMuet(), default, Maintenant);
-
-        resultat.Status.Should().Be(SubmitStatus.Verified);
-        resultat.Proof!.OtpVerified.Should().BeFalse("aucun code n'a été présenté");
-    }
-
-    /// <summary>
-    /// UN CODE FOURNI ET FAUX FAIT ÉCHOUER LA SOUMISSION, MÊME AVEC UNE PHOTO.
-    ///
-    /// L'ancienne règle — `otpVerified || médias` — rendait le code facultatif :
-    /// on envoyait n'importe quoi et la photo passait. Un code FAUX n'est pas un
-    /// code ABSENT : c'est le signe qu'on est au mauvais endroit, ou devant la
-    /// mauvaise personne.
-    /// </summary>
-    [Fact]
-    public async Task Un_code_faux_ne_se_rattrape_pas_avec_une_photo()
-    {
-        var store = new ProofStore();
-        var emission = store.Create(UneRemise(), Maintenant);
-
-        store.Presign(emission.Proof.Id, new PresignProofMediaRequest(
-            "PHOTO", "remise.jpg", "image/jpeg", new string('a', 64), Maintenant, 120_000));
-
-        var resultat = await store.SubmitAsync(
-            emission.Proof.Id,
-            new SubmitProofRequest(null, Faux(emission.Otp)),
-            new PublieurMuet(), default, Maintenant);
-
-        resultat.Status.Should().Be(SubmitStatus.OtpInvalid);
-    }
-
-    [Fact]
-    public async Task Une_preuve_inconnue_rend_introuvable()
-    {
-        var store = new ProofStore();
-
-        (await store.SubmitAsync(
-            Guid.NewGuid(), new SubmitProofRequest(null, "000000"), new PublieurMuet(), default, Maintenant))
-            .Status.Should().Be(SubmitStatus.NotFound);
-    }
-
-    /// <summary>Un code de même longueur, garanti différent du bon.</summary>
-    private static string Faux(string bon)
-    {
-        var chiffres = bon.ToCharArray();
-        chiffres[0] = chiffres[0] == '0' ? '1' : '0';
-        return new string(chiffres);
-    }
-
-    private sealed class PublieurMuet : IIntegrationEventPublisher
-    {
-        private int _publies;
-
-        public int Publies => _publies;
-
-        public Task PublishAsync(IntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
-        {
-            Interlocked.Increment(ref _publies);
-            return Task.CompletedTask;
-        }
+        resultat.IsFailure.Should().BeTrue();
+        course.Status.Should().NotBe(DeliveryStatus.Delivered);
     }
 }

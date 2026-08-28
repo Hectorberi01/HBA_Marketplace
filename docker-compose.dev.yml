@@ -859,6 +859,12 @@ services:
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-delivery-pricing-service
       KAFKA__PRODUCER: delivery-pricing-service
+      # LES DEUX LEVIERS DE L'ESTIMATION D'ITINÉRAIRE — posés ici à leur valeur
+      # par défaut pour qu'ils soient TROUVABLES, pas parce qu'il faut les régler.
+      # 1.0 = aucune correction, soit exactement le comportement historique.
+      # Les monter majore le prix de toutes les courses : voir D44.
+      ESTIMATIONITINERAIRE__FACTEURCORRECTIONURBAINE: "1.0"
+      ESTIMATIONITINERAIRE__VITESSEMOYENNEMETRESPARSECONDE: "5.8"
     depends_on:
       postgres:
         condition: service_healthy
@@ -905,37 +911,6 @@ services:
         condition: service_started
     networks: [hba-backend]
 
-  dispatch-service:
-    build:
-      context: .
-      dockerfile: services/delivery/dispatch-service/Dockerfile
-    environment:
-      <<: *dev-auth
-      SERVICE_NAME: dispatch-service
-      ASPNETCORE_ENVIRONMENT: Development
-      HOSTING__HTTPPORT: 8080
-      HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_delivery;Username=hba;Password=hba
-      REDIS__CONNECTIONSTRING: redis:6379
-      KAFKA__BOOTSTRAPSERVERS: kafka:29092
-      KAFKA__CONSUMERGROUP: hba-dispatch-service
-      KAFKA__PRODUCER: dispatch-service
-      SERVICES__DELIVERY: http://delivery-service:9090
-      SERVICES__DRIVERS: http://driver-service:9090
-      SERVICES__ROUTES: http://route-service:9090
-    depends_on:
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      delivery-service:
-        condition: service_started
-      driver-service:
-        condition: service_started
-      route-service:
-        condition: service_started
-    networks: [hba-backend]
-
   driver-service:
     build:
       context: .
@@ -958,34 +933,6 @@ services:
         condition: service_healthy
     networks: [hba-backend]
 
-  tracking-service:
-    build:
-      context: .
-      dockerfile: services/delivery/tracking-service/Dockerfile
-    environment:
-      <<: *dev-auth
-      SERVICE_NAME: tracking-service
-      ASPNETCORE_ENVIRONMENT: Development
-      HOSTING__HTTPPORT: 8080
-      HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_delivery;Username=hba;Password=hba
-      REDIS__CONNECTIONSTRING: redis:6379
-      KAFKA__BOOTSTRAPSERVERS: kafka:29092
-      KAFKA__CONSUMERGROUP: hba-tracking-service
-      KAFKA__PRODUCER: tracking-service
-      SERVICES__DELIVERY: http://delivery-service:9090
-      SERVICES__DRIVERS: http://driver-service:9090
-    depends_on:
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      delivery-service:
-        condition: service_started
-      driver-service:
-        condition: service_started
-    networks: [hba-backend]
-
   route-service:
     build:
       context: .
@@ -1006,34 +953,6 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-    networks: [hba-backend]
-
-  proof-of-delivery-service:
-    build:
-      context: .
-      dockerfile: services/delivery/proof-of-delivery-service/Dockerfile
-    environment:
-      <<: *dev-auth
-      SERVICE_NAME: proof-of-delivery-service
-      ASPNETCORE_ENVIRONMENT: Development
-      HOSTING__HTTPPORT: 8080
-      HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_delivery;Username=hba;Password=hba
-      REDIS__CONNECTIONSTRING: redis:6379
-      KAFKA__BOOTSTRAPSERVERS: kafka:29092
-      KAFKA__CONSUMERGROUP: hba-proof-of-delivery-service
-      KAFKA__PRODUCER: proof-of-delivery-service
-      SERVICES__DELIVERY: http://delivery-service:9090
-      SERVICES__MEDIA: http://media-service:9090
-    depends_on:
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      delivery-service:
-        condition: service_started
-      media-service:
-        condition: service_started
     networks: [hba-backend]
 
   payment-service:
@@ -1357,11 +1276,8 @@ services:
       SERVICES__PROMOTION: http://promotion-service:8080
       SERVICES__RETURNREFUND: http://return-refund-service:8080
       SERVICES__DELIVERYPRICING: http://delivery-pricing-service:8080
-      SERVICES__DISPATCH: http://dispatch-service:8080
       SERVICES__DRIVERS: http://driver-service:8080
-      SERVICES__TRACKING: http://tracking-service:8080
       SERVICES__ROUTES: http://route-service:8080
-      SERVICES__PROOFOFDELIVERY: http://proof-of-delivery-service:8080
 
       # LE PARCOURS RESTAURANT A DEUX AMONTS DE PLUS.
       #

@@ -69,6 +69,28 @@ message DeliveryQuoteReply {
   string pricing_version = 12;
   string status = 13;
   optional string service_level = 14;
+
+  // D'OÙ VIENNENT `distance_meters` ET `duration_seconds`.
+  //
+  // « CLIENT_PROVIDED » : l'appelant a fourni la distance, reprise telle quelle.
+  // « FALLBACK_HAVERSINE » : LIGNE DROITE entre les deux points, multipliée par
+  // un facteur de correction urbaine, puis divisée par une vitesse moyenne
+  // constante. Ce n'est pas un itinéraire — ni rue, ni sens unique, ni trafic.
+  //
+  // POURQUOI C'EST DANS LE CONTRAT ET PAS SEULEMENT DANS LES LOGS. Cette
+  // distance fait le prix : `distance_fee = km × per_km_fee`. Un appelant qui
+  // affiche une durée doit pouvoir dire « estimation » plutôt que d'annoncer un
+  // trajet mesuré, et un litige de facturation doit pouvoir être instruit.
+  //
+  // VIDE POUR LES DEVIS ANTÉRIEURS à la migration qui a créé la colonne : vide
+  // se lit « on ne sait pas », et non « ligne droite ».
+  string estimation_source = 15;
+
+  // Le facteur EFFECTIVEMENT appliqué à CE devis, et non celui configuré
+  // aujourd'hui — la configuration change, un prix d'hier doit rester
+  // explicable. Vaut 0 quand la distance venait de l'appelant, et pour les
+  // devis antérieurs à la migration.
+  string urban_correction_factor = 16;
 }
 
 message ValidateQuoteRequest {
@@ -107,7 +129,18 @@ message LookupQuoteResponse {
   int64 total = 3;
 
   string currency = 4;
+
+  // UNE ESTIMATION BASSE, ET IL FAUT LA PRÉSENTER COMME TELLE.
+  //
+  // Quand `estimation_source` vaut « FALLBACK_HAVERSINE », cette durée vient
+  // d'une ligne droite divisée par une vitesse constante. Le trajet réel est
+  // TOUJOURS plus long : il n'existe pas de rue plus courte que la corde entre
+  // deux points. Le nombre rendu est donc un PLANCHER, jamais une prévision.
+  //
+  // Un appelant qui l'affiche tel quel — « 12 min » — promet ce que la
+  // plateforme ne peut pas tenir. La forme correcte est « à partir de 12 min ».
   int32 estimated_minutes = 5;
+
   double distance_km = 6;
   string expires_at = 7;
 
@@ -136,6 +169,12 @@ message LookupQuoteResponse {
   // stocké, pas une énumération : les contrats ne connaissent pas les
   // énumérations du domaine et ne doivent pas les connaître.
   string delivery_type = 14;
+
+  // Voir `DeliveryQuoteReply.estimation_source`. Rendu ici aussi parce que
+  // `LookupQuote` est le chemin par lequel delivery-service relit un devis au
+  // moment de créer la course : c'est là que la mention se propage vers
+  // l'affichage client.
+  string estimation_source = 15;
 }
 
 // AUCUN `partner_id` DANS CETTE RÉPONSE, ET C'EST UN MANQUE CONNU.
@@ -158,6 +197,19 @@ message GetServiceabilityRequest {
 
 message GetServiceabilityResponse {
   bool serviceable = 1;
+
+  // MÊME DISTANCE ESTIMÉE QUE POUR LE PRIX, ET C'EST VOULU : le service qui
+  // accepte une course et celui qui la facture ne doivent pas mesurer
+  // différemment. Ligne droite corrigée par le même facteur.
+  //
+  // CONSÉQUENCE À CONNAÎTRE : le plafond de desserte de 25 km est comparé à
+  // cette estimation. Tant que le facteur vaut 1,0, une course dont le trajet
+  // routier fait 30 km mais 24 km à vol d'oiseau est ACCEPTÉE.
   int32 distance_meters = 2;
+
   optional string reason = 3;
+
+  // « CLIENT_PROVIDED » ou « FALLBACK_HAVERSINE ». Ici toujours le second : la
+  // desserte ne prend pas de distance en entrée.
+  string estimation_source = 4;
 }

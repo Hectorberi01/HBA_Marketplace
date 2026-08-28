@@ -168,5 +168,13 @@ internal sealed class MediaModuleApi : IMediaModuleApi
                 .ToList()
             : [],
 
-        media.CreatedOnUtc);
+        media.CreatedOnUtc,
+
+        // LE SEUL CHAMP DE CETTE VUE QUE L'APPELANT N'A PAS CHOISI.
+        //
+        // `OwnerType` et `OwnerId` sont DÉCLARÉS au téléversement et media-service
+        // ne les vérifie pas — il ignore ce qu'est un produit ou un vendeur (§20).
+        // `CreatedByUserId` vient du jeton. Un service qui rattache un média doit
+        // s'appuyer sur celui-ci, pas sur ceux-là.
+        media.CreatedByUserId);
 }

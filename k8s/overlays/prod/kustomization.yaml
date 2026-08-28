@@ -35,7 +35,51 @@ patches:
         path: /metadata/name
         value: hba-prod
 
-  # Service critique (§4) : deux replicas au repos.
+  # ═══════════════════════════════════════════════════════════════════════
+  # CINQ DE CES PATCHES NE DÉSIGNAIENT RIEN — LIRE AVANT D'EN AJOUTER UN.
+  #
+  # Ce bloc en comptait DIX. Cinq visaient des noms que la base ne produit pas,
+  # et kustomize les appliquait donc à RIEN, sans erreur ni avertissement :
+  #
+  #   commerce-service   → la base produit `cart-service`
+  #   financial-service  → la base produit `payment-service`
+  #   merchant-service   → la base produit `seller-service`
+  #   delivery-service   → pas dans le lot déployé
+  #   food-service       → pas dans le lot déployé
+  #
+  # LES TROIS PREMIERS SONT LE MÊME DÉFAUT, ET IL A UNE CAUSE CONNUE : la
+  # plateforme porte DEUX vocabulaires. Les modules se nomment par domaine —
+  # commerce, financial, merchant — et les dossiers de déploiement par dépôt —
+  # cart, payment, seller. `InternalRoutes.cs` documente cet écart depuis des
+  # semaines ; il a fini par produire cinq patches morts, dans le fichier qui
+  # décide combien de pods servent la production.
+  #
+  # Les deux derniers ont été RETIRÉS plutôt que corrigés : `delivery` et `food`
+  # font l'objet d'un second lot et n'ont aucun manifeste. Quand ce lot arrivera,
+  # il faudra rajouter leurs deux patches ICI, avec le nom que produira
+  # réellement leur `namePrefix` — pas celui du domaine.
+  #
+  # `scripts/check-k8s.py` refuse désormais toute cible sans correspondance, et
+  # il le fait SANS kustomize : c'est ce qui a permis de trouver ceci.
+  # ═══════════════════════════════════════════════════════════════════════
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE CRITIQUE (§4) : DEUX REPLICAS AU REPOS — LES DEUX CORRECTIFS.
+  #
+  # `spec.replicas` NE SUFFIT PAS, ET SEUL NE SERVAIT À RIEN.
+  #
+  # Dès qu'un HorizontalPodAutoscaler cible un Deployment, c'est LUI qui écrit
+  # `spec.replicas` à chaque réconciliation. La valeur posée ici n'est donc que
+  # le point de départ du tout premier déploiement : quelques minutes plus tard,
+  # sous faible charge, le HPA ramenait le service à `minReplicas`, qui vaut 1
+  # dans le gabarit de base. La redondance était ÉCRITE et jamais OBTENUE — un
+  # seul pod pour dix services critiques, sans que rien ne le signale.
+  #
+  # Le patch du HPA ci-dessous est donc le correctif RÉEL ; celui du Deployment
+  # le seconde, pour que le premier lancement parte déjà à deux et non à un.
+  # Les deux sont volontairement COLLÉS : les séparer laisserait un jour ajouter
+  # un service à l'un des deux endroits seulement.
+  # ═══════════════════════════════════════════════════════════════════════
   - target:
       kind: Deployment
       name: catalog-service
@@ -43,39 +87,92 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 2
-  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: catalog-service
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE CRITIQUE (§4) : DEUX REPLICAS AU REPOS — LES DEUX CORRECTIFS.
+  #
+  # `spec.replicas` NE SUFFIT PAS, ET SEUL NE SERVAIT À RIEN.
+  #
+  # Dès qu'un HorizontalPodAutoscaler cible un Deployment, c'est LUI qui écrit
+  # `spec.replicas` à chaque réconciliation. La valeur posée ici n'est donc que
+  # le point de départ du tout premier déploiement : quelques minutes plus tard,
+  # sous faible charge, le HPA ramenait le service à `minReplicas`, qui vaut 1
+  # dans le gabarit de base. La redondance était ÉCRITE et jamais OBTENUE — un
+  # seul pod pour dix services critiques, sans que rien ne le signale.
+  #
+  # Le patch du HPA ci-dessous est donc le correctif RÉEL ; celui du Deployment
+  # le seconde, pour que le premier lancement parte déjà à deux et non à un.
+  # Les deux sont volontairement COLLÉS : les séparer laisserait un jour ajouter
+  # un service à l'un des deux endroits seulement.
+  # ═══════════════════════════════════════════════════════════════════════
   - target:
       kind: Deployment
-      name: commerce-service
+      name: cart-service
     patch: |-
       - op: replace
         path: /spec/replicas
         value: 2
-  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: cart-service
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE CRITIQUE (§4) : DEUX REPLICAS AU REPOS — LES DEUX CORRECTIFS.
+  #
+  # `spec.replicas` NE SUFFIT PAS, ET SEUL NE SERVAIT À RIEN.
+  #
+  # Dès qu'un HorizontalPodAutoscaler cible un Deployment, c'est LUI qui écrit
+  # `spec.replicas` à chaque réconciliation. La valeur posée ici n'est donc que
+  # le point de départ du tout premier déploiement : quelques minutes plus tard,
+  # sous faible charge, le HPA ramenait le service à `minReplicas`, qui vaut 1
+  # dans le gabarit de base. La redondance était ÉCRITE et jamais OBTENUE — un
+  # seul pod pour dix services critiques, sans que rien ne le signale.
+  #
+  # Le patch du HPA ci-dessous est donc le correctif RÉEL ; celui du Deployment
+  # le seconde, pour que le premier lancement parte déjà à deux et non à un.
+  # Les deux sont volontairement COLLÉS : les séparer laisserait un jour ajouter
+  # un service à l'un des deux endroits seulement.
+  # ═══════════════════════════════════════════════════════════════════════
   - target:
       kind: Deployment
-      name: delivery-service
+      name: payment-service
     patch: |-
       - op: replace
         path: /spec/replicas
         value: 2
-  # Service critique (§4) : deux replicas au repos.
   - target:
-      kind: Deployment
-      name: financial-service
+      kind: HorizontalPodAutoscaler
+      name: payment-service
     patch: |-
       - op: replace
-        path: /spec/replicas
+        path: /spec/minReplicas
         value: 2
-  # Service critique (§4) : deux replicas au repos.
-  - target:
-      kind: Deployment
-      name: food-service
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
-  # Service critique (§4) : deux replicas au repos.
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE CRITIQUE (§4) : DEUX REPLICAS AU REPOS — LES DEUX CORRECTIFS.
+  #
+  # `spec.replicas` NE SUFFIT PAS, ET SEUL NE SERVAIT À RIEN.
+  #
+  # Dès qu'un HorizontalPodAutoscaler cible un Deployment, c'est LUI qui écrit
+  # `spec.replicas` à chaque réconciliation. La valeur posée ici n'est donc que
+  # le point de départ du tout premier déploiement : quelques minutes plus tard,
+  # sous faible charge, le HPA ramenait le service à `minReplicas`, qui vaut 1
+  # dans le gabarit de base. La redondance était ÉCRITE et jamais OBTENUE — un
+  # seul pod pour dix services critiques, sans que rien ne le signale.
+  #
+  # Le patch du HPA ci-dessous est donc le correctif RÉEL ; celui du Deployment
+  # le seconde, pour que le premier lancement parte déjà à deux et non à un.
+  # Les deux sont volontairement COLLÉS : les séparer laisserait un jour ajouter
+  # un service à l'un des deux endroits seulement.
+  # ═══════════════════════════════════════════════════════════════════════
   - target:
       kind: Deployment
       name: identity-service
@@ -83,7 +180,30 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 2
-  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: identity-service
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE CRITIQUE (§4) : DEUX REPLICAS AU REPOS — LES DEUX CORRECTIFS.
+  #
+  # `spec.replicas` NE SUFFIT PAS, ET SEUL NE SERVAIT À RIEN.
+  #
+  # Dès qu'un HorizontalPodAutoscaler cible un Deployment, c'est LUI qui écrit
+  # `spec.replicas` à chaque réconciliation. La valeur posée ici n'est donc que
+  # le point de départ du tout premier déploiement : quelques minutes plus tard,
+  # sous faible charge, le HPA ramenait le service à `minReplicas`, qui vaut 1
+  # dans le gabarit de base. La redondance était ÉCRITE et jamais OBTENUE — un
+  # seul pod pour dix services critiques, sans que rien ne le signale.
+  #
+  # Le patch du HPA ci-dessous est donc le correctif RÉEL ; celui du Deployment
+  # le seconde, pour que le premier lancement parte déjà à deux et non à un.
+  # Les deux sont volontairement COLLÉS : les séparer laisserait un jour ajouter
+  # un service à l'un des deux endroits seulement.
+  # ═══════════════════════════════════════════════════════════════════════
   - target:
       kind: Deployment
       name: inventory-service
@@ -91,15 +211,61 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 2
-  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: inventory-service
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE CRITIQUE (§4) : DEUX REPLICAS AU REPOS — LES DEUX CORRECTIFS.
+  #
+  # `spec.replicas` NE SUFFIT PAS, ET SEUL NE SERVAIT À RIEN.
+  #
+  # Dès qu'un HorizontalPodAutoscaler cible un Deployment, c'est LUI qui écrit
+  # `spec.replicas` à chaque réconciliation. La valeur posée ici n'est donc que
+  # le point de départ du tout premier déploiement : quelques minutes plus tard,
+  # sous faible charge, le HPA ramenait le service à `minReplicas`, qui vaut 1
+  # dans le gabarit de base. La redondance était ÉCRITE et jamais OBTENUE — un
+  # seul pod pour dix services critiques, sans que rien ne le signale.
+  #
+  # Le patch du HPA ci-dessous est donc le correctif RÉEL ; celui du Deployment
+  # le seconde, pour que le premier lancement parte déjà à deux et non à un.
+  # Les deux sont volontairement COLLÉS : les séparer laisserait un jour ajouter
+  # un service à l'un des deux endroits seulement.
+  # ═══════════════════════════════════════════════════════════════════════
   - target:
       kind: Deployment
-      name: merchant-service
+      name: seller-service
     patch: |-
       - op: replace
         path: /spec/replicas
         value: 2
-  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: seller-service
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE CRITIQUE (§4) : DEUX REPLICAS AU REPOS — LES DEUX CORRECTIFS.
+  #
+  # `spec.replicas` NE SUFFIT PAS, ET SEUL NE SERVAIT À RIEN.
+  #
+  # Dès qu'un HorizontalPodAutoscaler cible un Deployment, c'est LUI qui écrit
+  # `spec.replicas` à chaque réconciliation. La valeur posée ici n'est donc que
+  # le point de départ du tout premier déploiement : quelques minutes plus tard,
+  # sous faible charge, le HPA ramenait le service à `minReplicas`, qui vaut 1
+  # dans le gabarit de base. La redondance était ÉCRITE et jamais OBTENUE — un
+  # seul pod pour dix services critiques, sans que rien ne le signale.
+  #
+  # Le patch du HPA ci-dessous est donc le correctif RÉEL ; celui du Deployment
+  # le seconde, pour que le premier lancement parte déjà à deux et non à un.
+  # Les deux sont volontairement COLLÉS : les séparer laisserait un jour ajouter
+  # un service à l'un des deux endroits seulement.
+  # ═══════════════════════════════════════════════════════════════════════
   - target:
       kind: Deployment
       name: order-service
@@ -107,13 +273,43 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 2
-  # Service critique (§4) : deux replicas au repos.
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: order-service
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE CRITIQUE (§4) : DEUX REPLICAS AU REPOS — LES DEUX CORRECTIFS.
+  #
+  # `spec.replicas` NE SUFFIT PAS, ET SEUL NE SERVAIT À RIEN.
+  #
+  # Dès qu'un HorizontalPodAutoscaler cible un Deployment, c'est LUI qui écrit
+  # `spec.replicas` à chaque réconciliation. La valeur posée ici n'est donc que
+  # le point de départ du tout premier déploiement : quelques minutes plus tard,
+  # sous faible charge, le HPA ramenait le service à `minReplicas`, qui vaut 1
+  # dans le gabarit de base. La redondance était ÉCRITE et jamais OBTENUE — un
+  # seul pod pour dix services critiques, sans que rien ne le signale.
+  #
+  # Le patch du HPA ci-dessous est donc le correctif RÉEL ; celui du Deployment
+  # le seconde, pour que le premier lancement parte déjà à deux et non à un.
+  # Les deux sont volontairement COLLÉS : les séparer laisserait un jour ajouter
+  # un service à l'un des deux endroits seulement.
+  # ═══════════════════════════════════════════════════════════════════════
   - target:
       kind: Deployment
       name: user-service
     patch: |-
       - op: replace
         path: /spec/replicas
+        value: 2
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: user-service
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
         value: 2
 
   - target:
