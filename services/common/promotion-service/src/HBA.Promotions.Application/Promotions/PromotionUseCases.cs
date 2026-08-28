@@ -14,6 +14,15 @@ public interface IPromotionsUnitOfWork : IUnitOfWork
 // ═══════════════════════════════════════════════════════════════════ Lectures
 
 /// <summary>Vue d'une campagne (§10.16, réponse de `GET /api/v1/merchant/promotions`).</summary>
+/// <param name="Funder">
+/// <summary>« PLATFORM », « SELLER » ou « SHARED ».</summary>
+/// </param>
+/// <param name="SellerFundedShareBps">
+/// <summary>Part vendeur en points de base. 0 = la plateforme paie tout.</summary>
+/// </param>
+/// <param name="OwnerSellerId">
+/// <summary>Vendeur propriétaire. <c>null</c> = campagne de la plateforme.</summary>
+/// </param>
 public sealed record PromotionView(
     Guid Id,
     string Name,
@@ -32,13 +41,8 @@ public sealed record PromotionView(
     // contrats de lecture comme aux événements). Un client déjà déployé qui
     // désérialise cette réponse ignore les champs qu'il ne connaît pas ; l'ajouter
     // au MILIEU aurait cassé toute construction positionnelle existante.
-    /// <summary>« PLATFORM », « SELLER » ou « SHARED ».</summary>
     string Funder = "PLATFORM",
-
-    /// <summary>Part vendeur en points de base. 0 = la plateforme paie tout.</summary>
     int SellerFundedShareBps = 0,
-
-    /// <summary>Vendeur propriétaire. <c>null</c> = campagne de la plateforme.</summary>
     Guid? OwnerSellerId = null);
 
 /// <summary>

@@ -1,6 +1,16 @@
 namespace HBA.Returns.Contracts;
 
 /// <summary>Vue publique d'une demande de retour.</summary>
+/// <param name="RefundableAmount">
+/// PLAFOND remboursable — total de la ligne de commande, figé à la création.
+///
+/// À ne pas confondre avec <see cref="RefundAmount"/>, qui est le montant
+/// effectivement décidé (null tant qu'aucun remboursement n'a été validé).
+/// C'est cette confusion qui a empêché l'application vendeur de borner sa saisie :
+/// elle n'avait à sa disposition que le second, et l'a pris pour le premier.
+///
+/// Vaut 0 pour les retours antérieurs à ce champ : traiter alors comme inconnu.
+/// </param>
 public sealed record ReturnRequestSummary(
     Guid Id,
     Guid OrderId,
@@ -10,17 +20,6 @@ public sealed record ReturnRequestSummary(
     string Reason,
     string Status,
     string Currency,
-
-    /// <summary>
-    /// PLAFOND remboursable — total de la ligne de commande, figé à la création.
-    ///
-    /// À ne pas confondre avec <see cref="RefundAmount"/>, qui est le montant
-    /// effectivement décidé (null tant qu'aucun remboursement n'a été validé).
-    /// C'est cette confusion qui a empêché l'application vendeur de borner sa saisie :
-    /// elle n'avait à sa disposition que le second, et l'a pris pour le premier.
-    ///
-    /// Vaut 0 pour les retours antérieurs à ce champ : traiter alors comme inconnu.
-    /// </summary>
     decimal RefundableAmount,
 
     decimal? RefundAmount,

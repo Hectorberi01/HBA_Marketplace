@@ -114,20 +114,23 @@ public interface IDeliveryModuleApi
 /// travailleur.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+/// <param name="AccountStatus">
+/// <summary>« PendingVerification », « Active », « Suspended », « Blocked ».</summary>
+/// </param>
+/// <param name="Availability">
+/// <summary>« Available », « Unavailable », « OnMission »… — l'état du jour.</summary>
+/// </param>
+/// <param name="StatusReason">
+/// <summary>Motif d'une suspension ou d'un blocage. Nul si le compte est sain.</summary>
+/// </param>
 public sealed record DriverAccountView(
     Guid DriverId,
     Guid UserId,
     string FullName,
     string Phone,
     string Vehicle,
-
-    /// <summary>« PendingVerification », « Active », « Suspended », « Blocked ».</summary>
     string AccountStatus,
-
-    /// <summary>« Available », « Unavailable », « OnMission »… — l'état du jour.</summary>
     string Availability,
-
-    /// <summary>Motif d'une suspension ou d'un blocage. Nul si le compte est sain.</summary>
     string? StatusReason,
 
     int CompletedDeliveries,

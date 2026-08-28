@@ -25,29 +25,27 @@ namespace HBA.Gateway.Application.Bff.Client.Food;
 /// sections reviendront quand les endpoints existeront.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+/// <param name="Cuisines">
+/// TOUJOURS VIDE — AUCUNE TAXONOMIE DE CUISINE N'EXISTE.
+///
+/// « Pizza », « africain », « grillades » : food-service ne porte aucune
+/// catégorie d'établissement. Le champ existe pour que le contrat client soit
+/// stable le jour où elle arrivera ; il n'est alimenté par rien.
+///
+/// N'émet PAS d'avertissement : une absence permanente n'est pas une
+/// dégradation, et le tableau d'avertissements ne doit signaler que ce qui
+/// peut se rétablir.
+/// </param>
+/// <param name="DeliveryOffers">
+/// TOUJOURS VIDE — CF. `FoodRestaurantDetailDto.Delivery`.
+///
+/// Une « offre de livraison » suppose un moteur tarifaire. Le §19 interdit
+/// explicitement d'en inventer un.
+/// </param>
 public sealed record FoodHomeDto(
     PagedResult<FoodRestaurantCardDto> Restaurants,
     FoodActiveOrderDto? ActiveOrder,
-
-    /// <summary>
-    /// TOUJOURS VIDE — AUCUNE TAXONOMIE DE CUISINE N'EXISTE.
-    ///
-    /// « Pizza », « africain », « grillades » : food-service ne porte aucune
-    /// catégorie d'établissement. Le champ existe pour que le contrat client soit
-    /// stable le jour où elle arrivera ; il n'est alimenté par rien.
-    ///
-    /// N'émet PAS d'avertissement : une absence permanente n'est pas une
-    /// dégradation, et le tableau d'avertissements ne doit signaler que ce qui
-    /// peut se rétablir.
-    /// </summary>
     IReadOnlyList<FoodCuisineDto> Cuisines,
-
-    /// <summary>
-    /// TOUJOURS VIDE — CF. `FoodRestaurantDetailDto.Delivery`.
-    ///
-    /// Une « offre de livraison » suppose un moteur tarifaire. Le §19 interdit
-    /// explicitement d'en inventer un.
-    /// </summary>
     IReadOnlyList<FoodDeliveryOfferDto> DeliveryOffers);
 
 public sealed record FoodCuisineDto(Guid Id, string Name);
@@ -64,26 +62,26 @@ public sealed record FoodDeliveryOfferDto(string Label, decimal? Fee);
 /// confirmée sur la fiche. Renommer ce champ ferait traverser la ville à un
 /// client pour découvrir que tout est épuisé.
 /// </remarks>
+/// <param name="LogoMediaId">
+/// IDENTIFIANT DE MÉDIA **ET** URL — LES DEUX, ET C'EST LE §39.
+///
+/// <c>LogoUrl</c> n'est renseignée que pour les établissements d'avant la
+/// bascule vers media-service, qui portent encore une URL en dur. Pour les
+/// autres elle vaut <c>null</c>, et c'est <c>LogoMediaId</c> qui permet au
+/// client de demander la variante voulue.
+///
+/// La passerelle NE RÉSOUT PAS les URL ici : media-service n'expose que
+/// <c>GET /api/v1/media/{id}</c>, un appel par média. Une page de vingt
+/// restaurants coûterait vingt appels de plus pour des vignettes — le N+1 du
+/// §43, sur l'écran d'entrée.
+///
+/// Manque à combler : <c>POST /api/v1/media/urls</c> acceptant un lot
+/// d'identifiants.
+/// </param>
 public sealed record FoodRestaurantCardDto(
     Guid Id,
     string Name,
     string? Description,
-    /// <summary>
-    /// IDENTIFIANT DE MÉDIA **ET** URL — LES DEUX, ET C'EST LE §39.
-    ///
-    /// <c>LogoUrl</c> n'est renseignée que pour les établissements d'avant la
-    /// bascule vers media-service, qui portent encore une URL en dur. Pour les
-    /// autres elle vaut <c>null</c>, et c'est <c>LogoMediaId</c> qui permet au
-    /// client de demander la variante voulue.
-    ///
-    /// La passerelle NE RÉSOUT PAS les URL ici : media-service n'expose que
-    /// <c>GET /api/v1/media/{id}</c>, un appel par média. Une page de vingt
-    /// restaurants coûterait vingt appels de plus pour des vignettes — le N+1 du
-    /// §43, sur l'écran d'entrée.
-    ///
-    /// Manque à combler : <c>POST /api/v1/media/urls</c> acceptant un lot
-    /// d'identifiants.
-    /// </summary>
     Guid? LogoMediaId,
     string? LogoUrl,
 
@@ -98,34 +96,35 @@ public sealed record FoodRestaurantCardDto(
 public sealed record FoodActiveOrderDto(Guid Id, string Status, decimal GrandTotal, string Currency);
 
 /// <summary>Fiche d'un restaurant (§9).</summary>
+/// <param name="PopularItems">
+/// TOUJOURS VIDE — AUCUN SIGNAL DE POPULARITÉ N'EXISTE.
+///
+/// « Plats populaires » suppose de compter les ventes par plat. Ni Food ni
+/// Engagement ne le font. Les remplacer par « les quatre premiers de la
+/// carte » serait un mensonge de champ : le client croirait à un classement.
+/// </param>
 public sealed record FoodRestaurantDetailDto(
     FoodRestaurantHeaderDto Restaurant,
     FoodRatingDto? Rating,
     FoodDeliveryDto Delivery,
     IReadOnlyList<FoodMenuDto> Menus,
-
-    /// <summary>
-    /// TOUJOURS VIDE — AUCUN SIGNAL DE POPULARITÉ N'EXISTE.
-    ///
-    /// « Plats populaires » suppose de compter les ventes par plat. Ni Food ni
-    /// Engagement ne le font. Les remplacer par « les quatre premiers de la
-    /// carte » serait un mensonge de champ : le client croirait à un classement.
-    /// </summary>
     IReadOnlyList<FoodMenuItemDto> PopularItems);
 
+/// <param name="LogoMediaId">
+/// <summary>Cf. <c>FoodRestaurantCardDto</c> : identifiant ET URL héritée.</summary>
+/// </param>
+/// <param name="AcceptsOrdersNow">
+/// <summary>Réponse FERME : lieu ouvert ET au moins un plat commandable.</summary>
+/// </param>
 public sealed record FoodRestaurantHeaderDto(
     Guid Id,
     string Name,
     string? Description,
-
-    /// <summary>Cf. <c>FoodRestaurantCardDto</c> : identifiant ET URL héritée.</summary>
     Guid? LogoMediaId,
     string? LogoUrl,
     Guid? CoverMediaId,
 
     string Phone,
-
-    /// <summary>Réponse FERME : lieu ouvert ET au moins un plat commandable.</summary>
     bool AcceptsOrdersNow,
 
     string BlockedReason,
@@ -177,12 +176,13 @@ public sealed record FoodMenuDto(
 public sealed record FoodMenuSectionDto(
     Guid Id, string Name, string? Description, IReadOnlyList<FoodMenuItemDto> Items);
 
+/// <param name="ImageMediaId">
+/// <summary>Cf. <c>FoodRestaurantCardDto</c> : identifiant ET URL héritée.</summary>
+/// </param>
 public sealed record FoodMenuItemDto(
     Guid Id,
     string Name,
     string? Description,
-
-    /// <summary>Cf. <c>FoodRestaurantCardDto</c> : identifiant ET URL héritée.</summary>
     Guid? ImageMediaId,
     string? ImageUrl,
 

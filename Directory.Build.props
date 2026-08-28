@@ -21,6 +21,59 @@
   </PropertyGroup>
 
   <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    LA DOCUMENTATION XML EST GÉNÉRÉE PARTOUT — SANS ELLE, SWAGGER NE VOIT RIEN.
+
+    CE QUI ÉTAIT CASSÉ, ET C'ÉTAIT INVISIBLE PAR CONSTRUCTION.
+
+    `OpenApiExtensions.AddHbaOpenApi` appelle `IncludeXmlComments` sur deux
+    assemblies par service — l'hôte et sa couche Application — et ne lève PAS si
+    le fichier manque : « une page moins riche est un désagrément ; un service qui
+    refuse de démarrer parce qu'un fichier manque est une panne ». Le choix est
+    juste. Sa conséquence ne l'était plus.
+
+    DEUX PROJETS SUR CENT CINQUANTE-TROIS posaient `GenerateDocumentationFile` —
+    les deux de la passerelle. Pour les VINGT ET UN SERVICES, le fichier XML
+    n'était donc jamais produit, `IncludeXmlComments` ne trouvait rien, et la page
+    `/docs` affichait des chemins nus : aucune description de route, aucun champ
+    de schéma commenté.
+
+    Or ce dépôt est écrit en commentaires. Des milliers de blocs `///` expliquent
+    ce que fait chaque route, ce que vaut un champ nul, quelle unité porte un
+    montant. Tout cela existait, était relu en revue, et n'atteignait AUCUN
+    lecteur de la documentation. On ne s'en apercevait pas : une page vide
+    ressemble à un service qui n'a rien à dire.
+
+    ═══════════════════════════════════════════════════════════════════════════
+    POURQUOI ICI, ET NON DANS CHAQUE `.csproj`.
+
+    Même raison que la `FallbackPolicy` et la télémétrie : un branchement à faire
+    cent cinquante fois est un branchement qu'on oublie. Et l'oubli est
+    silencieux — c'est exactement ce qui vient de se produire.
+
+    ═══════════════════════════════════════════════════════════════════════════
+    CS1591 EST TU, ET LUI SEUL.
+
+    `GenerateDocumentationFile` allume CS1591 — « commentaire XML manquant pour
+    un type ou membre visible publiquement » — sur CHAQUE membre public non
+    commenté du dépôt. Cela se compterait en milliers, noierait les
+    avertissements réels, et forcerait à documenter des membres qui n'ont rien à
+    dire. La passerelle le tait déjà pour cette raison ; on le fait ici pour tous.
+
+    ON NE TAIT PAS CS1587 NI CS1573, ET C'EST DÉLIBÉRÉ. Ces deux-là signalent un
+    commentaire qui NE SERA PAS RENDU : CS1587 quand il est posé devant un
+    paramètre d'enregistrement positionnel — où il ne se rattache à rien —, CS1573
+    quand une déclaration documente une partie de ses paramètres seulement. Les
+    taire reviendrait à cacher précisément les cas où l'on a écrit de la
+    documentation pour rien.
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!--
     ═════════════════════════════════════════════════════════════════════════
     CADRE CIBLE PAR DÉFAUT — AJOUTÉ APRÈS UN ÉCHEC DE RESTAURATION.
 

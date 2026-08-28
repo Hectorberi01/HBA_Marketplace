@@ -36,6 +36,21 @@ public sealed record VariantSummary(
 /// l'arbitrage — c'est ainsi qu'un écran affiche un prix et qu'un autre en
 /// facture un différent.
 /// </param>
+/// <param name="PromotionEndsOnUtc">
+/// Fin de la remise. Nulle si pas de remise, ou remise sans échéance.
+///
+/// Sert l'affichage « −X% jusqu'au … » des cartes produit. Sans elle, la
+/// vitrine annonce une promotion sans dire jusqu'à quand — ce qui est
+/// exactement l'information qui fait décider.
+/// </param>
+/// <param name="Condition">
+/// État du bien : New, Used, Refurbished.
+///
+/// Fait partie du contrat public parce que l'ACHETEUR le voit : sur une fiche
+/// portant plusieurs offres, c'est souvent ce qui explique l'écart de prix.
+/// L'omettre obligerait la vitrine à lire l'offre ailleurs, ou à ne rien
+/// afficher — et un reconditionné passerait pour un neuf moins cher.
+/// </param>
 public sealed record OfferSummary(
     Guid Id,
     Guid ProductId,
@@ -46,28 +61,11 @@ public sealed record OfferSummary(
     decimal BuyerPrice,
     decimal? PromotionalPrice,
     decimal EffectivePrice,
-
-    /// <summary>
-    /// Fin de la remise. Nulle si pas de remise, ou remise sans échéance.
-    ///
-    /// Sert l'affichage « −X% jusqu'au … » des cartes produit. Sans elle, la
-    /// vitrine annonce une promotion sans dire jusqu'à quand — ce qui est
-    /// exactement l'information qui fait décider.
-    /// </summary>
     DateTime? PromotionEndsOnUtc,
 
     string Currency,
     string Status,
     bool IsPurchasable,
-
-    /// <summary>
-    /// État du bien : New, Used, Refurbished.
-    ///
-    /// Fait partie du contrat public parce que l'ACHETEUR le voit : sur une fiche
-    /// portant plusieurs offres, c'est souvent ce qui explique l'écart de prix.
-    /// L'omettre obligerait la vitrine à lire l'offre ailleurs, ou à ne rien
-    /// afficher — et un reconditionné passerait pour un neuf moins cher.
-    /// </summary>
     string Condition,
 
     int HandlingTimeDays,

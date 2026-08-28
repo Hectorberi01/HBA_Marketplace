@@ -12,8 +12,12 @@
       l'écran de cuisine ne porte aucun montant, ce que signifie un `warnings`
       non vide. Sans ce XML, chaque schéma s'affiche nu.
     -->
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!--
+      CES DEUX RÉGLAGES SONT MONTÉS DANS `Directory.Build.props`, POUR TOUS.
+      Ils étaient posés ici, et seulement ici : les vingt et un services ne
+      produisaient donc aucun fichier XML, et leur page `/docs` affichait des
+      chemins nus. Voir l'encadré du fichier racine.
+    -->
   </PropertyGroup>
 
   <!--

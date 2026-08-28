@@ -56,6 +56,49 @@ public sealed record OrderShippingAddressSummary(
 /// <summary>Vue publique d'une commande.</summary>
 /// <param name="Kind">La nature de la commande : « Goods » ou « Food ».</param>
 /// <param name="RestaurantId">L'établissement qui prépare, pour un repas. Null sinon.</param>
+/// <param name="DeliveryQuoteId">
+/// <summary>Le devis de course déjà payé. Restauration seulement.</summary>
+/// </param>
+/// <param name="ReviewReason">
+/// Pourquoi la commande est en ARBITRAGE — « la course a été annulée », « 2
+/// lieux d'expédition ». Nul si elle ne l'a jamais été.
+///
+/// SANS CE CHAMP, LA CONSOLE D'ARBITRAGE EST INUTILISABLE. Un statut
+/// « UnderReview » sans motif ne dit pas à l'exploitation s'il faut relancer
+/// une course ou rembourser — c'est-à-dire précisément la décision qu'on lui
+/// demande de prendre.
+/// </param>
+/// <param name="UnderReviewSinceUtc">
+/// <summary>Depuis quand elle attend une décision. C'est le tri de la file.</summary>
+/// </param>
+/// <param name="SellerOrderId">
+/// La part de CE vendeur dans cette commande, quand la vue est celle d'un
+/// vendeur. Nul partout ailleurs — et nul, aussi, sur les commandes
+/// CONFIRMÉES AVANT que l'agrégat n'existe (voir la migration
+/// `CommandeParVendeur`).
+///
+/// RENSEIGNÉ PAR `OrderMapper.ToSellerSummary` SEULEMENT. La vue acheteur
+/// et la console d'administration montrent la commande ENTIÈRE : y poser la
+/// part d'un vendeur reviendrait à en désigner un arbitrairement sur une
+/// commande qui en compte deux.
+/// </param>
+/// <param name="SellerOrderStatus">
+/// Où en est CE vendeur : « AwaitingConfirmation », « Confirmed »,
+/// « Preparing », « ReadyForPickup », « HandedOver », « Rejected »,
+/// « Cancelled ».
+///
+/// À NE PAS CONFONDRE AVEC <c>Status</c>, QUI EST CELUI DE LA COMMANDE.
+///
+/// Les deux coexistent parce qu'ils ne parlent pas de la même chose :
+/// `Status` dit où en est le PAIEMENT et la livraison de l'ensemble, celui-ci
+/// dit ce que ce vendeur-là a encore à faire. Une commande peut être
+/// « Confirmed » globalement pendant qu'un de ses deux vendeurs n'a rien
+/// accepté — c'est très exactement ce qui n'était pas exprimable avant
+/// ISSUE-027.
+///
+/// Nul quand la commande n'a pas de part vendeur : repas, ou commande
+/// confirmée avant la migration.
+/// </param>
 public sealed record OrderSummary(
     Guid Id,
     Guid BuyerId,
@@ -73,54 +116,10 @@ public sealed record OrderSummary(
 
     string Kind = "Goods",
     Guid? RestaurantId = null,
-
-    /// <summary>Le devis de course déjà payé. Restauration seulement.</summary>
     string? DeliveryQuoteId = null,
-
-    /// <summary>
-    /// Pourquoi la commande est en ARBITRAGE — « la course a été annulée », « 2
-    /// lieux d'expédition ». Nul si elle ne l'a jamais été.
-    ///
-    /// SANS CE CHAMP, LA CONSOLE D'ARBITRAGE EST INUTILISABLE. Un statut
-    /// « UnderReview » sans motif ne dit pas à l'exploitation s'il faut relancer
-    /// une course ou rembourser — c'est-à-dire précisément la décision qu'on lui
-    /// demande de prendre.
-    /// </summary>
     string? ReviewReason = null,
-
-    /// <summary>Depuis quand elle attend une décision. C'est le tri de la file.</summary>
     DateTime? UnderReviewSinceUtc = null,
-
-    /// <summary>
-    /// La part de CE vendeur dans cette commande, quand la vue est celle d'un
-    /// vendeur. Nul partout ailleurs — et nul, aussi, sur les commandes
-    /// CONFIRMÉES AVANT que l'agrégat n'existe (voir la migration
-    /// `CommandeParVendeur`).
-    ///
-    /// RENSEIGNÉ PAR `OrderMapper.ToSellerSummary` SEULEMENT. La vue acheteur
-    /// et la console d'administration montrent la commande ENTIÈRE : y poser la
-    /// part d'un vendeur reviendrait à en désigner un arbitrairement sur une
-    /// commande qui en compte deux.
-    /// </summary>
     Guid? SellerOrderId = null,
-
-    /// <summary>
-    /// Où en est CE vendeur : « AwaitingConfirmation », « Confirmed »,
-    /// « Preparing », « ReadyForPickup », « HandedOver », « Rejected »,
-    /// « Cancelled ».
-    ///
-    /// À NE PAS CONFONDRE AVEC <c>Status</c>, QUI EST CELUI DE LA COMMANDE.
-    ///
-    /// Les deux coexistent parce qu'ils ne parlent pas de la même chose :
-    /// `Status` dit où en est le PAIEMENT et la livraison de l'ensemble, celui-ci
-    /// dit ce que ce vendeur-là a encore à faire. Une commande peut être
-    /// « Confirmed » globalement pendant qu'un de ses deux vendeurs n'a rien
-    /// accepté — c'est très exactement ce qui n'était pas exprimable avant
-    /// ISSUE-027.
-    ///
-    /// Nul quand la commande n'a pas de part vendeur : repas, ou commande
-    /// confirmée avant la migration.
-    /// </summary>
     string? SellerOrderStatus = null);
 
 public sealed record OrderReturnContext(

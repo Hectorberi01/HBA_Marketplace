@@ -30,6 +30,9 @@ public sealed record MerchantActivitiesDto(IReadOnlyList<MerchantActivityDto> Ac
 /// ce champ devra venir du service — le déduire alors donnerait « OWNER » à un
 /// caissier.
 /// </param>
+/// <param name="IsOpenNow">
+/// <summary>Prend-elle des commandes en ce moment ? `null` si non calculable.</summary>
+/// </param>
 public sealed record MerchantActivityDto(
     string Type,
     Guid Id,
@@ -37,8 +40,6 @@ public sealed record MerchantActivityDto(
     string? LogoUrl,
     string Role,
     string Status,
-
-    /// <summary>Prend-elle des commandes en ce moment ? `null` si non calculable.</summary>
     bool? IsOpenNow);
 
 /// <summary>Tableau de bord d'une boutique (§12).</summary>

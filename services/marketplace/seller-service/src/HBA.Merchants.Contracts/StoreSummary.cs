@@ -15,6 +15,9 @@ public sealed record StoreOpeningHourSummary(string Day, string OpensAt, string 
 /// au premier déménagement. Les écrans qui ont besoin de l'adresse la demandent à
 /// Inventory à partir de <see cref="FulfillmentLocationId"/>.
 /// </summary>
+/// <param name="IsSelling">
+/// <summary>Ses offres sont-elles achetables en ce moment ?</summary>
+/// </param>
 public sealed record StoreSummary(
     Guid Id,
     Guid SellerId,
@@ -24,8 +27,6 @@ public sealed record StoreSummary(
     string ContactPhone,
     string? ContactEmail,
     string Status,
-
-    /// <summary>Ses offres sont-elles achetables en ce moment ?</summary>
     bool IsSelling,
 
     Guid? FulfillmentLocationId,

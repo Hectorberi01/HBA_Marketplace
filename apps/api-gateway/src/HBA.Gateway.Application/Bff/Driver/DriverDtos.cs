@@ -3,13 +3,15 @@ using HBA.Gateway.Application.Bff.Shared;
 namespace HBA.Gateway.Application.Bff.Driver;
 
 /// <summary>Tableau de bord du livreur (§15).</summary>
+/// <param name="Status">
+/// <summary>« Available », « Unavailable », « OnMission »… — tel que le service le dit.</summary>
+/// </param>
+/// <param name="CurrentMission">
+/// <summary>La mission en cours, s'il y en a une.</summary>
+/// </param>
 public sealed record DriverDashboardDto(
     DriverProfileDto Driver,
-
-    /// <summary>« Available », « Unavailable », « OnMission »… — tel que le service le dit.</summary>
     string Status,
-
-    /// <summary>La mission en cours, s'il y en a une.</summary>
     DriverMissionDto? CurrentMission,
 
     DriverTodayDto Today);
@@ -69,6 +71,9 @@ public sealed record DriverProfileDto(
 /// Seul le gain part. C'est aussi le seul des deux qui intéresse celui qui roule.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+/// <param name="RequiredProof">
+/// <summary>« Otp », « Photo », « Signature » — imposé par le service.</summary>
+/// </param>
 public sealed record DriverMissionDto(
     Guid DeliveryId,
     string Reference,
@@ -79,8 +84,6 @@ public sealed record DriverMissionDto(
     string? PackageDescription,
     decimal? PackageWeightKg,
     bool IsFragile,
-
-    /// <summary>« Otp », « Photo », « Signature » — imposé par le service.</summary>
     string RequiredProof,
 
     decimal? EstimatedEarning,
@@ -117,10 +120,11 @@ public sealed record DriverEarningsDto(
     string? Currency,
     PagedResult<DriverMovementDto> Movements);
 
+/// <param name="Direction">
+/// <summary>« Credit » ou « Debit », tel que le service le nomme.</summary>
+/// </param>
 public sealed record DriverMovementDto(
     Guid Id,
-
-    /// <summary>« Credit » ou « Debit », tel que le service le nomme.</summary>
     string Direction,
 
     decimal Amount,

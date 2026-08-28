@@ -48,6 +48,20 @@ public sealed record PromotionEvaluationContext(
 /// franc de plus au vendeur : ces deux montants sont la vérité, pas une indication.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+/// <param name="SellerFundedDiscount">
+/// <summary>Part de <c>Discount</c> supportée par le VENDEUR propriétaire.</summary>
+/// </param>
+/// <param name="PlatformFundedDiscount">
+/// <summary>Part de <c>Discount</c> supportée par la PLATEFORME.</summary>
+/// </param>
+/// <param name="OwnerSellerId">
+/// Le vendeur qui finance. <c>null</c> = campagne de la plateforme.
+///
+/// INDISPENSABLE À L'IMPUTATION EN PANIER MULTI-VENDEURS : sans lui,
+/// `SellerFundedDiscount` serait imputé à TOUS les vendeurs du panier, donc à
+/// des marchands qui n'ont pas financé cette campagne. Voir
+/// `PromotionPricingModuleApi`.
+/// </param>
 public sealed record PromotionEvaluationResult(
     bool Valid,
     Guid? PromotionId,
@@ -55,21 +69,8 @@ public sealed record PromotionEvaluationResult(
     string Currency,
     string Message,
     string? Reason,
-
-    /// <summary>Part de <c>Discount</c> supportée par le VENDEUR propriétaire.</summary>
     long SellerFundedDiscount = 0,
-
-    /// <summary>Part de <c>Discount</c> supportée par la PLATEFORME.</summary>
     long PlatformFundedDiscount = 0,
-
-    /// <summary>
-    /// Le vendeur qui finance. <c>null</c> = campagne de la plateforme.
-    ///
-    /// INDISPENSABLE À L'IMPUTATION EN PANIER MULTI-VENDEURS : sans lui,
-    /// `SellerFundedDiscount` serait imputé à TOUS les vendeurs du panier, donc à
-    /// des marchands qui n'ont pas financé cette campagne. Voir
-    /// `PromotionPricingModuleApi`.
-    /// </summary>
     Guid? OwnerSellerId = null);
 
 /// <summary>Une retenue accordée, à engager au paiement ou à laisser expirer.</summary>

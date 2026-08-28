@@ -16,32 +16,30 @@ namespace HBA.Gateway.Application.Bff.Client.Express;
 /// type.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+/// <param name="FlashOffers">
+/// TOUJOURS VIDE — AUCUN SERVICE NE LES PRODUIT (§51).
+///
+/// Le cahier des charges prévoit des offres flash, mais catalog-service
+/// n'expose ni promotion, ni fenêtre temporelle, ni mise en avant. Le champ
+/// existe pour que le contrat client soit stable le jour où l'endpoint
+/// arrivera ; il n'est alimenté par rien aujourd'hui.
+///
+/// Il n'émet PAS d'avertissement : une absence permanente n'est pas une
+/// dégradation, et le tableau d'avertissements ne doit signaler que ce qui
+/// peut se rétablir.
+/// </param>
+/// <param name="RecentlyViewed">
+/// TOUJOURS VIDE — AUCUN SERVICE NE MÉMORISE LES CONSULTATIONS.
+///
+/// « Vus récemment » suppose un historique de navigation que ni Engagement ni
+/// Catalog ne tiennent. Le construire côté passerelle ferait de celle-ci le
+/// propriétaire d'une donnée — ce que le §3 lui interdit.
+/// </param>
 public sealed record ExpressHomeDto(
     IReadOnlyList<ExpressCategory> Categories,
     IReadOnlyList<ExpressProductCard> RecommendedProducts,
     ExpressActiveOrder? ActiveOrder,
-
-    /// <summary>
-    /// TOUJOURS VIDE — AUCUN SERVICE NE LES PRODUIT (§51).
-    ///
-    /// Le cahier des charges prévoit des offres flash, mais catalog-service
-    /// n'expose ni promotion, ni fenêtre temporelle, ni mise en avant. Le champ
-    /// existe pour que le contrat client soit stable le jour où l'endpoint
-    /// arrivera ; il n'est alimenté par rien aujourd'hui.
-    ///
-    /// Il n'émet PAS d'avertissement : une absence permanente n'est pas une
-    /// dégradation, et le tableau d'avertissements ne doit signaler que ce qui
-    /// peut se rétablir.
-    /// </summary>
     IReadOnlyList<ExpressProductCard> FlashOffers,
-
-    /// <summary>
-    /// TOUJOURS VIDE — AUCUN SERVICE NE MÉMORISE LES CONSULTATIONS.
-    ///
-    /// « Vus récemment » suppose un historique de navigation que ni Engagement ni
-    /// Catalog ne tiennent. Le construire côté passerelle ferait de celle-ci le
-    /// propriétaire d'une donnée — ce que le §3 lui interdit.
-    /// </summary>
     IReadOnlyList<ExpressProductCard> RecentlyViewed);
 
 public sealed record ExpressCategory(Guid Id, string Name, string Slug, string? ImageUrl);

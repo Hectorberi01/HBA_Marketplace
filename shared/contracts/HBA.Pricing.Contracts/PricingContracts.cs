@@ -25,6 +25,18 @@ namespace HBA.Pricing.Contracts;
 /// remise fixe — c'est pourquoi le repli est JOURNALISÉ et non silencieux.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+/// <param name="BuyerId">
+/// L'acheteur. <c>default</c> = inconnu.
+///
+/// LE PLAFOND PAR COMPTE SE COMPTE SUR UN `UserId` : sans lui, il est
+/// indéterminable, donc inapplicable. Il ne sert pas à l'ÉVALUATION (qui est en
+/// lecture pure et ne consulte pas les plafonds) mais il voyage dès maintenant,
+/// pour que la retenue au checkout n'ait pas à le redécouvrir.
+/// </param>
+/// <param name="CartSubtotal">
+/// Sous-total du PANIER entier, toutes lignes confondues. <c>0</c> = inconnu.
+/// Voir l'encadré ci-dessus.
+/// </param>
 public sealed record PriceRequest(
     decimal BaseAmount,
     string Currency,
@@ -35,21 +47,7 @@ public sealed record PriceRequest(
     decimal Subtotal,
     string? Code = null,
     bool IsFirstOrder = false,
-
-    /// <summary>
-    /// L'acheteur. <c>default</c> = inconnu.
-    ///
-    /// LE PLAFOND PAR COMPTE SE COMPTE SUR UN `UserId` : sans lui, il est
-    /// indéterminable, donc inapplicable. Il ne sert pas à l'ÉVALUATION (qui est en
-    /// lecture pure et ne consulte pas les plafonds) mais il voyage dès maintenant,
-    /// pour que la retenue au checkout n'ait pas à le redécouvrir.
-    /// </summary>
     Guid BuyerId = default,
-
-    /// <summary>
-    /// Sous-total du PANIER entier, toutes lignes confondues. <c>0</c> = inconnu.
-    /// Voir l'encadré ci-dessus.
-    /// </summary>
     decimal CartSubtotal = 0m);
 
 /// <summary>
@@ -64,6 +62,9 @@ public sealed record PriceBreakdownDto(
     string Currency);
 
 /// <summary>Vue publique d'une promotion.</summary>
+/// <param name="PerUserLimit">
+/// <summary>Plafond par acheteur. 0 = illimité.</summary>
+/// </param>
 public sealed record PromotionSummary(
     Guid Id,
     string OwnerType,
@@ -79,7 +80,6 @@ public sealed record PromotionSummary(
     int UsageLimit,
     int UsedCount,
     string Status,
-    /// <summary>Plafond par acheteur. 0 = illimité.</summary>
     int PerUserLimit = 0);
 
 /// <summary>

@@ -61,6 +61,15 @@ public sealed record MealOrderShippingAddressSummary(
     double? Longitude);
 
 /// <summary>Une commande de repas, vue de l'extérieur du service.</summary>
+/// <param name="ShippingAddress">
+/// L'adresse de remise figée à la commande. NULLE tant qu'elle n'a pas été
+/// posée — `PlaceMealOrderCommandHandler` l'exige, mais une commande écrite
+/// avant ce lot peut ne rien porter.
+///
+/// AJOUT OPTIONNEL EN FIN DE LISTE (D32) : les appelants positionnels
+/// existants continuent de compiler, et un `null` se distingue d'une adresse
+/// vide — « on ne sait pas » n'est pas « nulle part ».
+/// </param>
 public sealed record MealOrderSummary(
     Guid OrderId,
     Guid BuyerId,
@@ -75,16 +84,6 @@ public sealed record MealOrderSummary(
     string? CustomerNote,
     DateTime CreatedOnUtc,
     IReadOnlyList<MealOrderLineSummary> Lines,
-
-    /// <summary>
-    /// L'adresse de remise figée à la commande. NULLE tant qu'elle n'a pas été
-    /// posée — `PlaceMealOrderCommandHandler` l'exige, mais une commande écrite
-    /// avant ce lot peut ne rien porter.
-    ///
-    /// AJOUT OPTIONNEL EN FIN DE LISTE (D32) : les appelants positionnels
-    /// existants continuent de compiler, et un `null` se distingue d'une adresse
-    /// vide — « on ne sait pas » n'est pas « nulle part ».
-    /// </summary>
     MealOrderShippingAddressSummary? ShippingAddress = null);
 
 /// <summary>

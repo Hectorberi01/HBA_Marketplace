@@ -74,21 +74,22 @@ public sealed record SellerPublicSummary(
     decimal Rating,
     int SalesCount);
 
+/// <param name="MediaId">
+/// UN IDENTIFIANT DE MÉDIA, PLUS UNE URL.
+///
+/// Une URL de pièce d'identité qui circule dans un contrat, c'est une URL qui
+/// finit dans un journal applicatif, une capture d'écran de support, ou le
+/// cache d'un navigateur. Le service média ne sert ces fichiers que par URL
+/// signée de cinq minutes, demandée nommément — et seulement après que
+/// l'appelant a vérifié le droit métier.
+/// </param>
+/// <param name="LegacyFileUrl">
+/// <summary>TRANSITOIRE : l'URL d'avant la bascule, tant que les pièces ne sont pas reversées.</summary>
+/// </param>
 public sealed record KybDocumentSummary(
     Guid Id,
     string Type,
-    /// <summary>
-    /// UN IDENTIFIANT DE MÉDIA, PLUS UNE URL.
-    ///
-    /// Une URL de pièce d'identité qui circule dans un contrat, c'est une URL qui
-    /// finit dans un journal applicatif, une capture d'écran de support, ou le
-    /// cache d'un navigateur. Le service média ne sert ces fichiers que par URL
-    /// signée de cinq minutes, demandée nommément — et seulement après que
-    /// l'appelant a vérifié le droit métier.
-    /// </summary>
     Guid MediaId,
-
-    /// <summary>TRANSITOIRE : l'URL d'avant la bascule, tant que les pièces ne sont pas reversées.</summary>
     string? LegacyFileUrl,
     // Statut par pièce, dérivé de la vérification : Verified si la pièce est
     // vérifiée, Rejected si la boutique est refusée, sinon InReview.

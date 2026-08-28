@@ -1,3 +1,8 @@
+// `ProducesResponseTypeAttribute` vit dans `Microsoft.AspNetCore.Mvc`, qui NE
+// FIGURE PAS parmi les `using` implicites que le csproj de ce projet reproduit à
+// la main — il reproduit ceux du SDK Web, et celui-là n'en fait pas partie.
+using Microsoft.AspNetCore.Mvc;
+
 namespace HBA.Shared.Hosting.Http;
 
 /// <summary>
@@ -59,7 +64,8 @@ public static class ApiAuthorization
     /// </summary>
     public static RouteGroupBuilder MapAdminGroup(this IEndpointRouteBuilder app, string prefix)
         => app.MapGroup(prefix)
-            .RequireAuthorization(policy => policy.RequireRole(AdminRole, ModeratorRole));
+            .RequireAuthorization(policy => policy.RequireRole(AdminRole, ModeratorRole))
+            .DocumenterLesRefus(avecRole: true);
 
     /// <summary>
     /// ═════════════════════════════════════════════════════════════════════════
@@ -115,7 +121,8 @@ public static class ApiAuthorization
     /// </summary>
     public static RouteGroupBuilder MapOperationsGroup(this IEndpointRouteBuilder app, string prefix)
         => app.MapGroup(prefix)
-            .RequireAuthorization(policy => policy.RequireRole(AdminRole, DispatcherRole));
+            .RequireAuthorization(policy => policy.RequireRole(AdminRole, DispatcherRole))
+            .DocumenterLesRefus(avecRole: true);
 
     /// <summary>
     /// ═════════════════════════════════════════════════════════════════════════
@@ -154,7 +161,8 @@ public static class ApiAuthorization
     /// </summary>
     public static RouteGroupBuilder MapSellerGroup(this IEndpointRouteBuilder app, string prefix)
         => app.MapGroup(prefix)
-            .RequireAuthorization(policy => policy.RequireRole(SellerRole, AdminRole, ModeratorRole));
+            .RequireAuthorization(policy => policy.RequireRole(SellerRole, AdminRole, ModeratorRole))
+            .DocumenterLesRefus(avecRole: true);
 
     /// <summary>
     /// Groupe exigeant simplement un utilisateur AUTHENTIFIÉ (sans rôle particulier).
@@ -165,5 +173,80 @@ public static class ApiAuthorization
     /// pas ce qu'il a le droit de toucher.
     /// </summary>
     public static RouteGroupBuilder MapAuthenticatedGroup(this IEndpointRouteBuilder app, string prefix)
-        => app.MapGroup(prefix).RequireAuthorization();
+        => app.MapGroup(prefix)
+            .RequireAuthorization()
+            .DocumenterLesRefus(avecRole: false);
+
+    /// <summary>
+    /// Documente les réponses que TOUT groupe protégé peut rendre, quel que soit
+    /// son handler.
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// POSÉ SUR LE GROUPE, PAS SUR LES 434 ROUTES.
+    ///
+    /// CE QUI ÉTAIT CASSÉ. Aucune des 434 routes HTTP du dépôt ne déclarait de
+    /// `Produces`. La page `/docs` de chaque service listait donc des chemins dont
+    /// AUCUNE réponse n'était décrite — ni la forme du succès, ni celle de
+    /// l'échec. Un client qui la lisait apprenait qu'une route existe, et rien de
+    /// ce qu'elle rend.
+    ///
+    /// Les annoter une par une aurait demandé 434 lignes à tenir d'accord, et
+    /// aurait recommencé le défaut que ce dépôt corrige partout ailleurs : une
+    /// propriété qui dépend de N copies restant identiques. Le groupe est
+    /// l'endroit où l'authentification est décidée ; c'est donc là que se
+    /// documentent ses refus.
+    ///
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// `ApiEnvelope&lt;object&gt;` ET NON `ProblemDetails`.
+    ///
+    /// `ProducesProblem` aurait été plus court et aurait DÉCRIT UNE FORME QUE CE
+    /// DÉPÔT NE REND JAMAIS. Le §25 impose l'enveloppe — `success`, puis `data` OU
+    /// `error`, plus `meta` — et `ServiceMiddlewares` la produit y compris sur les
+    /// refus d'autorisation. Documenter `ProblemDetails` aurait fait écrire aux
+    /// clients un désérialiseur pour une forme qui n'arrive jamais : une
+    /// documentation fausse coûte plus qu'une documentation absente, parce qu'on
+    /// la croit.
+    ///
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// CE QUE CELA NE DOCUMENTE PAS, ET IL FAUT LE SAVOIR.
+    ///
+    ///   • LE TYPE DU SUCCÈS. Il varie par route et ne peut venir que de chaque
+    ///     handler. Une route reste donc décrite « sans corps de succès » tant que
+    ///     personne n'y pose un `Produces&lt;T&gt;`.
+    ///
+    ///   • LES 404 ET 409 MÉTIER. Ils dépendent de la ressource, pas du groupe :
+    ///     les déclarer ici les poserait sur des routes qui ne les rendent pas.
+    ///
+    ///   • LES GROUPES OUVERTS. Une route anonyme — la vitrine publique, la santé —
+    ///     ne passe par aucun de ces quatre groupes et n'hérite donc de rien.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    /// <param name="groupe">Le groupe à annoter.</param>
+    /// <param name="avecRole">
+    /// Vrai si le groupe exige un RÔLE en plus de l'authentification : il peut
+    /// alors rendre 403. Un groupe simplement authentifié ne le peut pas — un
+    /// jeton valide y entre toujours, et c'est le handler qui refuse ensuite.
+    /// </param>
+    private static RouteGroupBuilder DocumenterLesRefus(
+        this RouteGroupBuilder groupe, bool avecRole)
+    {
+        // `WithMetadata` ET NON `Produces<T>()`, ET CE N'EST PAS UN DÉTAIL.
+        //
+        // `Produces<T>()` est une extension de `RouteHandlerBuilder` — une ROUTE.
+        // Elle n'existe pas sur `RouteGroupBuilder`, et l'écrire ne compile pas.
+        // `WithMetadata` est définie sur `IEndpointConventionBuilder`, que les
+        // deux implémentent : c'est la seule porte par laquelle une convention
+        // descend d'un groupe vers toutes ses routes.
+        groupe.WithMetadata(new ProducesResponseTypeAttribute(
+            typeof(ApiEnvelope<object>), StatusCodes.Status401Unauthorized));
+
+        if (avecRole)
+        {
+            groupe.WithMetadata(new ProducesResponseTypeAttribute(
+                typeof(ApiEnvelope<object>), StatusCodes.Status403Forbidden));
+        }
+
+        return groupe;
+    }
 }

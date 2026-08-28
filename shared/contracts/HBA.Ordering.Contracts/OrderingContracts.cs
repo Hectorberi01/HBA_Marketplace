@@ -56,6 +56,9 @@ public sealed record OrderShippingAddressSummary(
 /// <summary>Vue publique d'une commande.</summary>
 /// <param name="Kind">La nature de la commande : « Goods » ou « Food ».</param>
 /// <param name="RestaurantId">L'établissement qui prépare, pour un repas. Null sinon.</param>
+/// <param name="DeliveryQuoteId">
+/// <summary>Le devis de course déjà payé. Restauration seulement.</summary>
+/// </param>
 public sealed record OrderSummary(
     Guid Id,
     Guid BuyerId,
@@ -73,8 +76,6 @@ public sealed record OrderSummary(
 
     string Kind = "Goods",
     Guid? RestaurantId = null,
-
-    /// <summary>Le devis de course déjà payé. Restauration seulement.</summary>
     string? DeliveryQuoteId = null);
 
 public sealed record OrderReturnContext(

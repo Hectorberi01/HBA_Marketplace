@@ -42,6 +42,9 @@ public sealed record RestaurantCard(
 ///
 /// Ce que la désérialisation ignore ne coûte rien.
 /// </remarks>
+/// <param name="AcceptsOrdersNow">
+/// <summary>Réponse FERME : lieu ouvert ET au moins un plat commandable.</summary>
+/// </param>
 public sealed record RestaurantDetail(
     Guid Id,
     string Name,
@@ -51,8 +54,6 @@ public sealed record RestaurantDetail(
     string? LegacyLogoUrl,
     string Phone,
     string Status,
-
-    /// <summary>Réponse FERME : lieu ouvert ET au moins un plat commandable.</summary>
     bool AcceptsOrdersNow,
 
     string BlockedReason,

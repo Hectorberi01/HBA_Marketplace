@@ -38,25 +38,26 @@ public sealed record FoodStaffMembership(
 }
 
 /// <summary>Un membre du personnel, tel qu'affiché dans l'espace du restaurateur.</summary>
+/// <param name="IsFounder">
+/// <summary>Le compte à l'origine de l'établissement : ni rétrogradable, ni désactivable.</summary>
+/// </param>
+/// <param name="Permissions">
+/// <summary>Ce que ce membre peut RÉELLEMENT faire : son rôle, corrigé de ses dérogations.</summary>
+/// </param>
+/// <param name="Overrides">
+/// Les seules dérogations NOMMÉES, sans les défauts du rôle.
+///
+/// Sans cette distinction, l'écran ne pourrait pas montrer ce qu'un
+/// propriétaire a décidé pour cette personne — tout se confondrait avec ce que
+/// le rôle donne, et personne ne saurait quoi retirer pour revenir au défaut.
+/// </param>
 public sealed record StaffMemberSummary(
     Guid Id,
     Guid UserId,
     string Role,
     bool IsActive,
-
-    /// <summary>Le compte à l'origine de l'établissement : ni rétrogradable, ni désactivable.</summary>
     bool IsFounder,
-
-    /// <summary>Ce que ce membre peut RÉELLEMENT faire : son rôle, corrigé de ses dérogations.</summary>
     IReadOnlyList<string> Permissions,
-
-    /// <summary>
-    /// Les seules dérogations NOMMÉES, sans les défauts du rôle.
-    ///
-    /// Sans cette distinction, l'écran ne pourrait pas montrer ce qu'un
-    /// propriétaire a décidé pour cette personne — tout se confondrait avec ce que
-    /// le rôle donne, et personne ne saurait quoi retirer pour revenir au défaut.
-    /// </summary>
     IReadOnlyList<StaffPermissionOverrideSummary> Overrides,
 
     DateTime CreatedOnUtc);
@@ -124,6 +125,9 @@ public sealed record FoodOrderView(
     IReadOnlyList<FoodOrderItemView> Items);
 
 /// <summary>Une ligne du ticket, telle qu'affichée en cuisine.</summary>
+/// <param name="Options">
+/// <summary>« Taille : Grande », « Sauce : Mayo » — déjà mises en forme pour l'écran.</summary>
+/// </param>
 public sealed record KitchenTicketItemView(
     Guid Id,
     string Name,
@@ -132,8 +136,6 @@ public sealed record KitchenTicketItemView(
     string Status,
     Guid? PreparationStationId,
     int PreparationMinutes,
-
-    /// <summary>« Taille : Grande », « Sauce : Mayo » — déjà mises en forme pour l'écran.</summary>
     IReadOnlyList<string> Options);
 
 /// <summary>
@@ -206,94 +208,92 @@ public static class FoodPermissionCodes
 /// que par son identifiant : recopier l'adresse créerait deux vérités pour un
 /// même lieu, qui divergeraient au premier déménagement.
 /// </summary>
+/// <param name="LogoMediaId">
+/// UN IDENTIFIANT DE MÉDIA, PLUS UNE URL.
+///
+/// Food ne connaît pas le service média — sa frontière l'interdit. C'est la
+/// couche qui voit les deux qui résout l'adresse, en tenant compte de la
+/// visibilité et des variantes. Renvoyer une URL d'ici obligerait Food à
+/// connaître le CDN, et chaque changement de domaine à réécrire des tables.
+/// </param>
+/// <param name="LegacyLogoUrl">
+/// <summary>TRANSITOIRE : l'URL d'avant la bascule, tant que les logos ne sont pas reversés.</summary>
+/// </param>
+/// <param name="AcceptsOrdersNow">
+/// Prend-il une commande MAINTENANT ? Calculé à l'instant de la lecture — le
+/// statut seul ne suffit pas, les horaires et la pause comptent aussi.
+/// </param>
+/// <param name="BlockedReason">
+/// Pourquoi il n'en prend pas. « Indisponible » sans motif est la réponse la
+/// plus frustrante qui soit : le client ne sait pas s'il doit revenir dans dix
+/// minutes, demain, ou jamais.
+/// </param>
+/// <param name="AcceptanceMode">
+/// <summary>« Manual » ou « Automatic » (§3).</summary>
+/// </param>
+/// <param name="MinimumOrderAmount">
+/// <summary>Minimum de commande, hors livraison. Nul = aucun.</summary>
+/// </param>
+/// <param name="LoadLevel">
+/// « Normal », « High », « Saturated » (§14).
+///
+/// CE N'EST PAS UN MOTIF DE BLOCAGE. Un restaurant saturé n'est pas fermé :
+/// il est LENT. Le confondre avec <c>BlockedReason</c> ferait afficher
+/// « revenez demain » à quelqu'un qui aurait très bien pu commander en
+/// acceptant vingt minutes de plus. C'est le « forte demande » du cahier.
+/// </param>
+/// <param name="ExtraWaitMinutes">
+/// <summary>Minutes ajoutées au délai annoncé par la charge actuelle.</summary>
+/// </param>
+/// <param name="SpecialClosureReason">
+/// Pourquoi l'établissement est exceptionnellement fermé AUJOURD'HUI (§4) :
+/// « Fête de l'Indépendance », « inventaire ». Nul si le jour est ordinaire.
+///
+/// SEULEMENT LE JOUR COURANT, pas toute la liste. C'est la seule chose
+/// qu'un client a besoin de lire — « fermé » sans raison le fait revenir trois
+/// fois. La liste complète appartient à l'écran du restaurateur.
+/// </param>
+/// <param name="PayoutSellerId">
+/// Le dossier vendeur qui encaisse les recettes de l'établissement.
+///
+/// C'est par lui que passe TOUT le reversement : gains, portefeuille,
+/// retrait, payout. Nul tant qu'aucun dossier n'est rattaché — et
+/// l'établissement ne peut alors pas entrer en service.
+/// </param>
+/// <param name="IsPubliclyVisible">
+/// A-t-il sa place dans la vitrine ?
+///
+/// CE N'EST PAS « accepte des commandes ». Un restaurant fermé le soir
+/// reste VISIBLE — le client consulte sa carte et reviendra demain. Un
+/// établissement non validé ou suspendu, lui, ne doit pas exister pour lui.
+///
+/// Le filtrage se fait chez l'APPELANT, pas ici : cette même API sert
+/// l'espace du restaurateur, qui doit voir son dossier en brouillon, et la
+/// file de validation, qui ne voit que des dossiers en attente.
+/// </param>
 public sealed record RestaurantSummary(
     Guid Id,
     Guid OwnerUserId,
     string Name,
     string? Description,
-    /// <summary>
-    /// UN IDENTIFIANT DE MÉDIA, PLUS UNE URL.
-    ///
-    /// Food ne connaît pas le service média — sa frontière l'interdit. C'est la
-    /// couche qui voit les deux qui résout l'adresse, en tenant compte de la
-    /// visibilité et des variantes. Renvoyer une URL d'ici obligerait Food à
-    /// connaître le CDN, et chaque changement de domaine à réécrire des tables.
-    /// </summary>
     Guid? LogoMediaId,
     Guid? CoverMediaId,
-
-    /// <summary>TRANSITOIRE : l'URL d'avant la bascule, tant que les logos ne sont pas reversés.</summary>
     string? LegacyLogoUrl,
     string Phone,
     string Status,
-
-    /// <summary>
-    /// Prend-il une commande MAINTENANT ? Calculé à l'instant de la lecture — le
-    /// statut seul ne suffit pas, les horaires et la pause comptent aussi.
-    /// </summary>
     bool AcceptsOrdersNow,
-
-    /// <summary>
-    /// Pourquoi il n'en prend pas. « Indisponible » sans motif est la réponse la
-    /// plus frustrante qui soit : le client ne sait pas s'il doit revenir dans dix
-    /// minutes, demain, ou jamais.
-    /// </summary>
     string BlockedReason,
 
     int PreparationMinutes,
-
-    /// <summary>« Manual » ou « Automatic » (§3).</summary>
     string AcceptanceMode,
-
-    /// <summary>Minimum de commande, hors livraison. Nul = aucun.</summary>
     decimal? MinimumOrderAmount,
-
-    /// <summary>
-    /// « Normal », « High », « Saturated » (§14).
-    ///
-    /// CE N'EST PAS UN MOTIF DE BLOCAGE. Un restaurant saturé n'est pas fermé :
-    /// il est LENT. Le confondre avec <c>BlockedReason</c> ferait afficher
-    /// « revenez demain » à quelqu'un qui aurait très bien pu commander en
-    /// acceptant vingt minutes de plus. C'est le « forte demande » du cahier.
-    /// </summary>
     string LoadLevel,
-
-    /// <summary>Minutes ajoutées au délai annoncé par la charge actuelle.</summary>
     int ExtraWaitMinutes,
-
-    /// <summary>
-    /// Pourquoi l'établissement est exceptionnellement fermé AUJOURD'HUI (§4) :
-    /// « Fête de l'Indépendance », « inventaire ». Nul si le jour est ordinaire.
-    ///
-    /// SEULEMENT LE JOUR COURANT, pas toute la liste. C'est la seule chose
-    /// qu'un client a besoin de lire — « fermé » sans raison le fait revenir trois
-    /// fois. La liste complète appartient à l'écran du restaurateur.
-    /// </summary>
     string? SpecialClosureReason,
 
     Guid? FulfillmentLocationId,
-
-    /// <summary>
-    /// Le dossier vendeur qui encaisse les recettes de l'établissement.
-    ///
-    /// C'est par lui que passe TOUT le reversement : gains, portefeuille,
-    /// retrait, payout. Nul tant qu'aucun dossier n'est rattaché — et
-    /// l'établissement ne peut alors pas entrer en service.
-    /// </summary>
     Guid? PayoutSellerId,
     IReadOnlyList<ServiceHoursSummary> ServiceHours,
-
-    /// <summary>
-    /// A-t-il sa place dans la vitrine ?
-    ///
-    /// CE N'EST PAS « accepte des commandes ». Un restaurant fermé le soir
-    /// reste VISIBLE — le client consulte sa carte et reviendra demain. Un
-    /// établissement non validé ou suspendu, lui, ne doit pas exister pour lui.
-    ///
-    /// Le filtrage se fait chez l'APPELANT, pas ici : cette même API sert
-    /// l'espace du restaurateur, qui doit voir son dossier en brouillon, et la
-    /// file de validation, qui ne voit que des dossiers en attente.
-    /// </summary>
     bool IsPubliclyVisible);
 
 /// <summary>
@@ -328,32 +328,38 @@ public sealed record RestaurantSummary(
 /// épuisé, ne revient pas. La liste dit « ouvert » ; la fiche dit « commandable ».
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+/// <param name="LogoMediaId">
+/// <summary>Identifiant de média (§6). L'URL se résout hors du module.</summary>
+/// </param>
+/// <param name="LegacyLogoUrl">
+/// <summary>TRANSITOIRE : l'URL d'avant la bascule vers media-service.</summary>
+/// </param>
+/// <param name="IsOpenNow">
+/// <summary>Le LIEU est-il ouvert ? Ne dit rien de la carte — cf. remarques.</summary>
+/// </param>
+/// <param name="ClosedReason">
+/// <summary>Pourquoi il ne l'est pas. « None » quand il l'est.</summary>
+/// </param>
+/// <param name="LoadLevel">
+/// <summary>« Normal », « High », « Saturated ». Saturé n'est PAS fermé.</summary>
+/// </param>
+/// <param name="SpecialClosureReason">
+/// <summary>Motif d'une fermeture exceptionnelle AUJOURD'HUI, s'il y en a une.</summary>
+/// </param>
 public sealed record RestaurantCardView(
     Guid Id,
     string Name,
     string? Description,
-
-    /// <summary>Identifiant de média (§6). L'URL se résout hors du module.</summary>
     Guid? LogoMediaId,
-
-    /// <summary>TRANSITOIRE : l'URL d'avant la bascule vers media-service.</summary>
     string? LegacyLogoUrl,
-
-    /// <summary>Le LIEU est-il ouvert ? Ne dit rien de la carte — cf. remarques.</summary>
     bool IsOpenNow,
-
-    /// <summary>Pourquoi il ne l'est pas. « None » quand il l'est.</summary>
     string ClosedReason,
 
     int PreparationMinutes,
     decimal? MinimumOrderAmount,
-
-    /// <summary>« Normal », « High », « Saturated ». Saturé n'est PAS fermé.</summary>
     string LoadLevel,
 
     int ExtraWaitMinutes,
-
-    /// <summary>Motif d'une fermeture exceptionnelle AUJOURD'HUI, s'il y en a une.</summary>
     string? SpecialClosureReason);
 
 public interface IFoodModuleApi
@@ -426,26 +432,25 @@ public interface IFoodModuleApi
 /// <summary>
 /// Les rattachements d'un ticket de cuisine, vus de l'extérieur du module.
 /// </summary>
+/// <param name="Origin">
+/// De quel univers vient <paramref name="OrderId"/> — voir
+/// <see cref="IntegrationEvents.FoodOrderOrigins"/>.
+///
+/// SANS LUI, `OrderId` NE DÉSIGNAIT RIEN. `HoldOrderOnDeliveryCancelledHandler`
+/// (order-service) relit ce type après une course `FOOD-` annulée, pour mettre
+/// la commande en arbitrage. Il envoyait donc un identifiant de `MealOrder` à
+/// order-service, qui ne le connaît pas — et la mise en arbitrage d'une
+/// commande de repas n'a jamais fonctionné.
+///
+/// OPTIONNEL, « Marketplace » PAR DÉFAUT (D32) : les appelants positionnels
+/// existants compilent inchangés, et le défaut décrit exactement les tickets
+/// déjà en base.
+/// </param>
 public sealed record FoodOrderRef(
     Guid FoodOrderId,
     Guid OrderId,
     Guid RestaurantId,
     string Status,
-
-    /// <summary>
-    /// De quel univers vient <paramref name="OrderId"/> — voir
-    /// <see cref="IntegrationEvents.FoodOrderOrigins"/>.
-    ///
-    /// SANS LUI, `OrderId` NE DÉSIGNAIT RIEN. `HoldOrderOnDeliveryCancelledHandler`
-    /// (order-service) relit ce type après une course `FOOD-` annulée, pour mettre
-    /// la commande en arbitrage. Il envoyait donc un identifiant de `MealOrder` à
-    /// order-service, qui ne le connaît pas — et la mise en arbitrage d'une
-    /// commande de repas n'a jamais fonctionné.
-    ///
-    /// OPTIONNEL, « Marketplace » PAR DÉFAUT (D32) : les appelants positionnels
-    /// existants compilent inchangés, et le défaut décrit exactement les tickets
-    /// déjà en base.
-    /// </summary>
     string Origin = IntegrationEvents.FoodOrderOrigins.Marketplace);
 
 // ── La carte, telle qu'affichée ─────────────────────────────────────────────
@@ -464,62 +469,61 @@ public sealed record OptionGroupView(
     Guid Id, string Name, int MinSelections, int MaxSelections, bool IsRequired, IReadOnlyList<OptionView> Options);
 
 /// <summary>Un article de la carte.</summary>
+/// <param name="ImageMediaId">
+/// <summary>Identifiant de média (§6). L'URL se résout hors du module.</summary>
+/// </param>
+/// <param name="LegacyImageUrl">
+/// <summary>TRANSITOIRE : l'URL d'avant la bascule.</summary>
+/// </param>
+/// <param name="DisplayImageUrl">
+/// L'adresse à afficher : `ImagePublicUrl` si le média est repris,
+/// `LegacyImageUrl` sinon. Nulle quand l'article n'a pas de photo.
+/// <remarks>
+/// LE REPLI EST FAIT ICI, PAS DANS LES TROIS APPLICATIONS.
+///
+/// Client, vendeur et livreur afficheraient tous les trois le même
+/// `imagePublicUrl ?? legacyImageUrl` — et le jour où `LegacyImageUrl` disparaît,
+/// il faudrait trois publications de boutique pour le retirer. Les deux champs
+/// bruts restent exposés pour qui doit distinguer un média repris d'un média
+/// hérité ; celui-ci sert à AFFICHER.
+/// </remarks>
+/// </param>
+/// <param name="IsOrderable">
+/// Commandable MAINTENANT : PHOTO PRÉSENTE, disponible, et tous les groupes
+/// obligatoires satisfiables.
+/// </param>
+/// <param name="HasImage">
+/// L'article porte-t-il une photo ?
+/// <remarks>
+/// RENDU À CÔTÉ D'`IsOrderable`, ET NON DÉDUIT PAR LE CLIENT.
+///
+/// Depuis que la photo est obligatoire pour vendre, `IsOrderable == false` a
+/// TROIS causes possibles : épuisé aujourd'hui, groupe d'options insatisfiable,
+/// ou photo manquante. Les trois n'appellent pas le même geste — la première se
+/// résout d'elle-même demain, la dernière attend une action.
+///
+/// Sans ce champ, l'espace restaurateur afficherait « indisponible » et ferait
+/// attendre quelqu'un qui devrait agir. Le calculer côté client à partir de
+/// `ImageMediaId` et `LegacyImageUrl` marcherait — et recopierait la règle
+/// `HasImage` dans trois applications, où elle divergerait au premier changement.
+/// </remarks>
+/// </param>
+/// <param name="BackAtUtc">
+/// Quand il revient, si c'est connu. « De retour demain » vaut mieux
+/// qu'« indisponible », qui ne dit pas s'il faut revenir dans dix minutes ou
+/// jamais.
+/// </param>
 public sealed record MenuItemView(
     Guid Id,
     string Name,
     string? Description,
-    /// <summary>Identifiant de média (§6). L'URL se résout hors du module.</summary>
     Guid? ImageMediaId,
-
-    /// <summary>TRANSITOIRE : l'URL d'avant la bascule.</summary>
     string? LegacyImageUrl,
-
-    /// <summary>
-    /// L'adresse à afficher : `ImagePublicUrl` si le média est repris,
-    /// `LegacyImageUrl` sinon. Nulle quand l'article n'a pas de photo.
-    /// </summary>
-    /// <remarks>
-    /// LE REPLI EST FAIT ICI, PAS DANS LES TROIS APPLICATIONS.
-    ///
-    /// Client, vendeur et livreur afficheraient tous les trois le même
-    /// `imagePublicUrl ?? legacyImageUrl` — et le jour où `LegacyImageUrl` disparaît,
-    /// il faudrait trois publications de boutique pour le retirer. Les deux champs
-    /// bruts restent exposés pour qui doit distinguer un média repris d'un média
-    /// hérité ; celui-ci sert à AFFICHER.
-    /// </remarks>
     string? DisplayImageUrl,
     decimal BasePrice,
     string Currency,
-
-    /// <summary>
-    /// Commandable MAINTENANT : PHOTO PRÉSENTE, disponible, et tous les groupes
-    /// obligatoires satisfiables.
-    /// </summary>
     bool IsOrderable,
-
-    /// <summary>
-    /// L'article porte-t-il une photo ?
-    /// </summary>
-    /// <remarks>
-    /// RENDU À CÔTÉ D'`IsOrderable`, ET NON DÉDUIT PAR LE CLIENT.
-    ///
-    /// Depuis que la photo est obligatoire pour vendre, `IsOrderable == false` a
-    /// TROIS causes possibles : épuisé aujourd'hui, groupe d'options insatisfiable,
-    /// ou photo manquante. Les trois n'appellent pas le même geste — la première se
-    /// résout d'elle-même demain, la dernière attend une action.
-    ///
-    /// Sans ce champ, l'espace restaurateur afficherait « indisponible » et ferait
-    /// attendre quelqu'un qui devrait agir. Le calculer côté client à partir de
-    /// `ImageMediaId` et `LegacyImageUrl` marcherait — et recopierait la règle
-    /// `HasImage` dans trois applications, où elle divergerait au premier changement.
-    /// </remarks>
     bool HasImage,
-
-    /// <summary>
-    /// Quand il revient, si c'est connu. « De retour demain » vaut mieux
-    /// qu'« indisponible », qui ne dit pas s'il faut revenir dans dix minutes ou
-    /// jamais.
-    /// </summary>
     DateTime? BackAtUtc,
 
     IReadOnlyList<OptionGroupView> OptionGroups);
@@ -598,24 +602,25 @@ public sealed record RestaurantMenuView(
 /// ne doit pas apprendre le chiffre du jour en ouvrant l'application.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+/// <param name="Role">
+/// <summary>« Owner », « Manager », « Cashier », « Cook »…</summary>
+/// </param>
+/// <param name="Permissions">
+/// <summary>Permissions effectives, dérogations comprises.</summary>
+/// </param>
+/// <param name="PayoutSellerId">
+/// Le dossier vendeur qui encaisse. Nul tant qu'aucun n'est rattaché — et
+/// l'établissement ne peut alors pas entrer en service.
+/// </param>
 public sealed record PartnerRestaurantView(
     Guid RestaurantId,
     string Name,
     string Status,
-
-    /// <summary>« Owner », « Manager », « Cashier », « Cook »…</summary>
     string Role,
 
     bool IsFounder,
     bool IsActive,
-
-    /// <summary>Permissions effectives, dérogations comprises.</summary>
     IReadOnlyList<string> Permissions,
-
-    /// <summary>
-    /// Le dossier vendeur qui encaisse. Nul tant qu'aucun n'est rattaché — et
-    /// l'établissement ne peut alors pas entrer en service.
-    /// </summary>
     Guid? PayoutSellerId,
 
     bool AcceptsOrdersNow,
