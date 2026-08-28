@@ -1118,8 +1118,19 @@ services:
       # démarrage. Contrairement à l'e-mail, l'absence de FCM ne bloque personne
       # dehors — d'où un repli silencieux plutôt qu'un refus de démarrer.
       #
-      # Pour l'activer : coller le JSON du compte de service Google dans
-      # SERVICEACCOUNTJSON, ou monter le fichier et donner son chemin.
+      # Pour l'activer, PRÉFÉRER LE FICHIER À LA VARIABLE : monter le compte de
+      # service depuis un chemin HORS DU DÉPÔT et renseigner SERVICEACCOUNTPATH.
+      # Coller le JSON dans SERVICEACCOUNTJSON marche aussi, mais le blob se
+      # retrouve alors dans l'environnement du processus, dans `docker inspect`,
+      # et dans l'historique du shell qui a lancé la pile.
+      #
+      #   volumes:
+      #     - $HOME/secrets-hba-staging/firebase.json:/etc/hba/firebase/service-account.json:ro
+      #   NOTIFICATIONS__FCM__SERVICEACCOUNTPATH: /etc/hba/firebase/service-account.json
+      #
+      # Le déploiement Kubernetes fait exactement cela, depuis un Secret : voir
+      # `k8s/base/common/secret-notifications.yaml`. `.gitignore` attrape au
+      # passage un `firebase.json` posé dans le dépôt « le temps d'un test ».
       NOTIFICATIONS__FCM__SERVICEACCOUNTJSON: ""
       NOTIFICATIONS__FCM__SERVICEACCOUNTPATH: ""
     depends_on:

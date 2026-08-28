@@ -2754,3 +2754,91 @@ remise.
 **On ne retire pas une adresse parce qu'on croit qu'elle ne sert pas — on la
 retire quand le code qui la lit a disparu.**
 
+
+---
+
+## D53 — le Secret de production se construit par un script, jamais à la main, et le dépôt vérifie qu'il reste vide
+
+`scripts/db/creer-bases.sh` écrit quatorze mots de passe dans un fichier, et le
+runbook demandait ensuite de les recopier à la main dans treize chaînes de
+connexion. Trois choses ont mal tourné le 28 août 2026, toutes de la même
+famille : **un secret qui transite par un endroit prévu pour être lu.**
+
+**Le fichier de mots de passe apparaissait dans `git status`.** Le script écrit
+dans le répertoire courant et le runbook demande de le lancer depuis la racine
+du dépôt. Le fichier était donc « untracked », à un `git add -A` de
+l'historique. Les commentaires de `.gitignore` disaient déjà de tenir les
+secrets hors du dépôt ; aucun motif ne visait ce fichier. Trois motifs ajoutés :
+`motsdepasse-*.txt`, `secret-hba-platform*.yaml`, `secrets-hba-*/`.
+
+**Une clé d'API Resend en clair était posée dans `k8s/base/common/secret.yaml`.**
+Vérifié : elle n'est entrée dans aucun commit — `git log --all -S` ne la trouve
+nulle part. Elle n'y avait pas sa place de toute façon : `hba-platform` est monté
+par `envFrom` dans les vingt-quatre pods, alors que cette clé ne concerne que
+`notification-service`, qui la lit par `secretKeyRef` depuis `hba-notifications`.
+
+**Onze des treize chaînes portaient `Username=hector`.** Le commentaire situé
+trois lignes plus haut dit « UNE RÔLE PAR BASE. Chaque service se connecte avec
+son propre compte, qui n'a de droits que sur sa base. » `creer-bases.sh` fait
+bien le travail — `REVOKE CONNECT ... FROM PUBLIC`, un `GRANT` au seul
+propriétaire, et le cloisonnement a été éprouvé en vrai : `hba_identity` est
+refusé sur `hba_user`. Mais un superutilisateur passe outre. La plateforme aurait
+démarré, les quatorze essais de connexion auraient réussi, et le cloisonnement
+n'aurait servi à rien le jour où il aurait fallu qu'il serve. C'est le pire des
+défauts : celui qui ne se voit qu'à l'instant où on comptait dessus.
+
+**Ce qui est choisi.** `scripts/db/secret-depuis-motsdepasse.py` lit le fichier
+de mots de passe et écrit le Secret directement. Il n'affiche aucune valeur — sa
+sortie ne contient que des noms de clés et des longueurs. Il refuse un fichier
+source qui ne serait pas en 0600, refuse un mot de passe contenant `;` ou un
+guillemet — qui couperait la chaîne de connexion en deux et ferait lire à Npgsql
+un paramètre tronqué — et dérive toujours l'utilisateur du nom de la base.
+
+Deux contrôles rejoignent `scripts/check-k8s.py`, et tournent sans kustomize :
+
+- `verifier_secrets_vides()` — aucune valeur vivante dans
+  `k8s/base/common/secret*.yaml`. §12 le disait depuis le début, dans un
+  commentaire ; rien ne l'imposait. Éprouvé en reposant la clé Resend.
+- `verifier_chaines_de_connexion()` — le gabarit versionné et la table `CLES` du
+  générateur déclarent les mêmes clés, et le générateur construit `Username`
+  depuis `Database`. Éprouvé deux fois : en écrivant `hector` en dur, et en
+  retirant une clé de la table.
+
+**Ce que ces choix ne couvrent pas.** Les contrôles lisent le dépôt, pas le
+cluster : ils ne disent rien du Secret réellement appliqué, ni de l'existence du
+rôle côté Postgres, ni de ses droits réels. `verifier_secrets_vides()` ne
+regarde que `k8s/base/common/secret*.yaml` — un secret posé dans un ConfigMap ou
+dans un overlay passe au travers. Aucun des deux ne regarde l'historique : ils
+disent ce qui est là, pas ce qui y a été. Et le fichier produit par le
+générateur contient, lui, les mots de passe **en clair** : il est en 0600 et
+hors du dépôt, mais il doit être supprimé après `kubectl apply`.
+
+**Un secret qui a été lu une fois est un secret à changer — pas un secret à
+mieux ranger.**
+
+**Correctif du même jour, trouvé en relisant le fichier avec Hector.** Le
+générateur ne produisait que les treize chaînes de connexion et
+`CONNECTIONSTRINGS__DEFAULT`. Or `secret.yaml` déclare **dix-huit** clés :
+s'ajoutent `REDIS__CONNECTIONSTRING`, `AUTHENTICATION__SIGNINGKEY`,
+`INTERNAL__APIKEY` et `SECURITY__SECRETPROTECTION__KEY`.
+
+`kubectl apply -f` **remplace la carte `data` en entier**. Un fichier de quatorze
+clés n'en ajoute pas quatorze à un Secret existant : il en fait un Secret de
+quatorze clés et efface les quatre autres. Ce qui serait arrivé : toutes les
+sessions invalidées d'un coup avec la disparition de `AUTHENTICATION__SIGNINGKEY`,
+tous les appels entre services refusés avec `INTERNAL__APIKEY`, et surtout
+`SECURITY__SECRETPROTECTION__KEY` perdue — une donnée chiffrée avec une clé
+disparue ne se rechiffre pas, elle se perd.
+
+Le script lit désormais la liste des clés **dans `secret.yaml`** au lieu de la
+recopier, et refuse d'écrire s'il en reste une qu'il ne sait pas résoudre. Pour
+les clés hors Postgres, l'ordre est : valeur déjà posée dans le cluster (reprise
+telle quelle, ce qui rend le script rejouable), sinon variable d'environnement,
+sinon valeur engendrée — annoncée en toutes lettres, avec un avertissement à part
+pour `SECURITY__SECRETPROTECTION__KEY`. Éprouvé sur cinq chemins : marche
+nominale (18 clés, accord exact avec le gabarit), clé inconnue ajoutée au
+gabarit, mot de passe manquant, mot de passe contenant `;`, fichier source en
+0644.
+
+**Un `apply` ne complète pas un Secret : il le remplace. Le fichier doit donc
+porter tout ce que le Secret porte, pas seulement ce qu'on vient de changer.**

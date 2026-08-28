@@ -56,6 +56,16 @@
 #   À distance, par le tunnel :
 #       PGHOST=10.0.0.1 PGUSER=hector PGPASSWORD=... ./creer-bases.sh
 #
+#   `PGDATABASE` vaut `postgres` par défaut — la base d'ADMINISTRATION, depuis
+#   laquelle on crée les autres. Sans elle, psql se connecterait à une base
+#   portant le nom de l'utilisateur, qui n'existe pas pour un compte autre que
+#   `postgres`. La poser explicitement n'est utile que si votre instance nomme
+#   sa base d'administration autrement :
+#       PGDATABASE=maintenance PGHOST=... ./creer-bases.sh
+#
+#   Pour ne pas laisser le mot de passe dans l'historique du shell :
+#       read -rs "?Mot de passe : " PGPASSWORD && export PGPASSWORD
+#
 #   Répétition à blanc, qui n'écrit rien :
 #       ./creer-bases.sh --simulation
 #
@@ -104,6 +114,31 @@ BASES=(identity user media communication financial promotion engagement
 # le fichier est lisible par tous. `umask` avant la création ferme cette fenêtre.
 SORTIE="${HBA_SORTIE:-./motsdepasse-$(date +%Y%m%d-%H%M%S).txt}"
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# LA BASE D'ADMINISTRATION EST `postgres`, ET IL FAUT LE DIRE À psql.
+#
+# CE QUI A ÉCHOUÉ : « FATAL: database "hector" does not exist ».
+#
+# Sans `-d` ni `PGDATABASE`, psql se connecte à une base PORTANT LE NOM DE
+# L'UTILISATEUR. C'est une convention qui marche pour le compte `postgres` — la
+# base `postgres` existe toujours — et qui échoue pour tout autre compte
+# administrateur. Un `hector` superutilisateur n'a aucune base `hector`.
+#
+# LE MESSAGE EST ALORS TROMPEUR À DOUBLE TITRE. Il parle de base inexistante
+# alors que la connexion, l'authentification et le réseau sont corrects ; et il
+# nomme une base que personne n'a jamais demandée, ce qui envoie chercher dans le
+# script une variable qui n'y est pas.
+#
+# `:=` ET NON `=` : un appelant qui pose déjà `PGDATABASE` — parce que sa base
+# d'administration s'appelle autrement — garde sa valeur. On fournit un défaut,
+# on n'impose pas.
+#
+# `CREATE DATABASE` ne peut pas s'exécuter depuis la base qu'il crée : il faut de
+# toute façon être connecté ailleurs. `postgres` est cet ailleurs.
+# ═══════════════════════════════════════════════════════════════════════════════
+: "${PGDATABASE:=postgres}"
+export PGDATABASE
+
 psql_admin() { psql -v ON_ERROR_STOP=1 -qtAX "$@"; }
 
 echo "═══ Bases HBA — préfixe « ${PREFIXE} » ═══"
@@ -114,9 +149,63 @@ echo "═══ Bases HBA — préfixe « ${PREFIXE} » ═══"
 # Le vérifier d'abord évite de laisser six bases créées et huit manquantes, état
 # dans lequel un rejeu est correct mais où le diagnostic part de la mauvaise
 # question — « pourquoi ces six-là seulement ? ».
-if ! psql_admin -c "SELECT 1" >/dev/null 2>&1; then
-  echo "ÉCHEC : impossible de se connecter. Vérifier PGHOST/PGUSER/PGPASSWORD," >&2
-  echo "        ou lancer le script en tant que postgres." >&2
+#
+# ET LE MESSAGE DIT CE QU'IL A ESSAYÉ, PAS SEULEMENT QU'IL A ÉCHOUÉ.
+#
+# Ce garde renvoyait « vérifier PGHOST/PGUSER/PGPASSWORD » en jetant la sortie
+# d'erreur de `psql` à /dev/null. Trois causes très différentes rendaient donc le
+# MÊME message :
+#
+#   • `psql` n'est pas installé — et l'on part chercher un mot de passe ;
+#   • aucune variable n'est posée, donc psql tente la socket LOCALE sous le
+#     compte du système — et l'on croit que le serveur distant refuse ;
+#   • le serveur refuse vraiment.
+#
+# Le second est le cas courant : lancer le script sans rien devant lui. Il faut
+# donc AFFICHER la cible effective, et rendre l'erreur de psql telle quelle.
+if ! command -v psql >/dev/null 2>&1; then
+  echo "ÉCHEC : « psql » est introuvable dans le PATH." >&2
+  echo "        macOS : brew install libpq && brew link --force libpq" >&2
+  echo "        Debian/Ubuntu : apt install postgresql-client" >&2
+  exit 1
+fi
+
+if ! erreur=$(psql_admin -c "SELECT 1" 2>&1); then
+  echo "ÉCHEC : impossible de se connecter." >&2
+  echo >&2
+  echo "  Cible effective :" >&2
+  echo "    PGHOST=${PGHOST:-<non posé — psql tentera la socket LOCALE>}" >&2
+  echo "    PGPORT=${PGPORT:-5432}" >&2
+  echo "    PGDATABASE=${PGDATABASE}" >&2
+  echo "    PGUSER=${PGUSER:-${USER:-<compte du système>}}" >&2
+  # ═══════════════════════════════════════════════════════════════════════
+  # ON DIT SI LE MOT DE PASSE EST POSÉ, JAMAIS CE QU'IL VAUT.
+  #
+  # La première version de cette ligne écrivait :
+  #     ${PGPASSWORD:+<posé>}${PGPASSWORD:-<non posé>}
+  #
+  # `${VAR:-défaut}` rend le DÉFAUT quand la variable est vide, et LA VALEUR
+  # quand elle ne l'est pas. Les deux expansions mises bout à bout affichaient
+  # donc « <posé> » SUIVI DU MOT DE PASSE EN CLAIR — dans le terminal, dans
+  # l'historique du shell, et dans toute capture d'écran d'un diagnostic.
+  #
+  # Le piège tient à ce que la ligne se LIT correctement : on croit avoir écrit
+  # « posé ou non posé », on a écrit « posé, et le voici ». Un test avec une
+  # variable vide passe ; seul un test avec une valeur réelle le montre.
+  # ═══════════════════════════════════════════════════════════════════════
+  if [ -n "${PGPASSWORD:-}" ]; then
+    echo "    PGPASSWORD=<posé, ${#PGPASSWORD} caractère(s)>" >&2
+  else
+    echo "    PGPASSWORD=<non posé>" >&2
+  fi
+  echo >&2
+  echo "  Ce que psql répond :" >&2
+  echo "${erreur}" | sed 's/^/    /' >&2
+  echo >&2
+  echo "  Pour une base DISTANTE :" >&2
+  echo "    PGHOST=<adresse> PGUSER=<compte> PGPASSWORD=<mdp> $0" >&2
+  echo "  Sur la machine de la base, en local :" >&2
+  echo "    sudo -u postgres $0" >&2
   exit 1
 fi
 

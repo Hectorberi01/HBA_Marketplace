@@ -36,6 +36,35 @@ patches:
         value: hba-prod
 
   # ═══════════════════════════════════════════════════════════════════════
+  # L'ADRESSE DE LA BASE — CE PATCH MANQUAIT, ET RIEN NE L'AURAIT DIT.
+  #
+  # `network-policies.yaml` n'autorise l'egress 5432 que vers `10.0.0.1/32`,
+  # l'adresse du tunnel de STAGING. Le calque staging la remplace ; celui de
+  # production, non. La production serait donc partie avec la politique de
+  # staging, et treize services auraient tenté de joindre une base qui n'est pas
+  # la leur.
+  #
+  # ET LE SYMPTÔME N'AURAIT DÉSIGNÉ PERSONNE. Une NetworkPolicy qui refuse ne
+  # rend pas d'erreur : elle laisse le paquet partir et jamais revenir. Les pods
+  # seraient restés en `CrashLoopBackOff` sur un DÉLAI D'ATTENTE de connexion —
+  # le même symptôme qu'un mot de passe faux, qu'un `pg_hba` mal réglé, qu'un
+  # nftables trop strict. On aurait vérifié les trois, et tout y aurait été
+  # correct.
+  #
+  # `/spec/egress/1/to/0/ipBlock/cidr` — l'index 1 est la règle base de données,
+  # l'index 0 étant le DNS. Un `replace` sur un index absent ÉCHOUE au build, ce
+  # qui est le bon comportement : mieux vaut un build cassé qu'une politique
+  # posée au mauvais endroit.
+  # ═══════════════════════════════════════════════════════════════════════
+  - target:
+      kind: NetworkPolicy
+      name: allow-intra-namespace
+    patch: |-
+      - op: replace
+        path: /spec/egress/1/to/0/ipBlock/cidr
+        value: 10.20.0.2/32
+
+  # ═══════════════════════════════════════════════════════════════════════
   # CINQ DE CES PATCHES NE DÉSIGNAIENT RIEN — LIRE AVANT D'EN AJOUTER UN.
   #
   # Ce bloc en comptait DIX. Cinq visaient des noms que la base ne produit pas,

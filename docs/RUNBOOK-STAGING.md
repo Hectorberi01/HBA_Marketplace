@@ -204,6 +204,86 @@ une clé absente. C'est le bon échec : immédiat et nommé. Il était impossibl
 avant aujourd'hui, parce que rien ne référençait ces clés : le cluster serait
 parti sain et aurait échoué au premier appel inter-services.
 
+## 6 bis. Les secrets de notification — sinon notification-service ne démarre pas
+
+`notification-service` REFUSE de démarrer en production sans émetteur push, et le
+calque staging n'écrase pas `ASPNETCORE_ENVIRONMENT: Production` du gabarit : ce
+refus s'applique donc ici. Ce n'est pas un garde-fou de confort — l'offre de
+course part au livreur par notification, et un `NullPushSender` en production est
+un dispatch qui ne propose plus rien.
+
+Le compte de service Google se pose en FICHIER, pas en variable : le JSON fait
+plusieurs kilo-octets et porte une clé privée PEM. Le raisonnement est dans
+`k8s/base/common/secret-notifications.yaml`.
+
+```bash
+# Le fichier vient de la console Firebase :
+#   Paramètres du projet → Comptes de service → Générer une nouvelle clé privée.
+# Le NOM DE LA CLÉ compte : le volume projette chaque clé du Secret en un fichier
+# portant son nom, et le service attend /etc/hba/firebase/service-account.json.
+kubectl create secret generic hba-notifications -n hba-staging \
+  --from-file=service-account.json=$HOME/secrets-hba-staging/firebase.json \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+**Vérifier que c'est le bon projet Firebase.** Un compte de service valide d'un
+AUTRE projet fait démarrer le service et envoie des push que personne ne reçoit —
+aucune erreur nulle part. Le `project_id` du JSON doit être celui que visent les
+applications mobiles.
+
+### L'e-mail — Resend
+
+Le second refus. Sans canal e-mail, la vérification d'adresse et surtout la
+RÉINITIALISATION DE MOT DE PASSE sont impossibles : un utilisateur qui oublie son
+mot de passe est enfermé dehors définitivement, et l'exploitant ne l'apprend que
+par les plaintes.
+
+`EmailOptions.IsConfigured` exige **trois** valeurs. Une seule est un secret :
+
+```bash
+# La clé Resend rejoint le MÊME Secret que le compte de service Firebase.
+# `--from-literal` s'ajoute à ce qui existe déjà si l'on recrée le secret d'un
+# seul geste — sinon la seconde commande écraserait la première.
+kubectl create secret generic hba-notifications -n hba-staging \
+  --from-file=service-account.json=$HOME/secrets-hba-staging/firebase.json \
+  --from-literal=NOTIFICATIONS__EMAIL__APIKEY='re_…' \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Les deux autres ne sont pas des secrets et vivent dans le ConfigMap
+(`k8s/base/common/configmap.yaml`) :
+
+| Clé | État | À faire |
+|---|---|---|
+| `NOTIFICATIONS__EMAIL__FROM` | `HBA Express <no-reply@hbaexpress.com>` | **Vérifier que ce domaine est authentifié chez Resend** (SPF + DKIM). |
+| `NOTIFICATIONS__EMAIL__APPBASEURL` | **VIDE** | À renseigner par overlay avant de déployer. |
+
+**`APPBASEURL` vide bloque le démarrage, et c'est délibéré.** C'est la base des
+liens cliquables — pas l'adresse de l'API. Ce n'est donc PAS
+`backendapi.marketplace-staging.hba-marketplace.fr` : c'est le site ou
+l'application que l'utilisateur ouvre en cliquant sur « réinitialiser mon mot de
+passe ». Inventer cette URL enverrait des e-mails portant un lien mort — pire
+qu'un e-mail jamais parti, puisque l'utilisateur clique, tombe sur une erreur, et
+conclut que son compte est cassé.
+
+**Le domaine non vérifié est le piège discret.** Resend refuse alors l'envoi par
+un 403, l'échec se produit DANS L'OUTBOX, et il est rejoué toutes les cinq
+secondes sans jamais aboutir. Ni le service ni les sondes ne s'en plaignent :
+seule la file grossit.
+
+### Ce que ces deux étapes ne suffisent pas à débloquer
+
+`notification-service` a un TROISIÈME refus, indépendant : le **SMS**. Et celui-là
+ne se configure pas — **aucun adaptateur SMS de production n'existe dans le
+dépôt**. Le fournisseur reste à choisir : c'est un contrat commercial, un compte
+opérateur et un expéditeur à homologuer. Renseigner `Notifications:Sms` sans
+adaptateur fait d'ailleurs échouer le démarrage exprès, pour ne pas laisser croire
+que les codes partent.
+
+Deux autres services du même lot refusent pour leurs propres raisons —
+`media-service` sans stockage objet, `payment-service` sans passerelle réelle.
+Voir « Ce que ce déploiement ne donne pas ».
+
 ## 7. Les images
 
 `docs/DEPLOIEMENT.md` §3.6. Les manifestes tirent

@@ -132,3 +132,43 @@ data:
   # sondes. C'est tenable à un nœud ; ça ne l'est plus en production.
   # ═══════════════════════════════════════════════════════════════════════
   OPENTELEMETRY__ENDPOINT: ""
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # L'E-MAIL — LES DEUX VALEURS QUI NE SONT PAS DES SECRETS.
+  #
+  # `EmailOptions.IsConfigured` exige TROIS valeurs. La clé Resend est dans le
+  # Secret `hba-notifications` ; ces deux-ci n'ont rien de confidentiel et
+  # gagnent à être relues en revue.
+  #
+  # ELLES SONT DANS LE ConfigMap PARTAGÉ, donc injectées dans les quatorze pods
+  # par `envFrom`. Treize d'entre eux ne les liront jamais — comme les vingt
+  # adresses `SERVICES__*` juste au-dessus. C'est le prix d'un ConfigMap unique,
+  # et il est payé pour que la surcharge par environnement reste un patch d'une
+  # ligne dans l'overlay, au lieu d'un patch dans un patch.
+  #
+  # ═══════════════════════════════════════════════════════════════════════
+  # LE DOMAINE DE `FROM` DOIT ÊTRE VÉRIFIÉ CHEZ RESEND (SPF + DKIM).
+  #
+  # Avec un domaine non vérifié, Resend refuse l'envoi par un 403 — et l'échec se
+  # produit DANS L'OUTBOX, donc il est rejoué toutes les cinq secondes sans
+  # jamais aboutir. Ni le service ni les sondes ne s'en plaignent : seule la file
+  # grossit. C'est le mode de panne le plus discret des trois canaux.
+  #
+  # ═══════════════════════════════════════════════════════════════════════
+  # `APPBASEURL` EST VIDE, ET C'EST UN REFUS DE DÉMARRER DÉLIBÉRÉ.
+  #
+  # C'est la base des liens cliquables — vérification d'adresse, réinitialisation
+  # de mot de passe. Ce n'est PAS l'adresse de l'API : c'est le site ou
+  # l'application que l'utilisateur ouvre en cliquant, et elle diffère entre
+  # staging et production.
+  #
+  # La laisser vide rend `IsConfigured` faux, donc le service refuse de démarrer
+  # avec un message qui nomme les trois valeurs manquantes. C'est voulu :
+  # l'alternative serait d'inventer une URL, et un e-mail de réinitialisation
+  # portant un lien mort est pire qu'un e-mail jamais parti — l'utilisateur clique,
+  # tombe sur une erreur, et conclut que son compte est cassé.
+  #
+  # À RENSEIGNER PAR OVERLAY, comme le domaine de l'Ingress.
+  # ═══════════════════════════════════════════════════════════════════════
+  NOTIFICATIONS__EMAIL__FROM: "HBA Express <no-reply@updates.hbatechettrade.com>"
+  NOTIFICATIONS__EMAIL__APPBASEURL: "https://hba-express.org"

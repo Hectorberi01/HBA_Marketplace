@@ -355,6 +355,301 @@ def verifier_cibles_de_patch() -> list[str]:
     return fautes
 
 
+def verifier_montages_de_secret() -> list[str]:
+    """
+    ═════════════════════════════════════════════════════════════════════════════
+    UN FICHIER MONTÉ DEPUIS UN SECRET S'ACCORDE EN QUATRE POINTS.
+
+    Quand un service lit un secret sous forme de FICHIER — le compte de service
+    Firebase de notification-service est le premier — quatre valeurs doivent
+    concorder, écrites dans DEUX fichiers différents :
+
+      1. le `secretName` du volume  ↔  le `metadata.name` du Secret ;
+      2. le `name` du volume        ↔  le `name` du volumeMount ;
+      3. le `mountPath`             ↔  le répertoire du chemin passé au service ;
+      4. le nom du fichier attendu  ↔  une CLÉ du Secret.
+
+    AUCUN DES QUATRE NE CASSE AU DÉPLOIEMENT S'IL EST FAUX. Le pod démarre, le
+    fichier n'est pas là où le service le cherche, `FcmOptions.ResolveJson()` rend
+    `null`, et le refus de démarrage annonce « Notifications:Fcm n'est pas
+    configuré » — alors qu'il l'est, et que seul un nom de fichier diffère. On
+    cherche une variable manquante pendant que le secret est monté deux
+    répertoires plus loin.
+
+    Le quatrième est le plus traître : un volume de Secret projette chaque clé
+    comme un fichier PORTANT LE NOM DE LA CLÉ. Renommer la clé dans le Secret
+    déplace le fichier, en silence.
+    ═════════════════════════════════════════════════════════════════════════════
+    """
+    fautes: list[str] = []
+
+    # Les Secrets déclarés dans la base, par nom → clés.
+    secrets: dict[str, set[str]] = {}
+    for chemin in glob.glob(os.path.join(RACINE, "k8s", "**", "*.yaml"), recursive=True):
+        try:
+            docs = list(yaml.safe_load_all(open(chemin, encoding="utf-8")))
+        except Exception:
+            continue
+        for o in docs:
+            if isinstance(o, dict) and o.get("kind") == "Secret":
+                nom = (o.get("metadata") or {}).get("name")
+                if nom:
+                    secrets[nom] = set(o.get("stringData") or {}) | set(o.get("data") or {})
+
+    for kustom in glob.glob(
+            os.path.join(RACINE, "k8s", "base", "**", "kustomization.yaml"), recursive=True):
+        try:
+            k = yaml.safe_load(open(kustom, encoding="utf-8")) or {}
+        except Exception:
+            continue
+
+        for patch in k.get("patches", []) or []:
+            corps = patch.get("patch")
+            if not corps or ("volumeMounts" not in corps and "secretKeyRef" not in corps):
+                continue
+            try:
+                o = yaml.safe_load(corps)
+            except Exception:
+                continue
+            if not isinstance(o, dict):
+                continue
+
+            spec = (((o.get("spec") or {}).get("template") or {}).get("spec") or {})
+            volumes = {v.get("name"): v for v in (spec.get("volumes") or [])}
+
+            for conteneur in spec.get("containers") or []:
+                env = {e.get("name"): e.get("value")
+                       for e in (conteneur.get("env") or []) if e.get("value")}
+
+                # ── `secretKeyRef` : la clé doit exister dans le Secret ──────
+                #
+                # Cet échec-ci est BRUYANT — le pod reste en
+                # `CreateContainerConfigError` avec la clé nommée dans
+                # l'événement — contrairement au montage en fichier, qui échoue
+                # en silence. On le vérifie quand même : le voir en revue coûte
+                # moins que de le voir sur un cluster à moitié déployé.
+                for e in conteneur.get("env") or []:
+                    ref = ((e.get("valueFrom") or {}).get("secretKeyRef") or {})
+                    nom_secret, cle = ref.get("name"), ref.get("key")
+                    if not nom_secret or not cle:
+                        continue
+                    if nom_secret not in secrets:
+                        fautes.append(
+                            f"{os.path.relpath(kustom, RACINE)} : {e.get('name')} lit le Secret "
+                            f"« {nom_secret} », qu'aucun manifeste de `k8s/` ne déclare.")
+                    elif cle not in secrets[nom_secret]:
+                        fautes.append(
+                            f"{os.path.relpath(kustom, RACINE)} : {e.get('name')} lit la clé "
+                            f"« {cle} » du Secret « {nom_secret} », qui ne porte que "
+                            f"{sorted(secrets[nom_secret])}. Le pod restera en "
+                            "CreateContainerConfigError.")
+
+                for mount in conteneur.get("volumeMounts") or []:
+                    nom_vol = mount.get("name")
+                    chemin_mont = mount.get("mountPath")
+                    volume = volumes.get(nom_vol)
+
+                    # Un volume non déclaré : le pod ne démarre pas du tout.
+                    if volume is None:
+                        fautes.append(
+                            f"{os.path.relpath(kustom, RACINE)} : le montage « {nom_vol} » "
+                            "ne correspond à aucun volume déclaré.")
+                        continue
+
+                    secret = (volume.get("secret") or {}).get("secretName")
+                    if secret is None:
+                        continue  # emptyDir, configMap… hors sujet ici
+
+                    if secret not in secrets:
+                        fautes.append(
+                            f"{os.path.relpath(kustom, RACINE)} : le volume « {nom_vol} » monte "
+                            f"le Secret « {secret} », qu'aucun manifeste de `k8s/` ne déclare.")
+                        continue
+
+                    # Une variable qui pointe DANS ce montage doit nommer une clé.
+                    for var, valeur in env.items():
+                        if not valeur.startswith(str(chemin_mont) + "/"):
+                            continue
+                        fichier = valeur[len(str(chemin_mont)) + 1:]
+                        if fichier not in secrets[secret]:
+                            fautes.append(
+                                f"{os.path.relpath(kustom, RACINE)} : {var} attend le fichier "
+                                f"« {fichier} », mais le Secret « {secret} » ne porte que "
+                                f"{sorted(secrets[secret])}. Un volume de Secret nomme chaque "
+                                "fichier d'après SA CLÉ — le service ne trouvera rien, et "
+                                "annoncera une configuration absente.")
+
+    return fautes
+
+
+def verifier_chaines_de_connexion() -> list[str]:
+    """Le generateur du Secret et le gabarit versionne doivent declarer les memes cles.
+
+    ═════════════════════════════════════════════════════════════════════════
+    CE QUI ETAIT CASSE, ET POURQUOI CE CONTROLE EXISTE.
+
+    Le Secret `hba-platform` n'est PAS construit par kustomize : §12 impose que
+    `secret.yaml` reste vide dans Git, et les valeurs reelles sont posees hors
+    depot par `scripts/db/secret-depuis-motsdepasse.py`. Deux fichiers portent
+    donc la meme liste de treize cles, et rien ne les tenait ensemble.
+
+    Une cle ajoutee au gabarit sans l'etre au generateur donne un Secret
+    incomplet : le service demarre, lit une chaine vide, et la panne remonte en
+    « Npgsql: host cannot be null » loin de la cause. L'inverse — une cle du
+    generateur absente du gabarit — donne une cle poussee au cluster que
+    personne ne sait relire.
+
+    Le controle verifie aussi que le generateur derive l'utilisateur de la base.
+    `secret.yaml` documente « UNE ROLE PAR BASE » ; onze chaines ont porte
+    `Username=hector`, le superutilisateur. Le cloisonnement pose par
+    `creer-bases.sh` serait reste decoratif : tout aurait demarre, tous les
+    essais de connexion auraient reussi, et le premier service compromis aurait
+    lu les quatorze bases.
+
+    CE QUE CE CONTROLE NE COUVRE PAS.
+
+    Il lit deux fichiers du depot. Il ne va pas voir le Secret reellement
+    applique au cluster, ne verifie pas qu'un role existe cote Postgres, et ne
+    dit rien de ses droits reels.
+    ═════════════════════════════════════════════════════════════════════════
+    """
+    fautes: list[str] = []
+    gabarit = os.path.join(RACINE, "k8s", "base", "common", "secret.yaml")
+    generateur = os.path.join(RACINE, "scripts", "db", "secret-depuis-motsdepasse.py")
+
+    for chemin in (gabarit, generateur):
+        if not os.path.exists(chemin):
+            return [chemin + " est introuvable"]
+
+    with open(gabarit, encoding="utf-8") as f:
+        lignes_gabarit = [l for l in f.read().splitlines()
+                          if not l.lstrip().startswith("#")]
+    cles_gabarit = set(re.findall(r"^\s+(CONNECTIONSTRINGS__[A-Z]+)\s*:",
+                                 "\n".join(lignes_gabarit), re.MULTILINE))
+    # DEFAULT est declaree pour la passerelle, qui n'a pas de base : le
+    # generateur la pose a vide sans entree dans sa table.
+    cles_gabarit.discard("CONNECTIONSTRINGS__DEFAULT")
+
+    with open(generateur, encoding="utf-8") as f:
+        source = f.read()
+    table = re.search(r"^CLES = \[(.*?)^\]", source, re.MULTILINE | re.DOTALL)
+    if table is None:
+        return ["la table CLES est introuvable dans " + generateur]
+    paires = re.findall(r'\(\s*"(CONNECTIONSTRINGS__[A-Z]+)"\s*,\s*"(hba_[a-z]+)"\s*\)',
+                        table.group(1))
+    cles_generateur = {c for c, _ in paires}
+
+    if not paires:
+        fautes.append("aucune paire lue dans la table CLES — le format a change, "
+                      "ce controle ne verifie plus rien")
+
+    for cle in sorted(cles_gabarit - cles_generateur):
+        fautes.append(cle + " : declaree dans secret.yaml, absente de la table CLES "
+                            "du generateur — la cle serait poussee vide")
+    for cle in sorted(cles_generateur - cles_gabarit):
+        fautes.append(cle + " : construite par le generateur, absente de secret.yaml "
+                            "— personne ne sait qui la lit")
+
+    # LE NAMESPACE PAR DEFAUT DU GENERATEUR DOIT ETRE CELUI DE L'OVERLAY PROD.
+    #
+    # La base declare `hba` ; chaque overlay le renomme (`hba-prod`, `hba-staging`,
+    # `hba-dev`). Un generateur qui ecrit `hba` en dur pose le Secret dans un
+    # namespace que personne ne lit — et si ce namespace existe, kubectl ne dit
+    # rien : la panne apparait plus tard, en CreateContainerConfigError sur un
+    # Secret introuvable.
+    overlay = os.path.join(RACINE, "k8s", "overlays", "prod", "kustomization.yaml")
+    if os.path.exists(overlay):
+        with open(overlay, encoding="utf-8") as f:
+            attendu = re.search(r"^namespace:\s*(\S+)", f.read(), re.MULTILINE)
+        defaut = re.search(r'NAMESPACE = os\.environ\.get\(\s*"[A-Z_]+"\s*,\s*"([^"]+)"\s*\)',
+                           source)
+        if attendu is None or defaut is None:
+            fautes.append("namespace de prod illisible — dans l'overlay ou dans le "
+                          "generateur ; ce controle ne verifie plus rien")
+        elif attendu.group(1) != defaut.group(1):
+            fautes.append("le generateur pose le Secret dans le namespace %s alors que "
+                          "l'overlay prod deploie dans %s — le Secret serait pose la ou "
+                          "personne ne le lit"
+                          % (defaut.group(1), attendu.group(1)))
+
+    # L'utilisateur doit etre derive de la base, pas ecrit en dur.
+    forme = re.search(
+        r'"Host=%s;Port=%s;Database=%s;Username=%s;Password=%s"\s*%\s*\(\s*\n?\s*([^)]*)\)',
+        source)
+    if forme is None:
+        fautes.append("la construction de la chaine de connexion n'a pas la forme "
+                      "attendue dans le generateur — controle de l'utilisateur impossible")
+    else:
+        arguments = [a.strip() for a in forme.group(1).split(",") if a.strip()]
+        # HOTE, PORT, base, base, secret : le 3e et le 4e doivent etre identiques.
+        if len(arguments) != 5 or arguments[2] != arguments[3]:
+            fautes.append("le generateur ne derive pas Username de Database "
+                          "(arguments : %s) — un role unique passerait outre le "
+                          "cloisonnement" % ", ".join(arguments))
+
+    return fautes
+
+
+def verifier_secrets_vides() -> list[str]:
+    """Aucun fichier `k8s/base/common/secret*.yaml` ne doit porter de valeur.
+
+    ═════════════════════════════════════════════════════════════════════════
+    CE QUI EST ARRIVE.
+
+    Une cle d'API Resend en clair s'est retrouvee dans `secret.yaml` — posee le
+    temps d'un essai, et restee. Elle n'a pas ete commitee, mais elle etait a un
+    `git add -A` de l'historique. Un secret entre une fois dans l'historique se
+    revoque ; il ne se retire pas.
+
+    §12 dit depuis le debut que ces fichiers restent vides dans Git. Rien ne
+    l'imposait : la regle vivait dans un commentaire.
+
+    CE QUE CE CONTROLE NE COUVRE PAS.
+
+    Il ne lit que `k8s/base/common/secret*.yaml`. Un secret pose dans un
+    ConfigMap, dans un overlay, ou dans n'importe quel autre fichier du depot
+    passe au travers. Il ne regarde pas non plus l'historique : il dit ce qui
+    est la maintenant, pas ce qui y a ete.
+    ═════════════════════════════════════════════════════════════════════════
+    """
+    fautes: list[str] = []
+    motif = os.path.join(RACINE, "k8s", "base", "common", "secret*.yaml")
+    fichiers = sorted(glob.glob(motif))
+    if not fichiers:
+        return ["aucun fichier ne correspond a " + motif +
+                " — ce controle ne verifie plus rien"]
+
+    for chemin in fichiers:
+        with open(chemin, encoding="utf-8") as f:
+            for numero, ligne in enumerate(f, 1):
+                if ligne.lstrip().startswith("#"):
+                    continue
+                m = re.match(r'^\s{2,}([A-Za-z0-9_.-]+)\s*:\s*(.*)$', ligne.rstrip("\n"))
+                if not m:
+                    continue
+                cle, reste = m.group(1), m.group(2)
+                if cle in ("name", "namespace", "app.kubernetes.io/name",
+                           "app.kubernetes.io/part-of"):
+                    continue
+                # La valeur est entre guillemets ; ce qui suit est un commentaire.
+                # C'est exactement le piege qui a fait rendre « quatorze valeurs
+                # non vides » a une premiere version de ce controle, alors que le
+                # fichier ne portait que des commentaires de fin de ligne.
+                q = re.match(r'^"([^"]*)"', reste)
+                if q is not None:
+                    valeur = q.group(1)
+                elif reste.startswith("#") or not reste.strip():
+                    continue
+                else:
+                    valeur = reste.split("#")[0].strip()
+                if valeur:
+                    fautes.append("%s:%d : %s porte une valeur de %d caractere(s) — "
+                                  "ces fichiers restent vides dans Git (§12)"
+                                  % (os.path.relpath(chemin, RACINE), numero, cle,
+                                     len(valeur)))
+    return fautes
+
+
 def main() -> int:
     # ═════════════════════════════════════════════════════════════════════════
     # CE CONTRÔLE-CI TOURNE MÊME SANS KUSTOMIZE, ET C'EST VOLONTAIRE.
@@ -364,12 +659,15 @@ def main() -> int:
     # patch qui ne désigne rien se lit dans les fichiers, sans construire quoi que
     # ce soit.
     # ═════════════════════════════════════════════════════════════════════════
-    cibles = verifier_cibles_de_patch() if yaml is not None else []
+    cibles = verifier_chaines_de_connexion()
+    cibles += verifier_secrets_vides()
+    cibles += verifier_cibles_de_patch() if yaml is not None else []
+    cibles += verifier_montages_de_secret() if yaml is not None else []
     if yaml is None:
         print("   PyYAML absent — contrôle des cibles de patch ignoré (pip install pyyaml).")
 
     if cibles:
-        print("❌ Cibles de patch sans correspondance")
+        print("❌ Contrôles statiques du dossier k8s")
         for faute in cibles:
             print(f"     {faute}")
         print()

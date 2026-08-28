@@ -40,6 +40,34 @@ venv/
 .env.*.local
 !.env.example
 
+# COMPTES DE SERVICE GOOGLE / FIREBASE.
+#
+# Le fichier engendré par la console Firebase porte une CLÉ PRIVÉE PEM. Commité
+# une fois, il reste dans l'historique même après suppression, et la seule
+# réponse est de révoquer la clé côté Google.
+#
+# Le compose de développement et le runbook demandent tous deux un chemin HORS
+# du dépôt (`$HOME/secrets-hba-staging/`). Ces motifs sont la ceinture : ils
+# attrapent le fichier posé « juste le temps d'un test » à la racine ou à côté
+# du service.
+#
+# `firebase*.json` A ÉTÉ ÉCARTÉ, ET C'EST IMPORTANT.
+#
+# Ce motif attrapait `clients/mobile/Seller-portal/firebase.json` — la
+# configuration FlutterFire, qui ne porte QUE des identifiants de projet et
+# d'application, aucune clé privée, et qui doit rester suivie. Vérifié : zéro
+# occurrence de `private_key` dedans, comme dans `firebase_options.dart`. Les
+# identifiants d'application Firebase côté client sont publics par conception.
+#
+# Un `.gitignore` qui exclut un fichier légitime ne se remarque qu'au clone
+# suivant, quand le projet ne compile plus — et on incrimine alors tout sauf
+# lui. Les motifs retenus visent le NOM QUE GOOGLE DONNE au compte de service
+# d'administration.
+*firebase-adminsdk*.json
+service-account*.json
+*-service-account.json
+**/secrets/*.json
+
 # ---- Divers ----
 coverage/
 *.tmp
@@ -53,3 +81,21 @@ coverage/
 # Zone de transfert et de suppression differee (le montage refuse unlink).
 _incoming/
 _to_delete/
+
+# MOTS DE PASSE DE BASES ET SECRETS KUBERNETES ENGENDRÉS.
+#
+# Ce qui était cassé : `scripts/db/creer-bases.sh` écrit son fichier de mots de
+# passe dans le répertoire courant, et le runbook demande de le lancer depuis la
+# racine du dépôt. Le fichier apparaissait donc en « untracked » dans
+# `git status`, à un `git add -A` de l'historique — c'est-à-dire à un `git add`
+# d'une rotation complète des quatorze rôles.
+#
+# Les commentaires plus haut disaient déjà de tenir les secrets hors du dépôt.
+# Ils ne l'imposaient nulle part : aucun motif ne visait ces deux fichiers.
+#
+# Ce que ces motifs NE couvrent PAS : ils n'empêchent pas un `git add -f`, et
+# ils n'effacent rien de ce qui serait déjà commité. Un mot de passe entré une
+# fois dans l'historique se révoque, il ne se retire pas.
+motsdepasse-*.txt
+secret-hba-platform*.yaml
+secrets-hba-*/

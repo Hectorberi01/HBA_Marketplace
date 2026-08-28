@@ -122,3 +122,85 @@ patches:
                       secretKeyRef:
                         name: hba-identites-internes
                         key: INTERNAL_KEY_HBA_COMMUNICATION_API
+
+                  # ═══════════════════════════════════════════════════════════
+                  # LE COMPTE DE SERVICE FIREBASE — UN CHEMIN, PAS UN CONTENU.
+                  #
+                  # `FcmOptions` accepte `ServiceAccountJson` en ligne ou
+                  # `ServiceAccountPath` vers un fichier. On passe le CHEMIN : le
+                  # JSON fait plusieurs kilo-octets et porte une clé privée PEM,
+                  # qui n'a rien à faire dans l'environnement du processus. Le
+                  # raisonnement complet est dans `secret-notifications.yaml`.
+                  #
+                  # SANS CE RÉGLAGE, LE SERVICE REFUSE DE DÉMARRER EN PRODUCTION.
+                  # Ce n'est pas un confort : l'offre de course part au livreur
+                  # par notification. Un `NullPushSender` en production, c'est un
+                  # dispatch qui ne propose plus rien.
+                  #
+                  # LE CHEMIN DOIT S'ACCORDER AU `mountPath` PLUS BAS. Les deux
+                  # sont à deux endroits du même fichier faute de pouvoir les
+                  # écrire une fois — si l'un change, l'autre doit suivre, sans
+                  # quoi `ResolveJson()` rend `null` et le refus de démarrage
+                  # parle d'une configuration « non renseignée » alors qu'elle
+                  # l'est.
+                  # ═══════════════════════════════════════════════════════════
+                  - name: NOTIFICATIONS__FCM__SERVICEACCOUNTPATH
+                    value: /etc/hba/firebase/service-account.json
+
+                  # ═══════════════════════════════════════════════════════════
+                  # L'E-MAIL — RESEND. LA CLÉ SEULE EST UN SECRET.
+                  #
+                  # `EmailOptions.IsConfigured` exige les TROIS : `ApiKey`,
+                  # `From` et `AppBaseUrl`. Les deux dernières ne sont pas des
+                  # secrets et vivent dans le ConfigMap, où elles se relisent en
+                  # revue et se surchargent par environnement — l'URL des liens
+                  # cliquables n'est pas la même en staging et en production.
+                  #
+                  # SANS LES TROIS, LE SERVICE REFUSE DE DÉMARRER EN PRODUCTION.
+                  # Le message le dit mieux que ce commentaire : sans canal
+                  # e-mail, aucun mot de passe oublié ne se récupère, et les
+                  # utilisateurs restent enfermés dehors définitivement.
+                  #
+                  # `secretKeyRef` ET NON `envFrom` : ce Secret porte aussi le
+                  # compte de service Firebase, qui n'a rien à faire dans
+                  # l'environnement du processus.
+                  # ═══════════════════════════════════════════════════════════
+                  - name: NOTIFICATIONS__EMAIL__APIKEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: hba-notifications
+                        key: NOTIFICATIONS__EMAIL__APIKEY
+
+                volumeMounts:
+                  # `readOnly` EST REDONDANT SUR UN VOLUME DE SECRET — il l'est
+                  # déjà — mais il le DIT, et le gabarit pose
+                  # `readOnlyRootFilesystem: true` : un lecteur qui vérifie que
+                  # rien n'écrit hors de /tmp n'a pas à aller chercher ailleurs.
+                  - name: firebase
+                    mountPath: /etc/hba/firebase
+                    readOnly: true
+
+            volumes:
+              # LE SECRET EST DÉCLARÉ `optional: false`, ET C'EST VOULU.
+              #
+              # Absent, le pod reste en `ContainerCreating` avec un événement
+              # explicite — « secret hba-notifications not found ». Avec
+              # `optional: true` il démarrerait, ne trouverait pas le fichier, et
+              # le refus de démarrage parlerait d'un FCM « non configuré » : on
+              # chercherait une variable manquante au lieu d'un secret absent.
+              - name: firebase
+                secret:
+                  secretName: hba-notifications
+                  optional: false
+
+                  # `items` RESTREINT LA PROJECTION À UN SEUL FICHIER.
+                  #
+                  # Un volume de Secret projette par défaut TOUTES ses clés. Ce
+                  # Secret en porte deux — le compte de service ET la clé Resend —
+                  # et sans cette liste, un fichier
+                  # `NOTIFICATIONS__EMAIL__APIKEY` apparaîtrait à côté du JSON.
+                  # Inoffensif, et trompeur : on lirait un répertoire « firebase »
+                  # contenant un secret d'e-mail.
+                  items:
+                    - key: service-account.json
+                      path: service-account.json
