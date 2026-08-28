@@ -268,6 +268,86 @@ def main():
             for name in sorted(files):
                 print('         %s' % name)
 
+    # =====================================================================
+    # SECOND CONTRÔLE : LE SOCLE D'INFRASTRUCTURE, ET NON PLUS LES `*ModuleApi`.
+    #
+    # POURQUOI IL A FALLU L'AJOUTER.
+    #
+    # `delivery-pricing-service` ne démarrait pas : « Unable to resolve service
+    # for type IDomainEventDispatcher », puis « ... IOutboxMetrics ». Ce script
+    # tournait, et annonçait « 0 dépendance non résolue » — sans mentir, mais
+    # sans le dire : il ne regarde que les interfaces `I*ModuleApi`, comme son
+    # en-tête l'annonce. La ligne de résumé, elle, laissait croire au reste.
+    #
+    # CE QUE LA RÈGLE VÉRIFIE, ET POURQUOI ELLE NE PRODUIT PAS DE FAUX POSITIF.
+    #
+    # Deux constructions EXIGENT le socle partagé, sans alternative :
+    #   • un `DbContext` qui dérive de `ModuleDbContext` — son constructeur
+    #     réclame `IDomainEventDispatcher` ;
+    #   • un appel à `AddOutboxProcessor<T>` — le service hébergé réclame
+    #     `IOutboxMetrics`, et sa boucle de fond `IKafkaIntegrationEventPublisher`.
+    #
+    # Les deux ne sont posés que par `AddBuildingBlocksInfrastructure`, appelé
+    # soit directement, soit par `AddHbaService`. Un hôte qui emploie l'une de
+    # ces constructions sans l'un de ces deux appels NE DÉMARRE PAS. Il n'y a pas
+    # de troisième chemin — c'est ce qui rend la règle sûre.
+    #
+    # CE QU'ELLE NE COUVRE PAS : les autres services du socle (cache, protection
+    # des secrets, métriques de paiement). Ils sont enregistrés en `TryAdd` avec
+    # un repli à vide, donc leur absence ne lève pas au démarrage — elle se voit
+    # à l'exécution, et ce n'est pas la classe d'erreur que ce script attrape.
+    # =====================================================================
+    sans_socle = []
+    for hote, projets in sorted(groupes.items()):
+        if not demande(hote, wanted):
+            continue
+
+        # LA RACINE EST LE DOSSIER DU SERVICE, PAS CELUI DE SA FAMILLE.
+        #
+        # Un `commonpath` remonté de deux crans donne `services/delivery` — la
+        # famille entière. Le premier jet faisait cela : tracking-service se
+        # voyait reprocher le `ModuleDbContext` de son voisin, et le contrôle
+        # rendait neuf signalements pour un défaut réel.
+        racines = sorted({os.path.join(SERVICES, *os.path.relpath(projet, SERVICES).split(os.sep)[:2])
+                          for projet in projets})
+        besoins, programme = [], None
+
+        for racine in racines:
+          for dossier, _, fichiers in os.walk(racine):
+              if any(x in dossier.split(os.sep) for x in ('obj', 'bin')):
+                  continue
+              for nom in fichiers:
+                  if not nom.endswith('.cs'):
+                      continue
+                  chemin = os.path.join(dossier, nom)
+                  brut = open(chemin, encoding='utf-8', errors='ignore').read()
+                  # Les commentaires citent ces noms pour EXPLIQUER qu'on ne les
+                  # emploie pas : les lire ferait passer l'aveu pour l'appel.
+                  code = re.sub(r'^\s*//.*$', '', re.sub(r'/\*.*?\*/', '', brut, flags=re.S), flags=re.M)
+                  if nom == 'Program.cs':
+                      programme = code
+                  if 'AddOutboxProcessor' in code:
+                      besoins.append('AddOutboxProcessor')
+                  if re.search(r'class\s+\w*DbContext\s*:\s*ModuleDbContext', code):
+                      besoins.append('ModuleDbContext')
+
+        if not besoins or programme is None:
+            continue
+        if 'AddHbaService' in programme or 'AddBuildingBlocksInfrastructure' in programme:
+            continue
+
+        sans_socle.append((hote, sorted(set(besoins))))
+
+    if sans_socle:
+        print()
+        for hote, besoins in sans_socle:
+            total += 1
+            print('❌ %s — socle d\'infrastructure absent' % hote)
+            print('     emploie %s, sans AddHbaService ni AddBuildingBlocksInfrastructure' %
+                  ' et '.join(besoins))
+            print('     manquerait : IDomainEventDispatcher, IOutboxMetrics, '
+                  'IKafkaIntegrationEventPublisher')
+
     # UN MODULE QUE PERSONNE N'HÉBERGE N'EST PAS UN MODULE SAIN.
     #
     # Il ne peut plus produire de faux positif — mais il ne tourne nulle part,
@@ -280,7 +360,13 @@ def main():
             print('       %s' % orphelin)
 
     print()
-    print('%d processus examiné(s), %d dépendance(s) non résolue(s).' % (checked, total))
+    # LE RÉSUMÉ NOMME SON PÉRIMÈTRE, PARCE QU'IL A DÉJÀ RASSURÉ À TORT.
+    #
+    # « 0 dépendance non résolue » se lit comme « le graphe DI est sain ». Ce
+    # script ne voit que deux familles ; tout le reste — enregistrements par
+    # réflexion, fabriques, options — lui échappe et doit continuer d'y échapper.
+    print('%d processus examiné(s) — API inter-modules et socle d\'infrastructure — '
+          '%d dépendance(s) non résolue(s).' % (checked, total))
     return 1 if total else 0
 
 

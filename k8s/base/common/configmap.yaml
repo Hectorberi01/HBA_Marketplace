@@ -20,7 +20,42 @@ data:
   HOSTING__HTTPPORT: "8080"
   HOSTING__GRPCPORT: "9090"
 
-  KAFKA__BOOTSTRAPSERVERS: "kafka:9092"
+  # ═══════════════════════════════════════════════════════════════════════
+  # CE NOM NE CORRESPONDAIT À AUCUN SERVICE. IL VALAIT `kafka:9092`.
+  #
+  # Strimzi ne crée pas de Service portant le nom du cluster. Pour un CR nommé
+  # `kafka`, le point d'entrée interne est `<nom>-kafka-bootstrap`. Le nom posé
+  # ici ne résolvait donc pas : les producteurs et consommateurs des vingt-trois
+  # services retentaient indéfiniment, l'outbox ne se vidait jamais, et rien
+  # dans `kubectl get pods` ne l'indiquait.
+  #
+  # RENOMMER LE CLUSTER CASSE CETTE LIGNE. Le `metadata.name` de
+  # `k8s/base/kafka/cluster.yaml` est la moitié de ce nom-ci.
+  # ═══════════════════════════════════════════════════════════════════════
+  KAFKA__BOOTSTRAPSERVERS: "kafka-kafka-bootstrap:9092"
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # LA CLÉ EST LE NOM DE CLUSTER, LA VALEUR EST LE NOM DU CONTENEUR — ET LES
+  # DEUX ONT CESSÉ DE COÏNCIDER.
+  #
+  # `ServicesOptions` nomme ses propriétés d'après les domaines de la passerelle
+  # (Financial, Engagement, Commerce…), et ces noms-là sont stables. Les
+  # conteneurs, eux, ont été redécoupés : `financial-service` est devenu
+  # `payment-service`, `engagement-service` est devenu `review-service`,
+  # `commerce-service` est devenu `cart-service`, `merchant-service` est devenu
+  # `seller-service`, `communication-service` est devenu `notification-service`.
+  #
+  # Ces six valeurs pointaient encore les anciens noms. Le DNS du cluster ne les
+  # aurait pas résolus, et la passerelle aurait démarré normalement — la
+  # validation `[Required, Url]` regarde la FORME de l'adresse, pas son
+  # existence. Le défaut ne se serait vu qu'au premier appel, en 502.
+  #
+  # La correspondance vient du bloc `environment` de la passerelle dans
+  # `docker-compose.dev.yml`, qui est la seule source à jour.
+  #
+  # `SERVICES__FOOD` pointe `restaurant-service`, non déployé dans ce lot : la
+  # valeur est correcte, la cible viendra avec le domaine `food`.
+  # ═════════════════════════════════════════════════════════════════════════
 
   # ═════════════════════════════════════════════════════════════════════════
   # PORT 8080 ET NON 9090, ALORS QUE CES ADRESSES SERVENT AU gRPC.
@@ -44,12 +79,12 @@ data:
   SERVICES__IDENTITY: "http://identity-service:8080"
   SERVICES__USER: "http://user-service:8080"
   SERVICES__MEDIA: "http://media-service:8080"
-  SERVICES__MERCHANT: "http://merchant-service:8080"
+  SERVICES__MERCHANT: "http://seller-service:8080"
   SERVICES__CATALOG: "http://catalog-service:8080"
   SERVICES__INVENTORY: "http://inventory-service:8080"
-  SERVICES__COMMERCE: "http://commerce-service:8080"
+  SERVICES__COMMERCE: "http://cart-service:8080"
   SERVICES__ORDER: "http://order-service:8080"
-  SERVICES__FOOD: "http://food-service:8080"
+  SERVICES__FOOD: "http://restaurant-service:8080"
 
   # LE PANIER ET LA COMMANDE DE RESTAURATION SONT DEUX SERVICES À PART.
   #
@@ -59,9 +94,9 @@ data:
   SERVICES__FOODCART: "http://food-cart-service:8080"
   SERVICES__FOODORDER: "http://food-order-service:8080"
   SERVICES__DELIVERY: "http://delivery-service:8080"
-  SERVICES__FINANCIAL: "http://financial-service:8080"
-  SERVICES__ENGAGEMENT: "http://engagement-service:8080"
-  SERVICES__COMMUNICATION: "http://communication-service:8080"
+  SERVICES__FINANCIAL: "http://payment-service:8080"
+  SERVICES__ENGAGEMENT: "http://review-service:8080"
+  SERVICES__COMMUNICATION: "http://notification-service:8080"
   SERVICES__PROMOTION: "http://promotion-service:8080"
 
   # TROIS SERVICES QUI N'ÉTAIENT JOIGNABLES PAR PERSONNE (lot 7.5).
@@ -77,4 +112,23 @@ data:
   SERVICES__DRIVERS: "http://driver-service:8080"
   SERVICES__DELIVERYPRICING: "http://delivery-pricing-service:8080"
 
-  OPENTELEMETRY__ENDPOINT: "http://otel-collector:4317"
+  # ═══════════════════════════════════════════════════════════════════════
+  # ADRESSE VIDE : IL N'Y A AUCUN COLLECTEUR DANS CE CLUSTER.
+  #
+  # Cette clé valait `http://otel-collector:4317`. Aucun collecteur n'est
+  # déployé sous `k8s/` — ni Deployment, ni Service de ce nom. Les huit pods
+  # auraient tenté d'exporter vers un nom qui ne résout pas, et journalisé un
+  # échec toutes les quelques secondes, indéfiniment.
+  #
+  # `TelemetryExtensions` ne branche l'exportateur OTLP que si l'adresse est un
+  # URI absolu lisible. Vide, le service est muet — sans erreur, et c'est le
+  # comportement voulu tant que la supervision n'est pas déployée.
+  #
+  # C'est le même choix qu'en local (`docker-compose.dev.yml`), et pour la même
+  # raison. Le jour où un collecteur est déployé, remettre l'adresse ici suffit.
+  #
+  # CE QUE CELA COÛTE : aucune trace, aucune métrique. Le diagnostic d'un
+  # déploiement staging repose donc entièrement sur `kubectl logs` et les
+  # sondes. C'est tenable à un nœud ; ça ne l'est plus en production.
+  # ═══════════════════════════════════════════════════════════════════════
+  OPENTELEMETRY__ENDPOINT: ""

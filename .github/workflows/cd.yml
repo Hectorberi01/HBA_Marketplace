@@ -40,6 +40,21 @@ on:
         required: true
         type: string
 
+# ═══════════════════════════════════════════════════════════════════════════
+# LE PROPRIÉTAIRE EN MINUSCULES — SANS QUOI AUCUNE IMAGE NE SE PUBLIE.
+#
+# `github.repository_owner` rend le nom TEL QU'IL EST ÉCRIT sur GitHub, ici
+# « Hectorberi01 ». Or la grammaire OCI impose des composants de chemin en
+# minuscules : `docker build -t ghcr.io/Hectorberi01/...` échoue sur
+# « repository name must be lowercase ».
+#
+# Le défaut ne se voit qu'AU PREMIER PUSH SUR `main` — une PR ne publie rien —
+# donc précisément le jour du premier déploiement, sur un message qui ne
+# désigne ni le workflow ni le compte.
+# ═══════════════════════════════════════════════════════════════════════════
+env:
+  PROPRIETAIRE: hectorberi01
+
 concurrency:
   # Deux promotions simultanées vers le même environnement s'écraseraient dans
   # Git. On sérialise, sans annuler : une promotion en cours doit finir.
@@ -89,7 +104,7 @@ jobs:
           ")
 
           for service in $services; do
-            image="ghcr.io/${{ github.repository_owner }}/${service}:${{ inputs.sha }}"
+            image="ghcr.io/${{ env.PROPRIETAIRE }}/${service}:${{ inputs.sha }}"
             if ! ./cosign verify \
                   --certificate-identity-regexp ".*" \
                   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
@@ -119,7 +134,7 @@ jobs:
 
           for nom in $noms; do
             service=${nom#hba/}
-            kustomize edit set image "${nom}=ghcr.io/${{ github.repository_owner }}/${service}:${{ inputs.sha }}"
+            kustomize edit set image "${nom}=ghcr.io/${{ env.PROPRIETAIRE }}/${service}:${{ inputs.sha }}"
             echo "  $service -> ${{ inputs.sha }}"
           done
 

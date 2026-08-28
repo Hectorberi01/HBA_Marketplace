@@ -7,3 +7,7 @@ kind: Kustomization
 # `scripts/k8s-kafka-topics.py`, et `check-k8s.py` vérifie qu'elles sont à jour.
 resources:
   - cluster.yaml
+  # Le pool porte le nombre de brokers et leur stockage. En mode
+  # `node-pools: enabled`, sans lui l'opérateur ne crée aucun broker et
+  # laisse le Kafka en NotReady, sans pod à inspecter.
+  - node-pool.yaml

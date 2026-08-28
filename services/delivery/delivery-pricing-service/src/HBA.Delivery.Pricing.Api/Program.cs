@@ -3,6 +3,7 @@ using HBA.Delivery.Pricing.Api.GrpcServices;
 using HBA.Delivery.Pricing.Infrastructure;
 using HBA.Delivery.Pricing.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
+using HBA.Shared.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,6 +31,40 @@ var builder = WebApplication.CreateBuilder(args);
 // pas. On prend donc la seule chose qui manquait — la sonde réelle.
 // ═════════════════════════════════════════════════════════════════════════
 builder.AddHbaSecurity();
+
+// ═════════════════════════════════════════════════════════════════════════
+// LE SOCLE PARTAGÉ MANQUAIT, ET LE PROCESSUS NE DÉMARRAIT PAS.
+//
+// L'encadré ci-dessus explique pourquoi ce service n'adopte pas
+// `AddHbaService<TDbContext>` : il n'a ni `IModuleInstaller`, ni MediatR, ni
+// couche Application. C'est toujours vrai. Mais `AddHbaService` faisait DEUX
+// choses, et seule la première ne s'applique pas ici : il installe un module,
+// et il pose le socle d'infrastructure. En renonçant au premier, ce service
+// avait perdu le second sans que rien ne le dise.
+//
+// CE QUI MANQUAIT, ET CE QUE ÇA DONNAIT :
+//
+//   • `IDomainEventDispatcher` — `DeliveryPricingDbContext` dérive de
+//     `ModuleDbContext`, dont le constructeur l'exige. Le conteneur refusait
+//     donc de construire le DbContext, et la validation au démarrage levait.
+//   • `IOutboxMetrics` — exigé par `OutboxProcessor<T>`, monté juste en
+//     dessous par `AddOutboxProcessor`. Même échec, sur le service hébergé.
+//   • `IKafkaIntegrationEventPublisher` — celui-là ne se voyait PAS au
+//     démarrage : `OutboxProcessor` le résout par lot, dans sa boucle de
+//     fond. Le processus aurait donc démarré pour échouer toutes les cinq
+//     secondes, en silence, sans qu'aucun devis ne soit publié.
+//
+// LA CONFIGURATION L'ATTENDAIT DÉJÀ. `docker-compose.dev.yml` donne à ce
+// service `KAFKA__BOOTSTRAPSERVERS`, `KAFKA__CONSUMERGROUP`,
+// `KAFKA__PRODUCER`, `REDIS__CONNECTIONSTRING` et la clé de protection des
+// secrets — cinq réglages que seul le socle consomme. L'environnement
+// décrivait une infrastructure que le processus ne câblait pas.
+//
+// CE QUE CET APPEL N'APPORTE PAS : ni MediatR, ni pipeline applicatif, ni
+// installation de module. Le socle et `AddHbaService` restent deux choses
+// distinctes, et ce service ne prend que la première.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AddBuildingBlocksInfrastructure(builder.Configuration);
 
 builder.Services.AddDeliveryPricingInfrastructure(builder.Configuration);
 

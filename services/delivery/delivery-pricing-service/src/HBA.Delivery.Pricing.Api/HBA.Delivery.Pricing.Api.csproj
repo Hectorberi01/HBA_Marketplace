@@ -17,6 +17,17 @@
     <ProjectReference Include="..\HBA.Delivery.Pricing.Application\HBA.Delivery.Pricing.Application.csproj" />
     <ProjectReference Include="..\HBA.Delivery.Pricing.Infrastructure\HBA.Delivery.Pricing.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+    <!--
+      MÊME RÈGLE QUE LE PAQUET CI-DESSUS, POUR LA MÊME RAISON.
+
+      `Program.cs` appelle `AddBuildingBlocksInfrastructure` en propre — cet
+      hôte n'adopte pas `AddHbaService`, qui l'appellerait pour lui. La
+      référence arrivait par transitivité (via Pricing.Infrastructure, et via
+      Hosting) et le code compilerait ; elle se déclare quand même, parce
+      qu'elle est utilisée DIRECTEMENT et que le jour où l'un de ces deux
+      chemins change, l'erreur désignerait un `using` plutôt qu'un projet.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts.Grpc\HBA.DeliveryPricing.Contracts.Grpc.csproj" />
   </ItemGroup>
 

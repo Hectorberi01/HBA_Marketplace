@@ -1,9 +1,13 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # PILE DE DÉVELOPPEMENT LOCAL — services applicatifs + passerelle, sur une machine.
 #
-# Elle est VOLONTAIREMENT distincte de infra/docker/compose*.yml,
-# qui vise un serveur : Traefik, HTTPS Let's Encrypt, images tirées d'un
-# registre, secrets d'orchestrateur. Rien de tout cela n'est utilisable ici.
+# C'EST DESORMAIS LA SEULE PILE COMPOSE DU DEPOT.
+# 
+# Ces lignes disaient qu'elle etait « volontairement distincte de
+# infra/docker/compose*.yml, qui vise un serveur ». Ce dossier a ete retire
+# le 2026-08-26 vers `_to_delete/2026-08-26-pile-compose-serveur/` : rien ne
+# le lancait, il portait les treize anciens noms de service, et son contexte
+# de construction sortait du depot. La cible serveur, c'est `k8s/`.
 #
 # LES SECRETS DE CE FICHIER SONT PUBLICS, ET C'EST ASSUMÉ.
 #
@@ -137,7 +141,17 @@ services:
       # `docker-entrypoint-initdb.d` est ignoré si `postgres-data` contient déjà
       # des données. Si les bases manquent encore après cette correction :
       #   docker compose -f docker-compose.dev.yml down -v
-      - ./infra/docker/postgres:/docker-entrypoint-initdb.d:ro
+      # LE MONTAGE POINTAIT UN CRAN TROP HAUT, ET NE CREAIT DONC RIEN.
+      #
+      # C'etait `./infra/docker/postgres`, dont le contenu est le seul
+      # sous-repertoire `init/`. L'entrypoint de l'image postgres parcourt
+      # les FICHIERS de /docker-entrypoint-initdb.d et ignore les
+      # repertoires : le script etait monte, visible, et jamais lu.
+      # Le commentaire ci-dessus affirmait le contraire depuis le debut.
+      # Le repertoire a quitte `infra/docker/`, retire du depot : cette pile
+      # etait le seul lecteur du script, et le dossier ne contenait par
+      # ailleurs qu'une pile compose morte.
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
     networks:
       - hba-backend
 
@@ -1275,7 +1289,8 @@ services:
   # Les services applicatifs démarraient, aucun n'était joignable : rien ne publiait
   # de port, et la seule définition de la passerelle vivait dans
   # infra/docker/compose.gateway.yml — derrière Traefik, en HTTPS,
-  # sur `api.hba-express.com`. Inutilisable en local.
+  # sur `api.hba-express.com`. Inutilisable en local. Ce fichier a depuis
+  # ete retire du depot ; la passerelle definie ici est la seule.
   #
   # C'est le SEUL conteneur qui publie un port. Les services restent sur le
   # réseau interne : les exposer donnerait des façades non authentifiées sur

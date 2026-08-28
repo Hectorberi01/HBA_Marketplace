@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# LES NŒUDS AGENTS — CE QUI PORTE LES CHARGES (§4).
+# LES NŒUDS AGENTS — CE QUI PORTE LES CHARGES (4).
 # ═══════════════════════════════════════════════════════════════════════════════
 ---
 - name: Vérifier que l'adresse privée est connue
@@ -46,7 +46,7 @@
     INSTALL_K3S_EXEC: >-
       agent
       --node-ip {{ ip_privee }}
-      --flannel-iface {{ interface_privee | default('ens4') }}
+      --flannel-iface {{ interface_flannel | default(interface_privee) | default('ens4') }}
 
 - name: Attendre que le service soit actif
   ansible.builtin.systemd:

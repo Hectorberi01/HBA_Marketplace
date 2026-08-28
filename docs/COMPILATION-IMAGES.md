@@ -1,4 +1,18 @@
-# Images
+# Compilation des images
+
+CE FICHIER ETAIT `infra/docker/README.md`.
+
+Il y voisinait une pile compose que plus rien ne lisait — le `Makefile` ne
+connait que `docker-compose.dev.yml` — et il en portait le titre, « Images »,
+alors qu'il ne parle pas de cette pile : il documente les `Dockerfile` des
+services, qui eux sont bien construits tous les jours. Le dossier a ete retire
+(`_to_delete/2026-08-26-pile-compose-serveur/`) ; ce texte ne devait pas partir
+avec lui.
+
+CE QU'IL NE COUVRE PAS : la pile de developpement elle-meme. Pour la lancer,
+voir `infra/README.md` et `make up`.
+
+---
 
 Dockerfiles communs et images de base.
 

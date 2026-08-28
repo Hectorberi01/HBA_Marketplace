@@ -2,13 +2,34 @@
 
 Ce qui fait tourner les services, et ce qui permet de savoir qu'ils tournent.
 
-| Dossier | Étage | État |
-|---|---|---|
-| `docker/` | local | éprouvé |
-| `observability/` | local et cluster | partiel |
-| `terraform/` | VMs, réseau, DNS, stockage objet chez OVH | **jamais appliqué** |
-| `ansible/` | k3s sur ces VMs | **jamais exécuté** |
-| `../k8s/` | les charges (Kustomize) | overlays construits et vérifiés |
+| Dossier | Rôle | Qui le lit | État |
+|---|---|---|---|
+| `ansible/` | prépare le VPS et pose k3s | `ansible-playbook`, à la main | syntaxe vérifiée, **jamais exécuté** |
+| `postgres/init/` | crée les 14 bases au **premier** démarrage du volume | `docker-compose.dev.yml` | vivant, développement seulement |
+| `rembg/` | image du détourage d'images | `docker-compose.dev.yml` | vivant |
+| `terraform/` | VMs, réseau, DNS, stockage objet chez OVH | personne | **jamais appliqué** |
+| `observability/` | configs Prometheus, Grafana, Loki, OTel, Tempo | **personne** | orphelin — voir ci-dessous |
+| `../k8s/` | les charges (Kustomize) | `kubectl apply -k` | overlays construits et vérifiés |
+
+**`docker/` a été retiré** le 2026-08-26 vers `_to_delete/2026-08-26-pile-compose-serveur/` :
+aucun lecteur, treize anciens noms de service, contexte de construction hors du
+dépôt. Ses deux rescapés sont `postgres/init/` et
+[`../docs/COMPILATION-IMAGES.md`](../docs/COMPILATION-IMAGES.md).
+
+**`observability/` n'a plus aucun lecteur, et c'est ce retrait qui l'a orphelin.**
+Son seul consommateur était `docker/compose.monitoring.yml`, qui montait
+`prometheus.yml`, les provisions Grafana, `loki.yml` et `otel-collector.yml`.
+Côté cluster, `k8s/base/observability/` ne contient qu'un README : la supervision
+y est prévue en brique Helm tierce (kube-prometheus-stack), qui apporte ses
+propres configurations et ne lira pas celles-ci. **Ces fichiers décrivent donc
+une pile que rien ne démarre.** Deux d'entre eux n'ont d'ailleurs jamais été lus,
+même avant le retrait : `tempo/tempo.yml`, que le compose ne montait pas, et
+`grafana/dashboards/`, qui ne contient qu'un README — le montage pointait un
+dossier sans tableau de bord.
+
+Ne pas les supprimer pour autant : `otel-collector.yml` et `prometheus.yml`
+portent le travail de câblage qu'il faudra refaire le jour où la supervision est
+déployée. Mais ils ne doivent pas être lus comme l'état du système.
 
 **`terraform/` et `ansible/` n'ont jamais tourné** — pas d'identifiants OVH,
 donc ni `terraform plan` ni `ansible-playbook`. Leur syntaxe et leur câblage sont
@@ -25,7 +46,7 @@ fichier-ci ne couvre que le démarrage local.
 Toutes les commandes ci-dessous se lancent depuis la racine du projet :
 
 ```bash
-cd /Users/hector/Documents/HBAEpress_Projets/marketPlace/HBA
+cd <racine du dépôt>          # le chemin en dur d'avant ne correspondait plus à rien
 ```
 
 ### Prérequis
@@ -153,59 +174,54 @@ service.communication.v1
 service.media.v1
 ```
 
-### Pile Infrastructure Complète
+### Démarrer la pile locale
 
-La pile située dans `infra/docker` inclut l'infrastructure, les services,
-la gateway et l'observabilité.
+CETTE SECTION DECRIVAIT UNE PILE QUI N'EXISTE PLUS.
 
-Créer le fichier d'environnement :
+Elle enseignait `docker compose --env-file infra/docker/.env -f
+infra/docker/compose.yml up --build`. Ce dossier a ete retire vers
+`_to_delete/2026-08-26-pile-compose-serveur/` : plus rien ne le lisait, ni le
+`Makefile`, ni les workflows, ni un script. Il portait les treize ANCIENS noms
+de service (`commerce`, `engagement`, `financial`, `merchant`,
+`communication`), et son `context: ../../..` sortait du depot — meme lancee,
+cette pile ne construisait rien. Un clone neuf qui suivait ce README obtenait
+donc une pile morte, et rien ne le lui disait.
 
-```bash
-cp infra/docker/.env.example infra/docker/.env
-```
-
-Renseigner au minimum dans `infra/docker/.env` :
-
-```text
-POSTGRES_PASSWORD=
-REDIS_PASSWORD=
-MINIO_ROOT_PASSWORD=
-JWT_SIGNING_KEY=
-INTERNAL_API_KEY=
-API_DOMAIN=
-GRAFANA_DOMAIN=
-GRAFANA_ADMIN_PASSWORD=
-```
-
-Démarrer :
+La seule pile lancee est `docker-compose.dev.yml`, a la racine, via le
+`Makefile` :
 
 ```bash
-COMPOSE_PARALLEL_LIMIT=2 docker compose --env-file infra/docker/.env -f infra/docker/compose.yml up --build
+make up      # demarre les 32 conteneurs en arriere-plan
+make ps      # etat
+make logs S=identity-service
+make down    # arrete
 ```
 
-En arrière-plan :
+Pour tout supprimer, volumes compris — c'est ce qu'il faut faire quand les
+bases applicatives manquent, le script d'initialisation ne repassant jamais sur
+un volume deja peuple :
 
 ```bash
-COMPOSE_PARALLEL_LIMIT=2 docker compose --env-file infra/docker/.env -f infra/docker/compose.yml up --build -d
+docker compose -f docker-compose.dev.yml down -v
 ```
 
-Voir l'état :
+Aucun fichier d'environnement n'est requis. `docker-compose.dev.yml` porte ses
+valeurs en clair — ce sont des secrets de developpement, sans valeur hors de la
+machine — et ne lit qu'une seule variable de l'hote, `HOST_LAN_IP`, pour que le
+portail admin joigne la passerelle depuis un autre appareil du reseau local.
 
-```bash
-docker compose --env-file infra/docker/.env -f infra/docker/compose.yml ps
-```
+CE QUE CETTE PILE NE CONTIENT PAS :
 
-Arrêter :
+- **aucune supervision** — ni Prometheus, ni Grafana, ni Loki, ni collecteur
+  OTLP. C'est pourquoi la passerelle pose `OPENTELEMETRY__ENDPOINT: ""` : une
+  adresse pointant sur un collecteur absent produirait une erreur de connexion
+  toutes les quelques secondes. La supervision vit desormais dans `k8s/`.
+- **aucune passerelle TLS** — la passerelle publie 8080 en clair. Traefik et
+  `api.hba-express.com` etaient dans la pile retiree.
 
-```bash
-docker compose --env-file infra/docker/.env -f infra/docker/compose.yml down
-```
-
-Supprimer aussi les volumes :
-
-```bash
-docker compose --env-file infra/docker/.env -f infra/docker/compose.yml down -v
-```
+Pour construire les images, et pour comprendre pourquoi elles se compilent en
+`linux/amd64` meme sur un Mac Apple Silicon, voir
+[`docs/COMPILATION-IMAGES.md`](../docs/COMPILATION-IMAGES.md).
 
 ### Diagnostic Rapide
 

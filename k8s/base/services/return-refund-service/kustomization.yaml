@@ -1,14 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# promotion-service — domaine « common ». Reprend le gabarit commun.
+# return-refund-service — domaine « marketplace ». Reprend le gabarit commun.
 #
-# `namePrefix: promotion-` transforme « service » en « promotion-service » sur les cinq
+# `namePrefix: return-refund-` transforme « service » en « return-refund-service » sur les cinq
 # objets d'un coup : Deployment, Service, ServiceAccount, PDB et HPA. Kustomize
 # suit aussi les références — `serviceAccountName` et le `scaleTargetRef` du HPA
 # sont réécrits sans qu'on ait à les nommer.
 
-namePrefix: promotion-
+namePrefix: return-refund-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # `labels` ET NON `commonLabels` — ET LA DIFFÉRENCE N'EST PAS COSMÉTIQUE.
@@ -39,7 +39,7 @@ namePrefix: promotion-
 labels:
   - includeSelectors: true
     pairs:
-      app.kubernetes.io/name: promotion-service
+      app.kubernetes.io/name: return-refund-service
   # `includeTemplates` ET NON `includeSelectors` : l'étiquette descend jusqu'aux
   # PODS — ce qui rend `kubectl get pods -l hba.express/domaine=common` utile
   # pendant un déploiement par domaine — sans entrer dans le sélecteur, où elle
@@ -47,7 +47,7 @@ labels:
   # corriger.
   - includeTemplates: true
     pairs:
-      hba.express/domaine: common
+      hba.express/domaine: marketplace
 
 resources:
   - ../_service
@@ -56,7 +56,7 @@ images:
   # Le tag est posé par l'overlay : le §13 interdit `latest` en production, et
   # une image se promeut par SHA/semver, jamais en reconstruisant.
   - name: hba/service
-    newName: hba/promotion-service
+    newName: hba/return-refund-service
 
 patches:
   # FUSION PAR NOM, ET NON PATCH POSITIONNEL.
@@ -76,7 +76,7 @@ patches:
               - name: service
                 env:
                   - name: SERVICE_NAME
-                    value: promotion-service
+                    value: return-refund-service
 
                   # ═══════════════════════════════════════════════════════════
                   # CHAQUE SERVICE SA BASE, ET C'EST CETTE ENTRÉE QUI LE FAIT.
@@ -93,7 +93,7 @@ patches:
                   # d'une clé propre au service. Le mot de passe ne quitte pas le
                   # Secret, donc rien de sensible n'entre dans Git.
                   #
-                  # Base « hba_promotion » : celle qu'emploie déjà le compose de
+                  # Base « hba_commerce » : celle qu'emploie déjà le compose de
                   # développement. La renommer ici ferait diverger les deux
                   # environnements pour un gain cosmétique.
                   # ═══════════════════════════════════════════════════════════
@@ -101,13 +101,13 @@ patches:
                     valueFrom:
                       secretKeyRef:
                         name: hba-platform
-                        key: CONNECTIONSTRINGS__PROMOTION
+                        key: CONNECTIONSTRINGS__RETURNREFUND
 
                   # ═══════════════════════════════════════════════════════════
                   # L'IDENTITÉ DE CET HÔTE, ET D'AUCUN AUTRE.
                   #
                   # Le nom présenté aux autres services est celui de l'assemblage
-                  # d'entrée — « HBA.Promotions.Api » — car `Internal:ServiceName`
+                  # d'entrée — « HBA.Marketplace.ReturnRefund.Api » — car `Internal:ServiceName`
                   # n'est pas posé (la variable `SERVICE_NAME` ci-dessus est un
                   # autre réglage, elle ne l'alimente pas). La clé du Secret suit
                   # donc ce nom, exactement comme l'écrit
@@ -121,4 +121,4 @@ patches:
                     valueFrom:
                       secretKeyRef:
                         name: hba-identites-internes
-                        key: INTERNAL_KEY_HBA_PROMOTIONS_API
+                        key: INTERNAL_KEY_HBA_MARKETPLACE_RETURNREFUND_API

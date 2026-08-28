@@ -55,6 +55,20 @@ patches:
         path: /spec/instances
         value: 1
 
+  # LE POOL DESCEND À 1 BROKER, EN MÊME TEMPS QUE LES FACTEURS CI-DESSUS.
+  #
+  # Les deux réglages sont appariés : `default.replication.factor: 1` sur un
+  # pool resté à 3 gâcherait deux machines, et un pool à 1 avec un facteur 3
+  # laisserait tous les topics sous-répliqués — les partitions restent alors
+  # sans leader, et les producteurs bloquent sans message qui nomme la cause.
+  - target:
+      kind: KafkaNodePool
+      name: broker
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
   - target:
       kind: Kafka
       name: kafka
@@ -82,47 +96,147 @@ patches:
   # ferait entrer du trafic de production dans un cluster de validation sans que
   # personne s'en aperçoive avant les journaux.
   #
-  # `.example` est un domaine réservé (RFC 2606) : il ne résoudra jamais. C'est
-  # délibéré — un placeholder qui résout est un placeholder qu'on oublie de
-  # remplacer.
+  # LE PLACEHOLDER `.example` A ÉTÉ REMPLACÉ PAR LE VRAI NOM.
+  #
+  # Il valait `api.staging.hba-express.example` — domaine réservé RFC 2606, qui
+  # ne résout jamais. C'était délibéré : un placeholder qui résout est un
+  # placeholder qu'on oublie de remplacer. `check-k8s.py` le signalait à chaque
+  # passage, et c'est ce signal qui a fini par le faire remplacer.
+  #
+  # UN ENREGISTREMENT A DOIT EXISTER AVANT LE PREMIER `apply`.
+  #
+  #   backendapi.marketplace-staging.hba-marketplace.fr.  A  193.168.145.162
+  #
+  # cert-manager valide par challenge HTTP-01 : il fait résoudre ce nom et
+  # attend une réponse sur le port 80 du cluster. Sans l'enregistrement, le
+  # Certificate reste `READY=False` et l'Ingress sert un certificat auto-signé.
+  # Le symptôme côté client est une erreur TLS, pas une erreur DNS — et le
+  # diagnostic part vers cert-manager au lieu de la zone.
+  #
+  # `dev` et `prod` gardent leurs placeholders `.example` : leurs domaines ne
+  # sont pas arrêtés, et les remplacer par des noms inventés ferait exactement
+  # ce que le placeholder est là pour empêcher.
+  # ═══════════════════════════════════════════════════════════════════════════
+  # EN STAGING, LA BASE EST SUR LA MACHINE ELLE-MÊME.
+  #
+  # La base porte `10.0.0.1/32` — l'adresse du tunnel vers 51.255.40.214, qui
+  # reste la topologie de PRODUCTION. Le staging, lui, fait tourner PostgreSQL
+  # sur le VPS applicatif depuis le 27 août : le tunnel n'est pas sur son chemin.
+  #
+  # SANS CE PATCH, RIEN N'ÉCHOUERAIT AU DÉPLOIEMENT. Les pods démarreraient, et
+  # chaque connexion à la base EXPIRERAIT — le CNI jette le paquet vers une
+  # adresse qu'aucune règle n'autorise, il ne le rejette pas. Le diagnostic
+  # partirait vers nftables et pg_hba, où tout serait correct.
+  #
+  # `/32` SUR L'IP DU NŒUD. Un pod qui joint la base vise l'adresse de sa propre
+  # machine ; c'est cette adresse-là que la politique doit autoriser, et elle
+  # seule. Le port reste 5432 : ouvrir tout l'egress vers le nœud donnerait à
+  # n'importe quel conteneur du namespace un accès à `kubelet` sur 10250 et à
+  # l'API sur 6443.
+  #
+  # SI L'IP DU VPS CHANGE, TROIS ENDROITS BOUGENT ENSEMBLE : ici, l'inventaire
+  # Ansible (`ip_privee`, qui alimente aussi la règle nftables), et les chaînes
+  # de connexion du Secret. En oublier un donne un délai d'attente, pas un refus.
+  # ═══════════════════════════════════════════════════════════════════════════
+  - target:
+      kind: NetworkPolicy
+      name: allow-intra-namespace
+    patch: |-
+      - op: replace
+        path: /spec/egress/1/to/0/ipBlock/cidr
+        value: 193.168.145.162/32
+
   - target:
       kind: Ingress
     patch: |-
       - op: replace
         path: /spec/rules/0/host
-        value: api.staging.hba-express.example
+        value: backendapi.marketplace-staging.hba-marketplace.fr
       - op: replace
         path: /spec/tls/0/hosts/0
-        value: api.staging.hba-express.example
+        value: backendapi.marketplace-staging.hba-marketplace.fr
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # UN TAG MOUVANT EXIGE `Always`, SINON LE DÉPLOIEMENT NE DÉPLOIE RIEN.
+  #
+  # CE CORRECTIF A DÉJÀ DISPARU UNE FOIS, avalé par une réécriture du bloc
+  # `images:` — et le rendu construit l'a montré là où une relecture du fichier
+  # ne l'aurait pas vu.
+  #
+  # Le gabarit porte `imagePullPolicy: IfNotPresent`, correct pour un tag
+  # immuable, faux pour `main`. Republier puis relancer les pods laisserait
+  # kubelet réutiliser la couche déjà sur le nœud : `kubectl rollout restart`
+  # annoncerait « successfully rolled out » en redémarrant l'ANCIENNE image.
+  # C'est le défaut qui fait chercher un bogue déjà corrigé.
+  # ═══════════════════════════════════════════════════════════════════════════
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE CHEMIN ET LE TAG VIENNENT DE LA CI, PAS D'UNE CONVENTION INVENTÉE ICI.
+#
+# `ci.yml` publie sous `ghcr.io/<propriétaire>/<service>`, avec DEUX tags à chaque
+# poussée sur `main` : le SHA du commit, et `main`. Rien d'autre.
+#
+# DEUX CHEMINS FAUX ONT ÉTÉ CORRIGÉS ICI, ET AUCUN N'AURAIT ÉTÉ LISIBLE :
+#   • un segment `hba/` inventé, que la CI ne pousse nulle part ;
+#   • un propriétaire déduit d'une adresse e-mail, au lieu du compte GitHub réel ;
+#   • un tag `staging` que rien ne produit.
+# Les huit pods seraient partis en `ImagePullBackOff` sur un « denied » — message
+# qui se lit comme un problème de droits, jamais comme un chemin inexistant.
+#
+# LE PROPRIÉTAIRE EST EN MINUSCULES : la grammaire OCI l'impose, et docker refuse
+# `Hectorberi01` avant même d'atteindre le registre.
+#
+# `main` SUIT LA BRANCHE, ET C'EST CE QU'ON VEUT D'UN STAGING. La production, elle,
+# garde un placeholder que `cd.yml` remplace par le SHA d'une image ayant déjà
+# tourné ici — le §13 veut une image immuable, et un tag mouvant y rendrait le
+# rollback sans objet.
+# ═══════════════════════════════════════════════════════════════════════════════
 images:
-  - name: hba/api-gateway
-    newTag: "staging"
   - name: hba/identity-service
-    newTag: "staging"
+    newName: ghcr.io/hectorberi01/identity-service
+    newTag: "main"
   - name: hba/user-service
-    newTag: "staging"
+    newName: ghcr.io/hectorberi01/user-service
+    newTag: "main"
   - name: hba/media-service
-    newTag: "staging"
-  - name: hba/communication-service
-    newTag: "staging"
-  - name: hba/financial-service
-    newTag: "staging"
-  - name: hba/engagement-service
-    newTag: "staging"
-  - name: hba/catalog-service
-    newTag: "staging"
-  - name: hba/merchant-service
-    newTag: "staging"
-  - name: hba/inventory-service
-    newTag: "staging"
-  - name: hba/commerce-service
-    newTag: "staging"
-  - name: hba/order-service
-    newTag: "staging"
-  - name: hba/food-service
-    newTag: "staging"
-  - name: hba/delivery-service
-    newTag: "staging"
+    newName: ghcr.io/hectorberi01/media-service
+    newTag: "main"
+  - name: hba/notification-service
+    newName: ghcr.io/hectorberi01/notification-service
+    newTag: "main"
+  - name: hba/payment-service
+    newName: ghcr.io/hectorberi01/payment-service
+    newTag: "main"
   - name: hba/promotion-service
-    newTag: "staging"
+    newName: ghcr.io/hectorberi01/promotion-service
+    newTag: "main"
+  - name: hba/review-service
+    newName: ghcr.io/hectorberi01/review-service
+    newTag: "main"
+  - name: hba/catalog-service
+    newName: ghcr.io/hectorberi01/catalog-service
+    newTag: "main"
+  - name: hba/cart-service
+    newName: ghcr.io/hectorberi01/cart-service
+    newTag: "main"
+  - name: hba/inventory-service
+    newName: ghcr.io/hectorberi01/inventory-service
+    newTag: "main"
+  - name: hba/order-service
+    newName: ghcr.io/hectorberi01/order-service
+    newTag: "main"
+  - name: hba/seller-service
+    newName: ghcr.io/hectorberi01/seller-service
+    newTag: "main"
+  - name: hba/return-refund-service
+    newName: ghcr.io/hectorberi01/return-refund-service
+    newTag: "main"
+  - name: hba/api-gateway
+    newName: ghcr.io/hectorberi01/api-gateway
+    newTag: "main"

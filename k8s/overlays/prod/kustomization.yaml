@@ -143,34 +143,75 @@ patches:
         path: /spec/tls/0/hosts/0
         value: api.hba-express.example
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE TAG EST UN PLACEHOLDER DE PROMOTION, ET IL DOIT LE RESTER.
+#
+# Le §13 interdit `latest` et impose une image immuable identifiée par SHA ou
+# semver. La promotion pose le tag (`kustomize edit set image`) au lieu de
+# reconstruire — un tag mouvant committé ici ferait d'un `kubectl apply` rejoué un
+# déploiement différent du précédent.
+#
+# LES SIX NOMS PÉRIMÉS ONT ÉTÉ REMPLACÉS. Ils ne correspondaient à aucun
+# conteneur, Kustomize les ignorait sans rien dire, et les six services renommés
+# repartaient donc en `hba/<nom>:latest` — c'est ce que `check-k8s.py` a signalé
+# dès la première construction après le renommage.
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE CHEMIN VIENT DE LA CI, PAS D'UNE CONVENTION INVENTÉE ICI.
+#
+# `ci.yml` publie sous `ghcr.io/<propriétaire>/<service>:<sha>` — sans segment
+# intermédiaire. Une première version de ce bloc portait `ghcr.io/…/hba/<service>`
+# et un propriétaire déduit d'une adresse e-mail : deux chemins qui n'existent
+# nulle part. Les huit pods seraient partis en `ImagePullBackOff` sur un
+# « denied », qui se lit comme un problème de droits et non comme un chemin faux.
+#
+# LE PROPRIÉTAIRE EST EN MINUSCULES. La grammaire OCI l'impose ; `Hectorberi01`
+# est refusé par docker avant même d'atteindre le registre.
+#
+# LE TAG `staging` EST MOUVANT, ET C'EST ASSUMÉ ICI. Le §13 impose l'immuabilité
+# en PRODUCTION, où `cd.yml` pose le SHA d'une image déjà validée. En staging on
+# republie sous le même tag à chaque intégration — d'où le `imagePullPolicy:
+# Always` ci-dessus, sans lequel kubelet réutiliserait la couche déjà présente.
+# ═══════════════════════════════════════════════════════════════════════════════
 images:
-  - name: hba/api-gateway
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
   - name: hba/identity-service
+    newName: ghcr.io/hectorberi01/identity-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"
   - name: hba/user-service
+    newName: ghcr.io/hectorberi01/user-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"
   - name: hba/media-service
+    newName: ghcr.io/hectorberi01/media-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/communication-service
+  - name: hba/notification-service
+    newName: ghcr.io/hectorberi01/notification-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/financial-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/engagement-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/catalog-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/merchant-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/inventory-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/commerce-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/order-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/food-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
-  - name: hba/delivery-service
+  - name: hba/payment-service
+    newName: ghcr.io/hectorberi01/payment-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"
   - name: hba/promotion-service
+    newName: ghcr.io/hectorberi01/promotion-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/review-service
+    newName: ghcr.io/hectorberi01/review-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/catalog-service
+    newName: ghcr.io/hectorberi01/catalog-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/cart-service
+    newName: ghcr.io/hectorberi01/cart-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/inventory-service
+    newName: ghcr.io/hectorberi01/inventory-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/order-service
+    newName: ghcr.io/hectorberi01/order-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/seller-service
+    newName: ghcr.io/hectorberi01/seller-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/return-refund-service
+    newName: ghcr.io/hectorberi01/return-refund-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/api-gateway
+    newName: ghcr.io/hectorberi01/api-gateway
     newTag: "REMPLACE-PAR-LA-PROMOTION"

@@ -17,8 +17,36 @@ kind: Kustomization
 
 namePrefix: gateway-
 
-commonLabels:
-  app.kubernetes.io/name: api-gateway
+# ═══════════════════════════════════════════════════════════════════════════════
+# `labels` ET NON `commonLabels` — ET LA DIFFÉRENCE N'EST PAS COSMÉTIQUE.
+#
+# Kustomize déprécie `commonLabels`. Le remplacer naïvement par `labels:` CASSE
+# ce dossier en silence.
+#
+# `commonLabels` faisait DEUX choses : poser les étiquettes, ET les injecter dans
+# les SÉLECTEURS. `labels:` seul ne fait que la première.
+#
+# Or le gabarit `_service` porte le sélecteur littéral
+# `app.kubernetes.io/name: service` — le même dans les sept services. C'est
+# exactement cette injection qui les distingue.
+#
+# SANS `includeSelectors: true`, LES SEPT DEPLOYMENTS PARTAGERAIENT UN SÉLECTEUR
+# IDENTIQUE : chacun adopterait les pods des autres, et le Service d'identity
+# répartirait le trafic vers les pods de payment. Tout répondrait — avec le
+# mauvais service. Aucune erreur, aucun pod en échec.
+#
+# `hba.express/domaine` est dans un SECOND bloc, sans injection : c'est une
+# étiquette descriptive, elle n'a rien à faire dans un sélecteur. `commonLabels`
+# l'y mettait faute de pouvoir distinguer les deux.
+#
+# ATTENTION SI LE CLUSTER TOURNE DÉJÀ : `spec.selector` d'un Deployment est
+# IMMUABLE. Modifier ces étiquettes sur un déploiement existant fait échouer
+# `kubectl apply` — il faut alors supprimer le Deployment avant de réappliquer.
+# ═══════════════════════════════════════════════════════════════════════════════
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: api-gateway
 
 resources:
   - ../../services/_service
@@ -60,6 +88,26 @@ patches:
                   # télémétrie de la passerelle serait anonyme.
                   - name: SERVICE_NAME
                     value: api-gateway
+
+                  # ═══════════════════════════════════════════════════════════
+                  # L'IDENTITÉ DE CET HÔTE, ET D'AUCUN AUTRE.
+                  #
+                  # Le nom présenté aux autres services est celui de l'assemblage
+                  # d'entrée — « HBA.Gateway.Api » — car `Internal:ServiceName`
+                  # n'est pas posé (la variable `SERVICE_NAME` ci-dessus est un
+                  # autre réglage, elle ne l'alimente pas). La clé du Secret suit
+                  # donc ce nom, exactement comme l'écrit
+                  # `scripts/generer-identites-internes.sh`.
+                  #
+                  # Se tromper de clé ici ne casse RIEN au démarrage : le pod
+                  # part, signe sous une identité qui n'est pas la sienne, et
+                  # tous ses appels reviennent en `Unauthenticated`.
+                  # ═══════════════════════════════════════════════════════════
+                  - name: INTERNAL__PRIVATEKEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: hba-identites-internes
+                        key: INTERNAL_KEY_HBA_GATEWAY_API
 
   - patch: |-
       apiVersion: v1

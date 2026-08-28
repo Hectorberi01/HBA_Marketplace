@@ -44,10 +44,34 @@
       server
       --node-ip {{ ip_privee }}
       --advertise-address {{ ip_privee }}
-      --flannel-iface {{ interface_privee | default('ens4') }}
+      {% set _iface = interface_flannel | default(interface_privee | default('ens4')) %}{{ ('--flannel-iface ' ~ _iface) if _iface | length > 0 else '' }}
       --tls-san {{ ansible_host }}
       {% for c in k3s_desactiver %}--disable {{ c }} {% endfor %}
       --write-kubeconfig-mode 0600
+    # ═════════════════════════════════════════════════════════════════════
+    # `--flannel-iface` NE PREND PLUS `interface_privee`, ET C'EST DÉLIBÉRÉ.
+    #
+    # Cette variable servait DEUX choses qui ne veulent pas la même valeur :
+    #
+    #   • nftables accepte `interface_privee` EN BLOC. Y mettre l'interface
+    #     PUBLIQUE ouvrirait 6443, 10250, les NodePorts et VXLAN sur Internet.
+    #   • k3s la passe à `--flannel-iface`. Y mettre une interface de TUNNEL
+    #     rend le nœud dépendant du tunnel : k3s démarré avant `wg0` échoue, et
+    #     une coupure du tunnel fait disparaître le réseau des pods.
+    #
+    # Sur la topologie réelle — un seul nœud, un tunnel WireGuard qui ne porte
+    # que PostgreSQL — les deux valeurs diffèrent : `wg0` pour nftables, et
+    # RIEN pour flannel, puisqu'il n'y a pas de trafic inter-nœuds.
+    #
+    # `interface_flannel` par défaut à `interface_privee` : les inventaires à
+    # deux nœuds sur réseau privé OVH ne changent pas de comportement. La
+    # poser à la chaîne VIDE retire le drapeau — c'est le cas mono-nœud.
+    #
+    # ATTENTION : le retirer ne vaut QUE pour un nœud unique. Dès qu'un agent
+    # rejoint, flannel doit savoir par où encapsuler, sinon il choisit
+    # l'interface de la route par défaut — l'interface publique — et le trafic
+    # entre pods sortirait en clair sur Internet.
+    # ═════════════════════════════════════════════════════════════════════
     # CE QUI N'APPARAÎT PAS CI-DESSUS, ET NE DOIT PAS Y APPARAÎTRE :
     #
     #   --disable-network-policy
@@ -78,15 +102,31 @@
   ansible.builtin.set_fact:
     k3s_jeton: "{{ jeton_k3s.content | b64decode | trim }}"
 
-- name: Rendre le kubeconfig lisible par l'opérateur
-  ansible.builtin.command:
-    cmd: >-
-      sed -i 's|127.0.0.1|{{ ansible_host }}|'
-      /etc/rancher/k3s/k3s.yaml
-  changed_when: false
-  # Le kubeconfig généré pointe 127.0.0.1 : utilisable seulement DEPUIS le nœud.
-  # On réécrit l'hôte pour qu'il serve depuis le poste de l'opérateur — le
-  # certificat le couvre grâce à `--tls-san` ci-dessus.
+# ═══════════════════════════════════════════════════════════════════════════════
+# ON NE RÉÉCRIT PLUS L'ADRESSE DU KUBECONFIG, ET C'EST UN RETOUR EN ARRIÈRE.
+#
+# Une tâche remplaçait ici `127.0.0.1` par l'adresse publique du nœud, « pour
+# qu'il serve depuis le poste de l'opérateur ». Elle produisait un kubeconfig
+# qui NE FONCTIONNE PAS : nftables ferme 6443 sur l'interface publique. Le
+# symptôme est un `kubectl` qui reste suspendu jusqu'au délai d'attente, sans
+# rien qui désigne le pare-feu.
+#
+# Pire, le message de fin de ce playbook demandait ensuite de remettre
+# `127.0.0.1` à la main. Le rôle défaisait ce dont l'opérateur avait besoin, et
+# la documentation lui demandait de défaire le rôle.
+#
+# LE KUBECONFIG RESTE DONC EN `127.0.0.1`, ET S'EMPLOIE PAR UN TUNNEL SSH :
+#
+#     ssh -N -L 6443:127.0.0.1:6443 ubuntu@<ip-publique>
+#     export KUBECONFIG=infra/ansible/kubeconfig-<environnement>.yaml
+#
+# Aucun port à ouvrir, et le certificat couvre `127.0.0.1` — k3s l'inclut
+# toujours dans ses SAN.
+#
+# `--tls-san {{ ansible_host }}` RESTE POSÉ plus haut : le jour où un bastion ou
+# un VPN donne un accès direct à 6443 (§19), il suffira de changer l'adresse
+# dans le kubeconfig, sans réinstaller le cluster ni réémettre son certificat.
+# ═══════════════════════════════════════════════════════════════════════════════
 
 - name: Rapatrier le kubeconfig
   ansible.builtin.fetch:

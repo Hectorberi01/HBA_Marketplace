@@ -34,6 +34,19 @@ concurrency:
 env:
   DOTNET_VERSION: "9.0.x"
   REGISTRY: ghcr.io
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LE PROPRIÉTAIRE EN MINUSCULES — SANS QUOI AUCUNE IMAGE NE SE PUBLIE.
+  #
+  # `github.repository_owner` rend le nom TEL QU'IL EST ÉCRIT sur GitHub, ici
+  # « Hectorberi01 ». Or la grammaire OCI impose des composants de chemin en
+  # minuscules : `docker build -t ghcr.io/Hectorberi01/...` échoue sur
+  # « repository name must be lowercase ».
+  #
+  # Le défaut ne se voit qu'AU PREMIER PUSH SUR `main` — une PR ne publie rien —
+  # donc précisément le jour du premier déploiement, sur un message qui ne
+  # désigne ni le workflow ni le compte.
+  # ═══════════════════════════════════════════════════════════════════════════
+  PROPRIETAIRE: hectorberi01
 
 permissions:
   contents: read
@@ -203,8 +216,8 @@ jobs:
           # ci-dessous existe pour la lisibilité humaine ; c'est le SHA qui est
           # déployé.
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:main
+            ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:main
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           provenance: true
@@ -213,7 +226,7 @@ jobs:
       - name: Scan de vulnérabilité
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ github.sha }}
           format: sarif
           output: trivy-${{ matrix.service }}.sarif
           # ON N'ÉCHOUE PAS ICI — voir le §23 et `cd.yml`.
@@ -243,4 +256,4 @@ jobs:
           # n'y a donc aucune clé privée à stocker ni à faire tourner. C'est ce que
           # le §12 préfère à un secret de plus.
           ./cosign sign --yes \
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}@${{ steps.construire.outputs.digest }}
+            ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}@${{ steps.construire.outputs.digest }}

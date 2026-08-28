@@ -42,3 +42,12 @@ CREATE DATABASE hba_financial;
 CREATE DATABASE hba_engagement;
 CREATE DATABASE hba_communication;
 CREATE DATABASE hba_media;
+
+-- hba_promotion MANQUAIT ICI.
+--
+-- docker-compose.dev.yml injecte `Database=hba_promotion` a
+-- promotion-service. Ce fichier listait treize bases et pas celle-la :
+-- sur un volume neuf, promotion-service etait le seul a echouer.
+-- Il ne le montrait pas en pratique, parce que Database.Migrate() cree
+-- la base absente en dev — ce qui masquait l'oubli au lieu de le dire.
+CREATE DATABASE hba_promotion;

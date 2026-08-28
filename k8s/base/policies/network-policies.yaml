@@ -122,6 +122,37 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/part-of: hba-express
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # LA BASE EST HORS DU CLUSTER, ET SANS CETTE RÈGLE AUCUN SERVICE NE L'ATTEINT.
+    #
+    # La règle d'egress ci-dessus n'autorise QUE les pods du namespace. Elle était
+    # juste tant que Postgres tournait dans le cluster ; il vit désormais sur un
+    # second VPS, joint par un tunnel WireGuard. Sans cette exception, les treize
+    # services partent en `Egress` refusé vers 10.0.0.1.
+    #
+    # ET LE SYMPTÔME DÉSIGNE LE MAUVAIS COUPABLE. Le paquet est jeté par le CNI,
+    # pas rejeté : la connexion n'échoue pas, elle EXPIRE. La sonde de
+    # disponibilité rend « connection timed out », ce qui se lit comme un pare-feu
+    # mal réglé sur le VPS de base — on va vérifier nftables, WireGuard, pg_hba,
+    # et tout y sera correct. C'est une demi-journée perdue du mauvais côté.
+    #
+    # `ipBlock` ET NON `podSelector` : la cible n'est pas un pod, c'est une
+    # adresse hors du cluster. Un `/32` sur l'IP du tunnel, et le port 5432 seul —
+    # ouvrir tout l'egress vers ce VPS autoriserait aussi SSH depuis n'importe
+    # quel conteneur compromis du namespace.
+    #
+    # SI LE CNI N'APPLIQUE PAS LES POLITIQUES, cette règle est décorative comme
+    # les autres — et le défaut inverse se produit : tout passe. Sur k3s, le
+    # contrôleur de kube-router les applique par défaut. La vérification est dans
+    # `docs/DEPLOIEMENT.md`, étage 2.
+    # ═════════════════════════════════════════════════════════════════════════
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.1/32
+      ports:
+        - protocol: TCP
+          port: 5432
 ---
 # ═══════════════════════════════════════════════════════════════════════════════
 # LES DATASTORES N'ACCEPTENT QUE LES APPLICATIONS HBA (§5, §25).

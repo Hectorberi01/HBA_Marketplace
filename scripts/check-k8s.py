@@ -33,6 +33,7 @@ Usage :
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -193,11 +194,45 @@ def verifier_ingress(par_overlay: dict[str, set[str]]) -> list[str]:
     return fautes
 
 
+def version_kustomize() -> tuple[int, ...] | None:
+    """La version majeure de kustomize, ou None si elle ne se lit pas."""
+    try:
+        sortie = subprocess.run(["kustomize", "version"], capture_output=True, text=True, timeout=10)
+    except Exception:
+        return None
+    brut = (sortie.stdout + sortie.stderr)
+    # v4 rend « {Version:kustomize/v4.5.4 GitCommit:... } », v5 rend « v5.4.3 ».
+    trouve = re.search(r"v(\d+)\.(\d+)\.(\d+)", brut)
+    return tuple(int(x) for x in trouve.groups()) if trouve else None
+
+
 def main() -> int:
     if not shutil.which("kustomize"):
         print("   kustomize absent — contrôle ignoré.")
         print("     https://kubectl.docs.kubernetes.io/installation/kustomize/")
         # Non bloquant : l'outil n'est pas une dépendance de compilation.
+        return 0
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # LA VERSION SE VÉRIFIE ICI, SINON L'ÉCHEC DÉSIGNE LE MAUVAIS COUPABLE.
+    #
+    # `k8s/base/services/*/kustomization.yaml` emploie le transformateur `labels`
+    # avec `includeTemplates`, apparu en kustomize 5. Sur une version 4, le build
+    # échoue sur « json: unknown field "includeTemplates" » — un message qui
+    # envoie chercher une faute de frappe dans le YAML, alors que le YAML est
+    # correct et que c'est l'outil qui est trop ancien.
+    #
+    # `kubectl apply -k` embarque sa propre copie (v5 depuis kubectl 1.28) : un
+    # poste peut donc très bien déployer correctement et voir ce contrôle échouer,
+    # à cause d'un binaire `kustomize` installé séparément et jamais mis à jour.
+    # ═════════════════════════════════════════════════════════════════════════
+    version = version_kustomize()
+    if version is not None and version[0] < 5:
+        v = ".".join(str(x) for x in version)
+        print(f"   kustomize {v} est trop ancien — contrôle ignoré (il en faut 5 ou plus).")
+        print("     Le transformateur `labels` avec `includeTemplates` n'existe qu'à partir de la 5.")
+        print("     `kubectl apply -k` embarque sa propre copie et n'est PAS concerné.")
+        print("     https://kubectl.docs.kubernetes.io/installation/kustomize/")
         return 0
 
     voulus = [a for a in sys.argv[1:] if a in OVERLAYS] or list(OVERLAYS)

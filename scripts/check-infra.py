@@ -60,12 +60,21 @@ from __future__ import annotations
 import glob
 import os
 import re
+import subprocess
 import sys
 
 RACINE = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 TERRAFORM = os.path.join(RACINE, "infra", "terraform")
 ANSIBLE = os.path.join(RACINE, "infra", "ansible")
-COMPOSE = os.path.join(RACINE, "infra", "docker")
+# `infra/docker/` A ETE RETIRE. CE CHEMIN POINTAIT SUR LUI.
+#
+# Le controle ci-dessous lisait `infra/docker/compose.*.yml` : une pile que
+# ni le Makefile, ni les workflows, ni aucun script ne lancaient. Il etait
+# vert sur un fichier mort pendant que la pile reellement demarree,
+# `docker-compose.dev.yml`, n'etait jamais regardee.
+COMPOSE = os.path.join(RACINE, "docker-compose.dev.yml")
+INIT_SQL = os.path.join(RACINE, "infra", "postgres", "init",
+                        "001-create-databases.sql")
 
 REF_VAR = re.compile(r"\bvar\.([A-Za-z_][A-Za-z0-9_]*)")
 
@@ -302,6 +311,47 @@ def controler_ansible() -> list[str]:
 
     fautes: list[str] = []
 
+    # ── ansible.cfg : des plugins retirés y survivent en silence ─────────────
+    #
+    # POURQUOI CE CONTRÔLE EXISTE.
+    #
+    # `stdout_callback = yaml` a fonctionné des années. Le nom court se
+    # résolvait en `community.general.yaml`, supprimé en community.general
+    # 12.0.0 — et le jour où la collection se met à jour, `ansible-playbook`
+    # s'arrête AVANT la première tâche :
+    #
+    #   [ERROR]: The 'community.general.yaml' callback plugin has been removed.
+    #
+    # Rien dans le dépôt ne changeait ce jour-là. Le message parle d'un plugin
+    # d'affichage, donc on cherche d'abord dans le playbook et l'inventaire.
+    #
+    # CE QUE CE CONTRÔLE NE COUVRE PAS : les autres plugins retirés, présents et
+    # à venir. Il ne connaît que la liste ci-dessous, tenue à la main. Un nom
+    # inconnu de cette liste passe — ce contrôle réduit la surprise, il ne la
+    # supprime pas.
+    RETIRES = {
+        "yaml": "community.general 12.0.0 — remplacer par "
+                "`stdout_callback = default` + `result_format = yaml` "
+                "(ansible-core >= 2.13, aucune collection requise)",
+        "community.general.yaml": "community.general 12.0.0 — remplacer par "
+                "`stdout_callback = default` + `result_format = yaml`",
+    }
+
+    chemin_cfg = os.path.join(ANSIBLE, "ansible.cfg")
+    if os.path.isfile(chemin_cfg):
+        import configparser
+        cfg = configparser.ConfigParser()
+        try:
+            cfg.read(chemin_cfg, encoding="utf-8")
+            valeur = (cfg.get("defaults", "stdout_callback", fallback="") or "").strip()
+            if valeur in RETIRES:
+                fautes.append(
+                    f"infra/ansible/ansible.cfg : `stdout_callback = {valeur}` est un "
+                    f"plugin RETIRÉ ({RETIRES[valeur]}). `ansible-playbook` refuse de "
+                    "démarrer, avant la première tâche.")
+        except configparser.Error as erreur:
+            fautes.append(f"infra/ansible/ansible.cfg illisible : {erreur}")
+
     fichiers = sorted(
         glob.glob(os.path.join(ANSIBLE, "**", "*.yml"), recursive=True) +
         glob.glob(os.path.join(ANSIBLE, "**", "*.yml.example"), recursive=True))
@@ -399,10 +449,87 @@ def controler_ansible() -> list[str]:
                 fautes.append(f"infra/ansible/roles/{role} : template « {source} » "
                               f"absent de templates/")
 
-    # ── un inventaire réel commité ? ──────────────────────────────────────────
-    for chemin in glob.glob(os.path.join(ANSIBLE, "inventory", "*.yml")):
-        fautes.append(f"{court(chemin)} : un inventaire réel porte des IP de "
-                      f"production — seuls les .yml.example sont suivis")
+    # ── un inventaire réel COMMITÉ ? ─────────────────────────────────────────
+    #
+    # CE CONTRÔLE SIGNALAIT LA PRÉSENCE DU FICHIER, ET C'ÉTAIT FAUX.
+    #
+    # Le `.example` dit lui-même « copier en `staging.yml` ». Un déploiement
+    # SUPPOSE donc ce fichier sur le poste : le signaler faisait échouer
+    # `make infra` dès qu'on suivait la procédure du dépôt. Un contrôle qui
+    # passe au rouge quand on fait ce qu'il faut finit par être ignoré — et il
+    # emmène les vrais défauts avec lui.
+    #
+    # Le danger n'est pas d'AVOIR le fichier, c'est de le COMMITTER. On
+    # interroge donc Git, pas le disque.
+    #
+    # CE QUE CELA NE COUVRE PAS : un fichier ajouté à l'index sans commit passe
+    # ici (`git ls-files` le voit — donc non, il est bien pris), mais un dépôt
+    # absent ou un `git` introuvable rend le contrôle muet. Il est alors annoncé
+    # comme tel plutôt que supposé vert.
+    inventaires = glob.glob(os.path.join(ANSIBLE, "inventory", "*.yml"))
+
+    if inventaires:
+        try:
+            suivis = subprocess.run(
+                ["git", "ls-files", "--", os.path.join("infra", "ansible", "inventory")],
+                cwd=RACINE, capture_output=True, text=True, timeout=20, check=True).stdout.split()
+        except (OSError, subprocess.SubprocessError):
+            fautes.append("infra/ansible/inventory : `git` indisponible — impossible de "
+                          "vérifier qu'aucun inventaire réel n'est commité")
+            suivis = None
+
+        if suivis is not None:
+            for chemin in sorted(suivis):
+                if chemin.endswith(".yml") and not chemin.endswith(".yml.example"):
+                    fautes.append(f"{chemin} : inventaire réel COMMITÉ — il porte des IP "
+                                  "et des noms d'hôtes de production ; seuls les "
+                                  "`.yml.example` doivent être suivis")
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # TOUTE COLLECTION EMPLOYÉE DOIT ÊTRE DÉCLARÉE.
+    #
+    # `roles/commun` emploie `ansible.posix.sysctl` et `ansible.posix.mount`, qui
+    # ne font pas partie d'`ansible-core`. Aucun `requirements.yml` ne les
+    # déclarait : sur un poste où Ansible vient de `pip install ansible-core`, le
+    # playbook s'arrêtait sur
+    #
+    #     couldn't resolve module/action 'ansible.posix.mount'
+    #     Origin: roles/commun/tasks/main.yml:51:3
+    #
+    # LE MESSAGE DÉSIGNE UNE LIGNE DU RÔLE, ET LE RÔLE EST CORRECT — ce qui
+    # manque est sur la machine, pas dans le dépôt. Et le défaut est
+    # INTERMITTENT selon l'installation : `pip install ansible` embarque la
+    # collection, `ansible-core` non. D'où un « ça marche chez moi » sincère.
+    #
+    # Ce contrôle lit les modules réellement appelés et vérifie que leur
+    # collection figure dans requirements.yml. `ansible.builtin` est exclue :
+    # elle est dans le cœur, par définition.
+    # ═════════════════════════════════════════════════════════════════════════
+    utilisees: set[str] = set()
+    for chemin in glob.glob(os.path.join(ANSIBLE, "roles", "*", "**", "*.yml"), recursive=True) \
+            + glob.glob(os.path.join(ANSIBLE, "playbooks", "*.yml")):
+        texte = open(chemin, encoding="utf-8", errors="ignore").read()
+        for trouve in re.findall(r"\b([a-z][a-z0-9_]*\.[a-z][a-z0-9_]*)\.[a-z][a-z0-9_]*\s*:", texte):
+            if not trouve.startswith("ansible.builtin"):
+                utilisees.add(trouve)
+
+    chemin_req = os.path.join(ANSIBLE, "requirements.yml")
+    declarees: set[str] = set()
+    if os.path.isfile(chemin_req):
+        try:
+            contenu = yaml.safe_load(open(chemin_req, encoding="utf-8")) or {}
+            for c in contenu.get("collections", []):
+                declarees.add(c["name"] if isinstance(c, dict) else str(c))
+        except Exception as erreur:
+            fautes.append(f"infra/ansible/requirements.yml illisible : {erreur}")
+    elif utilisees:
+        fautes.append("infra/ansible/requirements.yml absent alors que les rôles "
+                      f"emploient {', '.join(sorted(utilisees))}")
+
+    for collection in sorted(utilisees - declarees):
+        if os.path.isfile(chemin_req):
+            fautes.append(f"infra/ansible : la collection « {collection} » est employée "
+                          f"par un rôle mais absente de requirements.yml")
 
     if not fautes:
         print(f"  Ansible : {len(charges)} fichier(s), {len(roles_connus)} rôle(s), "
@@ -411,100 +538,149 @@ def controler_ansible() -> list[str]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# COMPOSE — L'EXPORT DE TÉLÉMÉTRIE
+# COMPOSE — LA PILE RÉELLEMENT LANCÉE
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def controler_compose() -> list[str]:
     """
-    Vérifie que chaque service de la pile exporte sa télémétrie.
+    Vérifie `docker-compose.dev.yml` — la seule pile que `make up` démarre.
 
-    POURQUOI CE CONTRÔLE EXISTE.
+    CE CONTRÔLE A CHANGÉ DE CIBLE, ET DE QUESTION.
 
-    `ServiceHostExtensions` appelle `AddHbaTelemetry` pour tous les services —
-    l'appel EST centralisé, et son encadré s'en félicite. Mais
-    `TelemetryExtensions` ne branche l'exportateur OTLP que si une adresse est
-    lisible :
+    Il vérifiait auparavant que chaque service de `infra/docker/compose.*.yml`
+    portait `OpenTelemetry__Endpoint`. Deux défauts :
 
-        var hasEndpoint = Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var endpoint);
-        if (hasEndpoint) { metrics.AddOtlpExporter(...); }
+      1. Ce fichier n'était lancé par personne. Le contrôle était vert sur du
+         code mort, et aveugle sur la pile vivante.
+      2. La question elle-même ne vaut pas pour la pile de développement :
+         celle-ci n'embarque AUCUN collecteur OTLP. Exiger une adresse partout
+         y produirait vingt-trois services qui échouent à se connecter toutes
+         les quelques secondes. La passerelle pose `OPENTELEMETRY__ENDPOINT: ""`
+         pour cette raison exacte.
 
-    Sans adresse, le service est muet SANS ERREUR. Treize des quatorze
-    processus l'étaient : seule la passerelle portait l'adresse, dans son
-    `appsettings.json`. Prometheus, Grafana, Loki et le collecteur tournaient
-    pour un seul service.
+    On vérifie donc la COHÉRENCE, qui est ce qui casse réellement :
 
-    ON CHERCHE DANS `environment:`, PAS DANS `env_file`.
+      A. Un collecteur est présent dans la pile, ou aucun service n'a
+         d'adresse. L'état intermédiaire — une adresse posée sur quelques
+         services, sans collecteur en face — est celui qui remplit les journaux
+         sans que rien ne le désigne.
 
-    Les `env/*.env` sont déclarés `required: false` : un service dont le
-    fichier a été retiré repartirait muet. Seul le bloc `environment:` est une
-    source à laquelle le service ne peut pas échapper.
+      B. Chaque base `Database=hba_xxx` injectée à un service existe dans
+         `infra/postgres/init/001-create-databases.sql`. C'est le défaut qui
+         s'est réellement produit : `hba_promotion` était injectée et jamais
+         créée. Il ne se voyait pas, parce que `Database.Migrate()` crée la
+         base absente en développement — ce qui masque l'oubli jusqu'à la
+         production, où `MigrateOnStartup=false`.
+
+    CE QUE CE CONTRÔLE NE COUVRE PAS : la pile k8s. `k8s/base/common/configmap.yaml`
+    pose `OPENTELEMETRY__ENDPOINT: http://otel-collector:4317` alors qu'aucun
+    collecteur n'est déployé sous `k8s/` — c'est le même défaut de cohérence,
+    de l'autre côté, et il appartient à `check-k8s.py`.
     """
     fautes: list[str] = []
 
-    # PAS DE `yaml` EN DÉPENDANCE DURE.
-    #
-    # Ce script tourne déjà sans `python-hcl2` en dégradant la partie
-    # Terraform. Il ne doit pas devenir impossible à lancer pour un contrôle
-    # de plus. Sans PyYAML, on cherche la clé en texte brut : moins fin, mais
-    # suffisant — la ligne est écrite à l'identique dans les quatorze blocs.
-    fichiers = sorted(glob.glob(os.path.join(COMPOSE, "compose.*.yml")))
-    fichiers = [f for f in fichiers
-                if os.path.basename(f) not in {"compose.infrastructure.yml",
-                                               "compose.monitoring.yml"}]
-
-    if not fichiers:
-        return ["infra/docker : aucun compose.*.yml trouvé — chemin déplacé ?"]
+    if not os.path.isfile(COMPOSE):
+        return [f"{court(COMPOSE)} introuvable — la pile de développement a été "
+                "déplacée sans mettre ce contrôle à jour."]
 
     try:
         import yaml  # type: ignore
     except ImportError:
-        yaml = None
+        return ["PyYAML absent : contrôle compose impossible "
+                "(pip install pyyaml). Il n'est PAS dégradé en comptage "
+                "textuel — les deux vérifications lisent la structure."]
 
-    total = 0
+    document = yaml.safe_load(open(COMPOSE, encoding="utf-8")) or {}
+    services = document.get("services") or {}
 
-    for fichier in fichiers:
-        texte = open(fichier, encoding="utf-8").read()
+    # ── Applicatif = construit depuis un Dockerfile .NET du dépôt ────────────
+    #
+    # `postgres`, `redis`, `kafka` et les interfaces d'appoint ne portent ni
+    # télémétrie ni chaîne de connexion applicative. `rembg` construit bien une
+    # image, mais c'est un service Python sans socle .NET : le retenir ferait
+    # une faute par exécution, pour un service qui n'a rien à déclarer.
+    def applicatif(service) -> bool:
+        build = service.get("build") if isinstance(service, dict) else None
+        if not isinstance(build, dict):
+            return False
+        fichier = str(build.get("dockerfile") or "")
+        return fichier.startswith(("services/", "apps/"))
 
-        if yaml is None:
-            # Repli textuel : on compte les services et les occurrences.
-            services = len(re.findall(r"^  [a-z][a-z0-9-]*:$", texte, re.MULTILINE))
-            poses = texte.count("OpenTelemetry__Endpoint:")
-            total += services
+    def cles_env(service) -> dict:
+        environnement = service.get("environment") or {}
+        if isinstance(environnement, list):
+            table = {}
+            for ligne in environnement:
+                if isinstance(ligne, str) and "=" in ligne:
+                    cle, valeur = ligne.split("=", 1)
+                    table[cle.strip()] = valeur
+            return table
+        return dict(environnement)
 
-            if poses < services:
-                fautes.append(
-                    f"{court(fichier)} : {services} service(s) déclaré(s), "
-                    f"{poses} `OpenTelemetry__Endpoint` — "
-                    "un service sans adresse OTLP est muet sans erreur "
-                    "(PyYAML absent : comptage textuel, pip install pyyaml pour le détail).")
-            continue
+    metier = {nom: s for nom, s in services.items()
+              if isinstance(s, dict) and applicatif(s)}
 
-        document = yaml.safe_load(texte) or {}
+    # ── A. Collecteur et adresses OTLP ───────────────────────────────────────
+    #
+    # Un collecteur se reconnaît à son image, pas à son nom : le renommer ne
+    # doit pas rendre ce contrôle silencieux.
+    collecteur = [nom for nom, s in services.items()
+                  if isinstance(s, dict)
+                  and re.search(r"otel|opentelemetry|jaeger|tempo",
+                                str(s.get("image") or ""), re.IGNORECASE)]
 
-        for nom, service in (document.get("services") or {}).items():
-            # Une entrée sans image ni build n'est pas un processus applicatif
-            # (ancre, réseau nommé comme un service…).
-            if not isinstance(service, dict) or not (service.get("image") or service.get("build")):
-                continue
+    avec_adresse = []
+    for nom, service in {**metier,
+                         **{n: s for n, s in services.items()
+                            if isinstance(s, dict)}}.items():
+        for cle, valeur in cles_env(service).items():
+            if cle.upper() == "OPENTELEMETRY__ENDPOINT" and str(valeur or "").strip():
+                avec_adresse.append(nom)
+                break
 
-            total += 1
-            environnement = service.get("environment") or {}
+    if not collecteur and avec_adresse:
+        fautes.append(
+            f"{court(COMPOSE)} : aucun collecteur OTLP dans la pile, mais "
+            f"{', '.join(sorted(avec_adresse))} pose(nt) une adresse "
+            "`OPENTELEMETRY__ENDPOINT` non vide — le service journalisera un "
+            "échec de connexion toutes les quelques secondes, sans que rien "
+            "ne désigne la cause.")
 
-            # Compose accepte la forme liste `- CLE=valeur` autant que la table.
-            if isinstance(environnement, list):
-                cles = {ligne.split("=", 1)[0].strip() for ligne in environnement
-                        if isinstance(ligne, str)}
-            else:
-                cles = set(environnement)
+    if collecteur:
+        muets = sorted(n for n in metier if n not in avec_adresse)
+        if muets:
+            fautes.append(
+                f"{court(COMPOSE)} : un collecteur ({', '.join(collecteur)}) "
+                f"tourne, mais {len(muets)} service(s) n'ont pas d'adresse OTLP "
+                f"— {', '.join(muets[:5])}"
+                f"{'…' if len(muets) > 5 else ''}. Ils démarrent muets, sans erreur.")
 
-            if "OpenTelemetry__Endpoint" not in cles:
-                fautes.append(
-                    f"{court(fichier)} : le service `{nom}` n'a pas "
-                    "`OpenTelemetry__Endpoint` dans son bloc `environment:` — "
-                    "il démarrera muet, sans trace ni métrique, et sans erreur.")
+    # ── B. Bases injectées contre bases créées ───────────────────────────────
+    if not os.path.isfile(INIT_SQL):
+        fautes.append(f"{court(INIT_SQL)} introuvable — le montage "
+                      "`/docker-entrypoint-initdb.d` de la pile pointe dans le vide.")
+    else:
+        creees = set(re.findall(r"CREATE\s+DATABASE\s+(hba_[a-z_]+)",
+                                open(INIT_SQL, encoding="utf-8").read(),
+                                re.IGNORECASE))
+        injectees: dict[str, str] = {}
+        for nom, service in metier.items():
+            for valeur in cles_env(service).values():
+                for base in re.findall(r"Database=(hba_[a-z_]+)", str(valeur)):
+                    injectees.setdefault(base, nom)
+
+        for base in sorted(set(injectees) - creees):
+            fautes.append(
+                f"{court(COMPOSE)} : `{base}` est injectée à "
+                f"`{injectees[base]}` mais absente de {court(INIT_SQL)} — "
+                "sur un volume neuf, ce service est le seul à échouer. "
+                "`Database.Migrate()` masque l'oubli en développement, pas en "
+                "production où `MigrateOnStartup=false`.")
 
     if not fautes:
-        print(f"  Compose : {total} service(s), export OTLP déclaré partout.")
+        etat = f"collecteur {collecteur[0]}" if collecteur else "sans collecteur (adresses vides)"
+        print(f"  Compose : {len(metier)} service(s) applicatif(s), {etat}, "
+              "bases injectées toutes créées.")
 
     return fautes
 

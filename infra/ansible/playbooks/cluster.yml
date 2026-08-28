@@ -56,10 +56,42 @@
       ansible.builtin.debug:
         msg: "{{ noeuds.stdout_lines }}"
 
+    # CE MESSAGE CITAIT CloudNativePG, QUI N'EST PLUS UTILISÉ.
+    #
+    # La base a quitté le cluster : elle tourne sur un VPS séparé, et les
+    # manifestes CNPG ont été retirés de `k8s/`. Installer son opérateur
+    # poserait un contrôleur sans ressource à piloter — inerte, et personne pour
+    # s'en apercevoir. Une consigne périmée dans un message de fin de playbook
+    # est suivie sans être relue : c'est le pire endroit pour en laisser une.
     - name: Ce qui reste à installer À LA MAIN sur ce cluster
       ansible.builtin.debug:
         msg: >-
           Le cluster tourne, il est VIDE. Restent, dans cet ordre :
           ingress-nginx, cert-manager (+ ClusterIssuer « letsencrypt »),
-          l'opérateur CloudNativePG, l'opérateur Strimzi — puis seulement
-          `kubectl apply -k k8s/overlays/<env>`. Voir docs/DEPLOIEMENT.md, §4.
+          l'opérateur Strimzi — puis le Secret `hba-platform`, le secret de
+          tirage ghcr, et seulement ensuite `kubectl apply -k k8s/overlays/<env>`.
+          PAS d'opérateur CloudNativePG : la base est externe (docs/DEPLOIEMENT.md
+          §3.4). Voir §3.6 à §3.9 pour la séquence complète.
+
+    # L'API N'EST PAS JOIGNABLE DEPUIS L'EXTÉRIEUR, ET C'EST VOULU.
+    #
+    # nftables n'ouvre que 22, 80 et 443 sur l'interface publique ; 6443 n'y
+    # figure pas. Le kubeconfig rapatrié pointe pourtant l'adresse publique :
+    # `kubectl` depuis un poste expirera sans rien dire d'utile.
+    #
+    # Un tunnel SSH est la bonne réponse — il ne demande aucune ouverture, et le
+    # certificat de k3s couvre déjà 127.0.0.1 :
+    #
+    #     ssh -N -L 6443:127.0.0.1:6443 <utilisateur>@<ip-publique>
+    # Le kubeconfig rapatrié pointe DÉJÀ 127.0.0.1 : rien à réécrire.
+    #     KUBECONFIG=kubeconfig-staging.yaml kubectl get nodes
+    #
+    # Ouvrir 6443 sur Internet exposerait le plan de contrôle. Le §19 vise un
+    # bastion ou un VPN ; le tunnel en est la forme la plus simple.
+    - name: Comment atteindre l'API depuis un poste
+      ansible.builtin.debug:
+        msg: >-
+          6443 n'est PAS ouvert sur l'interface publique. Depuis votre poste :
+          `ssh -N -L 6443:127.0.0.1:6443 {{ ansible_user }}@{{ ansible_host }}`,
+          puis `export KUBECONFIG=infra/ansible/kubeconfig-{{ environnement }}.yaml`.
+          Le kubeconfig pointe déjà 127.0.0.1 : rien à modifier.

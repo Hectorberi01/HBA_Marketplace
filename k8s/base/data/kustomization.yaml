@@ -1,9 +1,35 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Le data plane du §22 (phase P1). Kafka vit dans `../kafka` : c'est un opérateur
-# tiers (Strimzi), et son CR n'a pas la même forme que ces StatefulSets.
+# ═══════════════════════════════════════════════════════════════════════════════
+# POSTGRES N'EST PLUS ICI : LA BASE VIT SUR UN VPS SÉPARÉ.
+#
+# `postgres/` portait un cluster CloudNativePG, le Job des quatorze bases et une
+# sauvegarde programmée vers OVH Object Storage. La décision D9 supposait une base
+# DANS le cluster ; elle ne tient plus — Postgres est installé à la main sur un
+# second VPS, joint par un tunnel WireGuard.
+#
+# LES LAISSER AURAIT CRÉÉ UN SECOND POSTGRES QUE PERSONNE N'UTILISE. Il aurait
+# démarré, réservé son volume, et serait resté vide — pendant que les services
+# écrivent ailleurs. Rien ne l'aurait signalé : un cluster CNPG sain sans aucune
+# connexion ressemble à un cluster au repos.
+#
+# ═══ CE QUE CE RETRAIT EMPORTE AVEC LUI, ET QUI N'EST REMPLACÉ PAR RIEN ═══
+#
+#   • LA CRÉATION DES BASES. Le Job `postgres-databases` était idempotent et
+#     rejouable. Les quatorze bases se créent désormais À LA MAIN sur le VPS —
+#     voir `docs/DEPLOIEMENT.md`, étage 3. Un service dont la base manque échoue
+#     au démarrage sur « database does not exist », ce qui est au moins lisible.
+#
+#   • LES SAUVEGARDES. `ScheduledBackup` assurait le WAL/PITR hors cluster, avec
+#     la rétention de 30 jours du §18. IL N'Y A PLUS AUCUNE SAUVEGARDE, et c'est
+#     un choix assumé pour un staging à données jetables — pas une omission. La
+#     dette est nommée dans `docs/DEPLOIEMENT.md`. Elle cesse d'être défendable
+#     le jour où une donnée réelle entre dans cette base.
+#
+# Les fichiers retirés sont dans `_to_delete/2026-08-23-cnpg-base-externe/`, au
+# cas où l'on reviendrait à une base dans le cluster.
+# ═══════════════════════════════════════════════════════════════════════════════
 resources:
-  - postgres
   - redis
   - minio

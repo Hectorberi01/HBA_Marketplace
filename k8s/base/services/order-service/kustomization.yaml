@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# order-service — reprend le gabarit commun avec son nom et son image.
+# order-service — domaine « marketplace ». Reprend le gabarit commun.
 #
 # `namePrefix: order-` transforme « service » en « order-service » sur les cinq
 # objets d'un coup : Deployment, Service, ServiceAccount, PDB et HPA. Kustomize
@@ -10,8 +10,44 @@ kind: Kustomization
 
 namePrefix: order-
 
-commonLabels:
-  app.kubernetes.io/name: order-service
+# ═══════════════════════════════════════════════════════════════════════════════
+# `labels` ET NON `commonLabels` — ET LA DIFFÉRENCE N'EST PAS COSMÉTIQUE.
+#
+# Kustomize déprécie `commonLabels`. Le remplacer naïvement par `labels:` CASSE
+# ce dossier en silence.
+#
+# `commonLabels` faisait DEUX choses : poser les étiquettes, ET les injecter dans
+# les SÉLECTEURS. `labels:` seul ne fait que la première.
+#
+# Or le gabarit `_service` porte le sélecteur littéral
+# `app.kubernetes.io/name: service` — le même dans les sept services. C'est
+# exactement cette injection qui les distingue.
+#
+# SANS `includeSelectors: true`, LES SEPT DEPLOYMENTS PARTAGERAIENT UN SÉLECTEUR
+# IDENTIQUE : chacun adopterait les pods des autres, et le Service d'identity
+# répartirait le trafic vers les pods de payment. Tout répondrait — avec le
+# mauvais service. Aucune erreur, aucun pod en échec.
+#
+# `hba.express/domaine` est dans un SECOND bloc, sans injection : c'est une
+# étiquette descriptive, elle n'a rien à faire dans un sélecteur. `commonLabels`
+# l'y mettait faute de pouvoir distinguer les deux.
+#
+# ATTENTION SI LE CLUSTER TOURNE DÉJÀ : `spec.selector` d'un Deployment est
+# IMMUABLE. Modifier ces étiquettes sur un déploiement existant fait échouer
+# `kubectl apply` — il faut alors supprimer le Deployment avant de réappliquer.
+# ═══════════════════════════════════════════════════════════════════════════════
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: order-service
+  # `includeTemplates` ET NON `includeSelectors` : l'étiquette descend jusqu'aux
+  # PODS — ce qui rend `kubectl get pods -l hba.express/domaine=common` utile
+  # pendant un déploiement par domaine — sans entrer dans le sélecteur, où elle
+  # n'aurait rien à faire et rendrait le sélecteur immuable plus difficile à
+  # corriger.
+  - includeTemplates: true
+    pairs:
+      hba.express/domaine: marketplace
 
 resources:
   - ../_service
@@ -41,3 +77,48 @@ patches:
                 env:
                   - name: SERVICE_NAME
                     value: order-service
+
+                  # ═══════════════════════════════════════════════════════════
+                  # CHAQUE SERVICE SA BASE, ET C'EST CETTE ENTRÉE QUI LE FAIT.
+                  #
+                  # Le Job `postgres-databases` crée les bases du §10 depuis le
+                  # début. Rien ne les BRANCHAIT : le Secret partagé ne portait
+                  # qu'une seule clé `CONNECTIONSTRINGS__DEFAULT`, montée à
+                  # l'identique par `envFrom` sur tous les pods. Les bases
+                  # étaient donc créées et aucun service ne pointait la sienne —
+                  # les treize auraient migré dans la même.
+                  #
+                  # Une entrée `env` explicite l'emporte sur `envFrom` : le nom
+                  # de variable reste celui que .NET attend, et la VALEUR vient
+                  # d'une clé propre au service. Le mot de passe ne quitte pas le
+                  # Secret, donc rien de sensible n'entre dans Git.
+                  #
+                  # Base « hba_order » : celle qu'emploie déjà le compose de
+                  # développement. La renommer ici ferait diverger les deux
+                  # environnements pour un gain cosmétique.
+                  # ═══════════════════════════════════════════════════════════
+                  - name: CONNECTIONSTRINGS__DEFAULT
+                    valueFrom:
+                      secretKeyRef:
+                        name: hba-platform
+                        key: CONNECTIONSTRINGS__ORDER
+
+                  # ═══════════════════════════════════════════════════════════
+                  # L'IDENTITÉ DE CET HÔTE, ET D'AUCUN AUTRE.
+                  #
+                  # Le nom présenté aux autres services est celui de l'assemblage
+                  # d'entrée — « HBA.Order.Api » — car `Internal:ServiceName`
+                  # n'est pas posé (la variable `SERVICE_NAME` ci-dessus est un
+                  # autre réglage, elle ne l'alimente pas). La clé du Secret suit
+                  # donc ce nom, exactement comme l'écrit
+                  # `scripts/generer-identites-internes.sh`.
+                  #
+                  # Se tromper de clé ici ne casse RIEN au démarrage : le pod
+                  # part, signe sous une identité qui n'est pas la sienne, et
+                  # tous ses appels reviennent en `Unauthenticated`.
+                  # ═══════════════════════════════════════════════════════════
+                  - name: INTERNAL__PRIVATEKEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: hba-identites-internes
+                        key: INTERNAL_KEY_HBA_ORDER_API

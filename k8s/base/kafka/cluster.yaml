@@ -35,9 +35,9 @@ spec:
     metadataVersion: 3.8-IV0
 
     listeners:
-      # LISTENER INTERNE UNIQUEMENT (§5 : Kafka reste privé).
+      # LISTENER INTERNE UNIQUEMENT (5 : Kafka reste privé).
       #
-      # Aucun listener `external` : le §1 pose que seuls l'Ingress et les
+      # Aucun listener `external` : le 1 pose que seuls l'Ingress et les
       # endpoints explicitement publics sortent. Un listener externe ouvrirait le
       # bus d'événements de toute la plateforme.
       - name: plain
@@ -46,7 +46,7 @@ spec:
         tls: false
 
     config:
-      # Les trois valeurs du §9. Les écrire ici plutôt que par topic évite qu'un
+      # Les trois valeurs du 9. Les écrire ici plutôt que par topic évite qu'un
       # topic créé à la volée hérite de garanties plus faibles sans qu'on le voie.
       default.replication.factor: 3
       min.insync.replicas: 2
@@ -54,7 +54,7 @@ spec:
       transaction.state.log.replication.factor: 3
       transaction.state.log.min.isr: 2
 
-      # lz4 : le §9 laisse le choix entre lz4 et zstd. lz4 compresse moins mais
+      # lz4 : le 9 laisse le choix entre lz4 et zstd. lz4 compresse moins mais
       # coûte nettement moins de CPU — ce qui compte sur des nœuds partagés avec
       # quinze services applicatifs.
       compression.type: lz4
@@ -67,12 +67,47 @@ spec:
         cpu: "2000m"
         memory: "2Gi"
 
-    storage:
-      type: persistent-claim
-      size: 30Gi
-      deleteClaim: false
+    # `spec.kafka.storage` A DÉMÉNAGÉ VERS `node-pool.yaml`.
+    #
+    # En mode `node-pools: enabled`, l'opérateur lit le stockage sur le pool et
+    # ignore celui déclaré ici. La déclaration restait donc visible, cohérente
+    # en apparence, et sans effet — le genre d'écart qu'aucune erreur ne
+    # rapporte.
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # DEUX ÉTIQUETTES, ET IL FAUT LES DEUX. LES PODS N'EN AVAIENT AUCUNE.
+    #
+    # Le namespace est en `deny-all`. Sans étiquette, les pods de broker étaient
+    # invisibles des deux politiques qui ouvrent quoi que ce soit :
+    #
+    #   • `app.kubernetes.io/part-of: hba-express` autorise les services à
+    #     SORTIR vers ces pods (`allow-intra-namespace`, egress).
+    #   • `hba.express/role: datastore` autorise l'ENTRÉE sur TOUS les ports
+    #     (`datastores-accept-hba-only`).
+    #
+    # LA SECONDE N'EST PAS FACULTATIVE. `allow-intra-namespace` n'ouvre en
+    # entrée que 8080 et 9090 — les ports des services applicatifs. Poser la
+    # seule étiquette `part-of` laisserait le 9092 fermé, et le symptôme serait
+    # identique à l'absence totale d'étiquette : un délai d'attente. C'est
+    # exactement le marquage que portent déjà redis et minio.
+    # ═══════════════════════════════════════════════════════════════════════
+    template:
+      pod:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: hba-express
+            hba.express/role: datastore
 
   entityOperator:
+    # Les opérateurs de topics et d'utilisateurs parlent au cluster comme
+    # n'importe quel client : il leur faut la sortie, donc `part-of`. Ils
+    # n'exposent rien, donc pas de `datastore`.
+    template:
+      pod:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: hba-express
+
     # C'EST LUI QUI CRÉE LES TOPICS DÉCLARÉS DANS `topics.yaml`.
     #
     # Sans `topicOperator`, les `KafkaTopic` sont des objets sans effet : les

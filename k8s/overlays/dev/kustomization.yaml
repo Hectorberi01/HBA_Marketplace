@@ -89,6 +89,20 @@ patches:
         path: /spec/instances
         value: 1
 
+  # LE POOL DESCEND À 1 BROKER, EN MÊME TEMPS QUE LES FACTEURS CI-DESSUS.
+  #
+  # Les deux réglages sont appariés : `default.replication.factor: 1` sur un
+  # pool resté à 3 gâcherait deux machines, et un pool à 1 avec un facteur 3
+  # laisserait tous les topics sous-répliqués — les partitions restent alors
+  # sans leader, et les producteurs bloquent sans message qui nomme la cause.
+  - target:
+      kind: KafkaNodePool
+      name: broker
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
   - target:
       kind: Kafka
       name: kafka
@@ -129,34 +143,90 @@ patches:
         path: /spec/tls/0/hosts/0
         value: api.dev.hba-express.example
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MÊME REGISTRE QU'EN STAGING, ET LES SIX NOMS PÉRIMÉS SONT PARTIS.
+#
+# Cette liste nommait `commerce-service`, `communication-service`,
+# `engagement-service`, `financial-service`, `food-service` et
+# `merchant-service` — six images que le dépôt ne construit plus. Kustomize ne
+# s'en plaint pas : une entrée `images` qui ne correspond à aucun conteneur est
+# ignorée en silence. Les six Deployments renommés seraient donc partis en
+# `latest`, sans registre.
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE CHEMIN VIENT DE LA CI, PAS D'UNE CONVENTION INVENTÉE ICI.
+#
+# `ci.yml` publie sous `ghcr.io/<propriétaire>/<service>:<sha>` — sans segment
+# intermédiaire. Une première version de ce bloc portait `ghcr.io/…/hba/<service>`
+# et un propriétaire déduit d'une adresse e-mail : deux chemins qui n'existent
+# nulle part. Les huit pods seraient partis en `ImagePullBackOff` sur un
+# « denied », qui se lit comme un problème de droits et non comme un chemin faux.
+#
+# LE PROPRIÉTAIRE EST EN MINUSCULES. La grammaire OCI l'impose ; `Hectorberi01`
+# est refusé par docker avant même d'atteindre le registre.
+#
+# LE TAG `staging` EST MOUVANT, ET C'EST ASSUMÉ ICI. Le §13 impose l'immuabilité
+# en PRODUCTION, où `cd.yml` pose le SHA d'une image déjà validée. En staging on
+# republie sous le même tag à chaque intégration — d'où le `imagePullPolicy:
+# Always` ci-dessus, sans lequel kubelet réutiliserait la couche déjà présente.
+# ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE TAG EST `main`, PARCE QUE C'EST CE QUE LA CI PUBLIE.
+#
+# `ci.yml` pose DEUX tags sur chaque poussée vers `main` : le SHA du commit, et
+# `main`. Rien d'autre. Cet overlay portait `newTag: "staging"` — un tag que rien
+# ne produit : les huit pods auraient cherché une image inexistante et le message,
+# « denied », se lit comme un problème de droits.
+#
+# `main` SUIT LA BRANCHE, ET C'EST CE QU'ON VEUT D'UN STAGING. Chaque intégration
+# republie sous ce tag ; `imagePullPolicy: Always` (posé plus bas) fait qu'un
+# `kubectl rollout restart` tire réellement la nouvelle couche. Sans lui, kubelet
+# réutiliserait celle du nœud et annoncerait un déploiement réussi de l'ANCIENNE
+# image.
+#
+# LA PRODUCTION NE FAIT PAS CELA. Son overlay garde un placeholder de promotion :
+# `cd.yml` y écrit le SHA d'une image qui a déjà tourné ici. Le §13 veut une image
+# immuable, et un tag mouvant en production rendrait le rollback sans objet.
+# ═══════════════════════════════════════════════════════════════════════════════
 images:
-  - name: hba/api-gateway
-    newTag: "dev"
   - name: hba/identity-service
-    newTag: dev
+    newName: ghcr.io/hectorberi01/identity-service
+    newTag: "main"
   - name: hba/user-service
-    newTag: dev
+    newName: ghcr.io/hectorberi01/user-service
+    newTag: "main"
   - name: hba/media-service
-    newTag: dev
-  - name: hba/communication-service
-    newTag: dev
-  - name: hba/financial-service
-    newTag: dev
-  - name: hba/engagement-service
-    newTag: dev
-  - name: hba/catalog-service
-    newTag: dev
-  - name: hba/merchant-service
-    newTag: dev
-  - name: hba/inventory-service
-    newTag: dev
-  - name: hba/commerce-service
-    newTag: dev
-  - name: hba/order-service
-    newTag: dev
-  - name: hba/food-service
-    newTag: dev
-  - name: hba/delivery-service
-    newTag: dev
+    newName: ghcr.io/hectorberi01/media-service
+    newTag: "main"
+  - name: hba/notification-service
+    newName: ghcr.io/hectorberi01/notification-service
+    newTag: "main"
+  - name: hba/payment-service
+    newName: ghcr.io/hectorberi01/payment-service
+    newTag: "main"
   - name: hba/promotion-service
-    newTag: dev
+    newName: ghcr.io/hectorberi01/promotion-service
+    newTag: "main"
+  - name: hba/review-service
+    newName: ghcr.io/hectorberi01/review-service
+    newTag: "main"
+  - name: hba/catalog-service
+    newName: ghcr.io/hectorberi01/catalog-service
+    newTag: "main"
+  - name: hba/cart-service
+    newName: ghcr.io/hectorberi01/cart-service
+    newTag: "main"
+  - name: hba/inventory-service
+    newName: ghcr.io/hectorberi01/inventory-service
+    newTag: "main"
+  - name: hba/order-service
+    newName: ghcr.io/hectorberi01/order-service
+    newTag: "main"
+  - name: hba/seller-service
+    newName: ghcr.io/hectorberi01/seller-service
+    newTag: "main"
+  - name: hba/return-refund-service
+    newName: ghcr.io/hectorberi01/return-refund-service
+    newTag: "main"
+  - name: hba/api-gateway
+    newName: ghcr.io/hectorberi01/api-gateway
+    newTag: "main"

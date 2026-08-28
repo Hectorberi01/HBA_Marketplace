@@ -87,6 +87,28 @@ spec:
             - name: ASPNETCORE_ENVIRONMENT
               value: Production
 
+            # ═══════════════════════════════════════════════════════════════
+            # LE REGISTRE DES CLÉS PUBLIQUES — IDENTIQUE POUR TOUS LES HÔTES.
+            #
+            # Il vit donc ici, dans le gabarit, et non dans les quatorze
+            # kustomizations. La clé PRIVÉE, elle, est propre à chaque hôte :
+            # elle est posée par le patch de `services/<nom>/kustomization.yaml`.
+            #
+            # `secretKeyRef` ET NON `envFrom`. Ce Secret contient les clés
+            # privées des quatorze hôtes ; le monter en bloc les donnerait
+            # toutes à chaque conteneur. Ici, chaque pod ne reçoit que les deux
+            # valeurs qui le concernent.
+            #
+            # Registre VIDE = le serveur refuse TOUT appel entrant en
+            # `FailedPrecondition`. Ce n'est pas une panne du service appelé :
+            # c'est ce Secret qui n'a pas été rempli.
+            # ═══════════════════════════════════════════════════════════════
+            - name: INTERNAL__PUBLICKEYS
+              valueFrom:
+                secretKeyRef:
+                  name: hba-identites-internes
+                  key: INTERNAL_PUBLIC_KEYS
+
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

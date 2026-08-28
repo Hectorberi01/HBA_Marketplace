@@ -1,0 +1,55 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE POOL DE NŒUDS — SANS LUI, STRIMZI NE CRÉE AUCUN BROKER.
+#
+# CE FICHIER N'EXISTAIT PAS, ET RIEN NE LE SIGNALAIT DANS LE DÉPÔT.
+#
+# `cluster.yaml` porte `strimzi.io/node-pools: enabled`. Dans ce mode, le nombre
+# de brokers et leur stockage ne viennent PLUS de `spec.kafka` : ils viennent
+# d'une ressource `KafkaNodePool`. Aucune n'était rendue par les overlays.
+#
+# L'opérateur ne plante pas : il place le Kafka en `NotReady` avec
+# « KafkaNodePools are enabled, but no KafkaNodePools found ». Aucun pod de
+# broker n'apparaît, `kubectl get pods` ne montre donc rien d'anormal — il ne
+# montre rien du tout — et les producteurs des vingt-trois services retentent
+# indéfiniment sur un service qui n'existe pas.
+#
+# LE LABEL `strimzi.io/cluster` EST CE QUI RATTACHE LE POOL AU CLUSTER.
+# Sans lui, ou avec une valeur qui ne correspond pas au `metadata.name` de
+# `cluster.yaml`, le pool est ignoré en silence : même symptôme qu'aucun pool.
+#
+# `roles: [controller, broker]` — LES DEUX RÔLES SUR LES MÊMES NŒUDS.
+#
+# En KRaft, le quorum de contrôleurs peut vivre sur des nœuds dédiés. Les
+# séparer imposerait un second pool, donc au minimum trois machines de plus pour
+# un quorum. Sur cette plateforme, un pool mixte est le bon compromis — c'est ce
+# que Strimzi recommande en dessous de la dizaine de brokers.
+#
+# TROIS RÉPLIQUES ICI, ET C'EST DÉLIBÉRÉ.
+#
+# `cluster.yaml` demande `default.replication.factor: 3` et
+# `min.insync.replicas: 2` : ces garanties exigent trois brokers. Les overlays
+# `dev` et `staging` descendent le pool à 1 en même temps que ces facteurs —
+# comme ils le faisaient déjà pour la configuration. Laisser 3 en base et 1 dans
+# les overlays garde les deux réglages appariés au même endroit.
+#
+# LE STOCKAGE A ÉGALEMENT DÉMÉNAGÉ ICI.
+#
+# `spec.kafka.storage` de `cluster.yaml` n'est plus lu en mode node-pools : la
+# déclaration y restait visible et sans effet. Elle vit désormais où l'opérateur
+# la lit.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: broker
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  replicas: 3
+  roles:
+    - controller
+    - broker
+  storage:
+    type: persistent-claim
+    size: 30Gi
+    deleteClaim: false

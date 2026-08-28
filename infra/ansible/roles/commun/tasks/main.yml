@@ -54,6 +54,63 @@
     fstype: swap
     state: absent
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES MODULES AVANT LES SYSCTL, SINON LA MOITIÉ DES CLÉS N'EXISTE PAS.
+#
+# CETTE ÉTAPE MANQUAIT, ET LE RÔLE ÉCHOUAIT SUR UNE MACHINE NEUVE.
+#
+# `net.bridge.bridge-nf-call-iptables` n'est pas une clé « toujours là » : elle
+# n'apparaît sous /proc/sys que lorsque le module `br_netfilter` est chargé. Sur
+# une image fraîche, aucun pont n'existe encore, donc le module non plus, et
+# `sysctl` répond :
+#
+#   sysctl: cannot stat /proc/sys/net/bridge/bridge-nf-call-iptables:
+#   No such file or directory
+#
+# LE MESSAGE DÉSIGNE UN FICHIER, PAS UN MODULE. On cherche donc du côté des
+# permissions ou d'un noyau exotique, alors qu'il manque un `modprobe`.
+#
+# L'ÉCHEC EN CASCADE, EN PRIME. `ansible.posix.sysctl` recharge TOUT le fichier
+# à chaque élément de la boucle : les clés valides passent, mais la commande
+# renvoie une erreur à cause des deux clés absentes — et les six éléments
+# échouent l'un après l'autre en répétant la même cause.
+#
+# `overlay` EST LÀ POUR containerd. k3s l'embarque et charge le module lui-même
+# au démarrage ; le poser ici le rend explicite et disponible AVANT, ce qui évite
+# un premier démarrage plus lent et une ligne d'erreur dans ses journaux.
+#
+# CE QUE CETTE TÂCHE NE COUVRE PAS : un noyau compilé sans ces modules — un
+# conteneur LXC non privilégié, par exemple. `modprobe` échouerait alors, et
+# c'est le bon échec : k3s ne fonctionnerait pas davantage sur cette machine.
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEUX TÂCHES DU SOCLE PLUTÔT QUE `community.general.modprobe`.
+#
+# Ce module ferait les deux d'un coup, mais il ajouterait une dépendance à
+# `community.general` — la collection qui vient précisément de retirer le plugin
+# d'affichage employé par `ansible.cfg`, cassant le playbook sans qu'une ligne du
+# dépôt ait changé. `modprobe` et un fichier de configuration n'ont pas besoin
+# d'elle.
+- name: Charger les modules noyau maintenant
+  ansible.builtin.command: "modprobe {{ item }}"
+  changed_when: false
+  loop:
+    - overlay
+    - br_netfilter
+
+# `modprobe` seul ne survit pas au redémarrage. Sans ce fichier, les sysctl
+# posés plus bas seraient rejetés au prochain boot — et la machine repartirait
+# avec des NetworkPolicies partiellement inopérantes, sans erreur au démarrage.
+- name: Charger ces modules à chaque démarrage
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/kubernetes.conf
+    content: |
+      # Posé par Ansible — rôle `commun`. Voir tasks/main.yml.
+      overlay
+      br_netfilter
+    owner: root
+    group: root
+    mode: "0644"
+
 - name: Poser les paramètres noyau requis par Kubernetes
   ansible.posix.sysctl:
     name: "{{ item.nom }}"
@@ -76,10 +133,27 @@
     - { nom: fs.inotify.max_user_watches, valeur: "524288" }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SSH (§19)
+# SSH (19)
 # ─────────────────────────────────────────────────────────────────────────────
 
-- name: Interdire l'authentification par mot de passe et la connexion root
+# LE NOM DE CETTE TÂCHE ANNONÇAIT PLUS QUE CE QU'ELLE FAIT.
+#
+# Elle s'appelait « Interdire l'authentification par mot de passe ET LA CONNEXION
+# ROOT ». La directive posée est `PermitRootLogin prohibit-password`, qui
+# AUTORISE root par clé et refuse seulement le mot de passe. Lu de travers, ce
+# nom fait croire que l'accès root est fermé — alors que l'inventaire de staging
+# s'y connecte précisément en root.
+#
+# C'EST DÉLIBÉRÉ ET NÉCESSAIRE ICI : `ansible_user: root`. Poser
+# `PermitRootLogin no` couperait Ansible de la machine au jeu suivant, et le
+# playbook ne pourrait plus jamais y revenir.
+#
+# `PasswordAuthentication no` REND LA CLÉ OBLIGATOIRE. Si votre seul accès est un
+# mot de passe, ce fichier vous ferme la porte au rechargement de sshd — et il
+# n'y a pas de retour en arrière sans console de secours du fournisseur.
+# Vérifiez `ssh -o PasswordAuthentication=no root@<ip> true` AVANT de lancer le
+# playbook.
+- name: Durcir sshd — clé obligatoire, root par clé seulement
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/10-hba.conf
     mode: "0644"

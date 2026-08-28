@@ -1,22 +1,60 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Les quatorze services applicatifs. La passerelle et les BFF vivent dans
-# `../apps` : ils sont les seuls à porter un Ingress, et leur dimensionnement
-# suit le trafic public plutôt que la charge interne (§4).
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES TREIZE SERVICES DES DOMAINES « common » ET « marketplace ».
+#
+# CETTE LISTE EN PORTAIT QUATORZE, ET SIX N'EXISTAIENT PLUS.
+#
+# `commerce-service`, `communication-service`, `engagement-service`,
+# `financial-service`, `food-service` et `merchant-service` étaient nommés ici
+# alors que le dépôt ne construit aucune image de ce nom depuis le redécoupage.
+# À l'inverse, quinze processus réellement construits n'avaient aucun manifeste.
+# Un `kubectl apply` aurait créé treize Deployments dont six auraient cherché des
+# images inexistantes — `ImagePullBackOff`, sur des noms que personne ne
+# reconnaîtrait.
+#
+# Renommés : commerce → cart, communication → notification, engagement → review,
+# financial → payment, merchant → seller. Ajouté : return-refund.
+#
+# ═══ CE QUE CETTE LISTE NE COUVRE PAS, ET CE QUE ÇA DONNE ═══
+#
+# Les domaines `delivery` (delivery, driver, dispatch, delivery-pricing,
+# proof-of-delivery, route, tracking) et `food` (restaurant, food-cart,
+# food-order) ne sont PAS ici : ils font l'objet d'un second lot.
+#
+# CONSÉQUENCE À CONNAÎTRE, ET ELLE EST VISIBLE DÈS LE PREMIER DÉPLOIEMENT : la
+# passerelle déclare leurs adresses en `[Required, Url]` — elle démarrera donc
+# normalement, mais chaque route vers ces dix services répondra 502. Ce n'est pas
+# une panne à chercher, c'est le périmètre du lot. Les écrans concernés de la
+# console d'administration l'annoncent de la même façon.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ═══ CE PREMIER DÉPLOIEMENT NE PORTE QUE `common` ═══
+#
+# Sept services. `marketplace` suit immédiatement après : ses six entrées sont
+# écrites ci-dessous, en commentaire, et leurs dossiers existent déjà — les
+# décommenter est le seul geste à faire. Ses six bases sont créées elles aussi.
+#
+# POURQUOI DÉCOUPER ENCORE. Sept Deployments qui démarrent contre une base neuve,
+# c'est sept endroits où un défaut de configuration peut se voir. Treize d'un coup
+# double le bruit sans rien apprendre de plus — et le premier déploiement sert à
+# APPRENDRE, pas à aller vite.
 
 resources:
+  # ── common ────────────────────────────────────────────────────────────────
   - identity-service
   - user-service
   - media-service
-  - communication-service
-  - financial-service
-  - engagement-service
-  - catalog-service
-  - merchant-service
-  - inventory-service
-  - commerce-service
-  - order-service
-  - food-service
-  - delivery-service
+  - notification-service
+  - payment-service
   - promotion-service
+  - review-service
+
+  # ── marketplace — lot suivant, une ligne à décommenter chacune ─────────────
+  # - catalog-service
+  # - cart-service
+  # - inventory-service
+  # - order-service
+  # - seller-service
+  # - return-refund-service

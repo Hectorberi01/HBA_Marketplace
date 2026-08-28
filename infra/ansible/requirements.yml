@@ -1,0 +1,38 @@
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES COLLECTIONS DONT CES RÔLES DÉPENDENT.
+#
+# CE FICHIER N'EXISTAIT PAS, ET LE PLAYBOOK ÉCHOUAIT SUR UNE MACHINE NEUVE.
+#
+# `roles/commun` emploie `ansible.posix.sysctl` et `ansible.posix.mount` — deux
+# modules qui ne font PAS partie d'`ansible-core`. Sur un poste où Ansible a été
+# installé par `pip install ansible-core` (le cas courant), le playbook s'arrête
+# net :
+#
+#     couldn't resolve module/action 'ansible.posix.mount'
+#     Origin: roles/commun/tasks/main.yml:51:3
+#
+# LE MESSAGE DÉSIGNE UNE LIGNE DU RÔLE, ET LE RÔLE EST CORRECT. On va lire le
+# fichier, on n'y trouve rien — parce que ce qui manque n'est pas dans le
+# dépôt, c'est sur la machine.
+#
+# Le défaut ne se voit pas partout : `pip install ansible` (le paquet complet)
+# embarque la collection, et le playbook passe. D'où un « ça marche chez moi »
+# parfaitement sincère.
+#
+# ═══ INSTALLATION ═══
+#
+#     cd infra/ansible
+#     ansible-galaxy collection install -r requirements.yml
+#
+# ═══ POURQUOI UN PLANCHER ET NON UNE VERSION FIGÉE ═══
+#
+# Le dépôt épingle k3s à une version exacte, parce que deux nœuds provisionnés à
+# trois semaines d'écart doivent porter le même Kubernetes. Ici l'enjeu est
+# différent : la collection ne tourne pas sur les serveurs, elle sert à générer
+# les commandes depuis le poste. Un plancher suffit, et figer imposerait une mise
+# à jour manuelle à chaque montée d'Ansible.
+# ═══════════════════════════════════════════════════════════════════════════════
+collections:
+  - name: ansible.posix
+    version: ">=1.5.4"

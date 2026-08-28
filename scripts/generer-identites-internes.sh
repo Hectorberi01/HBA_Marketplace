@@ -24,7 +24,25 @@
 #
 # Usage :
 #   scripts/generer-identites-internes.sh [repertoire-de-sortie]
-#   scripts/generer-identites-internes.sh --vers-env infra/docker/.env
+#   scripts/generer-identites-internes.sh --vers-env <fichier.env>
+#
+# OU VONT CES CLES, AUJOURD'HUI.
+#
+# Cet en-tete nommait `infra/docker/.env`. Ce dossier a ete retire : la pile
+# qui le lisait n'etait lancee par personne.
+#
+# La pile de developpement N'A PAS BESOIN de ces cles : elle pose
+# `INTERNAL__IDENTITESNONSIGNEES: "true"`, et chaque hote presente alors son
+# nom nu. Ce drapeau est refuse hors Development au demarrage meme
+# (`IdentiteInterne.RefuserLeModeNonSigneHorsDeveloppement`).
+#
+# Le destinataire reel est donc le Secret `hba-platform` du cluster, sous les
+# cles `INTERNAL__PRIVATEKEY` (une par service, propre a chaque hote) et
+# `INTERNAL__PUBLICKEYS` (le registre, identique partout).
+#
+# CE QUE CE SCRIPT NE FAIT PAS : les poser. Il ecrit un `.env` ; le passage au
+# Secret reste manuel (`kubectl create secret`, hors GitOps — voir
+# docs/DEPLOIEMENT.md §3.7).
 #
 # LA SECONDE FORME EXISTE PARCE QUE LA PREMIERE SE RECOPIE MAL.
 #
@@ -122,8 +140,12 @@ echo "Écrit : $SORTIE/identites.env"
 if [[ -z "$CIBLE_ENV" ]]; then
   echo
   echo "Reste à faire :"
-  echo "   1. copier le contenu dans le .env de infra/docker/ ;"
-  echo "   2. redémarrer les hôtes ENSEMBLE — voir l'encadré de compose.services.yml."
+  echo "   1. porter INTERNAL__PRIVATEKEY (par service) et INTERNAL__PUBLICKEYS"
+  echo "      (identique partout) dans le Secret hba-platform du cluster ;"
+  echo "   2. redémarrer les hôtes ENSEMBLE. Un hôte qui tourne encore avec"
+  echo "      l'ancien registre rejette les nouveaux appelants en Unauthenticated,"
+  echo "      et un hôte déjà redémarré avec la nouvelle clé est rejeté par les"
+  echo "      anciens : la rotation partielle coupe les appels dans les deux sens."
   exit 0
 fi
 
@@ -155,4 +177,5 @@ echo "Mis à jour : $CIBLE_ENV"
 echo
 echo "Reste à faire : redémarrer les hôtes ENSEMBLE."
 echo "Un déploiement service par service produit une fenêtre d'Unauthenticated"
-echo "croisés — voir l'encadré d'identity-service dans compose.services.yml."
+echo "croisés : l'ancien registre ne connaît pas les nouvelles clés, et"
+echo "réciproquement. Le renvoi allait vers compose.services.yml, retiré du dépôt."

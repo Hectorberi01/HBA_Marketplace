@@ -1,0 +1,63 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# COMPTE DE SERVICE POUR UNE CONSOLE DE CLUSTER — EN LECTURE SEULE.
+#
+# À appliquer À LA MAIN, sur le cluster où l'on veut la console :
+#
+#     kubectl apply -f k8s/outils/acces-lecture.yaml
+#
+# Puis un jeton COURT, à coller dans la console :
+#
+#     kubectl -n hba-outils create token console --duration 8h
+#
+# ═══ UN JETON À DURÉE LIMITÉE, ET NON UN SECRET PERMANENT ═══
+#
+# Avant Kubernetes 1.24, un ServiceAccount portait un Secret de jeton SANS
+# expiration : il suffisait de le lire une fois pour garder l'accès. `create
+# token` rend un jeton daté — huit heures ici, le temps d'une session de travail.
+# Passé ce délai il ne vaut plus rien, y compris pour qui l'aurait recopié.
+#
+# Ne pas rallonger « pour ne plus avoir à le refaire » : c'est exactement ce qui
+# transforme un jeton de session en identifiant permanent oublié dans un onglet.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hba-outils
+  labels:
+    app.kubernetes.io/part-of: hba-express
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: console
+  namespace: hba-outils
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# `view` ET NON `cluster-admin`. LA DIFFÉRENCE EST CELLE-CI :
+#
+# `view` est un ClusterRole INTÉGRÉ à Kubernetes — on ne l'écrit pas, on s'y lie.
+# Il donne les pods, leurs journaux, les événements, les Deployments, les
+# Services, les ConfigMaps.
+#
+# IL EXCLUT `secrets`, DÉLIBÉRÉMENT, ET C'EST LA PROPRIÉTÉ QU'ON VIENT CHERCHER.
+# La console montrera que `hba-platform` existe ; elle n'en montrera pas les
+# valeurs. Les quatorze chaînes de connexion et la clé de signature JWT n'ont
+# aucune raison de traverser un navigateur.
+#
+# `edit` ou `cluster-admin` rendent la console capable d'agir — et de casser. Si
+# c'est ce qu'on veut, on le décide ici, en connaissance de cause, et on le note.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: console-lecture
+  annotations:
+    hba.express/portee: "lecture seule — view exclut les secrets"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: console
+    namespace: hba-outils

@@ -1,0 +1,64 @@
+# Copier en `staging.yml` — ignoré par Git.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+# UN SEUL NŒUD DE CLUSTER, ET UNE BASE QUI N'EN FAIT PAS PARTIE.
+#
+# `staging.yml.example` décrit deux nœuds sur un réseau privé OVH. Cette variante
+# décrit la topologie réellement en place : UN VPS applicatif qui porte k3s, et
+# un SECOND VPS qui porte PostgreSQL et que ce playbook ne doit jamais toucher.
+#
+# ═══ LE VPS DE BASE N'ENTRE PAS DANS CET INVENTAIRE. JAMAIS. ═══
+#
+# L'y ajouter ferait tourner le rôle `commun` dessus, donc sa politique nftables :
+# tout est jeté en entrée sauf 22, 80, 443 et l'interface nommée par
+# `interface_privee`. Si le lien privé est un tunnel WireGuard — interface `wg0`
+# — et que cette variable vaut `ens4`, alors 5432 devient injoignable et
+# PostgreSQL paraît en panne alors qu'il tourne parfaitement.
+#
+# Le VPS de base se configure à la main : docs/DEPLOIEMENT.md §3.4.
+#
+# ═══ LE GROUPE `agents` RESTE, VIDE ═══
+#
+# Le playbook déclare un jeu `hosts: agents`. Un groupe vide est sauté proprement
+# — vérifié : les jeux 1, 2 et 4 s'exécutent sur le nœud unique, le jeu 3 ne
+# correspond à personne et ne produit aucune erreur. Retirer le groupe
+# fonctionnerait aussi ; le garder rend l'ajout d'un second nœud trivial.
+#
+# ═══ `interface_privee` : LA VÉRIFIER, PAS LA SUPPOSER ═══
+#
+#   ssh ubuntu@<ip> ip -br addr
+#
+# Cette variable sert DEUX fois, et une valeur fausse casse les deux :
+#   • nftables accepte cette interface en bloc — s'y tromper ferme le lien privé ;
+#   • k3s la passe à `--flannel-iface` et annonce `ip_privee` comme adresse de
+#     nœud.
+#
+# SI LE LIEN PRIVÉ EST UN TUNNEL, RÉFLÉCHIR AVANT DE LE DONNER À k3s. Un nœud qui
+# annonce une adresse de tunnel dépend de ce tunnel pour exister : k3s démarré
+# avant `wg0` échoue, et une coupure du tunnel fait disparaître l'adresse du nœud.
+# Sur un cluster à un seul nœud, l'adresse publique de la machine est un choix
+# plus stable — nftables ferme déjà 6443 de ce côté.
+# ═══════════════════════════════════════════════════════════════════════════════
+---
+all:
+  vars:
+    ansible_user: ubuntu
+    environnement: staging
+
+    # À REMPLACER par ce que `ip -br addr` montre réellement.
+    interface_privee: ens4
+
+  children:
+    serveurs:
+      hosts:
+        hba-staging-app:
+          # ip_public — celle par laquelle Ansible se connecte en SSH.
+          ansible_host: 203.0.113.50
+          # Adresse annoncée par le nœud. Voir l'encadré ci-dessus avant d'y
+          # mettre une adresse de tunnel.
+          ip_privee: 203.0.113.50
+
+    # Vide tant qu'il n'y a qu'un nœud. Ajouter un hôte ici suffit à l'enrôler :
+    # le jeton d'enrôlement est lu dans les faits du serveur, pas recopié.
+    agents:
+      hosts: {}

@@ -1,9 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# LE SEUL OBJET DE TOUT `k8s/` QUI OUVRE QUELQUE CHOSE SUR INTERNET (§1, §6).
+# LE SEUL OBJET DE TOUT `k8s/` QUI OUVRE QUELQUE CHOSE SUR INTERNET.
 #
 # LE DOMAINE EST UN GABARIT. IL DOIT ÊTRE REMPLACÉ PAR OVERLAY.
 #
-# `api.hba-express.example` n'existe pas. Le §6 donne `api.hba-express.*` comme
+# `api.hba-express.example` n'existe pas. Le 6 donne `api.hba-express.*` comme
 # forme, pas comme valeur — et un domaine réel committé ici ferait pointer les
 # trois environnements au même endroit, ce que le §2 interdit explicitement
 # (« chaque environnement possède ses propres namespaces, secrets, bases »).
