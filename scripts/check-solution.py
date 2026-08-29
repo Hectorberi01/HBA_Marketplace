@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 ═══════════════════════════════════════════════════════════════════════════════
 LA SOLUTION RÉFÉRENCE-T-ELLE ENCORE CE QUI EXISTE ?
 
