@@ -91,6 +91,32 @@ set -uo pipefail
 # ═══════════════════════════════════════════════════════════════════════════
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# L'INTERPRÉTEUR PYTHON DES CONTRÔLES.
+#
+# `./scripts/preparer-outils.sh` pose un environnement virtuel dans `.venv/`,
+# parce que le Python de Homebrew refuse les installations globales (PEP 668).
+# S'il existe, on l'emploie ; sinon on retombe sur le `python3` du PATH.
+#
+# POURQUOI CE CHOIX EST FAIT ICI, ET NON LAISSÉ À CELUI QUI LANCE.
+#
+# Sans cette ligne, il faudrait penser à `source .venv/bin/activate` avant chaque
+# exécution. Personne n'y pense à tous les coups — et l'oubli ne casse rien : les
+# contrôles qui ont besoin de PyYAML s'annoncent simplement « ignorés ». Un
+# contrôle silencieusement sauté est exactement ce que ce fichier existe pour
+# empêcher.
+# ═══════════════════════════════════════════════════════════════════════════════
+if [ -x "$ROOT_DIR/.venv/bin/python3" ]; then
+  PYTHON="$ROOT_DIR/.venv/bin/python3"
+else
+  PYTHON="python3"
+  if ! python3 -c "import yaml" 2>/dev/null; then
+    echo "  PyYAML absent et aucun .venv — plusieurs contrôles seront ignorés." >&2
+    echo "  Poser l'environnement une fois : ./scripts/preparer-outils.sh" >&2
+    echo >&2
+  fi
+fi
 FAILED=0
 
 # LE NOMBRE DE CONTRÔLES SE COMPTE, IL NE S'ÉCRIT PAS.
@@ -141,7 +167,7 @@ check_connection_strings() {
 # `HBA.sln` a cassé le build avec MSB5023 — vingt lignes d'imbrication laissées
 # derrière des projets retirés — pendant que les quinze autres contrôles
 # passaient. Zéro fichier C# en cause. Voir l'en-tête de check-solution.py.
-run "Cohérence de la solution"     python3 "$ROOT_DIR/scripts/check-solution.py"
+run "Cohérence de la solution"     "$PYTHON" "$ROOT_DIR/scripts/check-solution.py"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # JUSTE APRÈS LA SOLUTION, ET C'EST VOLONTAIRE : LES DEUX SE COMPLÈTENT.
@@ -158,25 +184,25 @@ run "Cohérence de la solution"     python3 "$ROOT_DIR/scripts/check-solution.py
 #
 # Celui-ci part des `.csproj` du DISQUE, sans passer par aucune solution.
 # ═══════════════════════════════════════════════════════════════════════════════
-run "Références de projet"         python3 "$ROOT_DIR/scripts/check-refs.py"
-run "Structure des fichiers C#"    python3 "$ROOT_DIR/scripts/check-braces.py"
-run "Dépendances non résolues"     python3 "$ROOT_DIR/scripts/check-di.py"          "$@"
-run "Types hors portée"            python3 "$ROOT_DIR/scripts/check-usings.py"      "$@"
-run "Fermeture des Dockerfiles"    python3 "$ROOT_DIR/scripts/check-dockerfiles.py" "$@"
-run "Migrations à froid"           python3 "$ROOT_DIR/scripts/check-migrations.py"  "$@"
+run "Références de projet"         "$PYTHON" "$ROOT_DIR/scripts/check-refs.py"
+run "Structure des fichiers C#"    "$PYTHON" "$ROOT_DIR/scripts/check-braces.py"
+run "Dépendances non résolues"     "$PYTHON" "$ROOT_DIR/scripts/check-di.py"          "$@"
+run "Types hors portée"            "$PYTHON" "$ROOT_DIR/scripts/check-usings.py"      "$@"
+run "Fermeture des Dockerfiles"    "$PYTHON" "$ROOT_DIR/scripts/check-dockerfiles.py" "$@"
+run "Migrations à froid"           "$PYTHON" "$ROOT_DIR/scripts/check-migrations.py"  "$@"
 
 # APRÈS LES MIGRATIONS, PARCE QU'IL EN DÉPEND. Un contexte qui déclare
 # `KeepsAuditTrail => true` sans que la table existe ne casse ni la compilation ni
 # le démarrage : il casse le PREMIER GESTE MÉTIER. Voir l'en-tête du script.
-run "Journal d'audit"              python3 "$ROOT_DIR/scripts/check-audit-trail.py"
+run "Journal d'audit"              "$PYTHON" "$ROOT_DIR/scripts/check-audit-trail.py"
 run "Chaînes de connexion"         check_connection_strings
-run "Configuration et gardes"      python3 "$ROOT_DIR/scripts/check-config-and-guards.py" "$@"
-run "Adresses de service"          python3 "$ROOT_DIR/scripts/check-service-addresses.py"
+run "Configuration et gardes"      "$PYTHON" "$ROOT_DIR/scripts/check-config-and-guards.py" "$@"
+run "Adresses de service"          "$PYTHON" "$ROOT_DIR/scripts/check-service-addresses.py"
 
 # CINQ ENDROITS À TENIR D'ACCORD pour qu'un service soit joignable. Le manque
 # de l'un donne 503 ou 404 sur une configuration qui a l'air complète — c'est
 # arrivé quatre fois. Voir l'en-tête du script.
-run "Cohérence de la passerelle"   python3 "$ROOT_DIR/scripts/check-gateway.py"
+run "Cohérence de la passerelle"   "$PYTHON" "$ROOT_DIR/scripts/check-gateway.py"
 
 # UNE PERMISSION QUE PERSONNE N'INTERROGE EST UN DROIT SANS EFFET.
 #
@@ -189,7 +215,7 @@ run "Cohérence de la passerelle"   python3 "$ROOT_DIR/scripts/check-gateway.py"
 # une faute de frappe y compile, et la garde refuse alors TOUT LE MONDE. Voir
 # l'en-tête du script — il s'est lui-même trompé sur ce point à sa première
 # exécution, et c'est écrit là.
-run "Permissions vendeur"          python3 "$ROOT_DIR/scripts/check-permissions.py"
+run "Permissions vendeur"          "$PYTHON" "$ROOT_DIR/scripts/check-permissions.py"
 
 # UNE INTERFACE QUI CHANGE LAISSE SES DOUBLES DE TEST DERRIÈRE ELLE.
 #
@@ -202,7 +228,7 @@ run "Permissions vendeur"          python3 "$ROOT_DIR/scripts/check-permissions.
 # pour le même défaut en une seule séance. Ce contrôle l'ANTICIPE en deux
 # secondes. Il compare le NOM et l'ARITÉ, pas la signature complète — un type
 # changé à arité constante lui échappe, et c'est assumé : voir son en-tête.
-run "Implémentations d'interface" python3 "$ROOT_DIR/scripts/check-implementations.py"
+run "Implémentations d'interface" "$PYTHON" "$ROOT_DIR/scripts/check-implementations.py"
 
 # TROIS ENDROITS NOMMAIENT LES SUJETS KAFKA, ET AUCUN NE SE PARLAIT (ISSUE-001).
 #
@@ -214,7 +240,7 @@ run "Implémentations d'interface" python3 "$ROOT_DIR/scripts/check-implementati
 # `HbaTopics` a fermé les deux premières. Ce contrôle empêche la troisième de
 # re-diverger — et signale un service qui publie sans être au catalogue, ce qui
 # revient au même défaut par une autre porte.
-run "Sujets Kafka"                 python3 "$ROOT_DIR/scripts/check-kafka-topics.py"
+run "Sujets Kafka"                 "$PYTHON" "$ROOT_DIR/scripts/check-kafka-topics.py"
 
 # LA RÈGLE ADDITIVE DES CONTRATS D'ÉVÉNEMENTS (D32).
 #
@@ -225,7 +251,7 @@ run "Sujets Kafka"                 python3 "$ROOT_DIR/scripts/check-kafka-topics
 #
 # Ce contrôle compare les contrats à un instantané versionné : il ne rend pas la
 # rupture impossible, il la rend VISIBLE en revue.
-run "Contrats d'événements"         python3 "$ROOT_DIR/scripts/check-event-contracts.py"
+run "Contrats d'événements"         "$PYTHON" "$ROOT_DIR/scripts/check-event-contracts.py"
 
 # CELUI-CI CONSTRUIT VRAIMENT LES OVERLAYS KUSTOMIZE.
 #
@@ -237,7 +263,7 @@ run "Contrats d'événements"         python3 "$ROOT_DIR/scripts/check-event-con
 # Non bloquant si `kustomize` est absent : ce n'est pas une dépendance de
 # compilation, et faire échouer le lot d'un développeur qui ne déploie pas serait
 # le meilleur moyen de faire ignorer les six autres.
-run "Manifests Kubernetes"         python3 "$ROOT_DIR/scripts/check-k8s.py" "$@"
+run "Manifests Kubernetes"         "$PYTHON" "$ROOT_DIR/scripts/check-k8s.py" "$@"
 
 # UN WORKFLOW MAL FORME NE SE PLAINT PAS — IL NE TOURNE PAS.
 #
@@ -245,7 +271,7 @@ run "Manifests Kubernetes"         python3 "$ROOT_DIR/scripts/check-k8s.py" "$@"
 # aucune notification, aucun statut sur la PR. On croit la CI verte alors qu'elle
 # n'a jamais demarre. Le defaut rencontre en ecrivant `ci.yml` : un `- name:`
 # contenant « : » sans guillemets.
-run "Workflows GitHub"             python3 "$ROOT_DIR/scripts/check-workflows.py"
+run "Workflows GitHub"             "$PYTHON" "$ROOT_DIR/scripts/check-workflows.py"
 
 # L'INFRASTRUCTURE EST LE SEUL CODE QUE PERSONNE N'EXÉCUTE EN BOUCLE.
 #
@@ -258,7 +284,7 @@ run "Workflows GitHub"             python3 "$ROOT_DIR/scripts/check-workflows.py
 #
 # Non bloquant si `python-hcl2` ou PyYAML manquent : voir check-k8s.py, même
 # raison.
-run "Infrastructure (Terraform, Ansible, Compose)" python3 "$ROOT_DIR/scripts/check-infra.py"
+run "Infrastructure (Terraform, Ansible, Compose)" "$PYTHON" "$ROOT_DIR/scripts/check-infra.py"
 
 # INFORMATIF, ET NON BLOQUANT — d'où l'absence de `--strict`.
 #
@@ -269,7 +295,7 @@ run "Infrastructure (Terraform, Ansible, Compose)" python3 "$ROOT_DIR/scripts/ch
 # « Informatif » ne veut PAS dire « ne peut pas échouer » : une racine de code
 # introuvable sort en code 2 et fait rougir ce lot. C'est la seule chose que ce
 # contrôle refuse désormais de laisser passer en silence.
-run "Consommateurs d'événements"   python3 "$ROOT_DIR/scripts/check-event-consumers.py"
+run "Consommateurs d'événements"   "$PYTHON" "$ROOT_DIR/scripts/check-event-consumers.py"
 
 # INFORMATIF AUSSI — un bouchon peut être délibéré tant que personne ne
 # l'appelle depuis un autre service. C'est la LISTE qui compte : elle dit ce que
@@ -281,7 +307,7 @@ run "Consommateurs d'événements"   python3 "$ROOT_DIR/scripts/check-event-cons
 # script d'inventaire ne sait pas qui appelle quoi ; l'installeur, si.
 #
 # Comme ci-dessus : une racine introuvable sort en code 2, et là ce lot rougit.
-run "Bouchons gRPC"                python3 "$ROOT_DIR/scripts/check-grpc-stubs.py"
+run "Bouchons gRPC"                "$PYTHON" "$ROOT_DIR/scripts/check-grpc-stubs.py"
 
 # UN RPC APPELÉ SANS CORPS DE SERVEUR REND `UNIMPLEMENTED`, ET RIEN NE LE DIT.
 #
@@ -295,7 +321,7 @@ run "Bouchons gRPC"                python3 "$ROOT_DIR/scripts/check-grpc-stubs.p
 # génère une base serveur dont les membres non surchargés lèvent À L'EXÉCUTION :
 # il n'existait aucun moment, entre l'éditeur et la production, où quelque chose
 # s'en apercevait.
-run "RPC gRPC sans serveur"        python3 "$ROOT_DIR/scripts/check-grpc-rpc.py"
+run "RPC gRPC sans serveur"        "$PYTHON" "$ROOT_DIR/scripts/check-grpc-rpc.py"
 
 # UNE TABLE D'AUTORISATIONS QUI NE SUIT PAS LE CODE REDEVIENT « TOUT LE MONDE
 # PEUT TOUT ».
@@ -313,7 +339,7 @@ run "RPC gRPC sans serveur"        python3 "$ROOT_DIR/scripts/check-grpc-rpc.py"
 # Ce contrôle refuse les deux, et vérifie en prime que chaque
 # `Internal__ServiceName` posé dans un compose désigne un hôte connu — un nom
 # mal orthographié fermerait un service entier.
-run "Autorisations gRPC"           python3 "$ROOT_DIR/scripts/check-autorisations-grpc.py"
+run "Autorisations gRPC"           "$PYTHON" "$ROOT_DIR/scripts/check-autorisations-grpc.py"
 
 echo
 if [ "$FAILED" -eq 0 ]; then

@@ -376,6 +376,10 @@ public static class AutorisationsGrpc
             new[]
             {
                 "/hba.financial.v1.FinancialApi/RefundPayment",
+                "/hba.media.v1.MediaApi/CreateSignedUrl",
+                "/hba.media.v1.MediaApi/Get",
+                "/hba.media.v1.MediaApi/GetMany",
+                "/hba.media.v1.MediaApi/ListByOwner",
                 "/hba.merchant.v1.MerchantApi/CheckMerchantCapability",
                 "/hba.merchant.v1.MerchantApi/GetMemberAccess",
                 "/hba.merchant.v1.MerchantApi/GetSeller",

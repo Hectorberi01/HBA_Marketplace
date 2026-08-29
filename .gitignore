@@ -26,6 +26,9 @@ yarn-error.log*
 __pycache__/
 *.py[cod]
 .venv/
+# Et les dossiers qu'une création interrompue laisse derrière elle :
+# le pont ne sait pas supprimer, il déplace.
+.venv.*
 venv/
 
 # ---- IDE / OS ----

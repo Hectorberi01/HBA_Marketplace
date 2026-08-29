@@ -54,7 +54,7 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
         services.AddScoped<IPaymentGrpcClient, PaymentGrpcClient>();
         services.AddScoped<IInventoryGrpcClient, InventoryGrpcClient>();
         services.AddScoped<IDeliveryGrpcClient, DeliveryGrpcClient>();
-        services.AddScoped<IMediaGrpcClient, MediaGrpcClient>();
+        services.AddScoped<IMediaGrpcClient, MediaValidationClient>();
 
         // ═════════════════════════════════════════════════════════════════════
         // TROIS DE CES CINQ ADAPTATEURS NE PARLENT À PERSONNE.

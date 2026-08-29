@@ -54,20 +54,40 @@ def csproj_du_depot() -> list[str]:
     return sorted(trouves)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ON NE PASSE PLUS PAR UN ANALYSEUR XML, ET C'EST UN RECUL ASSUMÉ.
+#
+# `xml.etree.ElementTree` a besoin de `pyexpat`. Sur le Python 3.14 de Homebrew,
+# ce module est absent : le script mourait sur
+#
+#     ImportError: No module named expat; use SimpleXMLTreeBuilder instead
+#
+# — une trace de vingt lignes, au milieu de `check-all.sh`, pour un contrôle qui
+# n'a besoin que d'une chose : la valeur de l'attribut `Include` des
+# `ProjectReference`. Un contrôle qui ne tourne pas ne contrôle rien, et une
+# dépendance à un module optionnel de l'interpréteur est une raison de ne pas
+# tourner qu'on ne choisit pas.
+#
+# CE QUE CE RECUL COÛTE : une expression régulière ne comprend pas le XML. Elle
+# lirait un `ProjectReference` placé dans un commentaire, ou dans un
+# `ItemGroup` conditionné par un `Condition` faux. Les deux existent en MSBuild.
+# En pratique, aucun csproj de ce dépôt n'en contient — et le prix d'un faux
+# positif ici est de désigner une référence qui existe, pas d'en manquer une.
+# ═══════════════════════════════════════════════════════════════════════════════
+INCLUDE = re.compile(
+    r"<ProjectReference\b[^>]*?\bInclude\s*=\s*[\"']([^\"']+)[\"']",
+    re.IGNORECASE)
+
+
 def references(csproj: str) -> list[str]:
     """Les chemins bruts des `ProjectReference`, tels qu'écrits dans le fichier."""
     try:
-        arbre = ET.parse(csproj)
-    except ET.ParseError as erreur:
-        raise RuntimeError(f"XML illisible : {erreur}") from erreur
+        with open(csproj, encoding="utf-8") as f:
+            texte = f.read()
+    except OSError as erreur:
+        raise RuntimeError(f"illisible : {erreur}") from erreur
 
-    brutes = []
-    for noeud in arbre.iter():
-        if noeud.tag.rsplit("}", 1)[-1] != "ProjectReference":
-            continue
-        include = noeud.attrib.get("Include")
-        if include:
-            brutes.append(include)
+    brutes = [m.group(1) for m in INCLUDE.finditer(texte)]
     return brutes
 
 
