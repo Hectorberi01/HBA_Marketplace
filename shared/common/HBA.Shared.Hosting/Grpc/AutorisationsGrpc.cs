@@ -270,6 +270,10 @@ public static class AutorisationsGrpc
                 "/hba.foodcart.v1.FoodCartApi/GetCart",
                 "/hba.foodorder.v1.FoodOrderApi/GetOrder",
                 "/hba.foodorder.v1.FoodOrderApi/HasPlacedOrder",
+                "/hba.promotion.v1.PromotionApi/CommitCoupon",
+                "/hba.promotion.v1.PromotionApi/EvaluatePromotion",
+                "/hba.promotion.v1.PromotionApi/ReleaseCoupon",
+                "/hba.promotion.v1.PromotionApi/ReserveCoupon",
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
