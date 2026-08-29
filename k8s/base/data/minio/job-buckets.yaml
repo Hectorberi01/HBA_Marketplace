@@ -1,0 +1,114 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES DEUX BUCKETS — LE GESTE QUE RIEN N'AUTOMATISAIT.
+#
+# CE QUI ÉTAIT CASSÉ.
+#
+# `MediaModuleInstaller` refuse de démarrer sans stockage objet configuré, et le
+# câblage vers MinIO nomme `hba-public` et `hba-private`. MinIO ne crée AUCUN
+# bucket tout seul, et rien dans ce dépôt ne le faisait : la seule trace de
+# l'exigence était un commentaire disant qu'elle n'était pas couverte.
+#
+# LA PANNE QUE ÇA DONNE EST TARDIVE ET MAL SITUÉE. media-service démarre très
+# bien sans les buckets — `IsConfigured` ne vérifie que l'endpoint et les
+# identifiants, pas l'existence des seaux. Le pod est vert, les sondes passent,
+# et l'échec n'arrive qu'au PREMIER ENVOI de fichier, en `NoSuchBucket`. Le jour
+# où quelqu'un téléverse une pièce KYB, des semaines plus tard.
+#
+# CE QUE CE JOB NE COUVRE PAS.
+#
+#   • Il n'est PAS dans les `resources` du kustomization, comme les Secrets : il
+#     s'applique explicitement, une fois, après que MinIO tourne. L'inclure le
+#     ferait rejouer à chaque `apply -k`, et un Job est immuable — la seconde
+#     application échouerait sur des champs non modifiables.
+#   • Il ne pose aucune politique d'accès. `hba-public` porte son nom parce que
+#     media-service y met ce qui est servi publiquement ; le bucket lui-même
+#     reste privé côté MinIO, et les URL sont signées.
+#   • Il n'établit ni versionnage ni rétention. Le disque est unique et sans
+#     sauvegarde — c'est dit dans le runbook, ce Job n'y change rien.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-buckets
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: amorcage
+spec:
+  # Deux tentatives supplémentaires : au premier passage, MinIO peut n'être pas
+  # encore prêt à accepter une connexion, et c'est le seul échec qu'un nouvel
+  # essai corrige.
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio
+        app.kubernetes.io/component: amorcage
+    spec:
+      restartPolicy: Never
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: mc
+          image: minio/mc:latest
+
+          # `MC_HOST_<alias>` DÉFINIT L'ALIAS SANS `mc alias set`.
+          #
+          # La forme `mc mb local/...` employée un peu partout suppose un alias
+          # `local` déjà configuré — il ne l'est pas dans un conteneur neuf, et
+          # l'erreur est « Unable to parse `local/hba-public` », qui ressemble à
+          # une faute de frappe dans le nom du bucket.
+          #
+          # Les identifiants viennent du Secret, jamais de la ligne de commande :
+          # un mot de passe passé en argument se lit dans `kubectl get pod -o yaml`
+          # et reste dans l'historique du shell.
+          env:
+            - name: MINIO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: root-user
+            - name: MINIO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: root-password
+
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              export MC_HOST_hba="http://${MINIO_USER}:${MINIO_PASSWORD}@minio:9000"
+
+              # MinIO peut mettre quelques secondes à accepter les connexions.
+              # Sans cette attente, le Job échoue sur une base saine.
+              for essai in $(seq 1 30); do
+                if mc ready hba >/dev/null 2>&1; then
+                  break
+                fi
+                echo "MinIO pas encore prêt (essai ${essai}/30)"
+                sleep 2
+              done
+
+              # `--ignore-existing` rend le Job rejouable : relancer après un
+              # échec partiel ne doit pas échouer sur le bucket déjà créé.
+              mc mb --ignore-existing hba/hba-public
+              mc mb --ignore-existing hba/hba-private
+
+              echo "Buckets en place :"
+              mc ls hba
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi

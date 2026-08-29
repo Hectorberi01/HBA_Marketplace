@@ -61,12 +61,20 @@ refont à chaque déploiement.
 CloudNativePG n'est pas dans la liste : la base est hors cluster.
 
 ```bash
-# Ingress — les manifestes déclarent `ingressClassName: nginx`
+# Ingress — les manifestes déclarent `ingressClassName: nginx`.
+#
+# CETTE URL POINTE `main`, DONC UNE CIBLE MOUVANTE. Elle vient telle quelle de
+# `docs/DEPLOIEMENT.md` §2.3. Réinstaller dans six mois ne redonnera pas le même
+# contrôleur, et rien ne le dira. Relever la version installée et l'épingler :
+#   https://github.com/kubernetes/ingress-nginx/releases
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+kubectl -n ingress-nginx rollout status deploy --timeout=5m
 
-# cert-manager — prendre la dernière version publiée sur
-# https://github.com/cert-manager/cert-manager/releases et l'épingler
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/<version>/cert-manager.yaml
+# cert-manager — version ÉPINGLÉE, relevée le 29 août 2026 sur
+# https://cert-manager.io/docs/installation/kubectl/
+# Avant de monter de version, lire https://cert-manager.io/docs/installation/upgrade/ :
+# les sauts de version mineure changent parfois les CRD.
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.21.1/cert-manager.yaml
 kubectl -n cert-manager rollout status deploy --timeout=5m
 
 # Kafka
@@ -222,17 +230,11 @@ Inutile pour l'instant : notification-service n'est pas dans le lot. Son contenu
 — compte de service Firebase et clé Resend — est décrit dans
 `k8s/base/common/secret-notifications.yaml`.
 
-## 3. Les données, avant les services
+## 3. Les données
 
-Redis, MinIO et Kafka viennent de `k8s/base/data` et `k8s/base/kafka`, posés par
-l'overlay à l'étape 6. Une chose n'est automatisée nulle part :
-
-```bash
-# les deux buckets — MinIO ne les crée pas tout seul, et media-service
-# refuse de démarrer sans stockage objet configuré
-kubectl -n hba-prod exec -it minio-0 -- \
-  mc mb local/hba-public local/hba-private
-```
+Redis, MinIO et Kafka viennent de `k8s/base/data` et `k8s/base/kafka`, et sont
+posés par l'overlay à l'étape 7. **Il n'y a donc rien à faire ici** — les buckets
+MinIO se créent après, à l'étape 7 bis, quand le pod existe.
 
 ## 4. Vérifier que la base est joignable depuis le cluster
 
@@ -276,11 +278,29 @@ tirent l'image d'origine.
 
 ## 6. Les migrations, avant les services
 
+**Vérifier le rendu avant d'appliquer.** Le Job tourne sous le compte de service
+de son service, et ce nom doit être réécrit par `namePrefix` :
+
+```bash
+kustomize build k8s/overlays/migrations-prod | grep -E "serviceAccountName|image:"
+```
+
+Chaque `serviceAccountName` doit valoir `<service>` — `user-service`,
+`identity-service` — et jamais `service` tout court. Un `service` littéral veut
+dire que le ServiceAccount n'est pas dans la kustomization : le Job sera créé,
+ne lancera **aucun pod**, et `kubectl logs` répondra « no pods found ». La cause
+n'est visible que dans `kubectl describe job`.
+
 ```bash
 kubectl apply -k k8s/overlays/migrations-prod
+kubectl -n hba-prod get pods -l app.kubernetes.io/component=migration
 kubectl -n hba-prod wait --for=condition=complete job \
   -l app.kubernetes.io/component=migration --timeout=15m
 ```
+
+Le `get pods` intercalé n'est pas décoratif : c'est lui qui distingue « les Jobs
+tournent » de « les Jobs n'ont rien lancé ». Zéro pod à cet instant est une
+panne, pas un délai.
 
 Huit Jobs, engendrés depuis le câblage réel de chaque service par
 `scripts/generer-jobs-migration.py` — pas recopiés, dérivés : un Job écrit à la
@@ -316,6 +336,28 @@ kubectl -n hba-prod rollout status deploy --timeout=10m
 ```
 
 `apply -k` ne touche à aucun Secret : les cinq sont hors des `resources`.
+
+## 7 bis. Les buckets MinIO
+
+Maintenant seulement : le pod `minio-0` n'existait pas avant l'étape 7.
+
+```bash
+kubectl -n hba-prod rollout status statefulset/minio --timeout=5m
+kubectl -n hba-prod apply -f k8s/base/data/minio/job-buckets.yaml
+kubectl -n hba-prod wait --for=condition=complete job/minio-buckets --timeout=5m
+kubectl -n hba-prod logs job/minio-buckets
+```
+
+**media-service démarre très bien sans les buckets** — `IsConfigured` ne vérifie
+que l'endpoint et les identifiants, pas l'existence des seaux. Le pod est vert,
+les sondes passent, et l'échec n'arrive qu'au premier envoi de fichier, en
+`NoSuchBucket`. C'est pour ça que cette étape ne peut pas être oubliée : rien ne
+la réclamera.
+
+Le Job n'est pas dans les `resources` du kustomization : un Job est immuable, et
+le rejouer à chaque `apply -k` échouerait sur des champs non modifiables. Il est
+rejouable à la main — `--ignore-existing` sur chaque bucket — après un
+`kubectl -n hba-prod delete job minio-buckets`.
 
 ## 8. Vérifier
 

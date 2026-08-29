@@ -4,7 +4,7 @@ kind: Kustomization
 # CE DOSSIER N'EST PAS UN DÉPLOIEMENT. Il est repris par chaque service voisin
 # avec un `namePrefix` — `identity-` + `service` donne `identity-service`.
 resources:
-  - serviceaccount.yaml
+  - compte
   - deployment.yaml
   - service.yaml
   - pdb.yaml

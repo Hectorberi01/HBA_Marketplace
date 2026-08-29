@@ -241,13 +241,48 @@ kind: Kustomization
 # se lit a cote du Deployment qu'il precede.
 namePrefix: %s-
 
+# `includeSelectors: false` — ET C'EST OBLIGATOIRE SUR UN JOB.
+#
+# Le gabarit des services emploie `includeSelectors: true`, ce qui est correct
+# pour un Deployment : kustomize ecrit alors le label dans `spec.selector`.
+#
+# Sur un Job, `spec.selector` est engendre par le controleur et porte un
+# `controller-uid` que rien d'autre ne connait. Y ecrire un selecteur a la main
+# demande `manualSelector: true` — et sans lui, l'API refuse le Job, ou pire,
+# l'accepte et le controleur n'adopte jamais les pods qu'il cree. Un Job qui
+# existe, ne cree aucun pod, et ne dit rien.
 labels:
-  - includeSelectors: true
+  - includeSelectors: false
     pairs:
       app.kubernetes.io/name: %s
 
 resources:
   - job.yaml
+
+  # LE COMPTE DE SERVICE VIENT AVEC LE JOB, ET C'EST NECESSAIRE POUR DEUX
+  # RAISONS DISTINCTES.
+  #
+  # 1. LA REFERENCE NE SE REECRIT QUE SI L'OBJET EST LA. `job.yaml` porte
+  #    `serviceAccountName: service`, et `namePrefix` ne le renomme en
+  #    `<service>` que si le ServiceAccount est dans CETTE kustomization.
+  #    Sans lui, le nom reste litteralement `service` et le controleur de Job
+  #    refuse : « error looking up service account hba-prod/service:
+  #    serviceaccount "service" not found ». Le Job existe, ne cree AUCUN pod,
+  #    et `kubectl logs` repond « no pods found » — ce qui envoie chercher du
+  #    cote du service.
+  #
+  # 2. LES MIGRATIONS TOURNENT AVANT LE DEPLOIEMENT. Les comptes de service
+  #    sont crees par `overlays/prod`, qui n'a pas encore ete applique quand les
+  #    Jobs demarrent. Meme avec le bon nom, le compte n'existerait pas.
+  #
+  # C'EST UN REPERTOIRE, PAS UN FICHIER. Kustomize refuse un fichier hors du
+  # dossier de la kustomization (« security; file ... is not in or below ... »)
+  # mais accepte un repertoire qui porte sa propre kustomization. Le compte reste
+  # donc defini une seule fois, partage avec `_service` — une copie divergerait
+  # au premier changement, et elle porte `imagePullSecrets: [ghcr]`.
+  # Appliquer ce ServiceAccount ici puis `overlays/prod` ensuite pose deux fois
+  # le meme objet — `apply` est idempotent, il n'y a pas de conflit.
+  - ../../services/_service/compte
 
 images:
   - name: hba/service

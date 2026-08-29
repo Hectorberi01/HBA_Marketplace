@@ -289,7 +289,18 @@ def main():
     ]
     for cle in declarees:
         encodee = base64.b64encode(valeurs[cle].encode("utf-8")).decode("ascii")
-        lignes.append("  %s: %s" % (cle, encodee))
+        # LES GUILLEMETS NE SONT PAS COSMETIQUES.
+        #
+        # Une valeur vide ecrite sans guillemets — `CLE: ` — est un NULL en YAML,
+        # pas une chaine vide. `kubectl apply` ne conserve pas la cle : le Secret
+        # arrive avec une entree de moins, en silence.
+        #
+        # C'est ce qui est arrive a `CONNECTIONSTRINGS__DEFAULT` le 29 aout : le
+        # Secret comptait 17 cles la ou le gabarit en declare 21, et rien ne
+        # designait la cause. Une cle absente d'un Secret lu par `secretKeyRef`
+        # met le pod en CreateContainerConfigError — un message qui parle de
+        # configuration de conteneur, pas de guillemets manquants.
+        lignes.append('  %s: "%s"' % (cle, encodee))
 
     os.makedirs(os.path.dirname(sortie), exist_ok=True)
     # Ouverture en 0600 des la creation : pas de fenetre ou le fichier est lisible.
@@ -297,7 +308,22 @@ def main():
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write("\n".join(lignes) + "\n")
 
-    print("ecrit : %s (0600), %d cle(s)" % (sortie, len(declarees)))
+    # CONTROLE DE CE QU'ON VIENT D'ECRIRE, PAS DE CE QU'ON CROIT AVOIR ECRIT.
+    #
+    # Relire le fichier est le seul moyen de savoir combien de cles il porte
+    # REELLEMENT. La version precedente annoncait « 21 cles » en comptant les
+    # cles declarees, pendant que le fichier en perdait une a l'ecriture.
+    with open(sortie, encoding="utf-8") as f:
+        relu = f.read()
+    ecrites = re.findall(r'^  ([A-Z][A-Z0-9_]*): "', relu, re.MULTILINE)
+    if len(ecrites) != len(declarees):
+        manquantes = sorted(set(declarees) - set(ecrites))
+        print("REFUS : %d cle(s) ecrite(s) pour %d declaree(s). Manque : %s"
+              % (len(ecrites), len(declarees), ", ".join(manquantes)), file=sys.stderr)
+        return 1
+
+    print("ecrit : %s (0600), %d cle(s) relue(s) dans le fichier"
+          % (sortie, len(ecrites)))
     for cle in declarees:
         print("    %-34s %4d car.  %s" % (cle, len(valeurs[cle]), origine[cle]))
 

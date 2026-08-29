@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   const AppTheme._();
@@ -8,8 +9,16 @@ class AppTheme {
     const surface = Color(0xFFF6F7F9);
     const outline = Color(0xFFE2E7EE);
 
+    final base = ThemeData(brightness: Brightness.light, useMaterial3: true);
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
+        .apply(
+          bodyColor: const Color(0xFF111827),
+          displayColor: const Color(0xFF111827),
+        );
+
     return ThemeData(
       useMaterial3: true,
+      textTheme: textTheme,
       colorScheme: ColorScheme.fromSeed(
         seedColor: seed,
         brightness: Brightness.light,

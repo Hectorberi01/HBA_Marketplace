@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - statefulset.yaml
   # - secret.yaml   # posé par kubectl, jamais par kustomize (§12)
+  # - job-buckets.yaml   # appliqué à la main APRÈS que MinIO tourne (Job immuable)
