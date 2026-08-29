@@ -9,6 +9,19 @@
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodCarts.Contracts.Grpc\HBA.FoodCarts.Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
+
+    <!--
+      LES PROMOTIONS — AJOUTÉ LE 29/08/2026 AVEC LE BRANCHEMENT DE LA
+      TARIFICATION.
+
+      `Program.cs` appelle `AddPromotionGrpcClient`, qui vit dans cet assemblage.
+      Le composition root est le SEUL endroit où ce projet doit apparaître : c'est
+      lui qui enregistre le client, l'infrastructure ne connaît que
+      `IPromotionModuleApi`.
+
+      cart-service porte exactement la même ligne, pour la même raison.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts.Grpc\HBA.Promotions.Contracts.Grpc.csproj" />
   </ItemGroup>
 
 </Project>
