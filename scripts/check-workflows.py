@@ -102,8 +102,15 @@ def verifier_scripts_executables(fichiers) -> int:
                 fautes += 1
             elif not mode.endswith("755"):
                 print(f"  ❌ {court} : lance `{appel}`, enregistré en {mode} — "
-                      f"le runner répondra « Permission denied » (code 126). "
-                      f"Corriger : git update-index --chmod=+x {cible}")
+                      f"le runner répondra « Permission denied » (code 126).")
+                # LE CONSEIL COMPTE AUTANT QUE LE CONSTAT, ET LE PREMIER ÉTAIT
+                # FRAGILE.
+                #
+                # Ce message recommandait `git update-index --chmod=+x`. Ça
+                # corrige l'index — et le PROCHAIN `git add` de ce fichier le
+                # défait, parce que `git add` relit le mode sur le DISQUE. Le
+                # défaut revient alors sans que personne ne comprenne pourquoi.
+                print(f"       chmod +x {cible} && git add {cible}")
                 fautes += 1
 
     if vus == 0:
