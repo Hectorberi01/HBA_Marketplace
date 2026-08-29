@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Le meme prefixe que le service : `migration` devient `delivery-service-migration`, et le Job
+# se lit a cote du Deployment qu'il precede.
+namePrefix: delivery-
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: delivery-service
+
+resources:
+  - job.yaml
+
+images:
+  - name: hba/service
+    newName: hba/delivery-service

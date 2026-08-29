@@ -1,0 +1,93 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES ÉMETTEURS DE CERTIFICATS — LE MANIFESTE QUE TROIS FICHIERS RÉCLAMAIENT.
+#
+# CE QUI ÉTAIT CASSÉ.
+#
+# Trois endroits du dépôt exigent un ClusterIssuer nommé `letsencrypt` :
+#
+#   • `k8s/base/apps/gateway/ingress.yaml` par l'annotation
+#     `cert-manager.io/cluster-issuer: letsencrypt` ;
+#   • `docs/DEPLOIEMENT.md` §3.3 : « plus cert-manager et un ClusterIssuer nommé
+#     letsencrypt — c'est le nom que l'annotation de l'Ingress attend » ;
+#   • `infra/ansible/playbooks/cluster.yml`, dans le message de fin.
+#
+# Aucun ne le FOURNISSAIT. Chacun disait à quelqu'un d'autre de le créer, et le
+# suivant faisait pareil. `kubectl get clusterissuer letsencrypt` répondait
+# « the server doesn't have a resource type "clusterissuer" » — un message qui
+# désigne l'absence de cert-manager, pas celle du manifeste, et qui ne dit rien
+# de ce qu'il faudra créer une fois cert-manager installé.
+#
+# L'ingress.yaml décrit déjà l'échec qui suit : l'Ingress est créé, le Secret TLS
+# ne l'est jamais, et le contrôleur sert un certificat auto-signé. Le navigateur
+# avertit ; l'application mobile, elle, échoue sans message lisible.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEUX ÉMETTEURS, ET LE PREMIER À EMPLOYER EST CELUI DE RECETTE.
+#
+# Let's Encrypt limite les échecs de validation à cinq par heure et par compte,
+# et les certificats à cinquante par semaine et par domaine. Ces quotas se
+# consomment en essayant, pas en réussissant : un DNS pas encore propagé, un port
+# 80 fermé, une règle nftables — trois tentatives ratées et l'on attend une
+# heure, sans que rien n'explique pourquoi le certificat ne vient plus.
+#
+# L'émetteur de recette (`letsencrypt-staging`) délivre des certificats signés
+# par une autorité que les navigateurs ne connaissent pas — donc inutilisables en
+# production, et sans quota utile. C'est exactement ce qu'il faut pour vérifier
+# que la chaîne fonctionne AVANT de consommer les quotas réels.
+#
+# La marche à suivre :
+#   1. basculer l'annotation de l'Ingress sur `letsencrypt-staging` ;
+#   2. `kubectl -n hba-prod get certificate` doit passer READY=True ;
+#   3. remettre `letsencrypt`, et supprimer le Secret TLS pour forcer une
+#      nouvelle émission.
+#
+# CE QUE CE FICHIER NE COUVRE PAS.
+#
+#   • Il ne s'applique pas tout seul et n'est dans aucun overlay : un
+#     ClusterIssuer est à PORTÉE CLUSTER, pas à portée namespace. Le poser par
+#     `apply -k` le recréerait à chaque déploiement d'environnement, sur un objet
+#     partagé par tous.
+#   • Il exige cert-manager DÉJÀ installé — sinon le type n'existe pas.
+#   • Le solveur HTTP-01 exige que le port 80 soit joignable depuis Internet et
+#     que le DNS résolve déjà. Un enregistrement posé cinq minutes plus tôt avec
+#     un TTL d'une heure n'est pas propagé.
+#   • L'adresse de contact ne sert qu'aux avis d'expiration de Let's Encrypt.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: hector.adjakpa@hbatechettrade.com
+    privateKeySecretRef:
+      # Le compte ACME lui-même. Supprimer ce Secret fait repartir de zéro —
+      # y compris les quotas rattachés au compte.
+      name: letsencrypt-staging-compte
+    solvers:
+      - http01:
+          ingress:
+            # `nginx` et non le défaut : k3s est installé avec Traefik désactivé,
+            # et les manifestes déclarent `ingressClassName: nginx`. Un solveur
+            # qui crée son Ingress temporaire dans une autre classe n'est jamais
+            # servi, et le challenge expire sans erreur explicite.
+            ingressClassName: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  # CE NOM N'EST PAS LIBRE : `k8s/base/apps/gateway/ingress.yaml` le désigne par
+  # annotation. Le renommer ici laisse l'Ingress pointer un émetteur absent —
+  # cert-manager n'émet rien, et ne se plaint qu'au fond de ses journaux.
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: hector.adjakpa@hbatechettrade.com
+    privateKeySecretRef:
+      name: letsencrypt-compte
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx

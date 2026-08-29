@@ -43,6 +43,38 @@ ENTETE = """# ══════════════════════
 """
 
 
+def service_a_des_migrations(service):
+    """Le service appelle-t-il MigrateHbaDatabaseAsync ?
+
+    ═════════════════════════════════════════════════════════════════════════
+    UN JOB POUR UN SERVICE SANS MIGRATION NE SE TERMINE JAMAIS.
+
+    `SortirApresMigrations()` n'est inséré que dans les Program.cs qui migrent.
+    Un service qui porte une chaîne de connexion mais aucune migration —
+    delivery-pricing-service lit les tables que delivery-service crée — n'a pas
+    cette sortie : son conteneur démarrerait un serveur web, le Job resterait
+    `Running`, et `kubectl wait --for=condition=complete` expirerait sur une
+    étape qui n'avait rien à faire.
+
+    La panne serait d'autant plus déroutante que tout va bien : le service
+    fonctionne, il écoute, il répond. C'est le Job qui n'a pas de sens.
+    ═════════════════════════════════════════════════════════════════════════
+    """
+    racines = [os.path.join(RACINE, "services", d) for d in ("common", "marketplace",
+                                                             "delivery", "food")]
+    for racine in racines:
+        dossier = os.path.join(racine, service)
+        if not os.path.isdir(dossier):
+            continue
+        for base, _, fichiers in os.walk(dossier):
+            if "Program.cs" not in fichiers:
+                continue
+            with open(os.path.join(base, "Program.cs"), encoding="utf-8") as f:
+                if "MigrateHbaDatabaseAsync" in f.read():
+                    return True
+    return False
+
+
 def lire_services_deployes():
     """Les services non commentes dans k8s/base/services/kustomization.yaml."""
     chemin = os.path.join(SERVICES_DIR, "kustomization.yaml")
@@ -129,6 +161,18 @@ spec:
     spec:
       restartPolicy: Never
 
+      # LE MEME COMPTE QUE LE SERVICE, ET C'EST NECESSAIRE.
+      #
+      # Le secret de tirage `ghcr` est porte par le ServiceAccount de chaque
+      # service (`_service/serviceaccount.yaml`). Un Job sans
+      # `serviceAccountName` tourne sous `default`, qui ne le porte pas : le Job
+      # resterait en ImagePullBackOff alors que le Deployment du meme service
+      # tire la meme image sans difficulte — une difference que rien ne designe.
+      #
+      # `namePrefix` du kustomization renomme `service` en `<service>`, donc ce
+      # nom-ci suit automatiquement.
+      serviceAccountName: service
+
       securityContext:
         runAsNonRoot: true
         runAsUser: 1654
@@ -168,8 +212,13 @@ spec:
 
 
 def main():
-    services = lire_services_deployes()
-    print("%d service(s) deploye(s) : %s" % (len(services), ", ".join(services)))
+    deployes = lire_services_deployes()
+    services = [s for s in deployes if service_a_des_migrations(s)]
+    sans = [s for s in deployes if s not in services]
+    print("%d service(s) deploye(s), %d avec migrations : %s"
+          % (len(deployes), len(services), ", ".join(services)))
+    if sans:
+        print("%d sans migration, donc sans Job : %s" % (len(sans), ", ".join(sans)))
 
     os.makedirs(SORTIE_DIR, exist_ok=True)
     ressources = []
@@ -225,6 +274,43 @@ kind: Kustomization
 
 resources:
 """ + "".join("  - %s\n" % s for s in ressources))
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # L'OVERLAY DES MIGRATIONS EST ENGENDRE LUI AUSSI.
+    #
+    # Il portait sa liste d'images a la main. Ajouter un service au lot laissait
+    # donc le Job sans image de production : `check-k8s.py` le refusait — bien —
+    # mais il fallait aller corriger un second fichier dont personne ne se
+    # souvenait. Les deux listes ne peuvent plus diverger : celle-ci est derivee
+    # de l'overlay prod, filtree sur les services qui ont un Job.
+    #
+    # CE QUE CA NE COUVRE PAS : le TAG vient de l'overlay prod tel qu'il est au
+    # moment ou ce script tourne. Promouvoir apres avoir engendre les Jobs laisse
+    # cet overlay en arriere — c'est pour ca que `cd.yml` pose le tag dans les
+    # deux, et que `check-k8s.py` verifie leur accord.
+    # ═══════════════════════════════════════════════════════════════════════
+    chemin_prod = os.path.join(RACINE, "k8s", "overlays", "prod", "kustomization.yaml")
+    chemin_migr = os.path.join(RACINE, "k8s", "overlays", "migrations-prod",
+                               "kustomization.yaml")
+    if os.path.exists(chemin_prod) and os.path.exists(chemin_migr):
+        with open(chemin_prod, encoding="utf-8") as f:
+            images_prod = re.findall(
+                r'  - name: (hba/[a-z0-9-]+)\n    newName: (\S+)\n    newTag: "([^"]*)"',
+                f.read())
+        vises = {"hba/" + s for s in ressources}
+        retenues = [(n, nn, t) for (n, nn, t) in images_prod if n in vises]
+
+        with open(chemin_migr, encoding="utf-8") as f:
+            contenu = f.read()
+        entete = contenu.split("images:")[0].rstrip("\n")
+        bloc = "images:\n" + "".join(
+            '  - name: %s\n    newName: %s\n    newTag: "%s"\n' % e for e in retenues)
+        with open(chemin_migr, "w", encoding="utf-8") as f:
+            f.write(entete + "\n\n" + bloc)
+        print("overlay migrations-prod : %d image(s) posee(s)" % len(retenues))
+        manquantes = sorted(vises - {n for n, _, _ in images_prod})
+        for m in manquantes:
+            anomalies.append("%s a un Job mais aucune image dans l'overlay prod" % m)
 
     print("%d Job(s) engendre(s) dans k8s/base/migrations/" % len(ressources))
     for a in anomalies:

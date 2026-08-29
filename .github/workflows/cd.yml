@@ -138,6 +138,40 @@ jobs:
             echo "  $service -> ${{ inputs.sha }}"
           done
 
+      - name: Poser le même tag dans l'overlay des migrations
+        if: inputs.environnement == 'prod'
+        working-directory: k8s/overlays/migrations-prod
+        run: |
+          # LES JOBS DE MIGRATION ONT LEUR PROPRE OVERLAY, ET IL DOIT SUIVRE.
+          #
+          # `overlays/migrations-prod` est séparé à dessein : on doit pouvoir
+          # lancer les migrations sans redéployer. Le prix de cette séparation
+          # est une seconde liste d'images — et l'étape précédente ne touchait
+          # que `overlays/prod`.
+          #
+          # Sans cette étape, la promotion laissait les Jobs sur
+          # `REMPLACE-PAR-LA-PROMOTION` : le tirage aurait échoué, ce qui est le
+          # bon échec. Mais après une SECONDE promotion, les Jobs seraient restés
+          # sur le tag de la PREMIÈRE — et là, rien n'échoue : la migration
+          # s'applique avec l'ancienne version du code, le service démarre avec
+          # la nouvelle, et l'erreur remonte à la première requête qui touche une
+          # colonne que la migration n'a pas créée.
+          #
+          # `scripts/check-k8s.py` refuse ce désaccord ; cette étape fait qu'il
+          # n'a pas à le refuser.
+          pip install --quiet pyyaml
+          noms=$(python3 -c "
+          import yaml
+          k = yaml.safe_load(open('kustomization.yaml'))
+          print(' '.join(i['name'] for i in k.get('images', [])))
+          ")
+
+          for nom in $noms; do
+            service=${nom#hba/}
+            kustomize edit set image "${nom}=ghcr.io/${{ env.PROPRIETAIRE }}/${service}:${{ inputs.sha }}"
+            echo "  migration $service -> ${{ inputs.sha }}"
+          done
+
       - name: Vérifier le rendu
         run: |
           pip install --quiet pyyaml

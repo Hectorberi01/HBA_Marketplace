@@ -1,0 +1,127 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENGENDRE PAR scripts/generer-jobs-migration.py — NE PAS EDITER A LA MAIN.
+#
+# Le cablage vient de k8s/base/services/delivery-service/kustomization.yaml. Modifier le
+# service, puis relancer le script : une divergence entre le Job et le Deployment
+# ferait migrer contre une configuration qui n'est plus celle du service.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migration
+  labels:
+    app.kubernetes.io/component: migration
+spec:
+  # Une seule tentative supplementaire. Une migration qui echoue deux fois
+  # echoue pour une raison qu'un troisieme essai ne changera pas, et chaque
+  # reprise rouvre la fenetre de concurrence.
+  backoffLimit: 1
+
+  # Le Job disparait une heure apres sa fin. Assez pour lire ses journaux,
+  # assez peu pour ne pas accumuler des objets termines dans le namespace.
+  ttlSecondsAfterFinished: 3600
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+
+      # LE MEME COMPTE QUE LE SERVICE, ET C'EST NECESSAIRE.
+      #
+      # Le secret de tirage `ghcr` est porte par le ServiceAccount de chaque
+      # service (`_service/serviceaccount.yaml`). Un Job sans
+      # `serviceAccountName` tourne sous `default`, qui ne le porte pas : le Job
+      # resterait en ImagePullBackOff alors que le Deployment du meme service
+      # tire la meme image sans difficulte — une difference que rien ne designe.
+      #
+      # `namePrefix` du kustomization renomme `service` en `<service>`, donc ce
+      # nom-ci suit automatiquement.
+      serviceAccountName: service
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: migration
+          image: hba/service:latest
+
+          envFrom:
+            - configMapRef:
+                name: hba-platform
+            - secretRef:
+                name: hba-platform
+
+          env:
+            # LA CLE DE TOUT CE JOB. Sans elle, le conteneur demarre un serveur
+            # web qui ecoute indefiniment : le Job reste `Running`, et
+            # `kubectl wait --for=condition=complete` expire sur une migration
+            # pourtant reussie.
+            - name: DATABASE__MIGRATEONLY
+              value: "true"
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+            - name: SERVICE_NAME
+              value: delivery-service
+
+            # ═══════════════════════════════════════════════════════════
+            # LES TROIS SERVICES DE LIVRAISON PARTAGENT `hba_delivery`.
+            #
+            # C'est l'état réel du code : le compose de développement leur
+            # donne déjà la même base, et delivery-pricing-service LIT les
+            # tables que delivery-service crée. Trois clés distinctes
+            # pointent donc la même base et le même rôle — comme
+            # `cart-service` et `return-refund-service` sur `hba_commerce`.
+            #
+            # Une clé par service et non une clé partagée : le jour où
+            # l'un d'eux prend sa propre base, seule sa ligne bouge, et le
+            # Secret n'a pas à être relu en entier pour savoir qui est
+            # concerné.
+            # ═══════════════════════════════════════════════════════════
+            - name: CONNECTIONSTRINGS__DEFAULT
+              valueFrom:
+                secretKeyRef:
+                  name: hba-platform
+                  key: CONNECTIONSTRINGS__DELIVERY
+
+            # L'identité gRPC de cet hôte. Le nom est celui de l'assemblage
+            # d'entrée — « HBA.Delivery.Core.Api » — exactement comme l'écrit
+            # `scripts/generer-identites-internes.sh`. Se tromper de clé ne
+            # casse rien au démarrage : le pod part, signe sous une identité
+            # qui n'est pas la sienne, et tous ses appels reviennent en
+            # `Unauthenticated`.
+            - name: INTERNAL__PRIVATEKEY
+              valueFrom:
+                secretKeyRef:
+                  name: hba-identites-internes
+                  key: INTERNAL_KEY_HBA_DELIVERY_CORE_API
+
+            # ═══════════════════════════════════════════════════════════
+            # LA SEULE DÉPENDANCE gRPC DE CE SERVICE, ET ELLE EST DANS LE
+            # LOT.
+            #
+            # `DeliveriesModuleInstaller` enregistre un unique client :
+            # `AddDeliveryPricingGrpcClient`, qui LÈVE si
+            # `Services:DeliveryPricing` est absent. Le service ne
+            # démarrerait pas — ce qui est le bon échec, mais autant que
+            # l'adresse soit là.
+            #
+            # Elle vient du ConfigMap `hba-platform`, monté par `envFrom`,
+            # où `SERVICES__DELIVERYPRICING` est déjà déclarée. Rien à
+            # ajouter ici : cette note existe pour que la dépendance se
+            # lise au bon endroit le jour où quelqu'un se demande pourquoi
+            # delivery-service refuse de démarrer seul.
+            # ═══════════════════════════════════════════════════════════
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi

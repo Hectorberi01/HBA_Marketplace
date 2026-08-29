@@ -705,6 +705,25 @@ def verifier_hotes_des_overlays() -> list[str]:
     return fautes
 
 
+def service_a_des_migrations(service: str) -> bool:
+    """Le service appelle-t-il MigrateHbaDatabaseAsync ?
+
+    Meme regle que scripts/generer-jobs-migration.py, et pour la meme raison :
+    un service sans migration ne doit pas avoir de Job.
+    """
+    for domaine in ("common", "marketplace", "delivery", "food"):
+        dossier = os.path.join(RACINE, "services", domaine, service)
+        if not os.path.isdir(dossier):
+            continue
+        for base, _, fichiers in os.walk(dossier):
+            if "Program.cs" not in fichiers:
+                continue
+            with open(os.path.join(base, "Program.cs"), encoding="utf-8") as f:
+                if "MigrateHbaDatabaseAsync" in f.read():
+                    return True
+    return False
+
+
 def verifier_images_de_migration() -> list[str]:
     """Les Jobs de migration doivent employer l'image exacte du deploiement.
 
@@ -768,10 +787,19 @@ def verifier_images_de_migration() -> list[str]:
 
     for nom in sorted(deployes):
         if nom not in migr:
+            # UN SERVICE SANS MIGRATION N'A PAS DE JOB, ET C'EST CORRECT.
+            #
+            # delivery-pricing-service porte une chaine de connexion mais
+            # n'appelle jamais `MigrateHbaDatabaseAsync` : il LIT les tables que
+            # delivery-service cree. Lui donner un Job serait pire qu'inutile —
+            # son conteneur n'a pas la sortie `SortirApresMigrations`, il
+            # demarrerait un serveur web, et le Job resterait `Running` jusqu'a
+            # l'expiration du `wait`.
+            if not service_a_des_migrations(nom.removeprefix("hba/")):
+                continue
             fautes.append(
-                "%s est deploye mais n'a pas de Job de migration — sa base "
-                "resterait sans schema (relancer scripts/generer-jobs-migration.py)"
-                % nom)
+                "%s est deploye, migre, et n'a pas de Job — sa base resterait "
+                "sans schema (relancer scripts/generer-jobs-migration.py)" % nom)
             continue
         if nom in prod and prod[nom] != migr[nom]:
             fautes.append(

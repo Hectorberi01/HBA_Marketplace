@@ -76,6 +76,20 @@ resources:
   - promotion-service
   - review-service
 
+  # ── delivery ──────────────────────────────────────────────────────────────
+  #
+  # Lot autonome : `delivery-service` n'enregistre qu'UN client gRPC —
+  # `DeliveryPricing` — et son destinataire est dans le lot. Les trois partagent
+  # `hba_delivery`, dont la base et le rôle existent depuis le premier passage de
+  # `creer-bases.sh`.
+  #
+  # `route-service` N'EST PAS LÀ, ET C'EST DÉLIBÉRÉ : l'audit du 27 août n'a
+  # trouvé aucun appelant dans le dépôt. Le déployer ferait tourner un pod que
+  # personne n'interroge.
+  - delivery-service
+  - driver-service
+  - delivery-pricing-service
+
   # ── marketplace — lot suivant, une ligne à décommenter chacune ─────────────
   # - catalog-service
   # - cart-service

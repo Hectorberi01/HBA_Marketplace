@@ -456,3 +456,12 @@ images:
   - name: hba/api-gateway
     newName: ghcr.io/hectorberi01/api-gateway
     newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/delivery-service
+    newName: ghcr.io/hectorberi01/delivery-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/driver-service
+    newName: ghcr.io/hectorberi01/driver-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/delivery-pricing-service
+    newName: ghcr.io/hectorberi01/delivery-pricing-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"

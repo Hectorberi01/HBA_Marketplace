@@ -3,7 +3,7 @@
 #
 # Ce kustomization existe pour etre applique SEUL, avant les services :
 #
-#     kubectl apply -k k8s/overlays/migrations-prod
+#     kubectl apply -k k8s/migrations-prod
 #
 # L'inclure dans la base ferait tourner une migration a chaque `apply -k`, donc
 # a chaque changement de configuration sans rapport. Une migration se declenche,
@@ -21,3 +21,5 @@ resources:
   - payment-service
   - promotion-service
   - review-service
+  - delivery-service
+  - driver-service

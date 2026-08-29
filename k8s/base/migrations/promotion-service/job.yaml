@@ -28,6 +28,18 @@ spec:
     spec:
       restartPolicy: Never
 
+      # LE MEME COMPTE QUE LE SERVICE, ET C'EST NECESSAIRE.
+      #
+      # Le secret de tirage `ghcr` est porte par le ServiceAccount de chaque
+      # service (`_service/serviceaccount.yaml`). Un Job sans
+      # `serviceAccountName` tourne sous `default`, qui ne le porte pas : le Job
+      # resterait en ImagePullBackOff alors que le Deployment du meme service
+      # tire la meme image sans difficulte — une difference que rien ne designe.
+      #
+      # `namePrefix` du kustomization renomme `service` en `<service>`, donc ce
+      # nom-ci suit automatiquement.
+      serviceAccountName: service
+
       securityContext:
         runAsNonRoot: true
         runAsUser: 1654

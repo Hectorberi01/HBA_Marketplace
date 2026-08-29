@@ -69,6 +69,11 @@ CLES = [
     ("CONNECTIONSTRINGS__SELLER", "hba_merchant"),
     # returnrefund partage la base de cart : memes identifiants, schemas distincts.
     ("CONNECTIONSTRINGS__RETURNREFUND", "hba_commerce"),
+    # Les trois services de livraison partagent hba_delivery, comme le compose de
+    # developpement le fait deja : delivery-pricing lit ce que delivery ecrit.
+    ("CONNECTIONSTRINGS__DELIVERY", "hba_delivery"),
+    ("CONNECTIONSTRINGS__DRIVER", "hba_delivery"),
+    ("CONNECTIONSTRINGS__DELIVERYPRICING", "hba_delivery"),
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════════
