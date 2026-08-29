@@ -294,8 +294,29 @@ n'est visible que dans `kubectl describe job`.
 ```bash
 kubectl apply -k k8s/overlays/migrations-prod
 kubectl -n hba-prod get pods -l app.kubernetes.io/component=migration
+```
+
+**Ne pas attendre sur `kubectl wait --for=condition=complete` seul.** Un Job qui
+épuise son `backoffLimit` passe en `condition=Failed`, et ce `wait` n'a pas de
+sortie anticipée : il attend l'expiration complète du délai au lieu de rendre la
+main sur l'échec. Quinze minutes passées à attendre une panne déjà survenue.
+
+Surveiller plutôt en voyant ce qui se passe :
+
+```bash
+kubectl -n hba-prod get pods -l app.kubernetes.io/component=migration -w
+```
+
+Ou, pour un script qui doit rendre un code de sortie, attendre les deux issues et
+prendre la première :
+
+```bash
 kubectl -n hba-prod wait --for=condition=complete job \
-  -l app.kubernetes.io/component=migration --timeout=15m
+  -l app.kubernetes.io/component=migration --timeout=15m &
+SUCCES=$!
+kubectl -n hba-prod wait --for=condition=failed job \
+  -l app.kubernetes.io/component=migration --timeout=15m && kill ${SUCCES} 2>/dev/null
+wait ${SUCCES}
 ```
 
 Le `get pods` intercalé n'est pas décoratif : c'est lui qui distingue « les Jobs

@@ -330,7 +330,8 @@ resources:
     if os.path.exists(chemin_prod) and os.path.exists(chemin_migr):
         with open(chemin_prod, encoding="utf-8") as f:
             images_prod = re.findall(
-                r'  - name: (hba/[a-z0-9-]+)\n    newName: (\S+)\n    newTag: "([^"]*)"',
+                r'  - name: (hba/[a-z0-9-]+)\n    newName: (\S+)\n'
+                r'    newTag:[ \t]*"?([^"\n]*?)"?[ \t]*$',
                 f.read())
         vises = {"hba/" + s for s in ressources}
         retenues = [(n, nn, t) for (n, nn, t) in images_prod if n in vises]

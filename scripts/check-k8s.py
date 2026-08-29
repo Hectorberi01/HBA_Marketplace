@@ -759,7 +759,8 @@ def verifier_images_de_migration() -> list[str]:
         with open(chemin, encoding="utf-8") as f:
             contenu = f.read()
         return {n: (nn, t) for n, nn, t in re.findall(
-            r"^  - name: (hba/[a-z0-9-]+)\n    newName: (\S+)\n    newTag: \"([^\"]*)\"",
+            r"^  - name: (hba/[a-z0-9-]+)\n    newName: (\S+)\n"
+            r"    newTag:[ \t]*\"?([^\"\n]*?)\"?[ \t]*$",
             contenu, re.MULTILINE)}
 
     prod = lire_images(os.path.join(RACINE, "k8s", "overlays", "prod", "kustomization.yaml"))

@@ -6,7 +6,7 @@ kind: Kustomization
 #
 # LE TAG N'EST PAS ÉCRIT ICI À LA MAIN.
 #
-# Le §13 interdit `latest` en production et impose des images immuables
+# Le 13 interdit `latest` en production et impose des images immuables
 # identifiées par SHA ou semver. Le `newTag` ci-dessous est un PLACEHOLDER que la
 # promotion remplace — `kustomize edit set image`, ou l'écriture du SHA par la
 # chaîne de release. Committer un tag mouvant ici ferait d'un `kubectl apply`

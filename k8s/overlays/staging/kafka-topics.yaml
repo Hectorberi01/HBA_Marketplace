@@ -19,7 +19,7 @@
 # sujet, avec UNE partition, la réplication par défaut et la rétention par défaut.
 # Rien ne casse, tout paraît marcher, et la perte d'un courtier perd des messages.
 # C'est le défaut le plus silencieux de tout le plan de données — et c'est
-# précisément ce qui s'est passé pour les 23 sujets réellement employés, pendant
+# précisément ce qui s'est passé pour les 20 sujets réellement employés, pendant
 # que ce fichier en provisionnait vingt-huit autres que personne n'écrivait.
 #
 # LE SCHÉMA `hba.staging.<domaine>.<agrégat>.v1` QUI ÉTAIT ICI N'ÉTAIT PAS UNE ERREUR.
