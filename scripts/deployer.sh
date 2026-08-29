@@ -123,6 +123,34 @@ fi
 # 2. LES CONTRÔLES ET LES TESTS — LA SEULE BARRIÈRE AVANT LE VPS.
 # ═════════════════════════════════════════════════════════════════════════════
 if [ "$SANS_TESTS" = "0" ]; then
+  # ═══════════════════════════════════════════════════════════════════════════
+  # L'ENVIRONNEMENT DES OUTILS SE POSE TOUT SEUL.
+  #
+  # `check-all.sh` disait « PyYAML absent, lancer preparer-outils.sh », puis
+  # continuait — et deux contrôles sur vingt-deux sortaient en échec, ce qui
+  # arrêtait le déploiement. L'utilisateur voyait donc trois cents lignes de
+  # contrôles verts se terminer par un refus dont la cause tenait en une
+  # commande qu'il fallait avoir lue au milieu.
+  #
+  # Demander un geste préalable à chaque fois, c'est le rendre facultatif — et
+  # celui-ci ne l'est pas : sans PyYAML, le contrôle des manifestes et celui du
+  # compose ne peuvent PAS se dégrader, ils lisent de la structure.
+  #
+  # Il est donc posé ici, une fois, en l'annonçant. Le dossier est local au
+  # dépôt et ignoré par Git : rien de global n'est touché.
+  # ═══════════════════════════════════════════════════════════════════════════
+  if [ ! -x "$ROOT_DIR/.venv/bin/python3" ]; then
+    titre "Outils de contrôle"
+    info "aucun environnement Python — il est posé maintenant"
+    if ! ./scripts/preparer-outils.sh; then
+      rouge "La préparation des outils a échoué (voir ci-dessus)."
+      rouge "  Sans elle, le contrôle des manifestes et celui du compose ne"
+      rouge "  peuvent pas s'exécuter, et le déploiement s'arrêterait de toute"
+      rouge "  façon. Corriger l'installation Python, puis relancer."
+      exit 1
+    fi
+  fi
+
   titre "Contrôles du dépôt"
   ./scripts/check-all.sh
 
