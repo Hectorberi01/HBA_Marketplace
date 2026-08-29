@@ -92,10 +92,38 @@ privé.
 Le workflow doit avoir publié les six images sur `ghcr.io/hectorberi01/`. Puis le
 tag de promotion, **aux deux endroits** :
 
+La forme de `kustomize edit set image` est `<nom dans les manifestes>=<nouveau
+nom>:<tag>`. Le membre de GAUCHE est le nom que portent les manifestes —
+`hba/identity-service` — et non l'image du registre. L'inverser pose un `newTag`
+absurde et un `newName` vide, sans que kustomize s'en plaigne.
+
+Les six services, dans les deux overlays, en une fois :
+
 ```bash
-kustomize edit set image ghcr.io/hectorberi01/identity-service=:<tag>   # dans overlays/prod
-kustomize edit set image ghcr.io/hectorberi01/identity-service=:<tag>   # dans overlays/migrations-prod
+TAG=<le tag publié par le workflow>
+
+for OVERLAY in prod migrations-prod; do
+  ( cd "k8s/overlays/$OVERLAY" || exit 1
+    for S in identity user media payment promotion review; do
+      kustomize edit set image \
+        "hba/$S-service=ghcr.io/hectorberi01/$S-service:$TAG"
+    done )
+done
+
+python3 scripts/check-k8s.py     # refuse que les deux overlays divergent
 ```
+
+Ou, en un geste — même effet, et il refuse en plus un tag mutable :
+
+```bash
+python3 scripts/poser-tag-prod.py <tag>
+```
+
+Le §13 exige une image immuable : `latest`, `main` et le placeholder sont
+refusés, parce qu'un simple redémarrage de pod tirerait alors une version que
+personne n'a choisie. Le script ne touche QUE les six services déployés — les
+huit autres gardent `REMPLACE-PAR-LA-PROMOTION`, qui est précisément ce qui dit
+« pas encore promu ». Il relance `check-k8s.py` en terminant.
 
 `REMPLACE-PAR-LA-PROMOTION` n'est pas un tag valide : le tirage échoue tout de
 suite, ce qui est le bon échec. `scripts/check-k8s.py` refuse que les deux
