@@ -61,6 +61,12 @@ service:
 # ── Un seul exemplaire ───────────────────────────────────────────────────────
 #
 # Une console d'observation n'a pas besoin d'être disponible pendant une panne du
-# nœud : si le nœud est tombé, il n'y a plus rien à observer. Le VPS de staging
-# est déjà dimensionné au plus juste (voir le PDF de dimensionnement).
+# nœud : si le nœud est tombé, il n'y a plus rien à observer. L'argument vaut
+# dans les deux environnements — c'est la nature de l'outil, pas la taille du
+# serveur.
+#
+# LA JUSTIFICATION PRÉCÉDENTE NE VALAIT QU'EN STAGING : elle invoquait le VPS de
+# staging « dimensionné au plus juste ». Lue depuis la production, elle laissait
+# croire qu'un second exemplaire serait souhaitable sur une machine plus grande.
+# Il ne l'est pas.
 replicaCount: 1

@@ -142,6 +142,7 @@ helm repo update
 kubectl apply -f /root/acces-lecture.yaml
 helm install console headlamp/headlamp \
   --namespace hba-outils \
+  --version "$(cat /root/VERSION-CONSOLE)" \
   --values /root/headlamp-valeurs.yaml
 
 kubectl -n hba-outils get pod
@@ -151,6 +152,58 @@ kubectl get clusterrolebinding | grep -i headlamp     # doit être VIDE
 **`curl … | bash` FAIT TOURNER UN SCRIPT DISTANT EN ROOT.** C'est la méthode que
 recommande le projet Helm, et elle vaut ce que vaut la confiance accordée à ce
 dépôt. Pour éviter le tube, télécharger le script, le lire, puis l'exécuter.
+
+## La version de la console est figée, et enregistrée
+
+`helm install console headlamp/headlamp` sans `--version` prend **la dernière
+publiée au moment où on tape la commande**. Deux conséquences, aucune visible le
+jour de l'installation :
+
+- réinstaller six mois plus tard ne redonne pas la même console, et rien ne le
+  dit ;
+- une version amont peut réintroduire un défaut que `headlamp-valeurs.yaml`
+  désarme aujourd'hui — le `clusterRoleName: cluster-admin` par défaut de la
+  charte en est l'exemple vivant. Une valeur renommée en amont cesse
+  silencieusement de s'appliquer.
+
+La version retenue vit donc dans `k8s/outils/VERSION-CONSOLE`, un fichier d'une
+ligne, versionné avec le reste.
+
+**Choisir une version** — les commandes ci-dessus ne marchent pas sans ce
+fichier, c'est délibéré :
+
+```bash
+helm repo add headlamp https://kubernetes-sigs.github.io/headlamp/
+helm repo update
+helm search repo headlamp/headlamp --versions | head
+```
+
+Retenir une version publiée, l'écrire dans le fichier, et la commiter :
+
+```bash
+echo "<version>" > k8s/outils/VERSION-CONSOLE
+```
+
+**Monter de version** se fait en changeant ce fichier, puis :
+
+```bash
+helm upgrade console headlamp/headlamp \
+  --namespace hba-outils \
+  --version "$(cat k8s/outils/VERSION-CONSOLE)" \
+  --values k8s/outils/headlamp-valeurs.yaml
+
+kubectl get clusterrolebinding | grep -i headlamp     # doit rester VIDE
+```
+
+Le contrôle de la ligne suivante n'est pas décoratif : `helm upgrade` réapplique
+les valeurs de la charte, et c'est exactement le moment où un défaut amont
+revient. Le vérifier après CHAQUE montée de version, pas seulement à
+l'installation.
+
+**Ce que ce fichier ne couvre pas.** Il fige la version de la *charte*, pas
+l'image du conteneur — la charte décide quelle image elle tire. Il n'installe
+rien tout seul : personne ne vérifie qu'une console déjà en place correspond
+encore à ce qui est écrit là.
 
 ### Ouvrir la console installée depuis le VPS
 
@@ -188,6 +241,7 @@ kubectl config current-context      # default = k3s ; orbstack = votre machine
 kubectl apply -f k8s/outils/acces-lecture.yaml      # si ce n'est pas déjà fait
 helm install console headlamp/headlamp \
   --namespace hba-outils \
+  --version "$(cat k8s/outils/VERSION-CONSOLE)" \
   --values k8s/outils/headlamp-valeurs.yaml
 ```
 

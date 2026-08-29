@@ -62,6 +62,15 @@ app.MapMerchantEndpoints();
 // ═════════════════════════════════════════════════════════════════════════
 await app.MigrateHbaDatabaseAsync<SellersDbContext>();
 
+// Un Job de migration s'arrête ici : les schémas sont à jour, aucun port ne
+// s'ouvre, et le conteneur se termine avec le code 0. Placé APRÈS le dernier
+// `MigrateHbaDatabaseAsync` — plusieurs services portent plusieurs DbContext, et
+// sortir après le premier laisserait les autres bases sans schéma.
+if (app.SortirApresMigrations())
+{
+    return;
+}
+
 // ═════════════════════════════════════════════════════════════════════════
 // LES RÔLES SYSTÈME, APRÈS LA MIGRATION ET AVANT D'OUVRIR LE PORT.
 //

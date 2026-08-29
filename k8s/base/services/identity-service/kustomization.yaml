@@ -122,3 +122,39 @@ patches:
                       secretKeyRef:
                         name: hba-identites-internes
                         key: INTERNAL_KEY_HBA_IDENTITY_API
+
+                  # ═══════════════════════════════════════════════════════════
+                  # LE COMPTE ADMINISTRATEUR D'AMORÇAGE.
+                  #
+                  # Créer un administrateur exige d'être administrateur. Sur une
+                  # base neuve personne ne l'est, et `POST /api/auth/register`
+                  # ne donne que « Buyer » : sans ces deux valeurs, la console
+                  # d'administration reste définitivement fermée.
+                  #
+                  # Hors Development, `SeedIdentityAsync` LÈVE si l'une des deux
+                  # manque, et identity-service ne démarre pas. C'est voulu :
+                  # l'alternative était un avertissement perdu parmi quatorze
+                  # conteneurs, et le symptôme découvert des semaines plus tard
+                  # au premier écran de connexion.
+                  #
+                  # L'AMORÇAGE EST IDEMPOTENT ET NE RÉINITIALISE JAMAIS LE MOT
+                  # DE PASSE. Changer `ADMIN__PASSWORD` ici après le premier
+                  # démarrage ne change RIEN au compte existant — il faut passer
+                  # par l'application. Une variable oubliée ne redevient donc
+                  # jamais une porte ouverte.
+                  #
+                  # L'ADRESSE EST EN CLAIR, LE MOT DE PASSE NON.
+                  #
+                  # Une adresse de connexion n'est pas un secret. Le mot de
+                  # passe vient de `hba-identites-internes` par `secretKeyRef`,
+                  # et surtout PAS de `hba-platform` : celui-là est monté par
+                  # `envFrom` dans les treize services, ce qui donnerait le mot
+                  # de passe administrateur à chaque conteneur de la plateforme.
+                  # ═══════════════════════════════════════════════════════════
+                  - name: ADMIN__EMAIL
+                    value: hector.adjakpa@hbatechettrade.com
+                  - name: ADMIN__PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: hba-identites-internes
+                        key: ADMIN__PASSWORD

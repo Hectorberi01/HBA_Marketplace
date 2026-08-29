@@ -355,18 +355,34 @@ patches:
   # ferait entrer du trafic de production dans un cluster de validation sans que
   # personne s'en aperçoive avant les journaux.
   #
-  # `.example` est un domaine réservé (RFC 2606) : il ne résoudra jamais. C'est
+  # `.example` est un domaine réservé (RFC 2606) : il ne résoudra jamais. C'était
   # délibéré — un placeholder qui résout est un placeholder qu'on oublie de
-  # remplacer.
+  # remplacer. Il a tenu son rôle : c'est en posant l'enregistrement DNS que le
+  # placeholder s'est vu, et pas au premier appel en production.
+  #
+  # RENSEIGNÉ LE 29 AOÛT 2026 :
+  #
+  #   api.hba-express.com.  A  79.137.35.129
+  #
+  # 79.137.35.129 est le VPS de production, distinct du VPS de staging
+  # (193.168.145.162) — le §2 l'exige. La base reste sur son propre serveur,
+  # joignable par le tunnel en 10.20.0.2, et n'entre dans aucun inventaire.
+  #
+  # CE QUE CE CHANGEMENT NE COUVRE PAS. Il ne fait que déclarer l'hôte à
+  # l'Ingress. Le certificat TLS est une autre affaire : `spec/tls/0/hosts/0`
+  # nomme le même hôte, mais c'est cert-manager qui doit l'émettre, et il ne
+  # pourra le faire qu'une fois le DNS propagé ET le contrôleur d'Ingress
+  # joignable en 80 depuis l'extérieur. Tant que ce n'est pas le cas, l'Ingress
+  # existe et répond sans certificat valide.
   - target:
       kind: Ingress
     patch: |-
       - op: replace
         path: /spec/rules/0/host
-        value: api.hba-express.example
+        value: api.hba-express.com
       - op: replace
         path: /spec/tls/0/hosts/0
-        value: api.hba-express.example
+        value: api.hba-express.com
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # LE TAG EST UN PLACEHOLDER DE PROMOTION, ET IL DOIT LE RESTER.

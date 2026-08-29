@@ -239,12 +239,22 @@ def main():
             # Vide a dessein : aucun service ne doit retomber sur une base par defaut.
             valeurs[cle] = ""
             origine[cle] = "vide, volontairement"
+        elif os.environ.get(cle):
+            # L'ENVIRONNEMENT PASSE AVANT LE CLUSTER, ET C'EST DELIBERE.
+            #
+            # La premiere version reprenait d'abord la valeur du cluster. Poser
+            # `export AUTHENTICATION__SIGNINGKEY=...` pour faire tourner la cle
+            # n'aurait alors rien fait : le script aurait garde l'ancienne, en
+            # annoncant « REPRISE », et on aurait cru la rotation faite.
+            # Une intention explicite l'emporte sur un etat herite.
+            valeurs[cle] = os.environ[cle]
+            if existantes.get(cle) and existantes[cle] != os.environ[cle]:
+                origine[cle] = "environnement — REMPLACE la valeur du cluster"
+            else:
+                origine[cle] = "variable d'environnement"
         elif cle in existantes and existantes[cle]:
             valeurs[cle] = existantes[cle]
             origine[cle] = "REPRISE du cluster"
-        elif os.environ.get(cle):
-            valeurs[cle] = os.environ[cle]
-            origine[cle] = "variable d'environnement"
         elif cle in AUTRES_CLES:
             valeurs[cle] = AUTRES_CLES[cle]()
             origine[cle] = "ENGENDREE MAINTENANT"
@@ -302,6 +312,18 @@ def main():
                 print("    " + c)
             print("Si des donnees ont ete chiffrees avec une valeur precedente, une")
             print("nouvelle cle ne les dechiffrera pas. Verifier avant d'appliquer.")
+
+
+    remplacees = [c for c in declarees
+                  if origine[c] == "environnement — REMPLACE la valeur du cluster"]
+    irremplacables = [c for c in remplacees if c in CLES_IRREMPLACABLES]
+    if irremplacables:
+        print()
+        print("ARRET DE LECTURE. Ces cles avaient une AUTRE valeur dans le cluster :")
+        for c in irremplacables:
+            print("    " + c)
+        print("Ce qu'elles ont chiffre ne se dechiffrera pas avec la nouvelle.")
+        print("Si ce n'est pas une rotation voulue, retirer la variable et relancer.")
 
     inutilises = sorted(set(mdp) - {b for _, b in CLES})
     if inutilises:

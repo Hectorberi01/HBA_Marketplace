@@ -19,6 +19,31 @@ public sealed class DatabaseOptions
     /// distinguer « faux parce qu'on l'a demandé » de « faux parce qu'absent ».
     /// </remarks>
     public bool? MigrateOnStartup { get; set; }
+
+    /// <summary>
+    /// Le processus applique-t-il ses migrations PUIS s'arrête-t-il, sans ouvrir
+    /// de port ?
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// CE QUI ÉTAIT CASSÉ : IL N'EXISTAIT AUCUNE FAÇON DE MIGRER SANS SERVIR.
+    ///
+    /// `MigrateOnStartup` fait migrer un serveur qui ensuite écoute pour toujours.
+    /// Un Job Kubernetes bâti là-dessus ne se termine jamais : il reste `Running`,
+    /// `kubectl wait --for=condition=complete` expire, et le déploiement s'arrête
+    /// sur un pas qui a pourtant réussi.
+    ///
+    /// D'où ce second réglage. `MigrateOnly` force les migrations — même hors
+    /// Development, même si `MigrateOnStartup` vaut faux — et demande au
+    /// processus de rendre la main juste après.
+    ///
+    /// CE QU'IL NE FAIT PAS. Il ne remplace pas `MigrateOnStartup` : les deux
+    /// coexistent, et `MigrateOnly` l'emporte. Il ne sème rien — l'amorçage de
+    /// l'administrateur reste au démarrage normal, où il est idempotent. Et il ne
+    /// protège de rien si DEUX Jobs tournent en même temps : c'est le verrou
+    /// consultatif d'EF qui évite la corruption, pas ce réglage.
+    /// ═════════════════════════════════════════════════════════════════════════
+    public bool MigrateOnly { get; set; }
 }
 
 public static class DatabaseMigrationExtensions
@@ -58,7 +83,10 @@ public static class DatabaseMigrationExtensions
             .GetSection(DatabaseOptions.SectionName)
             .Get<DatabaseOptions>() ?? new DatabaseOptions();
 
-        var enabled = options.MigrateOnStartup ?? app.Environment.IsDevelopment();
+        // `MigrateOnly` l'emporte : un Job de migration doit migrer, quel que soit
+        // le réglage destiné au démarrage ordinaire du serveur.
+        var enabled = options.MigrateOnly
+                      || (options.MigrateOnStartup ?? app.Environment.IsDevelopment());
 
         var logger = app.Services
             .GetRequiredService<ILoggerFactory>()
@@ -105,5 +133,43 @@ public static class DatabaseMigrationExtensions
         logger.LogInformation("Migrations appliquées ({Context}).", typeof(TDbContext).Name);
 
         return app;
+    }
+
+    /// <summary>
+    /// Vrai si le processus doit s'arrêter maintenant : les migrations sont
+    /// faites, et rien d'autre n'était demandé.
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// À APPELER APRÈS LE DERNIER `MigrateHbaDatabaseAsync`, PAS APRÈS CHACUN.
+    ///
+    /// Cinq services portent plusieurs `DbContext` — payment-service en a trois,
+    /// review-service trois, notification-service deux. Rendre la main après le
+    /// premier laisserait les autres bases sans schéma, et la panne se lirait
+    /// comme un service cassé plutôt que comme une migration jamais lancée.
+    ///
+    /// Placée avant `app.Run()`, la sortie est propre : aucun port n'est ouvert,
+    /// le conteneur se termine avec le code 0, et le Job passe en `Complete`.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    public static bool SortirApresMigrations(this WebApplication app)
+    {
+        var options = app.Configuration
+            .GetSection(DatabaseOptions.SectionName)
+            .Get<DatabaseOptions>() ?? new DatabaseOptions();
+
+        if (!options.MigrateOnly)
+        {
+            return false;
+        }
+
+        app.Services
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("HBA.Database")
+            .LogInformation(
+                "Database:MigrateOnly — migrations terminées, le processus s'arrête "
+                + "sans ouvrir de port.");
+
+        return true;
     }
 }

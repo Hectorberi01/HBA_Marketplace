@@ -91,6 +91,15 @@ app.MapInternalGrpcService<PromotionGrpcService>();
 // ═════════════════════════════════════════════════════════════════════════════
 await app.MigrateHbaDatabaseAsync<PromotionsDbContext>();
 
+// Un Job de migration s'arrête ici : les schémas sont à jour, aucun port ne
+// s'ouvre, et le conteneur se termine avec le code 0. Placé APRÈS le dernier
+// `MigrateHbaDatabaseAsync` — plusieurs services portent plusieurs DbContext, et
+// sortir après le premier laisserait les autres bases sans schéma.
+if (app.SortirApresMigrations())
+{
+    return;
+}
+
 app.Run();
 
 /// <summary>Rendu visible pour <c>WebApplicationFactory&lt;Program&gt;</c>.</summary>

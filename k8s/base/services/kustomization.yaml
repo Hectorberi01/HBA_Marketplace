@@ -49,7 +49,29 @@ resources:
   - identity-service
   - user-service
   - media-service
-  - notification-service
+  # ═══════════════════════════════════════════════════════════════════════════
+  # notification-service EST HORS DU LOT, ET CE N'EST PAS UN OUBLI.
+  #
+  # `NotificationsModuleInstaller` lève en production dans LES DEUX branches du
+  # canal SMS : configuré, il refuse parce qu'aucun adaptateur `ISmsSender` de
+  # production n'existe dans ce dépôt ; non configuré, il refuse parce que le SMS
+  # est le canal OTP PAR DÉFAUT et qu'un code qui n'atteint personne est un échec
+  # totalement silencieux. Il n'y a pas de troisième chemin : le pod partirait en
+  # CrashLoopBackOff dès le premier démarrage.
+  #
+  # CE QUE SON ABSENCE COÛTE, ET C'EST À DIRE À VOIX HAUTE : aucun courriel ni
+  # SMS ne part. Pas de vérification d'adresse, pas de « mot de passe oublié ».
+  # Le compte administrateur amorcé par identity-service est donc le SEUL moyen
+  # d'entrer, et son mot de passe ne se récupère pas.
+  #
+  # POUR LE RÉINTÉGRER : choisir un fournisseur SMS, écrire son adaptateur
+  # `ISmsSender`, l'enregistrer dans l'installeur — ou retirer `SMS` de
+  # `MfaChannels.All` côté identity et lever les deux garde-fous. Ses clés
+  # (`INTERNAL_KEY_HBA_COMMUNICATION_API`, `CONNECTIONSTRINGS__NOTIFICATION`) et
+  # son Secret `hba-notifications` sont déjà en place : décommenter la ligne
+  # suivante suffira.
+  # ═══════════════════════════════════════════════════════════════════════════
+  # - notification-service
   - payment-service
   - promotion-service
   - review-service

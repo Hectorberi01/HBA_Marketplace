@@ -122,3 +122,51 @@ patches:
                       secretKeyRef:
                         name: hba-identites-internes
                         key: INTERNAL_KEY_HBA_MEDIA_API
+
+                  # ═══════════════════════════════════════════════════════════
+                  # LE STOCKAGE OBJET — SANS LUI, LE SERVICE REFUSE DE DÉMARRER.
+                  #
+                  # `MediaModuleInstaller` lève en production quand la section
+                  # `Media:Storage` n'est pas renseignée, et le message dit
+                  # pourquoi : le repli en mémoire perdrait à chaque redémarrage
+                  # les pièces KYB et les preuves de livraison. Aucune de ces
+                  # clés n'existait dans `k8s/`, alors que MinIO était déployé.
+                  #
+                  # L'ENDPOINT EST INTERNE AU CLUSTER. `minio:9000` est le
+                  # Service posé par `k8s/base/data/minio`. En clair et non en
+                  # TLS : le trafic ne quitte pas le namespace, et la
+                  # NetworkPolicy n'autorise la sortie que vers les pods du
+                  # namespace plus la base.
+                  #
+                  # CE QUE CE CÂBLAGE NE COUVRE PAS, ET IL FAUT LE SAVOIR :
+                  #
+                  #  • MinIO vit sur LE MÊME VPS que les pods, sur un disque
+                  #    unique, sans sauvegarde. Ce sont des pièces de conformité
+                  #    — cartes d'identité, registres de commerce — et des
+                  #    preuves de livraison. Perdre ce disque, c'est perdre un
+                  #    dossier de litige. Un stockage externe reste le bon choix.
+                  #  • Les identifiants sont ceux du compte ROOT de MinIO. Un
+                  #    compte de service limité aux deux buckets vaudrait mieux ;
+                  #    MinIO n'en fournit pas sans configuration supplémentaire.
+                  #  • LES BUCKETS NE SONT PAS CRÉÉS ICI. MinIO ne les crée pas
+                  #    tout seul, et rien dans ce dépôt ne le fait : `hba-public`
+                  #    et `hba-private` sont à créer avant le premier envoi.
+                  # ═══════════════════════════════════════════════════════════
+                  - name: MEDIA__STORAGE__ENDPOINT
+                    value: http://minio:9000
+                  - name: MEDIA__STORAGE__REGION
+                    value: us-east-1
+                  - name: MEDIA__STORAGE__PUBLICBUCKET
+                    value: hba-public
+                  - name: MEDIA__STORAGE__PRIVATEBUCKET
+                    value: hba-private
+                  - name: MEDIA__STORAGE__ACCESSKEYID
+                    valueFrom:
+                      secretKeyRef:
+                        name: minio
+                        key: root-user
+                  - name: MEDIA__STORAGE__SECRETACCESSKEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: minio
+                        key: root-password

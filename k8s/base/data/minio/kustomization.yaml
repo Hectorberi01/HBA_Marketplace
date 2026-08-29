@@ -3,3 +3,4 @@ kind: Kustomization
 
 resources:
   - statefulset.yaml
+  # - secret.yaml   # posé par kubectl, jamais par kustomize (§12)

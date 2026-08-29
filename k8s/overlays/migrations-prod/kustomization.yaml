@@ -1,0 +1,46 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES JOBS DE MIGRATION DE PRODUCTION.
+#
+#     kubectl apply -k k8s/overlays/migrations-prod
+#
+# SEPARE DE `overlays/prod` A DESSEIN. Inclure les Jobs dans le deploiement
+# ferait tourner une migration a chaque `apply -k` — donc a chaque changement de
+# configuration sans rapport. Une migration se declenche, elle ne se subit pas.
+#
+# UN JOB TERMINE NE SE RELANCE PAS. Rejouer une migration demande de supprimer le
+# Job d'abord :
+#
+#     kubectl -n hba-prod delete job -l app.kubernetes.io/component=migration
+#
+# LES IMAGES DOIVENT ETRE CELLES DE `overlays/prod`. Migrer avec une image plus
+# ancienne que celle qui servira applique un schema en retard sur le code : le
+# service demarre et echoue sur une colonne absente, loin de la cause.
+# `scripts/check-k8s.py` verifie cet accord.
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hba-prod
+
+resources:
+  - ../../base/migrations
+
+images:
+  - name: hba/identity-service
+    newName: ghcr.io/hectorberi01/identity-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/user-service
+    newName: ghcr.io/hectorberi01/user-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/media-service
+    newName: ghcr.io/hectorberi01/media-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/payment-service
+    newName: ghcr.io/hectorberi01/payment-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/promotion-service
+    newName: ghcr.io/hectorberi01/promotion-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/review-service
+    newName: ghcr.io/hectorberi01/review-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"

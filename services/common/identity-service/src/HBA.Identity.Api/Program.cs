@@ -54,6 +54,15 @@ app.MapInternalGrpcService<IdentityGrpcService>();
 // ═════════════════════════════════════════════════════════════════════════
 await app.MigrateHbaDatabaseAsync<IdentityDbContext>();
 
+// Un Job de migration s'arrête ici : les schémas sont à jour, aucun port ne
+// s'ouvre, et le conteneur se termine avec le code 0. Placé APRÈS le dernier
+// `MigrateHbaDatabaseAsync` — plusieurs services portent plusieurs DbContext, et
+// sortir après le premier laisserait les autres bases sans schéma.
+if (app.SortirApresMigrations())
+{
+    return;
+}
+
 // APRÈS LES MIGRATIONS, ET C'EST UN ORDRE, PAS UNE PRÉFÉRENCE.
 //
 // L'amorçage écrit dans `roles` et `users`. Sur une base neuve, l'inverser

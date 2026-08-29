@@ -650,6 +650,143 @@ def verifier_secrets_vides() -> list[str]:
     return fautes
 
 
+def verifier_hotes_des_overlays() -> list[str]:
+    """Aucun overlay deployable ne doit garder un hote en `.example`.
+
+    ═════════════════════════════════════════════════════════════════════════
+    CE QUI ETAIT CASSE.
+
+    L'overlay de production a porte `api.hba-express.example` jusqu'au jour ou
+    l'enregistrement DNS a ete pose — decouvert par hasard, en relisant le
+    fichier, pas par un controle. `.example` est reserve par la RFC 2606 : il ne
+    resout nulle part. Deploye tel quel, l'Ingress existe, le cluster va bien,
+    tous les pods sont verts, et AUCUNE requete n'arrive jamais. Rien dans
+    l'etat du cluster ne designe la cause.
+
+    Le placeholder etait volontaire, et c'est un bon choix : un placeholder qui
+    resout est un placeholder qu'on oublie. Ce qui manquait, c'est le controle
+    qui refuse de le laisser passer en production.
+
+    CE QUE CE CONTROLE NE COUVRE PAS.
+
+    `dev` garde `.example` a dessein : rien n'y est publie. Le controle ne
+    verifie pas que le domaine RESOUT, ni qu'il pointe la bonne machine, ni
+    qu'un certificat existe — seulement qu'il n'est plus reserve. Il ne regarde
+    pas non plus les domaines poses ailleurs que dans un patch d'Ingress
+    (`NOTIFICATIONS__EMAIL__APPBASEURL`, par exemple, vit dans le ConfigMap).
+    ═════════════════════════════════════════════════════════════════════════
+    """
+    fautes: list[str] = []
+    # `dev` n'est pas publie : son hote reserve est correct.
+    deployables = ("prod", "staging")
+    vus = 0
+    for overlay in deployables:
+        chemin = os.path.join(RACINE, "k8s", "overlays", overlay, "kustomization.yaml")
+        if not os.path.exists(chemin):
+            fautes.append(chemin + " est introuvable")
+            continue
+        with open(chemin, encoding="utf-8") as f:
+            contenu = f.read()
+        # Uniquement les valeurs de patch, jamais la prose : le commentaire qui
+        # explique la regle a le droit de nommer `.example`.
+        valeurs = re.findall(r"^\s*value:\s*(\S+)\s*$", contenu, re.MULTILINE)
+        hotes = [v for v in valeurs if re.match(r"^[a-z0-9.-]+\.[a-z]{2,}$", v)]
+        vus += len(hotes)
+        for hote in hotes:
+            if hote.endswith((".example", ".invalid", ".test", ".localhost")):
+                fautes.append(
+                    "overlay %s : l'hote %s est un domaine reserve (RFC 2606) — "
+                    "il ne resoudra jamais, et la panne se lira comme un cluster "
+                    "en bonne sante sans trafic" % (overlay, hote))
+
+    if vus == 0:
+        fautes.append("aucun hote lu dans les overlays deployables — le format a "
+                      "change, ce controle ne verifie plus rien")
+    return fautes
+
+
+def verifier_images_de_migration() -> list[str]:
+    """Les Jobs de migration doivent employer l'image exacte du deploiement.
+
+    ═════════════════════════════════════════════════════════════════════════
+    POURQUOI CE CONTROLE EXISTE.
+
+    Les Jobs de migration vivent dans leur propre overlay — il faut pouvoir les
+    lancer sans redeployer. Le prix de cette separation est une seconde liste
+    d'images, et deux listes divergent toujours.
+
+    Migrer avec une image PLUS ANCIENNE que celle qui servira applique un schema
+    en retard sur le code : le service demarre, puis echoue sur une colonne
+    absente, a la premiere requete qui la touche — loin de la migration. Migrer
+    avec une image PLUS RECENTE applique un schema que le code deploye ne sait
+    pas encore lire, ce qui peut passer inapercu longtemps.
+
+    Le controle verifie aussi qu'aucun service deploye n'a ete oublie : un Job
+    manquant, c'est une base sans schema, et le pod qui la vise echoue au
+    demarrage sans que rien ne designe l'oubli.
+
+    CE QUE CE CONTROLE NE COUVRE PAS.
+
+    Il compare deux fichiers du depot. Il ne dit pas si l'image existe dans le
+    registre, ni si le tag pointe encore le meme contenu — un tag mutable peut
+    designer deux images differentes a deux jours d'intervalle.
+    ═════════════════════════════════════════════════════════════════════════
+    """
+    fautes: list[str] = []
+
+    def lire_images(chemin):
+        if not os.path.exists(chemin):
+            return None
+        with open(chemin, encoding="utf-8") as f:
+            contenu = f.read()
+        return {n: (nn, t) for n, nn, t in re.findall(
+            r"^  - name: (hba/[a-z0-9-]+)\n    newName: (\S+)\n    newTag: \"([^\"]*)\"",
+            contenu, re.MULTILINE)}
+
+    prod = lire_images(os.path.join(RACINE, "k8s", "overlays", "prod", "kustomization.yaml"))
+    migr = lire_images(os.path.join(RACINE, "k8s", "overlays", "migrations-prod",
+                                    "kustomization.yaml"))
+    if prod is None or migr is None:
+        # L'overlay de migration peut ne pas exister sur une branche ancienne :
+        # on ne fabrique pas une faute a partir d'une absence.
+        return []
+
+    if not prod or not migr:
+        return ["aucune image lue dans les overlays prod ou migrations-prod — "
+                "le format a change, ce controle ne verifie plus rien"]
+
+    # Les services reellement deployes : eux seuls ont besoin d'un Job.
+    services_yaml = os.path.join(RACINE, "k8s", "base", "services", "kustomization.yaml")
+    deployes = set()
+    with open(services_yaml, encoding="utf-8") as f:
+        for ligne in f:
+            if ligne.lstrip().startswith("#"):
+                continue
+            m = re.match(r"^\s*-\s+([a-z0-9-]+-service)\s*$", ligne)
+            if m:
+                deployes.add("hba/" + m.group(1))
+
+    for nom in sorted(deployes):
+        if nom not in migr:
+            fautes.append(
+                "%s est deploye mais n'a pas de Job de migration — sa base "
+                "resterait sans schema (relancer scripts/generer-jobs-migration.py)"
+                % nom)
+            continue
+        if nom in prod and prod[nom] != migr[nom]:
+            fautes.append(
+                "%s : le Job de migration emploie %s:%s alors que le deploiement "
+                "emploie %s:%s — le schema serait applique par une autre version "
+                "du code" % (nom, migr[nom][0], migr[nom][1], prod[nom][0], prod[nom][1]))
+
+    for nom in sorted(set(migr) - deployes):
+        fautes.append(
+            "%s a un Job de migration mais n'est pas deploye — migration inutile "
+            "sur une base que personne ne lit" % nom)
+
+    return fautes
+
+
 def main() -> int:
     # ═════════════════════════════════════════════════════════════════════════
     # CE CONTRÔLE-CI TOURNE MÊME SANS KUSTOMIZE, ET C'EST VOLONTAIRE.
@@ -661,6 +798,8 @@ def main() -> int:
     # ═════════════════════════════════════════════════════════════════════════
     cibles = verifier_chaines_de_connexion()
     cibles += verifier_secrets_vides()
+    cibles += verifier_hotes_des_overlays()
+    cibles += verifier_images_de_migration()
     cibles += verifier_cibles_de_patch() if yaml is not None else []
     cibles += verifier_montages_de_secret() if yaml is not None else []
     if yaml is None:
