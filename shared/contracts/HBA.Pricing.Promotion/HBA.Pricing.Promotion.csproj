@@ -15,6 +15,27 @@
     jamais eu de raison de vivre dans l'infrastructure de `cart-service`.
   -->
 
+  <!--
+    LE LOGGER EST DÉCLARÉ ICI, ET IL DEVAIT L'ÊTRE.
+
+    Cette classe vivait dans `HBA.Commerce.Infrastructure`, qui référence
+    `HBA.Shared.Infrastructure` : `ILogger<T>` lui arrivait TRANSITIVEMENT, sans
+    que rien ne le dise. En la sortant dans un projet qui ne référence que deux
+    contrats, la dépendance est devenue visible — sous la forme de trois CS0234
+    et CS0246 au premier `dotnet build`.
+
+    C'est le bon effet d'un découpage : ce qui était implicite devient explicite.
+    `Abstractions` et non le paquet complet — ce projet ÉCRIT des journaux, il
+    n'en configure aucun.
+
+    Pas d'attribut `Version` : la gestion centralisée des paquets
+    (`Directory.Packages.props`) la fixe, et l'écrire ici serait refusé par
+    NU1008.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\HBA.Pricing.Contracts\HBA.Pricing.Contracts.csproj" />
     <ProjectReference Include="..\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
