@@ -90,6 +90,32 @@ message MediaView {
 
   repeated MediaVariantView variants = 13;
   google.protobuf.Timestamp created_on_utc = 14;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // QUI A DÉPOSÉ LE FICHIER — LE CHAMP QUI MANQUAIT, ET CE QUE SON ABSENCE A FAIT.
+  //
+  // `MediaView.CreatedByUserId` a été ajouté au contrat C# le 28 août, avec le
+  // contrôle qui s'en sert : seller-service refuse de rattacher une pièce KYB
+  // déposée par quelqu'un qui n'appartient pas à la boutique.
+  //
+  // Le proto, lui, n'a PAS été touché. Or seller-service ne parle à
+  // media-service qu'en gRPC : la valeur ne traversait donc jamais, et
+  // `ToContract` construisait un `MediaView` avec `Guid.Empty`. Le contrôle
+  // comparait alors l'identifiant du déposant à `Guid.Empty`, ne trouvait aucune
+  // adhésion, et rendait 403 — À TOUT VENDEUR DÉPOSANT SA PROPRE PIÈCE.
+  //
+  // Le champ C# était `= default` « pour que les appelants existants continuent
+  // de compiler ». C'est exactement ce qui a permis au trou de passer : rien
+  // n'a cessé de compiler, et le défaut n'est apparu qu'à l'exécution des tests
+  // d'intégration, sous la forme d'un 403 qui ressemblait à un durcissement
+  // volontaire.
+  //
+  // PAS `optional` : contrairement à `url`, la chaîne vide est ici une valeur
+  // légitime — elle veut dire « inconnu », ce que rend une instance de
+  // media-service pas encore redéployée. `ToContract` la traduit en
+  // `Guid.Empty`, et l'appelant décide quoi en faire.
+  // ═══════════════════════════════════════════════════════════════════════════
+  string created_by_user_id = 15;
 }
 
 message MediaVariantView {

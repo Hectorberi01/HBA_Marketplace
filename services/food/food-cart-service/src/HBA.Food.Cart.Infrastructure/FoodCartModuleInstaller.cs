@@ -11,6 +11,7 @@ using HBA.FoodCarts.Infrastructure.Persistence;
 using HBA.FoodCarts.Infrastructure.Public;
 using HBA.FoodOrders.Contracts.IntegrationEvents;
 using HBA.Pricing.Contracts;
+using HBA.Pricing.Promotion;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Inbox;
@@ -51,9 +52,29 @@ public sealed class FoodCartModuleInstaller : IModuleInstaller
         services.AddScoped<IConsumerInbox, EfConsumerInbox<FoodCartDbContext>>();
         services.AddScoped<IFoodCartModuleApi, FoodCartModuleApi>();
         // LE SEUL BOUCHON DE TARIFICATION QUI SUBSISTE (ISSUE-033). Il refuse
-        // désormais de démarrer en production — voir `GuardNeutralPricing`.
-        services.AddScoped<IPricingModuleApi, NeutralPricingModuleApi>();
-        GuardNeutralPricing(configuration);
+        // désormais de démarrer si l'adresse de promotion-service manque — voir
+        // `AddPromotionGrpcClient` dans le composition root.
+        // ═══════════════════════════════════════════════════════════════════
+        // LE PANIER DE REPAS EST BRANCHÉ SUR LES PROMOTIONS DEPUIS LE 29 AOÛT.
+        //
+        // Il employait `NeutralPricingModuleApi` : aucune remise jamais
+        // appliquée, TOUT code promo refusé — et en silence. Le garde-fou
+        // `GuardNeutralPricing` refusait donc de démarrer en production, ce qui
+        // était le bon choix tant que le branchement n'existait pas.
+        //
+        // `PromotionPricingModuleApi` est LA MÊME implémentation que
+        // `cart-service`, pas une copie : elle vit dans
+        // `shared/contracts/HBA.Pricing.Promotion` depuis ce jour, parce qu'elle
+        // n'a jamais dépendu que de deux contrats. Deux tarifications recopiées
+        // divergent au premier correctif — et une divergence de tarification ne
+        // se voit pas, elle se facture.
+        //
+        // CE QUE CE BRANCHEMENT EXIGE DE L'HÔTE : `AddPromotionGrpcClient` dans
+        // le composition root, et `SERVICES__PROMOTION` au déploiement.
+        // L'enregistrement du client LÈVE si l'adresse manque — le service ne
+        // démarre pas plutôt que de refuser les coupons sans le dire.
+        // ═══════════════════════════════════════════════════════════════════
+        services.AddScoped<IPricingModuleApi, PromotionPricingModuleApi>();
 
         services.AddScoped<
             IDomainEventHandler<FoodCartCheckedOutDomainEvent>, FoodCartCheckedOutDomainEventHandler>();
@@ -76,7 +97,8 @@ public sealed class FoodCartModuleInstaller : IModuleInstaller
     /// MÊME RÈGLE QUE `PaymentsModuleInstaller` ET `ReturnRefundModuleInstaller`,
     /// MÊME RAISON.
     ///
-    /// `NeutralPricingModuleApi` ne MENT pas — il rend le prix de base et refuse
+    /// La tarification neutre d'avant le 29/08/2026 ne MENTAIT pas — elle rendait
+    /// le prix de base et refusait
     /// franchement les codes, ce qui est fail-closed. Ce qu'il fait, c'est
     /// PROMETTRE une fonctionnalité qui n'existe pas : le §11 décrit un checkout de
     /// restauration avec code promo, l'application affiche le champ,
@@ -105,40 +127,22 @@ public sealed class FoodCartModuleInstaller : IModuleInstaller
     /// recette vers celui de production. Et il n'y aurait rien à assumer : brancher
     /// promotion sur ce panier est une demi-journée de travail, pas un arbitrage.
     /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
-    private static void GuardNeutralPricing(IConfiguration configuration)
-    {
-        const string details =
-            "  \u2022 NeutralPricingModuleApi.CalculatePriceAsync \u2014 aucune remise n'est jamais appliquée "
-            + "à un panier de repas, quelle que soit la campagne en cours.\n"
-            + "  \u2022 NeutralPricingModuleApi.ValidateCouponAsync \u2014 TOUT code promo est refusé, "
-            + "y compris un code valide et actif.";
 
-        if (IsProduction(configuration))
-        {
-            throw new InvalidOperationException(
-                "PRODUCTION AVEC UNE TARIFICATION NEUTRE \u2014 DÉMARRAGE REFUSÉ.\n\n"
-                + "Le panier de repas n'est branché sur AUCUN service de promotion :\n"
-                + details + "\n\n"
-                + "Le refus est DÉLIBÉRÉ. Sans lui, le service démarrerait normalement et aucune "
-                + "campagne food ne fonctionnerait \u2014 sans une erreur, sans une ligne de journal, et "
-                + "sans aucun moyen de distinguer « pas de coupon » de « coupon jamais appliqué ». "
-                + "C'est le défaut ISSUE-033, corrigé côté marketplace et non côté restauration.\n\n"
-                + "Pour lever ce refus : enregistrer un fournisseur branché sur promotion-service "
-                + "(voir `PromotionPricingModuleApi` dans cart-service), ajouter "
-                + "`AddPromotionGrpcClient` au composition root et `SERVICES__PROMOTION` au "
-                + "déploiement, puis retirer cet appel.");
-        }
+    // ═══════════════════════════════════════════════════════════════════════════
+    // `GuardNeutralPricing` A ÉTÉ RETIRÉ LE 29 AOÛT 2026, ET C'EST LE BON GESTE.
+    //
+    // Il refusait de démarrer en production parce que le panier de repas
+    // n'était branché sur aucun service de promotion. Ce n'est plus le cas :
+    // `PromotionPricingModuleApi` est enregistré plus haut, et
+    // `AddPromotionGrpcClient` lève si son adresse manque.
+    //
+    // LE GARDER AURAIT ÉTÉ PIRE QUE DE NE JAMAIS L'ÉCRIRE. Un garde-fou qui
+    // décrit un défaut corrigé bloque la production pour rien, et le premier
+    // qui le lit cherche un problème qui n'existe plus. C'est le défaut inverse
+    // de celui qu'il corrigeait, et c'est un défaut quand même — son propre
+    // commentaire le disait de la liste de `return-refund-service`.
+    // ═══════════════════════════════════════════════════════════════════════════
 
-        // Bruyant, et volontairement. En production ce cas est impossible (voir
-        // ci-dessus) ; ailleurs, il faut qu'un développeur qui saisit un code promo
-        // sur un panier de repas sache qu'aucun service ne le regarde — sans quoi il
-        // conclura que le code est mauvais.
-        Console.WriteLine(
-            "[FoodCart] \u26a0\ufe0f  TARIFICATION NEUTRE ACTIVE :\n" + details + "\n"
-            + "Le parcours de commande se déroule intégralement, mais aucune promotion n'existe "
-            + "sur les repas. Le démarrage est refusé en production.");
-    }
 
     /// <summary>
     /// Sommes-nous en production ?

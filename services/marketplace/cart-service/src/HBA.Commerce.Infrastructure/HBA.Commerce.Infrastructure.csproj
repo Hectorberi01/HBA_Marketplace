@@ -34,6 +34,7 @@
       transport.
     -->
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Pricing.Promotion\HBA.Pricing.Promotion.csproj" />
   </ItemGroup>
 
   <ItemGroup>

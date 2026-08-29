@@ -1,185 +1,63 @@
-# ═══════════════════════════════════════════════════════════════════════════
-# PILE DE DÉVELOPPEMENT LOCAL — services applicatifs + passerelle, sur une machine.
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENGENDRÉ PAR scripts/generer-compose-prod.py — NE PAS ÉDITER À LA MAIN.
 #
-# C'EST DESORMAIS LA SEULE PILE COMPOSE DU DEPOT.
-# 
-# Ces lignes disaient qu'elle etait « volontairement distincte de
-# infra/docker/compose*.yml, qui vise un serveur ». Ce dossier a ete retire
-# le 2026-08-26 vers `_to_delete/2026-08-26-pile-compose-serveur/` : rien ne
-# le lancait, il portait les treize anciens noms de service, et son contexte
-# de construction sortait du depot. La cible serveur, c'est `k8s/`.
+# La source est `docker-compose.dev.yml`, seule description complète des vingt
+# services. Modifier un service là-bas, puis relancer le script : un second
+# compose écrit à la main divergerait au premier changement de variable, et la
+# divergence ne se verrait qu'en production.
 #
-# LES SECRETS DE CE FICHIER SONT PUBLICS, ET C'EST ASSUMÉ.
+# LES VALEURS NE SONT PAS ICI. Chaque secret est une référence `${VAR:?...}` :
+# Compose REFUSE de démarrer si la variable est absente, plutôt que de lancer un
+# service avec une chaîne vide. Les valeurs vivent dans un fichier d'environnement
+# hors du dépôt — voir docs/RUNBOOK-COMPOSE.md.
 #
-# `hba`/`hba` en base, une clé de signature en clair : ce fichier est versionné
-# et lisible de tous. Il ne doit JAMAIS servir ailleurs qu'en local. En HMAC, la
-# clé qui vérifie est celle qui signe — qui lit ce fichier forge un jeton Admin.
-# ═══════════════════════════════════════════════════════════════════════════
-
-# UNE SEULE CLÉ, PARTAGÉE PAR LES QUATORZE CONTENEURS.
+# CE QUE CE FICHIER NE PORTE PAS : le proxy TLS qui sert api.hba-express.com, la
+# création des buckets MinIO, et les migrations de base. Tout est dans le runbook.
 #
-# identity-service SIGNE, les douze autres services et la passerelle VÉRIFIENT.
-# En HMAC c'est la même clé des deux côtés : la moindre divergence produit un
-# 401 sans le moindre message — le jeton est valide, il est simplement rejeté.
+# SERVICES ÉCARTÉS, ET POURQUOI :
 #
-# C'est exactement ce qui se passait avant : seul identity recevait
-# `Authentication__*`. Les douze autres services démarraient sans clé, et
-# `AddAuthentication` n'installe alors NI `IssuerSigningKey` NI l'épinglage
-# d'algorithme : chaque appel authentifié tombait en 401, sans erreur au
-# démarrage pour l'expliquer.
-x-dev-auth: &dev-auth
-  AUTHENTICATION__ISSUER: hba-identity
-  AUTHENTICATION__AUDIENCE: hba-platform
-  AUTHENTICATION__SIGNINGKEY: hba-development-signing-key-32bytes-minimum
-
-  # SANS CETTE CLÉ, AUCUN APPEL gRPC ENTRE SERVICES N'ABOUTIT.
-  #
-  # `InternalCallServerInterceptor` refuse tout appel quand `Internal:ApiKey`
-  # est vide — et c'est le bon choix : laisser passer « puisqu'il n'y a rien à
-  # vérifier » ouvrirait l'API interne au réseau entier au moindre oubli de
-  # variable, sans aucun symptôme.
-  #
-  # Mais elle n'était renseignée NULLE PART. Chaque appel inter-services
-  # échouait donc en
-  #
-  #     Unavailable : Internal API not configured.
-  #
-  # côté serveur, après un aller-retour HTTP réussi — ce qui envoie chercher un
-  # problème de réseau ou de routage là où il n'y en a pas.
-  #
-  # Elle doit être IDENTIQUE partout : l'appelant la présente, l'appelé la
-  # compare. Une divergence rendrait `NotFound`, réponse volontairement muette
-  # qui ne dit pas qu'une clé est en cause.
-  INTERNAL__APIKEY: hba-development-internal-key
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # IDENTITÉ D'APPELANT gRPC EN DÉVELOPPEMENT : NON SIGNÉE, ET SEULEMENT ICI.
-  #
-  # CE DRAPEAU EMPÊCHE L'HÔTE DE DÉMARRER HORS `Development`.
-  #
-  # `AddHbaGrpc` lève à la construction — pas au premier appel — si l'
-  # environnement n'est pas `Development`. Une configuration de production qui
-  # l'hériterait par recopie ne part pas.
-  #
-  # POURQUOI PAS DE VRAIES CLÉS ICI.
-  #
-  # Une clé privée est propre à UN hôte : elle ne peut pas vivre dans cette
-  # ancre, qui est partagée par les vingt-trois. Les câbler demanderait
-  # vingt-trois lignes de base64 recopiées à la main, plus un registre de trois
-  # kilo-octets sur une seule ligne. Personne ne relit cela, et une erreur s'y
-  # manifeste par un `Unauthenticated` sans cause lisible.
-  #
-  # CE QUI RESTE VÉRIFIÉ EN DÉVELOPPEMENT : la table `AutorisationsGrpc`. Un
-  # appel non autorisé est refusé ici comme en production — donc une entrée
-  # manquante se voit en montant la pile de développement, et non au premier
-  # déploiement.
-  #
-  # CE QUI NE L'EST PAS : l'authenticité du nom présenté. Sur ce réseau de
-  # développement, n'importe quel processus peut se dire n'importe qui — au
-  # même degré que la clé interne écrite en clair juste au-dessus.
-  # ═══════════════════════════════════════════════════════════════════════════
-  INTERNAL__IDENTITESNONSIGNEES: "true"
-
-  # LES CODES DE VÉRIFICATION ET DE RÉINITIALISATION NE TRAVERSENT PLUS LE BUS
-  # EN CLAIR.
-  #
-  # Ils partaient tels quels dans `PasswordResetRequestedIntegrationEvent` et
-  # `EmailVerificationRequestedIntegrationEvent` : sur un topic Kafka retenu
-  # sept jours, ET en clair dans `identity.outbox_messages.Content`. Un accès
-  # en LECTURE — une sauvegarde, un export analytique — suffisait à prendre
-  # n'importe quel compte : le code EST le justificatif, la boîte mail n'est
-  # que le canal de livraison.
-  #
-  # identity chiffre, notifications déchiffre. La clé doit donc être IDENTIQUE
-  # des deux côtés : une divergence ne se voit pas au démarrage, elle se voit
-  # quand plus aucun e-mail ne part — le déchiffrement lève et le message
-  # finit en lettre morte.
-  #
-  # Cette valeur-ci est exactement la clé de développement intégrée
-  # (SHA-256 d'une phrase fixe). Elle est PUBLIQUE, comme tout ce fichier ;
-  # elle est écrite ici pour que la variable existe et se voie, pas pour
-  # protéger quoi que ce soit. En production, `AesGcmSecretProtector` REFUSE
-  # de démarrer sans clé fournie.
-  SECURITY__SECRETPROTECTION__KEY: qn3pI+unmhy+CoohrVuLMPSlwHniiS6yMfMknVsofdY=
+#   postgres
+#     la base vit sur un second VPS, jointe par le tunnel
+#
+#   redis-ui
+#     console d'exploration — jamais en production
+#
+#   kafka-ui
+#     console d'exploration — jamais en production
+#
+#   minio-init
+#     amorçage de développement ; en production, voir le runbook
+#
+#   return-refund-service
+#     deux adaptateurs gRPC restent des bouchons — la marchandise retourné
+#     e n'est jamais remise en stock, et aucune course d'enlèvement n'est 
+#     créée alors qu'un numéro est rendu au client.
+#
+#   notification-service
+#     aucun adaptateur ISmsSender de production n'existe ; le SMS est le c
+#     anal OTP par défaut, et NotificationsModuleInstaller lève dans les d
+#     eux branches. CONSÉQUENCE : aucun courriel ni SMS ne part.
+# ═══════════════════════════════════════════════════════════════════════════════
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: hba
-      POSTGRES_PASSWORD: hba
-      POSTGRES_DB: hba
-
-    # SANS SONDE, `condition: service_healthy` EST IMPOSSIBLE À EXPRIMER.
-    #
-    # Un conteneur postgres est « démarré » bien avant d'accepter une connexion :
-    # l'entrypoint lance d'abord un serveur temporaire pour exécuter les scripts
-    # de `docker-entrypoint-initdb.d`, puis redémarre. Les services applicatifs
-    # tombaient dans cette fenêtre.
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hba -d hba"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 20s
-
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-
-      # SANS CE MONTAGE, LES BASES APPLICATIVES N'EXISTENT PAS.
-      #
-      # Chaque service reçoit `Database=hba_xxx`, mais l'image postgres ne crée
-      # que celle de `POSTGRES_DB`. Le script était déjà écrit — il n'était
-      # monté que par la pile serveur. Les services échouaient donc sur
-      # « database does not exist », sans que rien ne désigne la
-      # cause.
-      #
-      # IL NE S'EXÉCUTE QU'AU PREMIER DÉMARRAGE DU VOLUME.
-      #
-      # `docker-entrypoint-initdb.d` est ignoré si `postgres-data` contient déjà
-      # des données. Si les bases manquent encore après cette correction :
-      #   docker compose -f docker-compose.dev.yml down -v
-      # LE MONTAGE POINTAIT UN CRAN TROP HAUT, ET NE CREAIT DONC RIEN.
-      #
-      # C'etait `./infra/docker/postgres`, dont le contenu est le seul
-      # sous-repertoire `init/`. L'entrypoint de l'image postgres parcourt
-      # les FICHIERS de /docker-entrypoint-initdb.d et ignore les
-      # repertoires : le script etait monte, visible, et jamais lu.
-      # Le commentaire ci-dessus affirmait le contraire depuis le debut.
-      # Le repertoire a quitte `infra/docker/`, retire du depot : cette pile
-      # etait le seul lecteur du script, et le dossier ne contenait par
-      # ailleurs qu'une pile compose morte.
-      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
-    networks:
-      - hba-backend
 
   redis:
+    container_name: hba-redis
     image: redis:7-alpine
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
-    ports:
-      - "6379:6379"
+    # `ports:` retiré : publier sur le VPS, c'est publier sur Internet.
+    # Les services se joignent par le réseau `hba-backend`.
     networks:
       - hba-backend
 
-  redis-ui:
-    image: rediscommander/redis-commander:latest
-    environment:
-      REDIS_HOSTS: local:redis:6379
-    ports:
-      - "8082:8081"
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - hba-backend
+    restart: unless-stopped
 
   kafka:
+    container_name: hba-kafka
     image: confluentinc/cp-kafka:8.3.1
     hostname: kafka
     environment:
@@ -197,8 +75,8 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 3
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
-    ports:
-      - "9092:9092"
+    # `ports:` retiré : publier sur le VPS, c'est publier sur Internet.
+    # Les services se joignent par le réseau `hba-backend`.
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
       interval: 10s
@@ -208,78 +86,27 @@ services:
     networks:
       - hba-backend
 
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    environment:
-      KAFKA_CLUSTERS_0_NAME: hba-local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-    ports:
-      - "8090:8080"
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - hba-backend
+    restart: unless-stopped
 
   minio:
+    container_name: hba-minio
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: hba-minio
-      MINIO_ROOT_PASSWORD: hba-minio-secret
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER est obligatoire en production}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD est obligatoire en production}
+    # `ports:` retiré : publier sur le VPS, c'est publier sur Internet.
+    # Les services se joignent par le réseau `hba-backend`.
     volumes:
       - minio-data:/data
     networks:
       - hba-backend
 
-  # ═══════════════════════════════════════════════════════════════════════
-  # CRÉE LES DEUX BUCKETS, ET OUVRE LE PUBLIC EN LECTURE ANONYME.
-  #
-  # RIEN DANS LE CODE NE CRÉE LE BUCKET. `S3CompatibleObjectStorage` fait un
-  # `PutObject` et échoue en 404 « NoSuchBucket » si le bucket n'existe pas. Le
-  # créer au démarrage du service aurait exigé de lui donner le droit de créer
-  # des buckets — un privilège qu'un service applicatif ne doit pas porter en
-  # production.
-  #
-  # LA POLITIQUE `download` EST INDISPENSABLE, ET C'EST LE PIÈGE SUIVANT.
-  #
-  # Un bucket MinIO est PRIVÉ par défaut : sans elle, l'URL publique rend 403 et
-  # la photo ne s'affiche pas — exactement le même symptôme qu'un bucket
-  # manquant, pour une cause différente. `hba-private` reste fermé : il ne se lit
-  # que par URL signée (pièces KYB, photos de litige).
-  #
-  # `mc` est idempotent avec `--ignore-existing` : le conteneur peut tourner à
-  # chaque `up` sans effet de bord.
-  # ═══════════════════════════════════════════════════════════════════════
-  # ═══════════════════════════════════════════════════════════════════════
-  # DÉTOURAGE DES PHOTOS PRODUIT — segmentation locale, pas de compte tiers.
-  #
-  #  AUCUN PORT PUBLIÉ, ET C'EST UNE RÈGLE, PAS UN OUBLI.
-  #
-  # Le serveur rembg n'a ni authentification ni limitation de débit : exposé, il
-  # devient un service d'inférence gratuit pour n'importe qui, et un moyen simple
-  # de saturer la machine. `RembgOptions` le dit explicitement. Seul
-  # catalog-service l'appelle, par le réseau interne.
-  #
-  # LE PREMIER APPEL EST LENT : le modèle u2net (~176 Mo) se télécharge puis
-  # se met en session. D'où `TIMEOUTSECONDS` large côté catalog-service — et le
-  # fait que l'échec de détourage soit RÉESSAYABLE côté application plutôt que
-  # bloquant.
-  #
-  # LICENCE : u2net est publié en usage NON COMMERCIAL. Pour la production, il
-  # faudra soit un modèle sous licence permissive, soit un prestataire (le
-  # `CloudinaryImageProcessor` existe déjà pour ça). Acceptable en développement,
-  # à trancher avant la mise en ligne.
-  # ═══════════════════════════════════════════════════════════════════════
-  # CONSTRUITE SUR PLACE, PAS TIRÉE DU REGISTRE : `danielgatis/rembg:latest`
-  # n'est publiée qu'en linux/amd64 et échoue sur Apple Silicon (« no matching
-  # manifest for linux/arm64/v8 »). Forcer `platform: linux/amd64` marcherait,
-  # mais ferait tourner l'inférence sous émulation — le pire cas pour du calcul
-  # matriciel. Voir l'encadré du Dockerfile.
+    restart: unless-stopped
+
   rembg:
+    container_name: hba-rembg
+    image: ghcr.io/hectorberi01/rembg:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: infra/rembg
     volumes:
@@ -289,44 +116,30 @@ services:
     networks:
       - hba-backend
 
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_started
-    entrypoint: >
-      /bin/sh -c "
-      until mc alias set hba http://minio:9000 hba-minio hba-minio-secret; do
-        echo 'MinIO pas encore prêt, nouvelle tentative dans 2 s'; sleep 2;
-      done;
-      mc mb --ignore-existing hba/hba-public;
-      mc mb --ignore-existing hba/hba-private;
-      mc anonymous set download hba/hba-public;
-      echo 'Buckets prêts : hba-public (lecture anonyme), hba-private (URL signée).';
-      "
-    networks: [hba-backend]
+    restart: unless-stopped
 
   identity-service:
+    container_name: hba-identity-service
+    image: ghcr.io/hectorberi01/identity-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/common/identity-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: identity-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_identity;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_identity;Username=hba_identity;Password=${HBA_IDENTITY_PASSWORD:?mot de passe de hba_identity absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-identity-service
       KAFKA__PRODUCER: identity-service
       JWT__ISSUER: hba-identity
       JWT__AUDIENCE: hba-platform
-      JWT__SIGNINGKEY: hba-development-signing-key-32bytes-minimum
+      JWT__SIGNINGKEY: ${JWT__SIGNINGKEY:?JWT__SIGNINGKEY est obligatoire en production}
       AUTHENTICATION__ISSUER: hba-identity
       AUTHENTICATION__AUDIENCE: hba-platform
-      AUTHENTICATION__SIGNINGKEY: hba-development-signing-key-32bytes-minimum
+      AUTHENTICATION__SIGNINGKEY: ${AUTHENTICATION__SIGNINGKEY:?AUTHENTICATION__SIGNINGKEY est obligatoire en production}
 
       # LE PREMIER ADMINISTRATEUR — SANS LUI, LA CONSOLE RESTE FERMÉE.
       #
@@ -337,8 +150,8 @@ services:
       #
       # Ces valeurs sont écrites en clair, comme le reste de ce fichier. Hors
       # Development, identity-service REFUSE de démarrer si elles manquent.
-      ADMIN__EMAIL: admin@hba.local
-      ADMIN__PASSWORD: Admin123!
+      ADMIN__EMAIL: hector.adjakpa@hbatechettrade.com
+      ADMIN__PASSWORD: ${ADMIN__PASSWORD:?ADMIN__PASSWORD est obligatoire en production}
       ADMIN__FIRSTNAME: Admin
       ADMIN__LASTNAME: HBA
       ADMIN__PHONE: "+22900000000"
@@ -351,17 +164,20 @@ services:
         condition: service_healthy
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   user-service:
+    container_name: hba-user-service
+    image: ghcr.io/hectorberi01/user-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/common/user-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: user-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_user;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_user;Username=hba_user;Password=${HBA_USER_PASSWORD:?mot de passe de hba_user absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-user-service
@@ -378,17 +194,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   media-service:
+    container_name: hba-media-service
+    image: ghcr.io/hectorberi01/media-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/common/media-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: media-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_media;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_media;Username=hba_media;Password=${HBA_MEDIA_PASSWORD:?mot de passe de hba_media absent}
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-media-service
       KAFKA__PRODUCER: media-service
@@ -411,8 +230,8 @@ services:
       # était dans les journaux depuis le début.
       # ═════════════════════════════════════════════════════════════════════
       MEDIA__STORAGE__ENDPOINT: http://minio:9000
-      MEDIA__STORAGE__ACCESSKEYID: hba-minio
-      MEDIA__STORAGE__SECRETACCESSKEY: hba-minio-secret
+      MEDIA__STORAGE__ACCESSKEYID: ${MEDIA__STORAGE__ACCESSKEYID:?MEDIA__STORAGE__ACCESSKEYID est obligatoire en production}
+      MEDIA__STORAGE__SECRETACCESSKEY: ${MEDIA__STORAGE__SECRETACCESSKEY:?MEDIA__STORAGE__SECRETACCESSKEY est obligatoire en production}
       MEDIA__STORAGE__REGION: us-east-1
       MEDIA__STORAGE__PUBLICBUCKET: hba-public
       MEDIA__STORAGE__PRIVATEBUCKET: hba-private
@@ -440,17 +259,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   seller-service:
+    container_name: hba-seller-service
+    image: ghcr.io/hectorberi01/seller-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/marketplace/seller-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: seller-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_merchant;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_merchant;Username=hba_merchant;Password=${HBA_MERCHANT_PASSWORD:?mot de passe de hba_merchant absent}
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-seller-service
       KAFKA__PRODUCER: seller-service
@@ -494,17 +316,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   catalog-service:
+    container_name: hba-catalog-service
+    image: ghcr.io/hectorberi01/catalog-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/marketplace/catalog-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: catalog-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_catalog;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_catalog;Username=hba_catalog;Password=${HBA_CATALOG_PASSWORD:?mot de passe de hba_catalog absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-catalog-service
@@ -535,17 +360,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   inventory-service:
+    container_name: hba-inventory-service
+    image: ghcr.io/hectorberi01/inventory-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/marketplace/inventory-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: inventory-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_inventory;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_inventory;Username=hba_inventory;Password=${HBA_INVENTORY_PASSWORD:?mot de passe de hba_inventory absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-inventory-service
@@ -565,17 +393,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   cart-service:
+    container_name: hba-cart-service
+    image: ghcr.io/hectorberi01/cart-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/marketplace/cart-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: cart-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_commerce;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_commerce;Username=hba_commerce;Password=${HBA_COMMERCE_PASSWORD:?mot de passe de hba_commerce absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-cart-service
@@ -614,17 +445,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   order-service:
+    container_name: hba-order-service
+    image: ghcr.io/hectorberi01/order-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/marketplace/order-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: order-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_order;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_order;Username=hba_order;Password=${HBA_ORDER_PASSWORD:?mot de passe de hba_order absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-order-service
@@ -669,61 +503,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
-  return-refund-service:
-    build:
-      context: .
-      dockerfile: services/marketplace/return-refund-service/Dockerfile
-    environment:
-      <<: *dev-auth
-      SERVICE_NAME: return-refund-service
-      ASPNETCORE_ENVIRONMENT: Development
-      HOSTING__HTTPPORT: 8080
-      HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_commerce;Username=hba;Password=hba
-      REDIS__CONNECTIONSTRING: redis:6379
-      KAFKA__BOOTSTRAPSERVERS: kafka:29092
-      KAFKA__CONSUMERGROUP: hba-return-refund-service
-      KAFKA__PRODUCER: return-refund-service
-      SERVICES__ORDER: http://order-service:9090
-      SERVICES__FINANCIAL: http://payment-service:9090
-      SERVICES__INVENTORY: http://inventory-service:9090
-      SERVICES__DELIVERY: http://delivery-service:9090
-      SERVICES__MEDIA: http://media-service:9090
-
-      # SANS ELLE, LE SERVICE NE DÉMARRE PLUS — ET C'EST LE BON SENS DE L'ERREUR.
-      #
-      # Les routes vendeur vérifient désormais que le dossier de retour appartient
-      # bien à l'équipe de l'appelant, en interrogeant seller-service. Sans cette
-      # adresse, `AddMerchantsGrpcClient` lève à la construction de l'hôte.
-      # Un service d'arbitrage de remboursements qui démarre sans savoir vérifier
-      # l'appartenance vaut moins qu'un service qui ne démarre pas.
-      SERVICES__MERCHANT: http://seller-service:9090
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      order-service:
-        condition: service_started
-      payment-service:
-        condition: service_started
-      media-service:
-        condition: service_started
-    networks: [hba-backend]
+    restart: unless-stopped
 
   restaurant-service:
+    container_name: hba-restaurant-service
+    image: ghcr.io/hectorberi01/restaurant-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/food/restaurant-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: restaurant-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_food;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_food;Username=hba_food;Password=${HBA_FOOD_PASSWORD:?mot de passe de hba_food absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-restaurant-service
@@ -767,17 +560,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   food-cart-service:
+    container_name: hba-food-cart-service
+    image: ghcr.io/hectorberi01/food-cart-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/food/food-cart-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: food-cart-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_food;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_food;Username=hba_food;Password=${HBA_FOOD_PASSWORD:?mot de passe de hba_food absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-food-cart-service
@@ -806,17 +602,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   food-order-service:
+    container_name: hba-food-order-service
+    image: ghcr.io/hectorberi01/food-order-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/food/food-order-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: food-order-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_food;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_food;Username=hba_food;Password=${HBA_FOOD_PASSWORD:?mot de passe de hba_food absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-food-order-service
@@ -848,17 +647,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   delivery-pricing-service:
+    container_name: hba-delivery-pricing-service
+    image: ghcr.io/hectorberi01/delivery-pricing-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/delivery/delivery-pricing-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: delivery-pricing-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_delivery;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_delivery;Username=hba_delivery;Password=${HBA_DELIVERY_PASSWORD:?mot de passe de hba_delivery absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-delivery-pricing-service
@@ -878,17 +680,20 @@ services:
         condition: service_healthy
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   delivery-service:
+    container_name: hba-delivery-service
+    image: ghcr.io/hectorberi01/delivery-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/delivery/delivery-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: delivery-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_delivery;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_delivery;Username=hba_delivery;Password=${HBA_DELIVERY_PASSWORD:?mot de passe de hba_delivery absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-delivery-service
@@ -915,17 +720,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   driver-service:
+    container_name: hba-driver-service
+    image: ghcr.io/hectorberi01/driver-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/delivery/driver-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: driver-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_delivery;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_delivery;Username=hba_delivery;Password=${HBA_DELIVERY_PASSWORD:?mot de passe de hba_delivery absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-driver-service
@@ -937,17 +745,20 @@ services:
         condition: service_healthy
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   route-service:
+    container_name: hba-route-service
+    image: ghcr.io/hectorberi01/route-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/delivery/route-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: route-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_delivery;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_delivery;Username=hba_delivery;Password=${HBA_DELIVERY_PASSWORD:?mot de passe de hba_delivery absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-route-service
@@ -959,17 +770,20 @@ services:
         condition: service_healthy
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   payment-service:
+    container_name: hba-payment-service
+    image: ghcr.io/hectorberi01/payment-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/common/payment-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: payment-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_financial;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_financial;Username=hba_financial;Password=${HBA_FINANCIAL_PASSWORD:?mot de passe de hba_financial absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-payment-service
@@ -1015,17 +829,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
+    restart: unless-stopped
+
   review-service:
+    container_name: hba-review-service
+    image: ghcr.io/hectorberi01/review-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/common/review-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: review-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_engagement;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_engagement;Username=hba_engagement;Password=${HBA_ENGAGEMENT_PASSWORD:?mot de passe de hba_engagement absent}
       REDIS__CONNECTIONSTRING: redis:6379
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-review-service
@@ -1060,107 +877,20 @@ services:
         condition: service_started
     networks: [hba-backend]
 
-  notification-service:
-    build:
-      context: .
-      dockerfile: services/common/notification-service/Dockerfile
-    environment:
-      <<: *dev-auth
-      SERVICE_NAME: notification-service
-      ASPNETCORE_ENVIRONMENT: Development
-      HOSTING__HTTPPORT: 8080
-      HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_communication;Username=hba;Password=hba
-      REDIS__CONNECTIONSTRING: redis:6379
-      KAFKA__BOOTSTRAPSERVERS: kafka:29092
-      KAFKA__CONSUMERGROUP: hba-notification-service
-      KAFKA__PRODUCER: notification-service
-      SERVICES__USER: http://user-service:9090
-      SERVICES__MEDIA: http://media-service:9090
-      SERVICES__ORDER: http://order-service:9090
-      # LE SECOND UNIVERS DE COMMANDES (lot 6.4) : `AcheteurDuTicket` y resout
-      # l'acheteur d'un ticket de cuisine ne d'une commande de repas. Sans cette
-      # ligne, ce client ne recevait aucune notification de suivi.
-      SERVICES__FOODORDER: http://food-order-service:9090
-      SERVICES__DELIVERY: http://delivery-service:9090
-
-      # TROIS ADRESSES POUR LES CLIENTS gRPC DE LA TRANCHE NOTIFICATIONS.
-      #
-      # `AddProductsGrpcClient`, `AddMerchantsGrpcClient` et
-      # `AddIdentityGrpcClient` LÈVENT au démarrage si leur adresse manque —
-      # « Services:Catalog est absent. ». Le service ne démarre pas du tout, ce
-      # qui vaut mieux qu'un gestionnaire qui échoue silencieusement à la
-      # première notification.
-      #
-      # Products est hébergé par catalog-service : d'où `Services:Catalog`.
-      SERVICES__CATALOG: http://catalog-service:9090
-      SERVICES__MERCHANT: http://seller-service:9090
-      SERVICES__IDENTITY: http://identity-service:9090
-
-      # ── E-MAIL (Resend) ────────────────────────────────────────────────
-      #
-      # VIDE EN LOCAL, ET C'EST LE COMPORTEMENT VOULU.
-      #
-      # Sans `ApiKey`, l'installer bascule sur `DevelopmentEmailSender` : les
-      # messages sont ÉCRITS DANS LA CONSOLE, jeton de vérification compris. Le
-      # parcours « je crée un compte, je clique sur le lien » reste donc jouable
-      # sans clé et sans domaine vérifié.
-      #
-      # Pour envoyer réellement depuis le poste : renseigner les trois valeurs.
-      # Le domaine de `From` doit être vérifié chez Resend (SPF + DKIM), sinon
-      # Resend répond 403 et l'outbox rejoue l'échec en boucle.
-      #
-      # Hors Development, l'absence de configuration REFUSE le démarrage : sans
-      # e-mail, un mot de passe oublié n'est jamais récupérable.
-      NOTIFICATIONS__EMAIL__APIKEY: ""
-      NOTIFICATIONS__EMAIL__FROM: "HBA Express <no-reply@hbaexpress.com>"
-      NOTIFICATIONS__EMAIL__APPBASEURL: "http://localhost:8080"
-
-      # ── PUSH (Firebase Cloud Messaging) ────────────────────────────────
-      #
-      # Vide ⇒ `NullPushSender` : aucun push, et la raison est journalisée au
-      # démarrage. Contrairement à l'e-mail, l'absence de FCM ne bloque personne
-      # dehors — d'où un repli silencieux plutôt qu'un refus de démarrer.
-      #
-      # Pour l'activer, PRÉFÉRER LE FICHIER À LA VARIABLE : monter le compte de
-      # service depuis un chemin HORS DU DÉPÔT et renseigner SERVICEACCOUNTPATH.
-      # Coller le JSON dans SERVICEACCOUNTJSON marche aussi, mais le blob se
-      # retrouve alors dans l'environnement du processus, dans `docker inspect`,
-      # et dans l'historique du shell qui a lancé la pile.
-      #
-      #   volumes:
-      #     - $HOME/secrets-hba-staging/firebase.json:/etc/hba/firebase/service-account.json:ro
-      #   NOTIFICATIONS__FCM__SERVICEACCOUNTPATH: /etc/hba/firebase/service-account.json
-      #
-      # Le déploiement Kubernetes fait exactement cela, depuis un Secret : voir
-      # `k8s/base/common/secret-notifications.yaml`. `.gitignore` attrape au
-      # passage un `firebase.json` posé dans le dépôt « le temps d'un test ».
-      NOTIFICATIONS__FCM__SERVICEACCOUNTJSON: ""
-      NOTIFICATIONS__FCM__SERVICEACCOUNTPATH: ""
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      user-service:
-        condition: service_started
-      media-service:
-        condition: service_started
-    networks: [hba-backend]
+    restart: unless-stopped
 
   promotion-service:
+    container_name: hba-promotion-service
+    image: ghcr.io/hectorberi01/promotion-service:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       context: .
       dockerfile: services/common/promotion-service/Dockerfile
     environment:
-      <<: *dev-auth
       SERVICE_NAME: promotion-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       HOSTING__HTTPPORT: 8080
       HOSTING__GRPCPORT: 9090
-      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_promotion;Username=hba;Password=hba
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_promotion;Username=hba_promotion;Password=${HBA_PROMOTION_PASSWORD:?mot de passe de hba_promotion absent}
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-promotion-service
       KAFKA__PRODUCER: promotion-service
@@ -1191,47 +921,11 @@ services:
         condition: service_healthy
     networks: [hba-backend]
 
-  # ═════════════════════════════════════════════════════════════════════════
-  # LES TROIS BFF SONT PARTIS — DÉCISION D38 : LA PASSERELLE EST LE BFF.
-  #
-  # `client-bff`, `seller-bff` et `driver-bff` étaient construits et démarrés ici,
-  # et joignables par personne :
-  #
-  #   • absents de `HBA.sln` — aucune intégration continue ne les compilait ;
-  #   • aucune route de passerelle ne visait leur préfixe `/api/v1/client` ;
-  #   • `client-bff` portait 13 routes dont 9 rendaient 501, et son `/home` était
-  #     écrit en dur ; `seller-bff` et `driver-bff` n'avaient qu'une sonde de santé.
-  #
-  # Pendant ce temps la passerelle portait son PROPRE BFF, complet et couvert par
-  # six suites de tests : `HBA.Gateway.Application/Bff/` — client express, client
-  # food, marchand, livreur, restaurant. La question n'était pas « finir les BFF »
-  # mais « lequel des deux EST le BFF ». C'est la passerelle.
-  #
-  # CE QUE CE RETRAIT NE FAIT PAS : remplir `Bff:Screens`. Les deux sections
-  # `client.express.home` et `client.food.home` de la passerelle sont des tableaux
-  # VIDES — l'écran d'accueil agrège donc zéro source. Retirer les squelettes ne
-  # crée pas l'agrégation ; cela supprime seulement l'illusion qu'elle existait
-  # ailleurs. Voir RESTE_A_FAIRE.md.
-  #
-  # Les dossiers sont dans `_to_delete/bff-D38/` : `device_bash` ne peut pas
-  # effacer sur cette machine.
-  # ═════════════════════════════════════════════════════════════════════════
+    restart: unless-stopped
 
-  # ═════════════════════════════════════════════════════════════════════════
-  # LA PASSERELLE ÉTAIT ABSENTE DE CETTE PILE.
-  #
-  # Les services applicatifs démarraient, aucun n'était joignable : rien ne publiait
-  # de port, et la seule définition de la passerelle vivait dans
-  # infra/docker/compose.gateway.yml — derrière Traefik, en HTTPS,
-  # sur `api.hba-express.com`. Inutilisable en local. Ce fichier a depuis
-  # ete retire du depot ; la passerelle definie ici est la seule.
-  #
-  # C'est le SEUL conteneur qui publie un port. Les services restent sur le
-  # réseau interne : les exposer donnerait des façades non authentifiées sur
-  # la machine, et masquerait le fait que la passerelle est le point d'entrée.
-  # Pour déboguer un service en direct, ajouter `ports:` ponctuellement.
-  # ═════════════════════════════════════════════════════════════════════════
   gateway:
+    container_name: hba-gateway
+    image: ghcr.io/hectorberi01/gateway:${HBA_TAG:?le tag d'image est obligatoire}
     build:
       # Contexte = racine `HBA/`, comme les services. Le Dockerfile a
       # besoin de `Directory.Build.props` et `Directory.Packages.props`, qui
@@ -1241,8 +935,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      <<: *dev-auth
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
 
       # La passerelle n'appelle pas `ListenAnyIP` : contrairement aux services,
       # `ASPNETCORE_URLS` y est bien pris en compte.
@@ -1322,8 +1015,9 @@ services:
     # transformerait la panne d'un service en indisponibilité totale.
     networks: [hba-backend]
 
+    restart: unless-stopped
+
 volumes:
-  postgres-data:
   kafka-data:
   minio-data:
   rembg-models:

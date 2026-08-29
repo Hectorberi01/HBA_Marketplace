@@ -1,4 +1,5 @@
 using System.Text;
+using HBA.Shared.Infrastructure.Hosting;
 using HBA.Shared.Application;
 using MediatR;
 using HBA.Shared.Infrastructure;
@@ -436,6 +437,34 @@ public static class ServiceHostExtensions
         var issuer = configuration["Authentication:Issuer"];
         var audience = configuration["Authentication:Audience"];
         var signingKey = configuration["Authentication:SigningKey"];
+
+        // ═════════════════════════════════════════════════════════════════════
+        // UNE CLÉ DE SIGNATURE ABSENTE N'EST PAS UNE CONFIGURATION PARTIELLE.
+        //
+        // Plus bas, `IssuerSigningKey` n'est posée que si la clé est renseignée,
+        // alors que `ValidateIssuerSigningKey` reste à `true`. Sans clé, TOUT
+        // jeton est donc rejeté — et le service démarre normalement, répond sur
+        // ses routes anonymes, et rend 401 sur toutes les autres.
+        //
+        // C'est le mode de panne le plus coûteux de ce fichier : rien n'échoue
+        // au démarrage, les sondes passent, et le symptôme — « 401 partout » —
+        // ressemble à un problème de jeton côté appelant. `docker-compose.dev.yml`
+        // documente déjà exactement cette journée perdue.
+        //
+        // Hors Development, on refuse de démarrer. Le coût est un service qui ne
+        // part pas ; le gain est un message qui nomme la cause à la seconde où
+        // elle existe.
+        // ═════════════════════════════════════════════════════════════════════
+        if (string.IsNullOrWhiteSpace(signingKey)
+            && EnvironnementDeploiement.EstProduction(configuration))
+        {
+            throw new InvalidOperationException(
+                "Authentication:SigningKey est absente. Le service démarrerait en "
+                + "rejetant TOUS les jetons — `ValidateIssuerSigningKey` reste actif "
+                + "sans clé à comparer — et chaque appel authentifié rendrait 401 "
+                + "sans qu'aucune erreur de démarrage ne l'explique. "
+                + "Renseigner AUTHENTICATION__SIGNINGKEY.");
+        }
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

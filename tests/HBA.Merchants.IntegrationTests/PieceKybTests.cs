@@ -51,7 +51,8 @@ public sealed class PieceKybTests
     public async Task Sa_propre_piece_est_rattachee()
     {
         var vendeur = await Parcours.InscrireAsync(_fixture, $"Piece {Guid.NewGuid():N}");
-        var mediaId = _fixture.Media.Deposer(vendeur.SellerId);
+        var mediaId = _fixture.Media.Deposer(
+            vendeur.SellerId, deposeParUserId: vendeur.UserId);
 
         var reponse = await Parcours.RattacherPieceAsync(vendeur, mediaId);
 
@@ -117,7 +118,8 @@ public sealed class PieceKybTests
     public async Task Une_photo_de_boutique_n_est_pas_une_piece_legale()
     {
         var vendeur = await Parcours.InscrireAsync(_fixture, $"Vitrine {Guid.NewGuid():N}");
-        var photo = _fixture.Media.Deposer(vendeur.SellerId, mediaType: "StoreMedia");
+        var photo = _fixture.Media.Deposer(
+            vendeur.SellerId, mediaType: "StoreMedia", deposeParUserId: vendeur.UserId);
 
         var reponse = await Parcours.RattacherPieceAsync(vendeur, photo);
 
@@ -137,7 +139,8 @@ public sealed class PieceKybTests
     public async Task Un_fichier_encore_en_traitement_est_refuse_sans_ambiguite()
     {
         var vendeur = await Parcours.InscrireAsync(_fixture, $"Traitement {Guid.NewGuid():N}");
-        var enCours = _fixture.Media.Deposer(vendeur.SellerId, status: "Processing");
+        var enCours = _fixture.Media.Deposer(
+            vendeur.SellerId, status: "Processing", deposeParUserId: vendeur.UserId);
 
         var reponse = await Parcours.RattacherPieceAsync(vendeur, enCours);
 
@@ -158,7 +161,8 @@ public sealed class PieceKybTests
     public async Task Un_media_du_bon_identifiant_mais_du_mauvais_proprietaire_est_refuse()
     {
         var vendeur = await Parcours.InscrireAsync(_fixture, $"Homonyme {Guid.NewGuid():N}");
-        var media = _fixture.Media.Deposer(vendeur.SellerId, ownerType: "Store");
+        var media = _fixture.Media.Deposer(
+            vendeur.SellerId, ownerType: "Store", deposeParUserId: vendeur.UserId);
 
         var reponse = await Parcours.RattacherPieceAsync(vendeur, media);
 

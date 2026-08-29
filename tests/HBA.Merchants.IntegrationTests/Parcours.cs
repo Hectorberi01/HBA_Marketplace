@@ -72,7 +72,8 @@ internal static class Parcours
     public static async Task<Guid> DeposerPieceAsync(
         MerchantsIntegrationFixture fixture, VendeurInscrit vendeur, string type = "IdCard")
     {
-        var mediaId = fixture.Media.Deposer(vendeur.SellerId);
+        var mediaId = fixture.Media.Deposer(
+            vendeur.SellerId, deposeParUserId: vendeur.UserId);
 
         var reponse = await RattacherPieceAsync(vendeur, mediaId, type);
 

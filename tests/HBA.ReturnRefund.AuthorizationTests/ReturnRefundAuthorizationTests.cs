@@ -148,8 +148,18 @@ public sealed class ReturnRefundAuthorizationTests
     [InlineData("GET", "/api/v1/admin/returns/{id}")]
     [InlineData("POST", "/api/v1/admin/returns/{id}/override")]
     [InlineData("POST", "/api/v1/admin/returns/{id}/close")]
-    [InlineData("GET", "/api/v1/admin/return-policies/")]
-    [InlineData("POST", "/api/v1/admin/return-policies/")]
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LES DEUX CAS `return-policies` ONT ÉTÉ RETIRÉS : LA ROUTE N'EXISTE PLUS.
+    //
+    // `MapReturnPolicyEndpoints` a été supprimé de `Program.cs` — il répondait et
+    // n'écrivait rien. Le test, lui, n'a pas suivi : il exigeait 403 sur un chemin
+    // que plus personne ne mappe, et recevait 404.
+    //
+    // Ce n'est pas le test qui avait tort sur le FOND — un vendeur ne doit pas
+    // fixer la politique de retour, et ça reste vrai. C'est qu'il éprouvait une
+    // route morte. Le jour où la politique de retour reviendra, ces deux lignes
+    // seront à remettre EN MÊME TEMPS que le mapping.
+    // ═══════════════════════════════════════════════════════════════════════════
     public async Task Un_vendeur_n_arbitre_pas_et_ne_fixe_pas_la_politique_de_retour(
         string methode, string gabarit)
     {
@@ -194,7 +204,12 @@ public sealed class ReturnRefundAuthorizationTests
     /// <summary>Le pendant vendeur et administrateur : rien d'ouvert à l'anonyme.</summary>
     [Theory]
     [InlineData("/api/v1/seller/returns/?page=1&pageSize=20")]
-    [InlineData("/api/v1/admin/return-policies/")]
+    // MÊME ROUTE MORTE, ET CE CAS-CI PASSAIT PAR ACCIDENT.
+    //
+    // Sans jeton, un chemin non routé rend 401 par la `FallbackPolicy` — le même
+    // code que celui qu'attendait le test. Il était donc vert tout en n'éprouvant
+    // plus rien : il ne distinguait pas « route protégée » de « route absente ».
+    // Un test vert qui n'éprouve rien est pire qu'un test rouge.
     public async Task Les_routes_protegees_rendent_401_sans_jeton(string route)
     {
         var response = await _factory.CreateClient().GetAsync(route);

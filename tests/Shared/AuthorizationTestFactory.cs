@@ -261,6 +261,30 @@ public class AuthorizationTestFactory<TEntryPoint> : WebApplicationFactory<TEntr
         // fichier par le milieu.
         builder.UseEnvironment("Testing");
 
+        // ═════════════════════════════════════════════════════════════════════
+        // LES TROIS VALEURS D'AUTHENTIFICATION SONT POSÉES ICI AUSSI, ET C'EST
+        //    UNE CEINTURE DÉLIBÉRÉE.
+        //
+        // Elles le sont déjà par variable d'environnement, dans le constructeur
+        // statique. Ça devrait suffire — mais un constructeur statique s'exécute
+        // au premier accès au type, et l'ordre exact par rapport à la
+        // construction de l'hôte dépend de détails qu'on ne contrôle pas depuis
+        // ce fichier.
+        //
+        // CE QUE COÛTE L'ÉCHEC DE CE PARI. `AddAuthentication` ne pose
+        // `IssuerSigningKey` que si la clé est renseignée, alors que
+        // `ValidateIssuerSigningKey` reste actif : sans clé, TOUT jeton est
+        // rejeté. La suite entière rend alors 401 là où elle attend 403 — et le
+        // message ne parle jamais de configuration.
+        //
+        // `UseSetting` passe par la configuration d'HÔTE, lue par
+        // `CreateBuilder` lui-même. C'est le seul canal, avec les variables
+        // d'environnement, qui arrive à coup sûr avant la construction.
+        // ═════════════════════════════════════════════════════════════════════
+        builder.UseSetting("Authentication:SigningKey", TestTokens.SigningKey);
+        builder.UseSetting("Authentication:Issuer", TestTokens.Issuer);
+        builder.UseSetting("Authentication:Audience", TestTokens.Audience);
+
         builder.ConfigureTestServices(ConfigureTestDoubles);
     }
 

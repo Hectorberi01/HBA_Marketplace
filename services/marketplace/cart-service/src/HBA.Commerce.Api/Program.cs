@@ -18,7 +18,7 @@ builder.Services.AddOrderingGrpcClient(builder.Configuration);
 // ═════════════════════════════════════════════════════════════════════════════
 // SANS CETTE LIGNE, AUCUNE CAMPAGNE COMMERCIALE N'EXISTE (ISSUE-033).
 //
-// `NeutralPricingModuleApi` — le seul fournisseur de tarification du dépôt —
+// La tarification neutre — qui fut le seul fournisseur du dépôt —
 // rendait des remises nulles et refusait tout coupon. promotion-service, complet
 // depuis son écriture, n'avait AUCUN appelant. C'est ce client qui lui en donne
 // un.

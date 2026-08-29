@@ -188,8 +188,15 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
              "la marchandise retournée n'est JAMAIS remise en stock, alors que le retour est clos « remettable en rayon »"),
             ("DeliveryGrpcClient.CreateReturnDeliveryAsync",
              "AUCUNE course d'enlèvement n'est créée ; le numéro rendu au client ne correspond à rien"),
-            ("MediaGrpcClient.ValidateMediaAsync",
-             "aucune preuve photo n'est vérifiée — ni son existence, ni son propriétaire")
+            // MediaGrpcClient.ValidateMediaAsync A ÉTÉ ÉCRIT LE 29 AOÛT 2026.
+            //
+            // Il contacte réellement media-service par le RPC `Get`, vérifie que
+            // le média existe ET qu'il appartient au bon dossier, et distingue
+            // une indisponibilité du service d'un refus de preuve.
+            //
+            // Sa ligne est retirée d'ici, et c'est obligatoire : le commentaire
+            // de cette méthode le dit lui-même — laisser un adaptateur réellement
+            // implémenté dans cette liste bloquerait la production pour rien.
         };
 
         var details = string.Join(

@@ -51,7 +51,15 @@ internal static class MediaGrpcMapping
             // `Unspecified` depuis PostgreSQL — l'exception ne surviendrait donc
             // qu'au premier appel portant une date lue en base, pas en test.
             CreatedOnUtc = Timestamp.FromDateTime(
-                DateTime.SpecifyKind(view.CreatedOnUtc, DateTimeKind.Utc))
+                DateTime.SpecifyKind(view.CreatedOnUtc, DateTimeKind.Utc)),
+
+            // `Guid.Empty` se transporte en chaîne vide plutôt qu'en
+            // « 00000000-0000-... » : le lecteur d'un vidage réseau voit
+            // immédiatement « inconnu » au lieu d'un identifiant d'apparence
+            // valide.
+            CreatedByUserId = view.CreatedByUserId == Guid.Empty
+                ? string.Empty
+                : view.CreatedByUserId.ToString()
         };
 
         // N'AFFECTER QUE SI LA VALEUR EXISTE.
@@ -114,5 +122,16 @@ internal static class MediaGrpcMapping
                 .Select(v => new ContractVariant(v.VariantType, v.Url, v.Width, v.Height, v.SizeBytes))
                 .ToList(),
 
-            CreatedOnUtc: message.CreatedOnUtc.ToDateTime());
+            CreatedOnUtc: message.CreatedOnUtc.ToDateTime(),
+
+            // TOLÉRER LA CHAÎNE VIDE, ET SEULEMENT ELLE.
+            //
+            // Une instance de media-service antérieure à ce champ répond une
+            // chaîne vide : `Guid.Parse` lèverait, et un service par ailleurs
+            // sain tomberait en erreur pendant un déploiement progressif. Une
+            // chaîne NON vide et malformée, elle, doit lever — c'est un défaut
+            // de sérialisation, pas une version en retard.
+            CreatedByUserId: string.IsNullOrEmpty(message.CreatedByUserId)
+                ? Guid.Empty
+                : Guid.Parse(message.CreatedByUserId));
 }

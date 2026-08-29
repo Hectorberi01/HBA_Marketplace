@@ -8,6 +8,7 @@
 
     <!-- Le contrat vient du service qui publie : voir le csproj de l'Application. -->
     <ProjectReference Include="..\..\..\food-order-service\src\HBA.Food.Order.Contracts\HBA.Food.Order.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Pricing.Promotion\HBA.Pricing.Promotion.csproj" />
   </ItemGroup>
 
   <ItemGroup>

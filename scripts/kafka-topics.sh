@@ -54,7 +54,21 @@ set -euo pipefail
 # ═══════════════════════════════════════════════════════════════════════════
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-COMPOSE_FILE="$ROOT_DIR/docker-compose.dev.yml"
+# LE FICHIER COMPOSE EST CHOISI, PLUS IMPOSE.
+#
+# Ce script visait `docker-compose.dev.yml` en dur. Depuis le passage à un
+# déploiement Compose de production, le même geste vaut sur les deux — et le
+# faire sur le mauvais fichier créerait les sujets dans le Kafka du poste
+# pendant qu'on croit préparer le VPS, sans qu'aucun message ne le dise.
+COMPOSE_FILE="${HBA_COMPOSE_FILE:-$ROOT_DIR/docker-compose.dev.yml}"
+
+if [ ! -f "$COMPOSE_FILE" ]; then
+  echo "Fichier compose introuvable : $COMPOSE_FILE" >&2
+  echo "  HBA_COMPOSE_FILE=docker-compose.prod.yml ./scripts/kafka-topics.sh" >&2
+  exit 2
+fi
+
+echo "Courtier visé : $(basename "$COMPOSE_FILE")"
 OPTIONS_FILE="$ROOT_DIR/shared/common/HBA.Shared.Infrastructure/Kafka/KafkaEventBusOptions.cs"
 TOPICS_FILE="$ROOT_DIR/shared/common/HBA.Shared.Infrastructure/Kafka/HbaTopics.cs"
 

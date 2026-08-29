@@ -2,7 +2,13 @@ using HBA.Pricing.Contracts;
 using HBA.Promotions.Contracts;
 using Microsoft.Extensions.Logging;
 
-namespace HBA.Commerce.Infrastructure.Public;
+// DÉPLACÉ DEPUIS `HBA.Commerce.Infrastructure.Public` LE 29 AOÛT 2026.
+//
+// Il n'a jamais dépendu de quoi que ce soit de `cart-service` : deux contrats et
+// un logger. Il vivait là par accident d'écriture, et cet accident a coûté à
+// `food-cart-service` de démarrer sans aucune promotion — donc de refuser tout
+// coupon en silence.
+namespace HBA.Pricing.Promotion;
 
 /// <summary>
 /// ═════════════════════════════════════════════════════════════════════════════
@@ -87,7 +93,7 @@ namespace HBA.Commerce.Infrastructure.Public;
 /// appliqué ici.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
-internal sealed class PromotionPricingModuleApi : IPricingModuleApi
+public sealed class PromotionPricingModuleApi : IPricingModuleApi
 {
     /// <summary>
     /// L'univers de ce service de panier.

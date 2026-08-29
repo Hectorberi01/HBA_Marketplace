@@ -239,6 +239,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Products.Contracts", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Pricing.Contracts", "shared\contracts\HBA.Pricing.Contracts\HBA.Pricing.Contracts.csproj", "{BCF06C31-C2AC-4A91-AC29-FF154243F4C4}"
 EndProject
+
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Pricing.Promotion", "shared\contracts\HBA.Pricing.Promotion\HBA.Pricing.Promotion.csproj", "{7C1E4A02-5D3B-4F18-9A6C-0B2E9D74A311}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Ordering.Contracts", "shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj", "{627D3AA0-01B3-4ABD-8293-839C3045889C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "order-service", "order-service", "{AE98AD44-FEB3-4351-C593-298BE52AAB0E}"

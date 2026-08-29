@@ -334,7 +334,8 @@ internal sealed class ApplyFoodCartCouponCommandHandler
         //
         // `ValidateCouponAsync` a gagné un paramètre `cartSubtotal` au lot D28 —
         // optionnel, pour que les appelants d'avant continuent de compiler. Le
-        // panier de repas garde `NeutralPricingModuleApi`, qui refuse TOUT code
+        // panier de repas emploie `PromotionPricingModuleApi` depuis le 29/08/2026 ;
+        // il employait auparavant une tarification neutre, qui refusait TOUT code
         // sans rien évaluer : lui passer un sous-total serait une donnée que
         // personne ne lit, et laisserait croire que la validation examine le
         // panier. Le jour où food-cart sera branché sur promotion-service, ce

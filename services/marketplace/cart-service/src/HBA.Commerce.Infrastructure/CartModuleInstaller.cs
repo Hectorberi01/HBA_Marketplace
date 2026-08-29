@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using HBA.Pricing.Contracts;
+using HBA.Pricing.Promotion;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Inbox;
@@ -53,7 +54,7 @@ public sealed class CartModuleInstaller : IModuleInstaller
         services.AddScoped<IConsumerInbox, EfConsumerInbox<CartDbContext>>();
 
         // ═════════════════════════════════════════════════════════════════════
-        // CETTE LIGNE ENREGISTRAIT `NeutralPricingModuleApi`, ET C'ÉTAIT
+        // CETTE LIGNE ENREGISTRAIT UNE TARIFICATION NEUTRE, ET C'ÉTAIT
         // ISSUE-033 (CRITICAL) À ELLE SEULE.
         //
         // Ce bouchon était la SEULE implémentation d'`IPricingModuleApi` du dépôt,

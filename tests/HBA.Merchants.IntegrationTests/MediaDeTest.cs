@@ -34,11 +34,26 @@ internal sealed class MediaDeTest : IMediaModuleApi
     /// <param name="mediaType">`SellerDocument` pour une pièce légale ; `StoreMedia` pour une photo de boutique.</param>
     /// <param name="status">`Ready`, ou `Processing` pour éprouver le refus d'un fichier pas encore traité.</param>
     /// <param name="ownerType">`Seller`, ou autre chose pour éprouver le contrôle de propriété.</param>
+    /// <param name="deposeParUserId">
+    /// L'utilisateur qui a téléversé le fichier, tel que media-service le lit dans
+    /// le JETON — la seule donnée du contrat que l'appelant ne choisit pas.
+    ///
+    /// CE PARAMÈTRE EXISTE PARCE QUE SON ABSENCE A MASQUÉ UN DÉFAUT DE PRODUCTION.
+    ///
+    /// Le faux construisait un `MediaView` sans ce champ, donc à `Guid.Empty` —
+    /// et c'est exactement ce que rendait le VRAI client gRPC, dont le mapping ne
+    /// transportait pas la valeur. Le test reproduisait fidèlement le défaut, et
+    /// le 403 qui en découlait ressemblait à un durcissement volontaire plutôt
+    /// qu'à une panne. Le laisser à `null` ici revient à éprouver le cas
+    /// « déposant inconnu » : c'est un cas légitime, mais ce n'est pas le cas
+    /// nominal.
+    /// </param>
     public Guid Deposer(
         Guid ownerId,
         string mediaType = "SellerDocument",
         string status = "Ready",
-        string ownerType = "Seller")
+        string ownerType = "Seller",
+        Guid? deposeParUserId = null)
     {
         var id = Guid.NewGuid();
 
@@ -57,7 +72,8 @@ internal sealed class MediaDeTest : IMediaModuleApi
             Height: null,
             Url: null,
             Variants: [],
-            CreatedOnUtc: DateTime.UtcNow);
+            CreatedOnUtc: DateTime.UtcNow,
+            CreatedByUserId: deposeParUserId ?? Guid.Empty);
 
         return id;
     }

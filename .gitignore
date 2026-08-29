@@ -99,3 +99,14 @@ _to_delete/
 motsdepasse-*.txt
 secret-hba-platform*.yaml
 secrets-hba-*/
+
+# LE COMPOSE DE PRODUCTION EST ENGENDRÉ — mais il est SUIVI, à dessein.
+#
+# Il ne porte aucune valeur : chaque secret y est une référence ${VAR:?...}.
+# Le versionner rend la configuration de production relisible et comparable
+# d'une génération à l'autre — c'est précisément ce qui manquait aux Secrets
+# Kubernetes, créés à la main et invisibles dans Git.
+#
+# Ce qui ne doit JAMAIS entrer, c'est le fichier de valeurs.
+prod.env
+*.env.prod

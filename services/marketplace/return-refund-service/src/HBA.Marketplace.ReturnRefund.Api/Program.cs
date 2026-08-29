@@ -1,3 +1,4 @@
+using HBA.Media.Contracts.Grpc;
 using HBA.Marketplace.ReturnRefund.Api.Endpoints;
 using HBA.Marketplace.ReturnRefund.Infrastructure;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence;
@@ -24,6 +25,17 @@ builder.AddHbaGrpc();
 // vérifier l'appartenance vaut moins qu'un service qui ne démarre pas.
 // ═════════════════════════════════════════════════════════════════════════
 builder.Services.AddMerchantsGrpcClient(builder.Configuration);
+
+// LA VÉRIFICATION DES PREUVES PHOTO — SANS CE CLIENT, ELLE N'EXISTE PAS.
+//
+// `MediaGrpcClient` contactait auparavant personne : il vérifiait que
+// l'identifiant n'était pas vide, puis rendait succès. N'importe quel
+// identifiant inventé passait, et un dossier de retour se fermait sur une preuve
+// qui n'existe pas — ce qu'on ne découvre que le jour d'un litige.
+//
+// `AddMediaGrpcClient` lève si `Services:Media` est absent : le service ne
+// démarre pas plutôt que de valider des preuves sans les regarder.
+builder.Services.AddMediaGrpcClient(builder.Configuration);
 
 var app = builder.Build();
 

@@ -1,3 +1,4 @@
+using HBA.Promotions.Contracts.Grpc;
 using HBA.Food.Contracts.Grpc;
 using HBA.FoodCarts.Api.Endpoints;
 using HBA.FoodCarts.Contracts.Grpc;
@@ -16,6 +17,14 @@ builder.Services.AddFoodGrpcClient(builder.Configuration);
 // La commande de repas : « cet acheteur en est-il à sa première ? », sans quoi
 // les promotions « première commande » seraient inapplicables.
 builder.Services.AddFoodOrdersGrpcClient(builder.Configuration);
+
+// LES PROMOTIONS — SANS CE CLIENT, LE PANIER DE REPAS N'A PAS DE TARIFICATION.
+//
+// `PromotionPricingModuleApi` prend un `IPromotionModuleApi` ; cette ligne est ce
+// qui le fournit. `AddPromotionGrpcClient` LÈVE à la construction de l'hôte si
+// `Services:Promotion` est absent — le service ne démarre pas, plutôt que de
+// refuser tout coupon en silence, ce qu'il faisait avant le 29 août 2026.
+builder.Services.AddPromotionGrpcClient(builder.Configuration);
 
 builder.AddHbaGrpc();
 

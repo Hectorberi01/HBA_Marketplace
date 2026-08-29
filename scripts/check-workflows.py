@@ -41,6 +41,76 @@ except ImportError:  # pragma: no cover
 RACINE = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 
+def verifier_scripts_executables(fichiers) -> int:
+    """Tout script lancé par `./` dans un workflow doit être exécutable dans Git.
+
+    ═════════════════════════════════════════════════════════════════════════
+    CE QUI EST ARRIVÉ.
+
+    `scripts/check-all.sh` était enregistré en `100644`. La CI l'appelle par
+    `./scripts/check-all.sh`, et le runner a répondu :
+
+        ./scripts/check-all.sh: Permission denied
+        Error: Process completed with exit code 126
+
+    Le message parle de permission, ce qui envoie regarder les droits du runner
+    ou ceux du dépôt — alors que la cause est un bit stocké dans l'index Git,
+    invisible dans un diff et absent de tout affichage habituel.
+
+    Le mode se perd facilement : un fichier réécrit par un outil, une copie
+    depuis un système sans bit d'exécution, un `git add` après un
+    `cp` maladroit. Rien ne le signale avant que la CI ne tombe.
+
+    CE QUE CE CONTRÔLE NE COUVRE PAS.
+
+    Il ne regarde que les `run:` qui commencent par `./`. Un script appelé via
+    `bash script.sh` n'a pas besoin du bit, et n'est donc pas vérifié — c'est
+    d'ailleurs la façon la plus robuste d'écrire un workflow. Il ne vérifie pas
+    non plus que le script EXISTE, ni qu'il fonctionne.
+    ═════════════════════════════════════════════════════════════════════════
+    """
+    import re
+    import subprocess
+
+    # Le mode vient de l'index Git, pas du système de fichiers : c'est celui-là
+    # que le runner reçoit après un checkout.
+    modes = {}
+    r = subprocess.run(["git", "ls-files", "-s"], capture_output=True, text=True,
+                       cwd=RACINE)
+    for ligne in r.stdout.splitlines():
+        champs = ligne.split("\t", 1)
+        if len(champs) != 2:
+            continue
+        modes[champs[1]] = champs[0].split()[0]
+
+    if not modes:
+        print("  ❌ `git ls-files` n'a rien rendu — ce contrôle ne vérifie plus rien")
+        return 1
+
+    fautes = 0
+    vus = 0
+    for chemin in fichiers:
+        court = os.path.relpath(chemin, RACINE)
+        with open(chemin, encoding="utf-8") as f:
+            contenu = f.read()
+        for appel in re.findall(r"^\s*(?:-\s*)?run:\s*(\./\S+)", contenu, re.MULTILINE):
+            cible = appel.lstrip("./")
+            vus += 1
+            mode = modes.get(cible)
+            if mode is None:
+                print(f"  ❌ {court} : lance `{appel}`, que Git ne suit pas")
+                fautes += 1
+            elif not mode.endswith("755"):
+                print(f"  ❌ {court} : lance `{appel}`, enregistré en {mode} — "
+                      f"le runner répondra « Permission denied » (code 126). "
+                      f"Corriger : git update-index --chmod=+x {cible}")
+                fautes += 1
+
+    if vus == 0:
+        print("  aucun script appelé par `./` dans les workflows")
+    return fautes
+
+
 def main() -> int:
     fichiers = sorted(glob.glob(os.path.join(RACINE, ".github", "workflows", "*.yml")))
     fichiers += sorted(glob.glob(os.path.join(RACINE, ".github", "workflows", "*.yaml")))
@@ -87,6 +157,8 @@ def main() -> int:
                     titre = etape.get("name", f"étape {i}")
                     print(f"  ❌ {court} : « {nom} / {titre} » n'a ni `uses` ni `run`")
                     fautes += 1
+
+    fautes += verifier_scripts_executables(fichiers)
 
     if fautes:
         print(f"  {len(fichiers)} workflow(s), {fautes} défaut(s).")

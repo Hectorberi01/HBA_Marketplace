@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    LA TARIFICATION BRANCHÉE SUR LES PROMOTIONS, PARTAGÉE PAR LES DEUX PANIERS.
+
+    Ce projet existe parce que `food-cart-service` refusait de démarrer en
+    production : il n'était branché sur AUCUN service de promotion, donc toute
+    remise était ignorée et tout code promo refusé, en silence.
+
+    `cart-service` avait déjà l'implémentation. La recopier aurait créé deux
+    tarifications qui divergent au premier correctif — et une divergence de
+    tarification ne se voit pas, elle se facture.
+
+    L'implémentation ne dépend que de deux contrats et d'un logger : elle n'a
+    jamais eu de raison de vivre dans l'infrastructure de `cart-service`.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Pricing.Contracts\HBA.Pricing.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

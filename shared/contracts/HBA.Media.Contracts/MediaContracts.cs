@@ -55,10 +55,26 @@ public sealed record MediaView(
     // vient du JETON : c'est le seul fait de ce contrat que l'appelant ne choisit
     // pas.
     //
-    // PARAMÈTRE OPTIONNEL EN FIN D'ENREGISTREMENT, pour que les appelants
-    // existants continuent de compiler. `Guid.Empty` se lit « inconnu ».
+    // LE PARAMÈTRE N'EST PLUS OPTIONNEL, ET C'EST LA CORRECTION D'UN DÉFAUT
+    //    QUI A ATTEINT LA PRODUCTION.
+    //
+    // Il l'a été, « pour que les appelants existants continuent de compiler ».
+    // C'est précisément ce qui a permis au trou de passer : le champ a été
+    // ajouté ici et au contrôle qui s'en sert, mais PAS au proto ni au mapping
+    // gRPC. Rien n'a cessé de compiler. `MediaGrpcMapping.ToContract`
+    // construisait donc un `MediaView` avec `Guid.Empty`, et seller-service
+    // refusait en 403 tout vendeur déposant sa propre pièce KYB — un refus qui
+    // ressemblait à un durcissement volontaire.
+    //
+    // Sans valeur par défaut, tout appelant qui omet le champ CESSE DE
+    // COMPILER. C'est la seule barrière qui aurait attrapé l'oubli au moment où
+    // il a été fait.
+    //
+    // `Guid.Empty` reste une valeur légitime — elle se lit « inconnu », ce que
+    // rend une instance de media-service antérieure à ce champ — mais elle doit
+    // désormais être écrite explicitement.
     // ═══════════════════════════════════════════════════════════════════════
-    Guid CreatedByUserId = default);
+    Guid CreatedByUserId);
 
 /// <summary>Une URL signée et sa durée de validité (§10).</summary>
 public sealed record SignedMediaUrl(string Url, int ExpiresInSeconds);
