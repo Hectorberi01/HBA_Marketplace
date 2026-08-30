@@ -52,15 +52,17 @@ CIBLE="${1:-}"
 case "$CIBLE" in
   prod)    HOTE="$VPS_PROD";    DESTINATION="$DESTINATION_PROD" ;;
   staging) HOTE="$VPS_STAGING"; DESTINATION="$DESTINATION_STAGING" ;;
-  *) rouge "usage: ./scripts/migrer-prod.sh <prod|staging> [--seulement <service>] [--oui]"; exit 2 ;;
+  *) rouge "usage: ./scripts/migrer-prod.sh <prod|staging> [--depuis <service>] [--seulement <service>] [--oui]"; exit 2 ;;
 esac
 shift
 
 SEULEMENT=""
+DEPUIS=""
 SANS_DEMANDER=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --seulement) SEULEMENT="${2:-}"; shift 2 ;;
+    --depuis)    DEPUIS="${2:-}"; shift 2 ;;
     --oui)       SANS_DEMANDER=1; shift ;;
     *) rouge "option inconnue : $1"; exit 2 ;;
   esac
@@ -161,6 +163,21 @@ if [ -n "$SEULEMENT" ]; then
   SERVICES="$SEULEMENT"
 else
   SERVICES="$("$PYTHON_LOCAL" ./scripts/services-a-migrer.py)"
+  # REPRENDRE OU L'ON S'EST ARRETE, SANS RECOPIER LA LISTE.
+  #
+  # Le script s'arrete a la premiere faute. Relancer depuis le debut refait
+  # passer les migrations deja appliquees — EF les ignore, mais chaque service
+  # coute un demarrage de conteneur, et l'on relit quinze succes pour trouver
+  # l'echec. `--depuis <service>` reprend a partir de celui-la, dans le meme
+  # ordre.
+  if [ -n "$DEPUIS" ]; then
+    if ! printf '%s\n' "$SERVICES" | grep -qx "$DEPUIS"; then
+      rouge "« ${DEPUIS} » n'est pas dans la liste des services à migrer."
+      printf '%s\n' "$SERVICES" | sed 's/^/    /' >&2
+      exit 2
+    fi
+    SERVICES="$(printf '%s\n' "$SERVICES" | sed -n "/^${DEPUIS}\$/,\$p")"
+  fi
 fi
 NOMBRE_SERVICES="$(printf '%s\n' "$SERVICES" | grep -c . || true)"
 
@@ -220,10 +237,24 @@ COMPOSE_DISTANT="${SUDO} docker compose --env-file ${DOSSIER}/.env -p ${UUID} -f
 
 for service in $SERVICES; do
   titre "migration : ${service}"
-  if ! ssh -t "$DESTINATION" "${COMPOSE_DISTANT} run --rm --no-TTY -e DATABASE__MIGRATEONLY=true ${service}"; then
+  # `--no-deps` : ON NE DEMARRE QUE CE SERVICE.
+  #
+  # CE QUI ETAIT CASSE : sans lui, `compose run` respecte `depends_on` et monte
+  # toute la cascade — jusqu'a tenter de TIRER des images absentes du VPS :
+  #
+  #     failed to resolve reference "ghcr.io/hectorberi01/media-service:prod": not found
+  #
+  # Le compose porte `build:` ET `image:` ; `run` ne construit pas, il tire. Une
+  # image qu'aucun deploiement n'a laissee sur la machine fait donc echouer une
+  # migration qui n'avait aucun besoin de ce service.
+  #
+  # Et une migration n'a besoin de RIEN d'autre : `MigrateOnly` sort avant
+  # `app.Run()`, donc avant que le moindre consommateur Kafka ou client Redis ne
+  # se connecte. Seule la base est requise, et elle est sur un autre VPS.
+  if ! ssh -t "$DESTINATION" "${COMPOSE_DISTANT} run --rm --no-deps --no-TTY -e DATABASE__MIGRATEONLY=true ${service}"; then
     rouge "La migration de ${service} a échoué — arrêt."
     rouge "  Les migrations déjà appliquées le RESTENT : reprendre avec"
-    rouge "      ./scripts/migrer-prod.sh ${CIBLE} --seulement ${service}"
+      rouge "      ./scripts/migrer-prod.sh ${CIBLE} --depuis ${service}"
     exit 1
   fi
   vert "${service} : migré"
