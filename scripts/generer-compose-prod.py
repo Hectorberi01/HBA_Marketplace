@@ -73,6 +73,11 @@ BLOQUES = {
         "créée alors qu'un numéro est rendu au client.",
 }
 
+# Tout ce qui ne sera PAS dans `services:` — et qu'aucun `depends_on` ne doit
+# donc plus nommer. Reunir les deux tables ici evite qu'on en ajoute une
+# troisieme un jour sans penser aux dependances.
+ECARTES = {**HORS_PRODUCTION, **BLOQUES}
+
 # Chaque service et la base qu'il emploie. Le role porte le nom de la base :
 # c'est ce que `scripts/db/creer-bases.sh` garantit.
 BASES = {
@@ -263,6 +268,54 @@ def transformer(nom, corps):
             while i < len(corps) and re.match(r"^      ", corps[i]):
                 sortie.append(corps[i])
                 i += 1
+            continue
+
+        # ═══════════════════════════════════════════════════════════════════
+        # UNE DEPENDANCE VERS UN SERVICE ECARTE DOIT PARTIR AVEC LUI.
+        #
+        # CE QUI ETAIT CASSE : ce script retirait `postgres`, `minio-init`,
+        # `notification-service` et `return-refund-service` de `services:`, et
+        # laissait les `depends_on:` qui les nommaient. Compose refuse alors le
+        # fichier entier :
+        #
+        #     service "order-service" depends on undefined service "postgres"
+        #
+        # Seize services etaient concernes. Le fichier restait du YAML valide —
+        # d'ou le fait qu'aucun controle ne l'avait vu — mais Compose, lui, exige
+        # que toute cible de `depends_on` existe.
+        #
+        # CE QUE CELA NE COUVRE PAS : rien ne remplace l'attente supprimee.
+        # `postgres` n'est plus la parce que la base vit sur un second VPS, et
+        # personne ne verifie qu'elle repond avant qu'un service demarre. Un
+        # service qui part trop tot echouera a se connecter et sera relance par
+        # `restart: unless-stopped` — bruyant, mais sans perte.
+        # ═══════════════════════════════════════════════════════════════════
+        if re.match(r"^    depends_on:\s*$", l):
+            i += 1
+            gardees = []
+            while i < len(corps) and re.match(r"^      \S", corps[i]):
+                cible = re.match(r"^      ([\w.-]+):\s*$", corps[i])
+                if cible is None:
+                    gardees.append(corps[i])
+                    i += 1
+                    continue
+                bloc = [corps[i]]
+                i += 1
+                while i < len(corps) and re.match(r"^        ", corps[i]):
+                    bloc.append(corps[i])
+                    i += 1
+                if cible.group(1) in ECARTES:
+                    gardees.append("      # %s : retire — %s.\n"
+                                   % (cible.group(1), ECARTES[cible.group(1)]))
+                else:
+                    gardees.extend(bloc)
+            if any(re.match(r"^      [\w.-]+:", g) for g in gardees):
+                sortie.append(l)
+                sortie.extend(gardees)
+            else:
+                sortie.append("    # `depends_on:` retire : toutes ses cibles "
+                              "sont ecartees de la production.\n")
+                sortie.extend(g for g in gardees if g.lstrip().startswith("#"))
             continue
 
         # ═══════════════════════════════════════════════════════════════════
@@ -500,6 +553,30 @@ def main():
     if sans_build:
         print("REFUS : %s ont une image mais aucun `build` — rien ne pourrait les "
               "produire sans registre." % ", ".join(sans_build), file=sys.stderr)
+        return 1
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # TOUTE CIBLE DE `depends_on` DOIT EXISTER.
+    #
+    # Compose refuse le fichier ENTIER sur une seule dependance orpheline —
+    # « service X depends on undefined service Y » — et le YAML, lui, reste
+    # valide, donc aucun controle de forme ne l'attrape. C'est exactement ce
+    # qui est arrive en retirant `postgres` sans toucher aux seize services qui
+    # l'attendaient.
+    # ═══════════════════════════════════════════════════════════════════════
+    definis = set(rendu_charge.get("services") or {})
+    orphelines = []
+    for nom, v in (rendu_charge.get("services") or {}).items():
+        for cible in (v.get("depends_on") or {}):
+            if cible not in definis:
+                orphelines.append("%s -> %s" % (nom, cible))
+    if orphelines:
+        print("REFUS : %d dépendance(s) vers un service absent du rendu."
+              % len(orphelines), file=sys.stderr)
+        for o in orphelines:
+            print("    " + o, file=sys.stderr)
+        print("    Compose refuserait le fichier entier. Ajouter le service à "
+              "ECARTES, ou le réintégrer.", file=sys.stderr)
         return 1
 
     noms = [v.get("container_name") for v in (rendu_charge.get("services") or {}).values()]

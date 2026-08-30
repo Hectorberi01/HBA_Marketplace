@@ -181,8 +181,7 @@ services:
       ADMIN__LASTNAME: HBA
       ADMIN__PHONE: "+22900000000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -210,8 +209,7 @@ services:
       KAFKA__PRODUCER: user-service
       SERVICES__IDENTITY: http://identity-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -276,12 +274,10 @@ services:
       # domaine du CDN.
       MEDIA__STORAGE__PUBLICBASEURL: http://${HOST_LAN_IP:-localhost}:9000/hba-public
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       kafka:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
+      # minio-init : retire — amorçage de développement ; en production, voir le runbook.
       minio:
         condition: service_started
     networks: [hba-backend]
@@ -332,8 +328,7 @@ services:
       # ═══════════════════════════════════════════════════════════════════════
       REDIS__CONNECTIONSTRING: redis:6379
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -375,8 +370,7 @@ services:
       MEDIA__REMBG__BASEURL: http://rembg:7000
       MEDIA__REMBG__TIMEOUTSECONDS: "120"
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -411,8 +405,7 @@ services:
       SERVICES__CATALOG: http://catalog-service:9090
       SERVICES__MERCHANT: http://seller-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -464,8 +457,7 @@ services:
       # ═══════════════════════════════════════════════════════════════════════
       SERVICES__PROMOTION: http://promotion-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -523,8 +515,7 @@ services:
       # `docker compose ps` ne dit pourquoi.
       SERVICES__MERCHANT: http://seller-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -581,8 +572,7 @@ services:
       # service ne demarre pas.
       SERVICES__FOODORDER: http://food-order-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -626,8 +616,7 @@ services:
       # demarre pas plutot que de refuser tout coupon en silence.
       SERVICES__PROMOTION: http://promotion-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -670,8 +659,7 @@ services:
       # aboutir. Sans cette adresse, le service ne démarre pas.
       SERVICES__DELIVERYPRICING: http://delivery-pricing-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -708,8 +696,7 @@ services:
       ESTIMATIONITINERAIRE__FACTEURCORRECTIONURBAINE: "1.0"
       ESTIMATIONITINERAIRE__VITESSEMOYENNEMETRESPARSECONDE: "5.8"
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -743,8 +730,7 @@ services:
       SERVICES__FINANCIAL: http://payment-service:9090
       SERVICES__DELIVERYPRICING: http://delivery-pricing-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -857,8 +843,7 @@ services:
       # service : elle l'empêche de démarrer, avant toute sonde.
       SERVICES__DELIVERY: http://delivery-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -906,8 +891,7 @@ services:
       # correspondance entre le compte du jeton et le dossier vendeur.
       SERVICES__MERCHANT: http://seller-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
@@ -957,8 +941,7 @@ services:
       # ═══════════════════════════════════════════════════════════════════════
       SERVICES__MERCHANT: http://seller-service:9090
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       kafka:
         condition: service_healthy
     networks: [hba-backend]
