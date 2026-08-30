@@ -72,22 +72,35 @@ donc sur la machine elle-même, alimenté par `git push` depuis le poste :
 ssh ovh-server 'mkdir -p depots && git init --bare --initial-branch=main depots/hba.git'
 ```
 
-Dans Coolify : **New Resource → Docker Compose → Private Repository (with
-deploy key)**. La clé publique affichée par Coolify doit être ajoutée à
-`~/.ssh/authorized_keys` de `ubuntu` sur le VPS — Coolify se connecte à sa
-propre machine.
+### La ressource, dans Coolify 4.3
+
+**Choisir « Private Git Repository (with Deploy Key) », PAS la carte « Docker
+Compose ».**
+
+Les deux mènent à un compose, et c'est le piège. La carte « Docker Compose » est
+une *Docker source* : elle déploie « **without a Git repository** », donc sans
+sources — elle ne peut que tirer des images déjà construites. Nos dix-neuf
+services ont un `build:` ; il faut la *Git source*, qui clone puis construit.
+
+La carte retenue annonce « Set the URL and branch **manually**, no automatic
+deploys ». Les deux moitiés comptent : l'URL est libre — un dépôt nu sur la
+machine passe — et **rien ne se déploie tout seul**. C'est `deployer.sh` qui
+déclenche, après les tests.
 
 | Champ | Valeur |
 |---|---|
-| Repository URL | `ssh://ubuntu@<ip privée du VPS>:8022/home/ubuntu/depots/hba.git` |
+| Repository URL | `ssh://ubuntu@79.137.35.129:8022/home/ubuntu/depots/hba.git` |
 | Branch | `main` |
+| Build Pack | `Docker Compose` |
 | Docker Compose Location | `/docker-compose.prod.yml` |
 
-**Ce point n'a pas été vérifié :** que Coolify accepte une URL SSH vers un
-dépôt nu quelconque. Son formulaire attend historiquement une forme
-`git@hôte:propriétaire/dépôt.git`. Si elle est refusée, le repli est une forge
-légère installée depuis Coolify (Gitea), vers laquelle on pousse au lieu du
-dépôt nu — même principe, rien ne sort du VPS.
+Le schéma `ssh://` est obligatoire dès qu'il y a un port : la forme courte
+`ubuntu@hôte:chemin` ne sait pas porter le 8022.
+
+La clé publique du couple engendré par Coolify (**Keys & Tokens → Private
+Keys**) doit être ajoutée à `~/.ssh/authorized_keys` de `ubuntu` sur le VPS.
+Coolify se connecte à sa propre machine : son conteneur n'hérite pas des clés
+de l'hôte.
 
 ### Les vingt-trois variables
 
@@ -97,6 +110,31 @@ non dans un fichier. La liste exacte se lit sans rien afficher de secret :
 ```bash
 python3 scripts/verifier-env-compose.py docker-compose.prod.yml
 ```
+
+#### Ne jamais coller le bloc de la section 1 dans Coolify
+
+Ce bloc est écrit pour un fichier `.env` lu par un shell. Coolify n'est ni l'un
+ni l'autre : il attend **une variable par ligne, un nom et une valeur
+littérale**. Trois choses s'y perdent, et la troisième a déjà coûté un
+déploiement.
+
+  • **Les commentaires.** Coolify recopie la valeur telle quelle dans
+    `build-time.env`. Un `# Le compte administrateur — le seul moyen d'entrer.`
+    devient une ligne que l'analyseur lit comme un nom de variable, et le
+    déploiement échoue sur `unexpected character "\" in variable name`.
+
+  • **Les valeurs sur plusieurs lignes.** Une seule variable qui porterait le
+    fichier entier produit le même effet, en pire : quarante-neuf lignes là où
+    on en attend vingt-trois, et l'erreur désigne un numéro de ligne qui ne
+    correspond à rien de ce qu'on croit avoir saisi.
+
+  • **`$(openssl rand …)` n'est PAS évalué.** Dans un shell, c'est une commande.
+    Dans Coolify, c'est une chaîne de dix-neuf caractères — et ce serait
+    littéralement le mot de passe administrateur. Engendrer les valeurs sur le
+    poste, puis coller le RÉSULTAT.
+
+Le contrôle qui reste possible ici : la liste des noms, à comparer à ce que
+l'interface affiche.
 
 `AUTHENTICATION__SIGNINGKEY` et `JWT__SIGNINGKEY` doivent porter la **même**
 valeur. `SECURITY__SECRETPROTECTION__KEY` ne se régénère pas.
