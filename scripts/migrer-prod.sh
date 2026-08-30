@@ -187,6 +187,35 @@ fi
 # souvent la base a mi-chemin, et enchainer les quinze suivantes rendrait le
 # diagnostic illisible.
 # ═════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════════════════
+# LE RESEAU DE COOLIFY, DECLARE `external`.
+#
+# CE QUI ETAIT CASSE : `compose run` echouait sur
+#
+#     network <uuid> declared as external, but could not be found
+#
+# Coolify reecrit le compose pour y ajouter un reseau portant l'uuid de la
+# ressource, marque `external: true` — « il existe deja, je ne le cree pas ».
+# C'est LUI qui le cree, au deploiement. Quand la pile a ete nettoyee, le reseau
+# est parti avec, et plus rien ne peut le recreer avant le prochain deploiement.
+#
+# On le cree donc si besoin, et ON LE DIT. Un reseau Docker vide ne coute rien
+# et l'operation est idempotente.
+#
+# CE QUE CELA NE COUVRE PAS : le reseau fabrique ici n'a pas les etiquettes que
+# Coolify pose sur les siens. Il fonctionne pour connecter des conteneurs, mais
+# Coolify pourrait ne pas le reconnaitre comme lui appartenant — et donc ne pas
+# le nettoyer un jour. C'est un objet local, sans donnee : le pire cas est un
+# reseau orphelin dans `docker network ls`.
+# ═════════════════════════════════════════════════════════════════════════════
+if ! ssh "$DESTINATION" "${SUDO} docker network inspect ${UUID}" >/dev/null 2>&1; then
+  info "réseau « ${UUID} » absent — création (normalement le rôle de Coolify)"
+  ssh "$DESTINATION" "${SUDO} docker network create ${UUID}" >/dev/null || {
+    rouge "création du réseau impossible."
+    exit 1
+  }
+fi
+
 COMPOSE_DISTANT="${SUDO} docker compose --env-file ${DOSSIER}/.env -p ${UUID} -f ${DOSSIER}/docker-compose.prod.yml"
 
 for service in $SERVICES; do
