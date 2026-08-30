@@ -181,6 +181,41 @@ else
 fi
 NOMBRE_SERVICES="$(printf '%s\n' "$SERVICES" | grep -c . || true)"
 
+# ═════════════════════════════════════════════════════════════════════════════
+# LE COMPOSE DU VPS EST CELUI DU DERNIER DEPLOIEMENT, PAS CELUI DU DEPOT.
+#
+# CE QUI ETAIT CASSE : ce script derive la liste des services du compose LOCAL,
+# et lance `compose run` contre le compose que COOLIFY a ecrit. Les deux
+# divergent des qu'on modifie le generateur sans redeployer. Compose repond
+# alors « no such service: payment-service » — exact, et parfaitement muet sur
+# la cause : le service existe, il n'a simplement pas encore ete deploye.
+#
+# L'ordre est donc : pousser, laisser Coolify deployer, PUIS migrer. On le
+# verifie plutot que de le documenter.
+# ═════════════════════════════════════════════════════════════════════════════
+SERVICES_DISTANTS="$(ssh "$DESTINATION" \
+  "${SUDO} grep -E '^  [a-z0-9-]+:' ${DOSSIER}/docker-compose.prod.yml" 2>/dev/null \
+  | sed 's/^ *//; s/:.*//' || true)"
+
+ABSENTS=""
+for service in $SERVICES; do
+  if ! printf '%s\n' "$SERVICES_DISTANTS" | grep -qx "$service"; then
+    ABSENTS="${ABSENTS}${service} "
+  fi
+done
+
+if [ -n "$ABSENTS" ]; then
+  rouge "REFUS : ces services ne sont pas dans le compose déployé sur ${HOTE} :"
+  for service in $ABSENTS; do rouge "    ${service}"; done
+  rouge ""
+  rouge "  Le compose du VPS est celui du DERNIER déploiement Coolify. Il ne"
+  rouge "  connaît pas encore les changements du dépôt."
+  rouge ""
+  rouge "  Dans l'ordre : git push origin main, attendre que le déploiement"
+  rouge "  finisse dans Coolify, puis relancer cette commande."
+  exit 1
+fi
+
 titre "Migrations ${CIBLE} — ${NOMBRE_SERVICES} service(s)"
 info "hôte      : ${DESTINATION} (${HOTE})"
 info "ressource : ${UUID}"
