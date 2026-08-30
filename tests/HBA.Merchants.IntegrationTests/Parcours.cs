@@ -51,7 +51,7 @@ internal static class Parcours
             "/api/v1/merchants",
             new { shopName = nomBoutique, commissionRate = 0.10m });
 
-        reponse.EnsureSuccessStatusCode();
+        await ReussirAsync(reponse);
 
         return new VendeurInscrit(userId, await LireIdAsync(reponse), client);
     }
@@ -77,7 +77,7 @@ internal static class Parcours
 
         var reponse = await RattacherPieceAsync(vendeur, mediaId, type);
 
-        reponse.EnsureSuccessStatusCode();
+        await ReussirAsync(reponse);
 
         return await LireIdAsync(reponse);
     }
@@ -98,7 +98,7 @@ internal static class Parcours
             $"/api/v1/merchants/{vendeur.SellerId}/payout-account",
             new { provider = "MtnMomo", accountNumber = "97000000", accountName = "Kossi Adjovi" });
 
-        reponse.EnsureSuccessStatusCode();
+        await ReussirAsync(reponse);
     }
 
     /// <summary>
@@ -130,7 +130,7 @@ internal static class Parcours
             $"/api/v1/merchants/{vendeur.SellerId}/payout-account",
             new { provider = "MtnMomo", accountNumber = numero, accountName = "Kossi Adjovi" });
 
-        reponse.EnsureSuccessStatusCode();
+        await ReussirAsync(reponse);
     }
 
     /// <summary>Crée une boutique pour ce vendeur.</summary>
@@ -140,9 +140,60 @@ internal static class Parcours
             $"/api/v1/merchants/{vendeur.SellerId}/stores",
             new { name = nom, contactPhone = "+22997000001", contactEmail = (string?)null });
 
-        reponse.EnsureSuccessStatusCode();
+        await ReussirAsync(reponse);
 
         return await LireIdAsync(reponse);
+    }
+
+    /// <summary>
+    /// Exige le succès, et DIT POURQUOI quand il n'est pas au rendez-vous.
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// CE QUI ÉTAIT CASSÉ : `EnsureSuccessStatusCode` NE DIT QUE LE CODE.
+    ///
+    /// Trente-deux tests de cette suite sont tombés sur
+    /// « Response status code does not indicate success: 401 (Unauthorized) ».
+    /// Trente-deux fois la même phrase, et pas une once de cause : un 401 de
+    /// jeton peut venir d'une signature qui ne correspond pas, d'un émetteur
+    /// refusé, d'une audience refusée, d'une durée de vie expirée, ou d'aucun
+    /// jeton du tout. Ces cinq pannes ont cinq corrections différentes.
+    ///
+    /// Or la réponse PORTE la réponse. Le gestionnaire JWT écrit l'en-tête
+    /// `WWW-Authenticate: Bearer error="invalid_token",
+    /// error_description="The signature key was not found"` — et l'exception
+    /// standard la jette avec le reste de la réponse.
+    ///
+    /// CE QUE CELA NE COUVRE PAS.
+    ///
+    /// Ce n'est pas un contrôle : rien ici ne rend un test plus tolérant, le
+    /// succès reste exigé à l'identique. Cela ne remplace pas non plus les
+    /// journaux du gestionnaire — l'en-tête reste volontairement vague sur
+    /// certains refus, et seul le journal du service porte le code `IDXxxxxx`.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    private static async Task ReussirAsync(HttpResponseMessage reponse)
+    {
+        if (reponse.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var defi = reponse.Headers.WwwAuthenticate.Count > 0
+            ? string.Join(" | ", reponse.Headers.WwwAuthenticate)
+            : "(aucun en-tête WWW-Authenticate — le refus ne vient pas du gestionnaire de jeton)";
+
+        var corps = await reponse.Content.ReadAsStringAsync();
+        if (corps.Length > 2000)
+        {
+            corps = corps[..2000] + " […]";
+        }
+
+        throw new HttpRequestException(
+            $"{(int)reponse.StatusCode} {reponse.StatusCode} sur "
+            + $"{reponse.RequestMessage?.Method} {reponse.RequestMessage?.RequestUri}"
+            + $"\n  WWW-Authenticate : {defi}"
+            + $"\n  corps            : {corps}");
     }
 
     /// <summary>Un client d'administration : la gouvernance du §22 exige le rôle.</summary>
