@@ -957,8 +957,11 @@ services:
       # vivent ici : sans eux, le projet n'a ni cadre cible ni version de paquet.
       context: .
       dockerfile: apps/api-gateway/Dockerfile
-    ports:
-      - "8080:8080"
+    # `ports:` retiré : publier sur le VPS, c'est publier sur Internet.
+    # Les services se joignent par le réseau `hba-backend`.
+    # `expose:` ne publie rien — il DECLARE le port, pour que le
+    # proxy de Coolify sache ou router le domaine.
+    expose: ["8080"]
     environment:
       <<: *prod-auth
       ASPNETCORE_ENVIRONMENT: Production

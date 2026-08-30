@@ -146,12 +146,23 @@ d'authentification. Doubler : `$` devient `$$`.
 
 ### Le domaine et le port
 
-Le compose publie encore `8080:8080` pour la passerelle. Une fois le domaine
-`api.hba-express.com` attribué à `gateway` dans Coolify, son proxy route et
-obtient le certificat — **la publication du port devient inutile et
-dangereuse** : elle expose l'API en clair sur Internet, à côté du HTTPS. Retirer
-`PORTS_AUTORISES = {"gateway"}` de `scripts/generer-compose-prod.py` et
-régénérer, une fois seulement que le domaine répond.
+**Le compose ne publie plus aucun port.** La passerelle publiait `8080:8080`,
+pour qu'un proxy TLS posé à la main puisse l'interroger. Sous Coolify ce proxy
+existe déjà, sur la même machine, et il tient ce port : le démarrage échouait
+sur `Bind for 0.0.0.0:8080 failed: port is already allocated`.
+
+Le publier serait de toute façon une faute — cela exposerait l'API **en clair**
+sur Internet, à côté du HTTPS servi par le proxy. Celui-ci joint la passerelle
+par le réseau Docker.
+
+`gateway` porte donc `expose: ["8080"]` : rien n'est publié sur l'hôte, mais le
+port reste **déclaré**, ce qui permet au proxy de savoir où router.
+
+**Conséquence : sans domaine attribué à `gateway`, l'API n'est joignable de
+nulle part.** Le compose seul ne suffit plus. Dans Coolify, section Domains de
+la ressource, le domaine du service `gateway` doit désigner le port du
+conteneur — la documentation donne la forme `http://exemple.com:3000` pour un
+service qui n'écoute pas sur 80.
 
 ### Ce que Coolify NE fait pas
 

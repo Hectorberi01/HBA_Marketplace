@@ -142,8 +142,27 @@ REMPLACEMENTS = {
 # minutes ; une console MinIO ouverte donne les pieces KYB. Les services se
 # parlent par le reseau `hba-backend`, ou aucune publication n'est necessaire.
 #
-# La passerelle garde le sien : c'est elle que le proxy TLS interroge.
-PORTS_AUTORISES = {"gateway"}
+# ET LA PASSERELLE NE FAIT PLUS EXCEPTION.
+#
+# CE QUI ETAIT CASSE : elle publiait `8080:8080`, pour qu'un proxy TLS pose a la
+# main puisse l'interroger. Sous Coolify, ce proxy existe deja et vit sur la
+# meme machine — le port 8080 y est donc pris, et le demarrage echoue sur
+#
+#     Bind for 0.0.0.0:8080 failed: port is already allocated
+#
+# Le publier serait de toute facon une faute : cela exposerait l'API en CLAIR
+# sur Internet, a cote du HTTPS servi par le proxy. Le proxy joint la passerelle
+# par le reseau Docker, ou aucune publication n'est necessaire.
+#
+# `expose:` remplace `ports:` : rien n'est publie sur l'hote, mais le port reste
+# DECLARE — c'est ce qui permet au proxy de savoir ou router.
+#
+# CE QUE CELA NE COUVRE PAS : sans domaine attribue a `gateway` dans Coolify,
+# l'API n'est joignable de nulle part. Le compose seul ne suffit plus.
+PORTS_AUTORISES = set()
+
+# Services dont le port doit rester DECLARE pour que le proxy le trouve.
+PORTS_EXPOSES = {"gateway": "8080"}
 
 # Ce qui trahit un secret laisse en clair. Le controle final s'appuie dessus.
 MOTIFS_SUSPECTS = [
@@ -347,6 +366,10 @@ def transformer(nom, corps):
                 i += 1
             sortie.append("    # `ports:` retiré : publier sur le VPS, c'est publier sur Internet.\n")
             sortie.append("    # Les services se joignent par le réseau `hba-backend`.\n")
+            if nom in PORTS_EXPOSES:
+                sortie.append("    # `expose:` ne publie rien — il DECLARE le port, pour que le\n")
+                sortie.append("    # proxy de Coolify sache ou router le domaine.\n")
+                sortie.append("    expose: [\"%s\"]\n" % PORTS_EXPOSES[nom])
             continue
 
         # 2. L'environnement.
