@@ -30,15 +30,6 @@
 #     e n'est jamais remise en stock, et aucune course d'enlèvement n'est 
 #     créée alors qu'un numéro est rendu au client.
 #
-#   payment-service
-#     PaymentsModuleInstaller REFUSE de démarrer en production sans presta
-#     taire réel : il faut au moins une clé PSP pour encaisser, et une clé
-#      FedaPay LIVE avec EnablePayouts=true pour verser. Ces deux gardes s
-#     ont délibérées — une passerelle simulée marquerait les commandes « p
-#     ayées » et clôturerait les retraits vendeur sans qu'un centime ne bo
-#     uge. CONSÉQUENCE : aucun encaissement, aucun versement, et les appel
-#     s gRPC d'order-service vers le paiement échouent.
-#
 #   notification-service
 #     aucun adaptateur ISmsSender de production n'existe ; le SMS est le c
 #     anal OTP par défaut, et NotificationsModuleInstaller lève dans les d
@@ -819,6 +810,72 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    networks: [hba-backend]
+
+    restart: unless-stopped
+
+  payment-service:
+    container_name: hba-payment-service
+    image: ghcr.io/hectorberi01/payment-service:${HBA_TAG:?le tag d'image est obligatoire}
+    build:
+      context: .
+      dockerfile: services/common/payment-service/Dockerfile
+    environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      PAYMENTS__FEDAPAY__APIKEY: ${PAYMENTS__FEDAPAY__APIKEY:?la cle FedaPay sk_live_... est obligatoire}
+      PAYMENTS__FEDAPAY__WEBHOOKSECRET: ${PAYMENTS__FEDAPAY__WEBHOOKSECRET:?sans lui les notifications FedaPay sont rejetees}
+      PAYMENTS__FEDAPAY__BASEURL: https://api.fedapay.com/v1
+      PAYMENTS__FEDAPAY__ENABLEPAYOUTS: "true"
+      PAYMENTS__FEDAPAY__CURRENCY: XOF
+      PAYMENTS__FEDAPAY__CALLBACKURL: https://api.hba-express.com/api/payments/webhooks/fedapay
+      <<: *prod-auth
+      SERVICE_NAME: payment-service
+      ASPNETCORE_ENVIRONMENT: Production
+      HOSTING__HTTPPORT: 8080
+      HOSTING__GRPCPORT: 9090
+      CONNECTIONSTRINGS__DEFAULT: Host=${HBA_PGHOST:-10.20.0.2};Port=5432;Database=hba_financial;Username=hba_financial;Password=${HBA_FINANCIAL_PASSWORD:?mot de passe de hba_financial absent}
+      REDIS__CONNECTIONSTRING: redis:6379
+      KAFKA__BOOTSTRAPSERVERS: kafka:29092
+      KAFKA__CONSUMERGROUP: hba-payment-service
+      KAFKA__PRODUCER: payment-service
+      SERVICES__ORDER: http://order-service:9090
+      SERVICES__MERCHANT: http://seller-service:9090
+      SERVICES__USER: http://user-service:9090
+      SERVICES__CATALOG: http://catalog-service:9090
+      SERVICES__FOOD: http://restaurant-service:9090
+
+      # LE SECOND UNIVERS DE COMMANDES (lot 6.1).
+      #
+      # `SERVICES__FOOD` juste au-dessus vise restaurant-service : les menus, les
+      # tickets de cuisine. Celui-ci vise food-order-service, qui porte les
+      # COMMANDES de repas — c'est chez lui que `IPayableOrderReader` va lire le
+      # montant et l'acheteur d'une commande food à payer.
+      #
+      # Sans cette ligne, `AddFoodOrdersGrpcClient` lève au démarrage : le service
+      # ne part pas, plutôt que d'échouer au premier paiement de repas.
+      SERVICES__FOODORDER: http://food-order-service:9090
+
+      # AJOUTÉ AVEC `AddDeliveryGrpcClient`, POUR DEUX RAISONS.
+      #
+      #   • le gain du livreur : `CreditDriverOnDeliveryCompletedHandler`
+      #     consomme la fin de course — sans quoi le montant est calculé,
+      #     publié, et tombe dans le vide ;
+      #   • l'autorisation de `GET /api/financial/wallets/drivers/{driverId}`,
+      #     qui résout le livreur par `GetDriverAccountAsync`.
+      #
+      # Comme partout ailleurs, l'absence de l'adresse ne dégrade pas le
+      # service : elle l'empêche de démarrer, avant toute sonde.
+      SERVICES__DELIVERY: http://delivery-service:9090
+    depends_on:
+      # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      order-service:
+        condition: service_started
+      seller-service:
+        condition: service_started
     networks: [hba-backend]
 
     restart: unless-stopped

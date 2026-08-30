@@ -29,20 +29,41 @@ marchandise retournée n'est jamais remise en stock, et aucune course d'enlèvem
 n'est créée alors qu'un numéro est rendu au client. Le troisième — la vérification
 des preuves photo — a été écrit le 29 août.
 
-**payment-service — écarté, et c'est plus grave que « il n'encaisse rien ».**
-Cette ligne disait qu'il était déployé sans encaisser. C'était faux : il **refuse
-de démarrer**. `PaymentsModuleInstaller` lève dans deux cas, tous deux réunis
-aujourd'hui — aucune clé PSP pour encaisser, et pas de clé FedaPay LIVE avec
-`EnablePayouts=true` pour verser.
+**payment-service — déployé, avec une clé FedaPay LIVE.** Il a longtemps été
+écarté : `PaymentsModuleInstaller` refuse de démarrer en production sans
+prestataire réel, et les deux gardes sont justes — une passerelle simulée
+marquerait les commandes « payées » et clôturerait les retraits vendeur sans
+qu'un centime ne bouge.
 
-Les deux gardes sont délibérées et justes. Une passerelle simulée marquerait les
-commandes « payées » sans qu'un centime ne bouge, et clôturerait un retrait
-vendeur en « payé » avec un solde débité — sans moyen de distinguer après coup un
-versement simulé d'un versement réel perdu.
+Six variables le font vivre. Deux sont des secrets, quatre sont des décisions
+qu'on doit pouvoir relire :
 
-Conséquence : aucun encaissement, aucun versement, et les appels gRPC
-d'order-service vers le paiement échouent. Le jour où une clé existe, le retirer
-de `BLOQUES` dans `scripts/generer-compose-prod.py` suffit.
+| Variable | Valeur | Pourquoi |
+|---|---|---|
+| `PAYMENTS__FEDAPAY__APIKEY` | `sk_live_…` | encaisser |
+| `PAYMENTS__FEDAPAY__WEBHOOKSECRET` | secret de signature | **sans lui, les notifications sont rejetées** |
+| `PAYMENTS__FEDAPAY__BASEURL` | `https://api.fedapay.com/v1` | doit correspondre à la clé |
+| `PAYMENTS__FEDAPAY__ENABLEPAYOUTS` | `true` | verser les vendeurs |
+| `PAYMENTS__FEDAPAY__CURRENCY` | `XOF` | |
+| `PAYMENTS__FEDAPAY__CALLBACKURL` | `https://api.hba-express.com/api/payments/webhooks/fedapay` | où FedaPay notifie |
+
+**La clé et l'URL doivent désigner le même monde.** `KeyMatchesEnvironment`
+refuse le démarrage si l'une dit « bac à sable » et l'autre « production ». Ce
+qu'il ferme n'est pas une panne : c'est de l'argent réel envoyé là où l'on
+croyait faire un essai.
+
+**Le secret de webhook n'est pas optionnel.**
+`Payments:AllowUnsignedWebhooksWhenSecretMissing` est **ignoré** hors
+développement. Sans secret, FedaPay notifie et le service rejette : l'acheteur
+paie, la commande reste « en attente de paiement », et rien dans les journaux
+applicatifs ne relie les deux.
+
+`PAYMENTS__FEDAPAY__PAYOUTMODE` garde son défaut, `mtn_open` — le compte de
+versement des boutiques est un numéro MTN Mobile Money Bénin. À changer si ce
+n'est pas le cas.
+
+Enfin, `hba_financial` n'a jamais eu son schéma : après le premier déploiement,
+`./scripts/migrer-prod.sh prod --seulement payment-service`.
 
 ---
 

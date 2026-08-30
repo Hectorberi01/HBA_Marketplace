@@ -70,14 +70,6 @@ BLOQUES = {
         "deux adaptateurs gRPC restent des bouchons — la marchandise retournée "
         "n'est jamais remise en stock, et aucune course d'enlèvement n'est "
         "créée alors qu'un numéro est rendu au client.",
-    "payment-service":
-        "PaymentsModuleInstaller REFUSE de démarrer en production sans "
-        "prestataire réel : il faut au moins une clé PSP pour encaisser, et "
-        "une clé FedaPay LIVE avec EnablePayouts=true pour verser. Ces deux "
-        "gardes sont délibérées — une passerelle simulée marquerait les "
-        "commandes « payées » et clôturerait les retraits vendeur sans qu'un "
-        "centime ne bouge. CONSÉQUENCE : aucun encaissement, aucun versement, "
-        "et les appels gRPC d'order-service vers le paiement échouent.",
 }
 
 # Tout ce qui ne sera PAS dans `services:` — et qu'aucun `depends_on` ne doit
@@ -126,6 +118,41 @@ SECRETS = {
     "MEDIA__STORAGE__SECRETACCESSKEY",
     "MINIO_ROOT_USER",
     "MINIO_ROOT_PASSWORD",
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CE QUE LA PRODUCTION AJOUTE, ET QUE LE DEVELOPPEMENT N'A JAMAIS EU.
+#
+# `REMPLACEMENTS` corrige une valeur presente ; il fallait aussi pouvoir en
+# AJOUTER. `payment-service` en est le cas : aucune cle `PAYMENTS__*` n'existe
+# dans le compose de developpement — il tourne sur des passerelles simulees —
+# et `PaymentsModuleInstaller` refuse de demarrer en production sans elles.
+#
+# Ce qui est SECRET devient une reference obligatoire ; ce qui ne l'est pas est
+# ecrit en clair, parce que sa valeur EST la decision et doit se relire.
+#
+# `BASEURL` en live et une cle `sk_live_…` vont ensemble : `KeyMatchesEnvironment`
+# refuse le demarrage si l'un dit « bac a sable » et l'autre « production ». Le
+# pire cas qu'il ferme n'est pas une panne, c'est de l'argent reel envoye la ou
+# l'on croyait faire un essai.
+#
+# `WEBHOOKSECRET` n'est pas optionnel en production : sans lui, les notifications
+# du prestataire sont REJETEES — `AllowUnsignedWhenSecretMissing` est ignore hors
+# developpement. Un encaissement partirait sans jamais revenir, et la commande
+# resterait « en attente de paiement » alors que l'acheteur a paye.
+# ═══════════════════════════════════════════════════════════════════════════════
+AJOUTS_ENVIRONNEMENT = {
+    "payment-service": [
+        ("PAYMENTS__FEDAPAY__APIKEY",
+         "${PAYMENTS__FEDAPAY__APIKEY:?la cle FedaPay sk_live_... est obligatoire}"),
+        ("PAYMENTS__FEDAPAY__WEBHOOKSECRET",
+         "${PAYMENTS__FEDAPAY__WEBHOOKSECRET:?sans lui les notifications FedaPay sont rejetees}"),
+        ("PAYMENTS__FEDAPAY__BASEURL", "https://api.fedapay.com/v1"),
+        ("PAYMENTS__FEDAPAY__ENABLEPAYOUTS", '"true"'),
+        ("PAYMENTS__FEDAPAY__CURRENCY", "XOF"),
+        ("PAYMENTS__FEDAPAY__CALLBACKURL",
+         "https://api.hba-express.com/api/payments/webhooks/fedapay"),
+    ],
 }
 
 # Valeurs de developpement qui ne sont PAS des secrets, mais qui seraient fausses
@@ -346,6 +373,20 @@ def transformer(nom, corps):
         # service qui part trop tot echouera a se connecter et sera relance par
         # `restart: unless-stopped` — bruyant, mais sans perte.
         # ═══════════════════════════════════════════════════════════════════
+        # LES AJOUTS SE POSENT EN TETE DU BLOC, PAS EN QUEUE.
+        #
+        # Ecrits juste apres `environment:`, ils se lisent avant les dizaines de
+        # variables heritees du developpement — et un `<<: *prod-auth` place la
+        # ne les ecraserait pas, la fusion perdant contre les cles explicites.
+        if re.match(r"^    environment:\s*$", l) and nom in AJOUTS_ENVIRONNEMENT:
+            sortie.append(l)
+            sortie.append("      # Ajoutees pour la production : le compose de "
+                          "developpement ne les porte pas.\n")
+            for cle, valeur in AJOUTS_ENVIRONNEMENT[nom]:
+                sortie.append("      %s: %s\n" % (cle, valeur))
+            i += 1
+            continue
+
         if re.match(r"^    depends_on:\s*$", l):
             i += 1
             gardees = []
