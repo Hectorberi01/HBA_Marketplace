@@ -209,27 +209,32 @@ if [ "$CIBLE" = "dev" ]; then
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 3. LE CONTEXTE DOCKER SUR SSH.
+# 3. LA POUSSÉE VERS LE DÉPÔT NU DU VPS.
 #
-# `docker context` fait pointer le client local vers le démon DU VPS. Toutes les
-# commandes qui suivent s'exécutent donc là-bas, avec les sources envoyées par
-# SSH comme contexte de build. Aucune image ne transite en tant qu'image.
+# POURQUOI UN DÉPÔT GIT SUR LE VPS, ET NON UN CONTEXTE DOCKER.
+#
+# Ce script parlait au démon Docker du VPS par SSH. Coolify a repris ce rôle :
+# c'est LUI qui construit et démarre, et il le fait depuis un dépôt Git qu'il
+# clone. Deux outils qui pilotent le même démon se marcheraient dessus — l'un
+# arrêterait ce que l'autre vient de lancer, sans que ni l'un ni l'autre ne le
+# signale.
+#
+# Le dépôt est donc NU et SUR LE VPS, alimenté par `git push`. Aucune source ne
+# transite par GitHub, et Coolify clone depuis la machine où il tourne.
+#
+# CE QUE CE SCRIPT NE FAIT PLUS, ET QUI EST DÉSORMAIS À COOLIFY :
+#   - construire les images ;
+#   - démarrer, arrêter, redémarrer les conteneurs ;
+#   - le proxy TLS et le certificat de api.hba-express.com ;
+#   - les vingt-trois variables, qui vivent dans son interface.
 # ═════════════════════════════════════════════════════════════════════════════
-CONTEXTE="hba-${CIBLE}"
-titre "Contexte Docker « ${CONTEXTE} » → ${DESTINATION}"
+titre "Destination SSH"
 
-# ═════════════════════════════════════════════════════════════════════════════
 # ON RÉSOUT L'ALIAS AVANT DE S'EN SERVIR, ET ON VÉRIFIE OÙ IL MÈNE.
 #
-# `ssh -G` rend la configuration EFFECTIVE pour une destination, sans ouvrir de
-# connexion : l'adresse, l'utilisateur, le port, tels que `ssh` les emploiera.
-#
-# Le contrôle qui compte est la dernière ligne : que l'alias mène bien à
-# l'adresse que ce script associe à la cible. Sans lui, un `Host ovh-server`
-# réécrit un jour vers une autre machine déploierait la production ailleurs,
-# et rien ne le dirait. Un alias absent tombe dans le même filet : `ssh -G`
-# rend alors le nom lui-même comme hôte, qui ne ressemble à aucune adresse.
-# ═════════════════════════════════════════════════════════════════════════════
+# `ssh -G` rend la configuration EFFECTIVE sans ouvrir de connexion. Le contrôle
+# qui compte est la comparaison d'adresse : un `Host` réécrit un jour vers une
+# autre machine pousserait la production ailleurs, et rien ne le dirait.
 CONFIG_SSH="$(ssh -G "$DESTINATION" 2>/dev/null || true)"
 HOTE_RESOLU="$(printf '%s\n' "$CONFIG_SSH" | awk '/^hostname /{print $2; exit}')"
 USER_RESOLU="$(printf '%s\n' "$CONFIG_SSH" | awk '/^user /{print $2; exit}')"
@@ -243,95 +248,63 @@ if [ "$HOTE_RESOLU" != "$HOTE" ]; then
   rouge "  attendu : ${HOTE}"
   rouge "  résolu  : ${HOTE_RESOLU:-<rien>}"
   rouge ""
-  rouge "  Si l'alias n'existe pas sur ce poste, l'ajouter à ~/.ssh/config :"
-  rouge ""
-  rouge "      Host ${DESTINATION}"
-  rouge "          HostName ${HOTE}"
-  rouge "          User <utilisateur>"
-  rouge "          Port <port>"
-  rouge "          IdentityFile ~/.ssh/<clé>"
-  rouge "          IdentitiesOnly yes"
-  rouge ""
-  rouge "  Ou désigner un autre alias : HBA_SSH_$(printf '%s' "$CIBLE" | tr '[:lower:]' '[:upper:]')=<alias> ./scripts/deployer.sh ${CIBLE}"
+  rouge "  Ajouter l'alias à ~/.ssh/config, ou en désigner un autre :"
+  rouge "      HBA_SSH_$(printf '%s' "$CIBLE" | tr '[:lower:]' '[:upper:]')=<alias> ./scripts/deployer.sh ${CIBLE}"
   exit 1
 fi
 
-POINT_ATTENDU="ssh://${DESTINATION}"
-
-if ! docker context inspect "$CONTEXTE" >/dev/null 2>&1; then
-  docker context create "$CONTEXTE" \
-    --docker "host=${POINT_ATTENDU}" \
-    --description "HBA ${CIBLE}"
-  info "contexte créé"
-else
-  # ═══════════════════════════════════════════════════════════════════════════
-  # UN CONTEXTE EXISTANT N'EST PAS UN CONTEXTE CORRECT.
-  #
-  # `docker context create` ne s'exécute qu'à la première fois. Si l'adresse du
-  # VPS change, ou si HBA_SSH_PROD est posé après coup, le contexte garde son
-  # ancien point de terminaison — et ce script le réemploie en silence.
-  #
-  # Le cas qui coûte cher : déployer la PRODUCTION sur le staging parce que
-  # « hba-prod » avait été créé un jour où HOTE valait autre chose. Aucune
-  # commande n'échoue, `ps` montre des conteneurs qui tournent, et la mauvaise
-  # machine sert le trafic.
-  #
-  # On compare donc, et on refuse. La correction est destructrice d'un objet
-  # local seulement, d'où le fait qu'on la nomme au lieu de la faire : effacer
-  # un contexte que quelqu'un a réglé à la main pour de bonnes raisons serait
-  # pire que s'arrêter.
-  # ═══════════════════════════════════════════════════════════════════════════
-  POINT_ACTUEL="$(docker context inspect "$CONTEXTE" \
-    --format '{{.Endpoints.docker.Host}}' 2>/dev/null || echo "")"
-
-  if [ "$POINT_ACTUEL" != "$POINT_ATTENDU" ]; then
-    rouge "REFUS : le contexte « ${CONTEXTE} » ne pointe pas où ce script croit."
-    rouge "  attendu : ${POINT_ATTENDU}"
-    rouge "  actuel  : ${POINT_ACTUEL:-<illisible>}"
-    rouge "  Corriger : docker context rm ${CONTEXTE}   puis relancer."
-    exit 1
-  fi
-  info "contexte déjà présent, et il pointe bien ${POINT_ACTUEL}"
-fi
-
-# ON VÉRIFIE QU'ON PARLE BIEN À LA BONNE MACHINE.
+# ── Les options que Coolify a reprises ───────────────────────────────────────
 #
-# Un contexte qui pointe le mauvais hôte déploie la production sur le staging
-# sans qu'aucune commande n'échoue. `docker info` nomme le démon joint.
-NOM_DISTANT="$(docker --context "$CONTEXTE" info --format '{{.Name}}' 2>/dev/null || true)"
-if [ -z "$NOM_DISTANT" ]; then
-  rouge "Impossible de joindre le démon Docker de ${HOTE}."
-  rouge ""
-  # LE TRANSPORT SSH DE DOCKER EST NON INTERACTIF.
-  #
-  # Il n'a ni terminal ni moyen de poser une question. Tout ce qui ferait
-  # s'arrêter `ssh` sur une invite — l'empreinte d'un hôte jamais joint, une
-  # demande de mot de passe, une phrase de passe de clé — ne produit PAS de
-  # message : la connexion meurt, et `docker info` rend une chaîne vide. D'où
-  # cette liste, qui distingue les quatre pannes derrière le même silence.
-  rouge "  La connexion SSH de Docker ne peut RIEN demander. Elle échoue sans"
-  rouge "  un mot dès qu'une invite apparaît. Dans l'ordre :"
-  rouge ""
-  rouge "  1. ssh ${DESTINATION} true"
-  rouge "     Si elle demande d'accepter une empreinte, ou un mot de passe, c'est là."
-  rouge "     Une connexion manuelle une fois suffit à enregistrer l'empreinte ;"
-  rouge "     le mot de passe, lui, demande une clé : ssh-copy-id ${DESTINATION}"
-  rouge ""
-  rouge "  2. ssh ${DESTINATION} docker version"
-  rouge "     Docker peut simplement ne pas être installé sur le VPS."
-  rouge ""
-  rouge "  3. ssh ${DESTINATION} id"
-  rouge "     L'utilisateur doit pouvoir parler au démon — root, ou membre du"
-  rouge "     groupe docker."
-  rouge ""
-  rouge "  4. docker context inspect ${CONTEXTE} --format '{{.Endpoints.docker.Host}}'"
-  rouge "     Pour lire l'adresse que le contexte emploie réellement."
+# ON REFUSE PLUTÔT QUE D'IGNORER. Une option acceptée qui ne fait rien est pire
+# qu'une option refusée : on croit avoir migré, et la base n'a pas bougé.
+if [ "$MIGRER" = "1" ]; then
+  rouge "REFUS : --migrer n'est pas câblé sur le chemin Coolify."
+  rouge "  Coolify démarre les services ; il n'applique pas les migrations."
+  rouge "  À lancer à la main, un service à la fois, une fois la pile debout :"
+  rouge "      ssh ${DESTINATION} docker exec -e DATABASE__MIGRATEONLY=true \\"
+  rouge "          hba-identity-service dotnet HBA.Identity.Api.dll"
+  rouge "  Voir docs/RUNBOOK-COMPOSE.md — la liste des seize services porteurs."
   exit 1
 fi
-info "démon joint : ${NOM_DISTANT}"
 
-ARCH_DISTANTE="$(docker --context "$CONTEXTE" info --format '{{.Architecture}}' 2>/dev/null || echo inconnue)"
-info "architecture : ${ARCH_DISTANTE}"
+if [ "$SUJETS" = "1" ]; then
+  rouge "REFUS : --sujets n'est pas câblé sur le chemin Coolify."
+  rouge '  Le script des sujets Kafka passe par docker compose, que Coolify'
+  rouge "  pilote désormais lui-même. À lancer à la main :"
+  rouge "      ssh ${DESTINATION} docker exec hba-kafka kafka-topics --help"
+  exit 1
+fi
+
+if [ "$SANS_BUILD" = "1" ]; then
+  info "--sans-build sans effet ici : c'est Coolify qui décide de reconstruire."
+fi
+
+# ── Le dépôt nu, créé au premier passage ─────────────────────────────────────
+DEPOT_DISTANT="${HBA_DEPOT_DISTANT:-depots/hba.git}"
+REMOTE="vps-${CIBLE}"
+BRANCHE_DISTANTE="${HBA_BRANCHE_DISTANTE:-main}"
+
+titre "Dépôt nu sur ${HOTE}"
+if ! ssh "$DESTINATION" "test -d ${DEPOT_DISTANT}" 2>/dev/null; then
+  info "absent — création de ~/${DEPOT_DISTANT}"
+  ssh "$DESTINATION" "mkdir -p ${DEPOT_DISTANT} && git init --bare --initial-branch=${BRANCHE_DISTANTE} ${DEPOT_DISTANT}" \
+    || { rouge "création impossible — git est-il installé sur le VPS ?"; exit 1; }
+else
+  info "présent : ~/${DEPOT_DISTANT}"
+fi
+
+# Le remote emploie l'ALIAS, seul nom qui porte le port et la clé.
+URL_DISTANTE="${DESTINATION}:${DEPOT_DISTANT}"
+if git remote get-url "$REMOTE" >/dev/null 2>&1; then
+  ACTUELLE="$(git remote get-url "$REMOTE")"
+  if [ "$ACTUELLE" != "$URL_DISTANTE" ]; then
+    info "remote « ${REMOTE} » réaligné : ${ACTUELLE} → ${URL_DISTANTE}"
+    git remote set-url "$REMOTE" "$URL_DISTANTE"
+  fi
+else
+  git remote add "$REMOTE" "$URL_DISTANTE"
+  info "remote « ${REMOTE} » créé"
+fi
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 4. LA CONFIRMATION, POUR LA PRODUCTION SEULEMENT.
@@ -349,93 +322,61 @@ if [ "$CIBLE" = "prod" ] && [ "$SANS_DEMANDER" = "0" ]; then
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 5. CONSTRUCTION ET DÉMARRAGE, SUR LE VPS.
+# 5. LA POUSSÉE, PUIS LE DÉCLENCHEMENT.
 #
-# `HBA_TAG` est lu par `docker-compose.prod.yml` pour nommer les images. Comme
-# rien n'est tiré d'un registre, ce tag ne sert qu'à NOMMER localement ce qui
-# vient d'être construit — mais il le fait avec le SHA, donc `docker images` sur
-# le VPS dit quel commit tourne.
+# PAS DE `--force`. Un refus de non-fast-forward veut dire que le VPS porte un
+# commit que le poste n'a pas — donc que quelqu'un a poussé autre chose, ou
+# qu'on tente de redéployer un commit ANTÉRIEUR. Écraser en silence ferait
+# disparaître ce qui tourne, sans trace de ce qui a été remplacé.
 # ═════════════════════════════════════════════════════════════════════════════
-# ═════════════════════════════════════════════════════════════════════════════
-# LE FICHIER D'ENVIRONNEMENT EST LU SUR LE POSTE, PAS SUR LE VPS.
-#
-# CE QUI ÉTAIT CASSÉ : ce script posait `ENV_FILE="\$HOME/secrets-hba-prod/..."`,
-# avec le dollar échappé, en croyant désigner un chemin CHEZ LE VPS. Deux fautes
-# dans une seule ligne.
-#
-# La première : `--env-file` et `-f` sont lus par le CLIENT compose, ici, sur le
-# Mac. Seuls les appels d'API partent vers le démon distant. Un fichier posé sur
-# le VPS n'aurait jamais été ouvert.
-#
-# La seconde : la chaîne littérale « $HOME/secrets-... » n'est développée par
-# personne — ni ici, puisque le dollar est échappé, ni là-bas, puisque rien ne
-# passe par un shell distant. Compose aurait cherché un dossier nommé « $HOME ».
-#
-# CE QUE CELA NE COUVRE PAS : le fichier reste en clair sur le poste. C'est le
-# prix d'un déploiement depuis la machine du développeur, et c'est pourquoi on
-# exige au moins qu'il ne soit lisible que par son propriétaire.
-# ═════════════════════════════════════════════════════════════════════════════
-if [ ! -f "$ENV_FILE" ]; then
-  rouge "Fichier d'environnement introuvable : ${ENV_FILE}"
-  rouge "  Il est lu ICI, sur ce poste — pas sur le VPS."
-  rouge "  Voir docs/RUNBOOK-COMPOSE.md §1 pour la liste des variables attendues."
-  rouge "  Autre emplacement : HBA_ENV_FILE=<chemin> ./scripts/deployer.sh ${CIBLE}"
+titre "Poussée du commit ${SHA}"
+if ! git push "$REMOTE" "HEAD:refs/heads/${BRANCHE_DISTANTE}"; then
+  rouge "La poussée a été refusée."
+  rouge "  Si c'est un refus de non-fast-forward, le VPS porte un commit absent"
+  rouge "  d'ici. Regarder ce qui y est avant de forcer quoi que ce soit :"
+  rouge "      git fetch ${REMOTE} && git log --oneline ${REMOTE}/${BRANCHE_DISTANTE} -5"
   exit 1
 fi
+vert "poussé sur ~/${DEPOT_DISTANT} (${BRANCHE_DISTANTE})"
 
-# GNU d'abord : sur macOS `stat -c` échoue proprement et l'on bascule sur `-f`,
-# alors que `stat -f` sous GNU signifie « système de fichiers » et rendrait un
-# « ? » silencieux — le contrôle serait sauté sans que rien ne le dise.
-MODE_ENV="$(stat -c '%a' "$ENV_FILE" 2>/dev/null || stat -f '%Lp' "$ENV_FILE" 2>/dev/null || echo "?")"
-if [ "$MODE_ENV" != "600" ] && [ "$MODE_ENV" != "?" ]; then
-  rouge "REFUS : ${ENV_FILE} est en mode ${MODE_ENV}."
-  rouge "  Il porte tous les mots de passe de ${CIBLE}. Corriger :"
-  rouge "      chmod 600 ${ENV_FILE}"
-  exit 1
-fi
-info "environnement : ${ENV_FILE} (mode ${MODE_ENV}, lu sur ce poste)"
-
-COMPOSE_DISTANT=(docker --context "$CONTEXTE" compose
-                 --env-file "$ENV_FILE" -f "$COMPOSE" -p "hba-${CIBLE}")
-
-if [ "$SANS_BUILD" = "0" ]; then
-  titre "Construction sur ${HOTE} (le premier passage est long)"
-  HBA_TAG="$TAG" "${COMPOSE_DISTANT[@]}" build
-fi
-
-titre "Démarrage"
-HBA_TAG="$TAG" "${COMPOSE_DISTANT[@]}" up -d --remove-orphans
-
-if [ "$MIGRER" = "1" ]; then
-  titre "Migrations"
-  # UN SERVICE À LA FOIS, ET SÉQUENTIELLEMENT.
-  #
-  # `MigrateOnly` applique les migrations puis rend la main. Les lancer en
-  # parallèle ferait migrer plusieurs services contre la même base — le verrou
-  # consultatif d'EF évite la corruption, pas l'attente ni le désordre.
-  for service in identity-service user-service media-service payment-service \
-                 promotion-service review-service catalog-service cart-service \
-                 inventory-service order-service seller-service \
-                 delivery-service driver-service \
-                 food-cart-service food-order-service restaurant-service; do
-    info "migration : ${service}"
-    HBA_TAG="$TAG" "${COMPOSE_DISTANT[@]}" run --rm \
-      -e DATABASE__MIGRATEONLY=true "$service" || {
-        rouge "la migration de ${service} a échoué — arrêt."
-        exit 1
-      }
-  done
-  vert "migrations appliquées"
+# ── Le déclenchement ─────────────────────────────────────────────────────────
+#
+# ON EMPLOIE L'URL DE WEBHOOK ENTIÈRE, PAS UN CHEMIN D'API RECONSTRUIT.
+#
+# Coolify affiche, pour chaque ressource, une URL de déploiement complète. La
+# reconstruire à partir d'un identifiant supposerait une forme d'API qui change
+# d'une version à l'autre — et une URL fausse rend 404, ce qui ressemble à un
+# déploiement qui n'a rien à faire.
+if [ -n "${HBA_COOLIFY_WEBHOOK:-}" ]; then
+  titre "Déclenchement Coolify"
+  if [ -z "${HBA_COOLIFY_TOKEN:-}" ]; then
+    rouge "HBA_COOLIFY_WEBHOOK est posé mais HBA_COOLIFY_TOKEN manque."
+    rouge "  Le webhook exige un jeton d'API : Keys & Tokens → API tokens."
+    exit 1
+  fi
+  CODE="$(curl -sS -o /tmp/hba-coolify.out -w '%{http_code}' \
+            -H "Authorization: Bearer ${HBA_COOLIFY_TOKEN}" \
+            "${HBA_COOLIFY_WEBHOOK}")" || CODE="000"
+  if [ "$CODE" != "200" ] && [ "$CODE" != "201" ]; then
+    rouge "Coolify a répondu ${CODE}. Réponse :"
+    sed 's/^/    /' /tmp/hba-coolify.out >&2 || true
+    rouge "  Le commit EST poussé : le déploiement peut se lancer depuis l'interface."
+    exit 1
+  fi
+  vert "déploiement demandé à Coolify"
+  info "suivre : l'onglet Deployments de la ressource"
+else
+  titre "À faire dans Coolify"
+  info "Aucun HBA_COOLIFY_WEBHOOK posé — le commit est poussé, rien n'est déclenché."
+  info "Déployer depuis l'interface, ou poser une fois pour toutes :"
+  info "    export HBA_COOLIFY_WEBHOOK='<URL de déploiement de la ressource>'"
+  info "    export HBA_COOLIFY_TOKEN='<jeton d API>'"
 fi
 
-if [ "$SUJETS" = "1" ]; then
-  titre "Sujets Kafka"
-  DOCKER_CONTEXT="$CONTEXTE" HBA_COMPOSE_FILE="$ROOT_DIR/$COMPOSE" \
-    ./scripts/kafka-topics.sh
-fi
+titre "Rappel"
+info "Les variables obligatoires se règlent dans Coolify, pas ici :"
+PYTHON_LOCAL="$ROOT_DIR/.venv/bin/python3"
+[ -x "$PYTHON_LOCAL" ] || PYTHON_LOCAL="python3"
+"$PYTHON_LOCAL" ./scripts/verifier-env-compose.py "$COMPOSE" || true
 
-titre "État"
-"${COMPOSE_DISTANT[@]}" ps
-
-vert "déployé sur ${CIBLE} (${HOTE}) — commit ${SHA}"
-info "journaux : docker --context ${CONTEXTE} compose -p hba-${CIBLE} logs -f <service>"
+vert "commit ${SHA} disponible pour ${CIBLE} (${HOTE})"

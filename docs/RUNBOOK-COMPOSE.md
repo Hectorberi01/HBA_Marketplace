@@ -35,7 +35,7 @@ Aucune clé Stripe, PayPal ou Moov n'est fournie.
 
 ---
 
-## 0. Deux chemins, et il faut choisir le sien
+## 0. Trois chemins, et il faut choisir le sien
 
 **Depuis le poste — `./scripts/deployer.sh prod`.** Le client Docker parle au
 démon du VPS par un contexte SSH. Le compose, le fichier d'environnement et les
@@ -46,9 +46,92 @@ c'est lui qui porte le port 8022, l'utilisateur et la clé.
 **Depuis le VPS — les commandes `docker compose` de ce runbook.** Tout est
 local à la machine, dépôt cloné compris.
 
+**Par Coolify — le chemin retenu pour la production.** Coolify construit et
+démarre depuis un dépôt Git qu'il clone sur le VPS ; `deployer.sh` ne fait plus
+que garder la barrière (contrôles, compilation, 1054 tests), pousser le commit,
+et le lui signaler. Voir la section 0 bis.
+
 Les deux fonctionnent. Ce qui ne fonctionne pas, c'est de mélanger : un fichier
 d'environnement posé sur le VPS n'est **jamais lu** par `deployer.sh`, parce que
 `--env-file` est traité par le client compose, ici.
+
+
+## 0 bis. Coolify
+
+Coolify tourne sur le VPS de production et y pilote Docker. **Deux outils qui
+commandent le même démon se marchent dessus** : depuis ce basculement,
+`deployer.sh` ne parle plus au démon du tout — il pousse, et Coolify décide.
+
+### La source : un dépôt nu sur le VPS, pas GitHub
+
+Coolify doit cloner un dépôt pour construire les dix-neuf images. Le dépôt vit
+donc sur la machine elle-même, alimenté par `git push` depuis le poste :
+
+```bash
+# créé automatiquement au premier ./scripts/deployer.sh prod
+ssh ovh-server 'mkdir -p depots && git init --bare --initial-branch=main depots/hba.git'
+```
+
+Dans Coolify : **New Resource → Docker Compose → Private Repository (with
+deploy key)**. La clé publique affichée par Coolify doit être ajoutée à
+`~/.ssh/authorized_keys` de `ubuntu` sur le VPS — Coolify se connecte à sa
+propre machine.
+
+| Champ | Valeur |
+|---|---|
+| Repository URL | `ssh://ubuntu@<ip privée du VPS>:8022/home/ubuntu/depots/hba.git` |
+| Branch | `main` |
+| Docker Compose Location | `/docker-compose.prod.yml` |
+
+**Ce point n'a pas été vérifié :** que Coolify accepte une URL SSH vers un
+dépôt nu quelconque. Son formulaire attend historiquement une forme
+`git@hôte:propriétaire/dépôt.git`. Si elle est refusée, le repli est une forge
+légère installée depuis Coolify (Gitea), vers laquelle on pousse au lieu du
+dépôt nu — même principe, rien ne sort du VPS.
+
+### Les vingt-trois variables
+
+Elles se saisissent dans l'onglet **Environment Variables** de la ressource, et
+non dans un fichier. La liste exacte se lit sans rien afficher de secret :
+
+```bash
+python3 scripts/verifier-env-compose.py docker-compose.prod.yml
+```
+
+`AUTHENTICATION__SIGNINGKEY` et `JWT__SIGNINGKEY` doivent porter la **même**
+valeur. `SECURITY__SECRETPROTECTION__KEY` ne se régénère pas.
+
+**Le piège du dollar vaut ici aussi.** Une valeur contenant `$` est lue comme
+une référence de variable et devient une chaîne vide — le service part avec un
+mot de passe tronqué et échoue à la connexion sur une erreur qui parle
+d'authentification. Doubler : `$` devient `$$`.
+
+### Le domaine et le port
+
+Le compose publie encore `8080:8080` pour la passerelle. Une fois le domaine
+`api.hba-express.com` attribué à `gateway` dans Coolify, son proxy route et
+obtient le certificat — **la publication du port devient inutile et
+dangereuse** : elle expose l'API en clair sur Internet, à côté du HTTPS. Retirer
+`PORTS_AUTORISES = {"gateway"}` de `scripts/generer-compose-prod.py` et
+régénérer, une fois seulement que le domaine répond.
+
+### Ce que Coolify NE fait pas
+
+**Les migrations.** `deployer.sh --migrer` refuse désormais plutôt que de faire
+semblant. À lancer service par service une fois la pile debout.
+
+**Les buckets MinIO** — section 5, inchangée. **Les sujets Kafka** — le script
+passe par `docker compose`, que Coolify pilote maintenant.
+
+**Les identités gRPC par service** restent le premier trou à boucher : une seule
+`INTERNAL__PRIVATEKEY` pour tous, là où il en faut une par service.
+
+**`container_name: hba-<service>`** est conservé par le compose. Coolify le
+respecte, mais un nom fixe interdit qu'une nouvelle version démarre à côté de
+l'ancienne : chaque déploiement passe par un arrêt. Acceptable pour un MVP,
+à revoir le jour où l'interruption coûte.
+
+---
 
 ## 1. Le fichier d'environnement, hors du dépôt
 
