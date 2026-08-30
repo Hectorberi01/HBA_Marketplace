@@ -101,21 +101,33 @@ BASE_COOLIFY="/data/coolify/applications"
 # pire qu'un refus : on ne saurait pas, plus tard, que ce script s'execute en
 # root sur la machine de production.
 # ═════════════════════════════════════════════════════════════════════════════
+# `ls -d` ET NON `test -r` : `test` EST UNE PRIMITIVE DU SHELL.
+#
+# CE QUI ETAIT CASSE : la sonde employait `sudo -n test -r <dossier>`. `sudo`
+# cherche un EXECUTABLE ; selon le systeme, `test` n'en est pas un, et la sonde
+# echouait alors que `sudo -n true` repondait « ok ». Le script accusait les
+# droits la ou le probleme etait sa propre commande — et son message envoyait
+# corriger un sudoers qui fonctionnait deja.
+#
+# `ls -d` est un binaire partout, et distingue « absent » de « interdit ».
 SUDO="${HBA_SUDO-}"
 if [ -z "${HBA_SUDO+defini}" ]; then
-  if ssh "$DESTINATION" "test -r ${BASE_COOLIFY}" 2>/dev/null; then
+  if ssh "$DESTINATION" "ls -d ${BASE_COOLIFY}" >/dev/null 2>&1; then
     SUDO=""
     info "lecture directe de ${BASE_COOLIFY}"
-  elif ssh "$DESTINATION" "sudo -n test -r ${BASE_COOLIFY}" 2>/dev/null; then
+  elif ssh "$DESTINATION" "sudo -n ls -d ${BASE_COOLIFY}" >/dev/null 2>&1; then
     SUDO="sudo"
     info "élévation : les commandes distantes passeront par sudo"
   else
-    rouge "${BASE_COOLIFY} n'est lisible ni directement, ni par sudo."
-    rouge "  Coolify y écrit en root. Deux issues :"
-    rouge "    • autoriser sudo sans mot de passe pour ce compte ;"
-    rouge "    • ou lancer ce script en désignant un autre compte :"
-    rouge "        HBA_SSH_PROD=<alias-root> ./scripts/migrer-prod.sh ${CIBLE}"
-    rouge "  Vérifier : ssh ${DESTINATION} 'sudo -n true && echo ok'"
+    rouge "${BASE_COOLIFY} : ni lisible, ni accessible par sudo."
+    rouge ""
+    rouge "  Ce que dit la machine, mot pour mot :"
+    ssh "$DESTINATION" "ls -d ${BASE_COOLIFY} 2>&1; sudo -n ls -d ${BASE_COOLIFY} 2>&1" \
+      | sed 's/^/      /' >&2 || true
+    rouge ""
+    rouge "  Si le dossier est ABSENT, Coolify a nettoyé la pile — c'est la même"
+    rouge "  cause que la disparition des conteneurs, et il faut redéployer avant"
+    rouge "  de migrer."
     exit 1
   fi
 fi
