@@ -84,9 +84,45 @@ fi
 # ressources dans ce dossier, et un choix silencieux migrerait la mauvaise pile.
 # ═════════════════════════════════════════════════════════════════════════════
 BASE_COOLIFY="/data/coolify/applications"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# COOLIFY TOURNE EN root, NOUS NON.
+#
+# CE QUI ETAIT CASSE : ce script listait /data/coolify/applications en tant que
+# `ubuntu` et n'obtenait RIEN — pas une erreur, une liste vide. Il en concluait
+# « 0 candidate(s) » et demandait un uuid, alors que le probleme n'etait pas
+# l'ambiguite mais le droit de lecture.
+#
+# Le compte du deploiement est dans le groupe `docker`, ce qui suffit pour
+# parler au demon, mais pas pour lire les fichiers que Coolify ecrit. Et le
+# compose est lu par le CLIENT compose, donc par nous.
+#
+# On teste, et l'on ANNONCE ce qu'on emploie. Une elevation silencieuse est
+# pire qu'un refus : on ne saurait pas, plus tard, que ce script s'execute en
+# root sur la machine de production.
+# ═════════════════════════════════════════════════════════════════════════════
+SUDO="${HBA_SUDO-}"
+if [ -z "${HBA_SUDO+defini}" ]; then
+  if ssh "$DESTINATION" "test -r ${BASE_COOLIFY}" 2>/dev/null; then
+    SUDO=""
+    info "lecture directe de ${BASE_COOLIFY}"
+  elif ssh "$DESTINATION" "sudo -n test -r ${BASE_COOLIFY}" 2>/dev/null; then
+    SUDO="sudo"
+    info "élévation : les commandes distantes passeront par sudo"
+  else
+    rouge "${BASE_COOLIFY} n'est lisible ni directement, ni par sudo."
+    rouge "  Coolify y écrit en root. Deux issues :"
+    rouge "    • autoriser sudo sans mot de passe pour ce compte ;"
+    rouge "    • ou lancer ce script en désignant un autre compte :"
+    rouge "        HBA_SSH_PROD=<alias-root> ./scripts/migrer-prod.sh ${CIBLE}"
+    rouge "  Vérifier : ssh ${DESTINATION} 'sudo -n true && echo ok'"
+    exit 1
+  fi
+fi
+
 UUID="${HBA_COOLIFY_UUID:-}"
 if [ -z "$UUID" ]; then
-  CANDIDATS="$(ssh "$DESTINATION" "ls -1 ${BASE_COOLIFY} 2>/dev/null" || true)"
+  CANDIDATS="$(ssh "$DESTINATION" "${SUDO} ls -1 ${BASE_COOLIFY} 2>/dev/null" || true)"
   NOMBRE="$(printf '%s\n' "$CANDIDATS" | grep -c . || true)"
   if [ "$NOMBRE" = "1" ]; then
     UUID="$(printf '%s\n' "$CANDIDATS" | tr -d '[:space:]')"
@@ -100,7 +136,7 @@ if [ -z "$UUID" ]; then
 fi
 
 DOSSIER="${BASE_COOLIFY}/${UUID}"
-if ! ssh "$DESTINATION" "test -f ${DOSSIER}/docker-compose.prod.yml && test -f ${DOSSIER}/.env"; then
+if ! ssh "$DESTINATION" "${SUDO} test -f ${DOSSIER}/docker-compose.prod.yml && ${SUDO} test -f ${DOSSIER}/.env"; then
   rouge "Le compose ou le fichier d'environnement manque dans ${DOSSIER}."
   rouge "  Un déploiement Coolify doit avoir réussi au moins une fois."
   exit 1
@@ -139,7 +175,7 @@ fi
 # souvent la base a mi-chemin, et enchainer les quinze suivantes rendrait le
 # diagnostic illisible.
 # ═════════════════════════════════════════════════════════════════════════════
-COMPOSE_DISTANT="docker compose --env-file ${DOSSIER}/.env -p ${UUID} -f ${DOSSIER}/docker-compose.prod.yml"
+COMPOSE_DISTANT="${SUDO} docker compose --env-file ${DOSSIER}/.env -p ${UUID} -f ${DOSSIER}/docker-compose.prod.yml"
 
 for service in $SERVICES; do
   titre "migration : ${service}"
