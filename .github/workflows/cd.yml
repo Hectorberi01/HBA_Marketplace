@@ -109,7 +109,8 @@ jobs:
                   --certificate-identity-regexp ".*" \
                   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
                   "$image" >/dev/null 2>&1; then
-              echo "::warning::$image non signée ou absente — non promue"
+              echo "::error::$image non signée ou absente — promotion refusée"
+              exit 1
             fi
           done
 

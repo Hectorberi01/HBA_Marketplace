@@ -1,7 +1,7 @@
 # Runbook — premier déploiement staging
 
 VPS applicatif **193.168.145.162** (k3s) · VPS base **51.255.40.214** (PostgreSQL)
-· domaine common seul, 7 services + la passerelle.
+· lots common + delivery, 10 services + la passerelle.
 
 Ce fichier est l'ordre d'exécution. Le détail et les raisons sont dans
 `docs/DEPLOIEMENT.md` — chaque étape renvoie à sa section.
@@ -182,11 +182,17 @@ CloudNativePG n'est plus dans la liste : la base est hors cluster.
 ## 5. Le secret de plateforme
 
 `docs/DEPLOIEMENT.md` §3.7 — un rôle et un mot de passe par service, ceux de
-l'étape 2. **`H='Host=193.168.145.162;Port=5432'` pour le staging**, et non le
-`10.0.0.1` du §3.7, qui décrit la production.
+l'étape 2. Le générateur pose automatiquement
+`Host=193.168.145.162;Port=5432` pour le staging.
 
 Pourquoi pas `localhost` : ces chaînes sont lues par des pods, pas par l'hôte.
 Dans un conteneur, `localhost` désigne le pod lui-même.
+
+```bash
+python3 scripts/db/secret-depuis-motsdepasse.py --env staging ./motsdepasse-<horodatage>.txt
+kubectl -n hba-staging apply -f ~/secrets-hba-staging/secret-hba-platform.yaml
+./scripts/check-secrets-cluster.sh staging
+```
 
 ## 6. Le secret d'identités gRPC
 
@@ -294,6 +300,7 @@ pour les huit images, sinon les pods restent en `ImagePullBackOff`.
 
 ```bash
 kustomize version                  # v5 minimum — v4 ignore `includeTemplates`
+./scripts/preflight-k8s.sh staging --cluster
 kubectl apply -k k8s/overlays/staging
 kubectl -n hba-staging rollout status deploy --timeout=10m
 ```
@@ -314,6 +321,9 @@ avant la production.
 ```bash
 kubectl -n hba-staging get pods
 kubectl -n hba-staging get certificate     # READY=True, sinon l'ACME est bloqué
+kubectl -n hba-staging get deploy otel-collector
+kubectl -n hba-staging port-forward svc/otel-collector 8889:8889
+curl -fsS http://127.0.0.1:8889/metrics | head
 kubectl -n hba-staging logs deploy/identity-service | head -50
 ```
 
@@ -321,10 +331,9 @@ kubectl -n hba-staging logs deploy/identity-service | head -50
 
 ## Ce que ce déploiement ne donne pas
 
-- **Aucune supervision.** `OPENTELEMETRY__ENDPOINT` est vide : aucun collecteur
-  n'est déployé, et pointer un nom qui ne résout pas remplirait les journaux
-  d'échecs de connexion. Le diagnostic repose sur `kubectl logs` et les sondes.
-  Tenable à un nœud, plus en production.
+- **Supervision minimale seulement.** Le collecteur OTLP interne est déployé et
+  reçoit les métriques/traces des services. Prometheus, Grafana, Loki et Tempo
+  restent à installer par Helm pour avoir dashboards, alertes et historique long.
 - **Aucune sauvegarde.** Décision explicite, §3.11. La base vit sur un seul VPS,
   sans pgBackRest, sans réplique.
 - **Aucune séparation entre l'applicatif et les données.** La base partage la

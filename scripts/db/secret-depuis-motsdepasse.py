@@ -17,10 +17,10 @@
 #     du depot, mais il doit etre supprime apres `kubectl apply`.
 #   - le script ne verifie aucune connexion. Que le mot de passe soit le bon,
 #     seul Postgres le dira.
-#   - les roles hba_delivery et hba_food n'ont pas de cle : leurs lots ne sont
-#     pas deployes. Quand ils le seront, il faudra les ajouter a CLES ET dans
-#     k8s/base/common/secret.yaml.
+#   - les roles des lots non deployes ne doivent pas etre ajoutes ici avant que
+#     leurs services ne lisent vraiment une cle dans k8s/base/common/secret.yaml.
 
+import argparse
 import base64
 import json
 import os
@@ -30,20 +30,6 @@ import shutil
 import stat
 import subprocess
 import sys
-
-HOTE = os.environ.get("PGHOST_CLUSTER", "10.20.0.2")
-PORT = os.environ.get("PGPORT_CLUSTER", "5432")
-
-# LE NAMESPACE N'EST PAS `hba`.
-#
-# `k8s/base/namespaces/namespace.yaml` declare bien `hba`, mais chaque overlay le
-# renomme : `hba-prod`, `hba-staging`, `hba-dev`. La premiere version de ce script
-# ecrivait `namespace: hba` en dur, et `kubectl apply` repondait
-# « namespaces "hba" not found » — un message clair. La variante silencieuse est
-# pire : si un namespace `hba` existait, le Secret y serait pose sans erreur, et
-# les pods de `hba-prod` demarreraient en CreateContainerConfigError sur un Secret
-# introuvable, loin de la cause.
-NAMESPACE = os.environ.get("HBA_NAMESPACE", "hba-prod")
 
 NOM_SECRET = "hba-platform"
 
@@ -118,6 +104,33 @@ AUTRES_CLES = {
 CLES_IRREMPLACABLES = {"SECURITY__SECRETPROTECTION__KEY"}
 
 
+def parser_arguments():
+    p = argparse.ArgumentParser(
+        description="Construit le Secret Kubernetes hba-platform sans afficher les valeurs.")
+    p.add_argument("fichier_motsdepasse")
+    p.add_argument("sortie", nargs="?")
+    p.add_argument(
+        "--env",
+        choices=("staging", "prod"),
+        default=os.environ.get("HBA_ENV", "prod"),
+        help="Environnement cible. Défaut : HBA_ENV ou prod.")
+    return p.parse_args()
+
+
+def parametres_environnement(env):
+    """Namespace et hôte Postgres par environnement, avec surcharge explicite."""
+    defaults = {
+        "staging": ("hba-staging", "193.168.145.162"),
+        "prod": ("hba-prod", "10.20.0.2"),
+    }
+    namespace, hote = defaults[env]
+    return (
+        os.environ.get("HBA_NAMESPACE", namespace),
+        os.environ.get("PGHOST_CLUSTER", hote),
+        os.environ.get("PGPORT_CLUSTER", "5432"),
+    )
+
+
 def lire_motsdepasse(chemin):
     """Retourne {role: motdepasse}. Format : deux colonnes separees par des espaces."""
     mdp = {}
@@ -154,7 +167,7 @@ def lire_cles_declarees():
     return declarees
 
 
-def valeurs_du_cluster():
+def valeurs_du_cluster(namespace):
     """Les valeurs deja posees, pour les reprendre telles quelles.
 
     Sans kubectl, ou si le Secret n'existe pas encore, on rend une carte vide :
@@ -164,12 +177,12 @@ def valeurs_du_cluster():
         return {}, "kubectl absent"
     try:
         r = subprocess.run(
-            ["kubectl", "-n", NAMESPACE, "get", "secret", NOM_SECRET, "-o", "json"],
+            ["kubectl", "-n", namespace, "get", "secret", NOM_SECRET, "-o", "json"],
             capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.SubprocessError) as e:
         return {}, "kubectl a echoue (%s)" % type(e).__name__
     if r.returncode != 0:
-        return {}, "aucun Secret %s dans %s" % (NOM_SECRET, NAMESPACE)
+        return {}, "aucun Secret %s dans %s" % (NOM_SECRET, namespace)
     try:
         data = json.loads(r.stdout).get("data") or {}
     except ValueError:
@@ -182,18 +195,18 @@ def valeurs_du_cluster():
             # Une valeur binaire ne se reconstruit pas ici ; on la reprend telle
             # quelle, encodee, pour ne pas la perdre.
             valeurs[cle] = None
-    return valeurs, "Secret %s lu dans %s" % (NOM_SECRET, NAMESPACE)
+    return valeurs, "Secret %s lu dans %s" % (NOM_SECRET, namespace)
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("usage: secret-depuis-motsdepasse.py <fichier-motsdepasse> [sortie.yaml]",
-              file=sys.stderr)
-        return 2
+    args = parser_arguments()
+    namespace, hote, port = parametres_environnement(args.env)
 
-    source = sys.argv[1]
-    sortie = sys.argv[2] if len(sys.argv) > 2 else os.path.join(
-        os.path.expanduser("~"), "secrets-hba-prod", "secret-hba-platform.yaml")
+    source = args.fichier_motsdepasse
+    sortie = args.sortie if args.sortie else os.path.join(
+        os.path.expanduser("~"),
+        "secrets-hba-%s" % args.env,
+        "secret-hba-platform.yaml")
 
     if not os.path.exists(source):
         print("introuvable : %s" % source, file=sys.stderr)
@@ -216,7 +229,7 @@ def main():
     print("%d role(s) lu(s) dans %s" % (len(mdp), os.path.basename(source)))
     print("%d cle(s) declaree(s) par k8s/base/common/secret.yaml" % len(declarees))
 
-    existantes, comment = valeurs_du_cluster()
+    existantes, comment = valeurs_du_cluster(namespace)
     print("Etat du cluster : %s" % comment)
 
     connexions = dict(CLES)
@@ -238,7 +251,7 @@ def main():
                                  "il casserait la chaine de connexion" % (cle, base))
                 continue
             valeurs[cle] = "Host=%s;Port=%s;Database=%s;Username=%s;Password=%s" % (
-                HOTE, PORT, base, base, secret)
+                hote, port, base, base, secret)
             origine[cle] = "mot de passe (%s)" % base
         elif cle == "CONNECTIONSTRINGS__DEFAULT":
             # Vide a dessein : aucun service ne doit retomber sur une base par defaut.
@@ -277,13 +290,14 @@ def main():
 
     lignes = [
         "# Genere par scripts/db/secret-depuis-motsdepasse.py — NE PAS COMMITER.",
-        "# Applique avec :  kubectl -n %s apply -f %s" % (NAMESPACE, os.path.basename(sortie)),
+        "# Environnement : %s" % args.env,
+        "# Applique avec :  kubectl -n %s apply -f %s" % (namespace, os.path.basename(sortie)),
         "# Puis SUPPRIMER ce fichier.",
         "apiVersion: v1",
         "kind: Secret",
         "metadata:",
         "  name: %s" % NOM_SECRET,
-        "  namespace: %s" % NAMESPACE,
+        "  namespace: %s" % namespace,
         "type: Opaque",
         "data:",
     ]
@@ -362,7 +376,7 @@ def main():
               % (len(inutilises), ", ".join(inutilises)))
     print()
     print("Aucune valeur n'a ete affichee. Le fichier de sortie, lui, est en clair :")
-    print("  1. kubectl -n %s apply -f %s" % (NAMESPACE, sortie))
+    print("  1. kubectl -n %s apply -f %s" % (namespace, sortie))
     print("  2. supprimer %s ET %s" % (sortie, source))
     return 0
 

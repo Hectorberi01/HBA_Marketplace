@@ -326,7 +326,7 @@ Terraform a posé l'enregistrement A. Vérifier qu'il **résout** avant d'instal
 cert-manager :
 
 ```bash
-dig +short api.staging.<votre-domaine>
+./scripts/check-dns-ingress.sh staging
 ```
 
 **Un challenge ACME lancé sur un DNS qui ne résout pas encore échoue, et
@@ -750,28 +750,15 @@ l'isolation qu'on vient de poser côté Postgres, sans qu'aucune erreur ne le di
 la connexion fonctionnerait très bien.
 
 ```bash
-H='Host=10.0.0.1;Port=5432'
+# staging
+python3 scripts/db/secret-depuis-motsdepasse.py --env staging ./motsdepasse-<horodatage>.txt
+kubectl -n hba-staging apply -f ~/secrets-hba-staging/secret-hba-platform.yaml
+./scripts/check-secrets-cluster.sh staging
 
-kubectl create secret generic hba-platform -n hba-staging \
-  --from-literal=CONNECTIONSTRINGS__IDENTITY="$H;Database=hba_identity;Username=hba_identity;Password=$MDP_IDENTITY" \
-  --from-literal=CONNECTIONSTRINGS__USER="$H;Database=hba_user;Username=hba_user;Password=$MDP_USER" \
-  --from-literal=CONNECTIONSTRINGS__MEDIA="$H;Database=hba_media;Username=hba_media;Password=$MDP_MEDIA" \
-  --from-literal=CONNECTIONSTRINGS__NOTIFICATION="$H;Database=hba_communication;Username=hba_communication;Password=$MDP_COMMUNICATION" \
-  --from-literal=CONNECTIONSTRINGS__PAYMENT="$H;Database=hba_financial;Username=hba_financial;Password=$MDP_FINANCIAL" \
-  --from-literal=CONNECTIONSTRINGS__PROMOTION="$H;Database=hba_promotion;Username=hba_promotion;Password=$MDP_PROMOTION" \
-  --from-literal=CONNECTIONSTRINGS__REVIEW="$H;Database=hba_engagement;Username=hba_engagement;Password=$MDP_ENGAGEMENT" \
-  --from-literal=CONNECTIONSTRINGS__CATALOG="$H;Database=hba_catalog;Username=hba_catalog;Password=$MDP_CATALOG" \
-  --from-literal=CONNECTIONSTRINGS__CART="$H;Database=hba_commerce;Username=hba_commerce;Password=$MDP_COMMERCE" \
-  --from-literal=CONNECTIONSTRINGS__RETURNREFUND="$H;Database=hba_commerce;Username=hba_commerce;Password=$MDP_COMMERCE" \
-  --from-literal=CONNECTIONSTRINGS__INVENTORY="$H;Database=hba_inventory;Username=hba_inventory;Password=$MDP_INVENTORY" \
-  --from-literal=CONNECTIONSTRINGS__ORDER="$H;Database=hba_order;Username=hba_order;Password=$MDP_ORDER" \
-  --from-literal=CONNECTIONSTRINGS__SELLER="$H;Database=hba_merchant;Username=hba_merchant;Password=$MDP_MERCHANT" \
-  --from-literal=CONNECTIONSTRINGS__DEFAULT="$H;Database=hba_identity;Username=hba_identity;Password=$MDP_IDENTITY" \
-  --from-literal=REDIS__CONNECTIONSTRING='redis:6379' \
-  --from-literal=AUTHENTICATION__SIGNINGKEY="$(openssl rand -base64 48)" \
-  --from-literal=INTERNAL__APIKEY="$(openssl rand -hex 32)" \
-  --from-literal=SECURITY__SECRETPROTECTION__KEY="$(openssl rand -base64 32)" \
-  --dry-run=client -o yaml | kubectl apply -f -
+# production
+python3 scripts/db/secret-depuis-motsdepasse.py --env prod ./motsdepasse-<horodatage>.txt
+kubectl -n hba-prod apply -f ~/secrets-hba-prod/secret-hba-platform.yaml
+./scripts/check-secrets-cluster.sh prod
 ```
 
 **`CART` et `RETURNREFUND` portent la MÊME valeur** — même base, même rôle. Ce
@@ -1031,17 +1018,28 @@ Deux façons de fermer la boucle :
 Tant que rien n'est tranché, la réconciliation est **manuelle** :
 
 ```bash
+./scripts/preflight-k8s.sh prod --cluster
 KUBECONFIG=./kubeconfig-production.yaml kubectl apply -k k8s/overlays/prod
 KUBECONFIG=./kubeconfig-production.yaml kubectl -n hba-prod rollout status deploy --timeout=15m
 ```
 
-Un déploiement à moitié automatisé qu'on croit complet serait pire que celui-ci,
-qui dit ce qu'il ne fait pas.
+Le dépôt porte aussi un chemin automatisé GitHub Actions :
+
+| Branche poussée | Cluster ciblé |
+|---|---|
+| `dev` | serveur de développement, namespace `hba-dev` |
+| `staging` | serveur staging, namespace `hba-staging` |
+| `develop` | serveur production, namespace `hba-prod` |
+
+Chaque environnement GitHub (`dev`, `staging`, `prod`) doit porter le secret
+`KUBECONFIG_B64`. Le workflow `.github/workflows/deploy-branches.yml` applique le
+SHA du commit au rendu Kustomize dans le runner, lance `preflight-k8s.sh`, puis
+déploie avec `kubectl apply -k`.
 
 ### 4.3 Rollback
 
 ```bash
-kubectl -n hba-prod rollout undo deploy/<service>     # immédiat, un service
+./scripts/rollback-k8s.sh prod <service>
 ```
 
 Puis, pour que Git redevienne vrai, **repromouvoir le SHA précédent** par le

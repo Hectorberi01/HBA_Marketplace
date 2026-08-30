@@ -478,10 +478,30 @@ La seconde commande doit dire
 
 ## Ce que ce déploiement ne donne pas
 
-**Les identités gRPC ne sont pas câblées.** Chaque service doit recevoir SA clé
-privée dans `INTERNAL__PRIVATEKEY`, plus le registre public commun. Le compose
-engendré n'a qu'une variable pour tous. Tant que ce n'est pas corrigé, les appels
-entre services répondront `Unauthenticated`. **C'est le premier trou à boucher.**
+**Les identités gRPC sont câblées, mais les clés restent à engendrer.**
+
+Chaque hôte porte désormais `INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_<PROJET>:?…}`
+— dix-neuf variables distinctes — et l'ancre partagée porte le registre public
+`INTERNAL__PUBLICKEYS`. Le nom de chaque variable est dérivé de l'`ENTRYPOINT`
+du Dockerfile, donc du nom de projet que la table d'autorisations connaît
+(`HBA.Identity.Api` → `INTERNAL_KEY_HBA_IDENTITY_API`), et non recopié à la main.
+
+```bash
+scripts/generer-identites-internes.sh ~/secrets-hba-prod/identites
+```
+
+Il écrit un `identites.env` : vingt lignes à reporter dans Coolify.
+
+**Sans elles, rien ne se voit au démarrage.** Le seul garde du socle refuse le
+drapeau `IdentitesNonSignees` hors Development ; l'ABSENCE de clé, elle, passe le
+démarrage sans un mot. C'est au premier appel entre services que
+`InternalCallClientInterceptor` lève `FailedPrecondition: Internal identity not
+configured.` — côté appelant, avant même le réseau.
+
+**La rotation se fait d'un bloc.** Changer une clé demande de redémarrer TOUS les
+hôtes ensemble : un hôte resté sur l'ancien registre rejette les nouveaux
+appelants, et réciproquement. Une rotation partielle coupe les appels dans les
+deux sens.
 
 **Aucune supervision.** `OPENTELEMETRY__ENDPOINT` est vide. Le diagnostic tient
 dans `docker compose logs`.

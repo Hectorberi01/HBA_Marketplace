@@ -139,7 +139,7 @@ module "kubernetes" {
 module "dns" {
   source       = "../../modules/dns"
   zone         = var.zone_dns
-  sous_domaine = "api.staging"
+  sous_domaine = "backendapi.marketplace-staging"
 
   # LE PREMIER NŒUD PORTE L'INGRESS.
   #

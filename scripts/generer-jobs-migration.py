@@ -50,8 +50,7 @@ def service_a_des_migrations(service):
     UN JOB POUR UN SERVICE SANS MIGRATION NE SE TERMINE JAMAIS.
 
     `SortirApresMigrations()` n'est inséré que dans les Program.cs qui migrent.
-    Un service qui porte une chaîne de connexion mais aucune migration —
-    delivery-pricing-service lit les tables que delivery-service crée — n'a pas
+    Un service qui porte une chaîne de connexion mais aucune migration n'a pas
     cette sortie : son conteneur démarrerait un serveur web, le Job resterait
     `Running`, et `kubectl wait --for=condition=complete` expirerait sur une
     étape qui n'avait rien à faire.
@@ -332,7 +331,8 @@ resources:
             images_prod = re.findall(
                 r'  - name: (hba/[a-z0-9-]+)\n    newName: (\S+)\n'
                 r'    newTag:[ \t]*"?([^"\n]*?)"?[ \t]*$',
-                f.read())
+                f.read(),
+                re.MULTILINE)
         vises = {"hba/" + s for s in ressources}
         retenues = [(n, nn, t) for (n, nn, t) in images_prod if n in vises]
 

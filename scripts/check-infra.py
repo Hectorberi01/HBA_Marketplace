@@ -397,6 +397,27 @@ def controler_ansible() -> list[str]:
                     groupes.add(cle)
                     pile.append(valeur)
 
+        if os.path.basename(chemin) == "production.yml.example" and isinstance(document, dict):
+            enfants = (((document.get("all") or {}).get("children") or {}))
+            serveurs = (((enfants.get("serveurs") or {}).get("hosts") or {}))
+            agents = (((enfants.get("agents") or {}).get("hosts") or {}))
+
+            # La production ne doit plus documenter un faux cluster HA.
+            #
+            # Trois VMs avec un seul `serveur` et deux `agents` donnent de la
+            # capacité, pas un quorum. Perdre le serveur coupe l'API k3s et la
+            # replanification, exactement le scénario §24. Tant qu'aucun endpoint
+            # stable 6443 n'existe, on garde les trois nœuds dans `serveurs`.
+            if len(serveurs) < 3 or len(serveurs) % 2 == 0:
+                fautes.append(
+                    f"{court(chemin)} : la production doit déclarer un nombre impair "
+                    "d'au moins 3 serveurs k3s pour former le quorum etcd")
+            if agents:
+                fautes.append(
+                    f"{court(chemin)} : des agents sont déclarés alors qu'aucun "
+                    "endpoint stable 6443 n'est provisionné ; les trois nœuds "
+                    "de production doivent rester dans `serveurs` pour l'instant")
+
     # ── les playbooks ─────────────────────────────────────────────────────────
     for chemin in sorted(glob.glob(os.path.join(ANSIBLE, "playbooks", "*.yml"))):
         for jeu in charges.get(chemin) or []:
@@ -572,10 +593,9 @@ def controler_compose() -> list[str]:
          base absente en développement — ce qui masque l'oubli jusqu'à la
          production, où `MigrateOnStartup=false`.
 
-    CE QUE CE CONTRÔLE NE COUVRE PAS : la pile k8s. `k8s/base/common/configmap.yaml`
-    pose `OPENTELEMETRY__ENDPOINT: http://otel-collector:4317` alors qu'aucun
-    collecteur n'est déployé sous `k8s/` — c'est le même défaut de cohérence,
-    de l'autre côté, et il appartient à `check-k8s.py`.
+    CE QUE CE CONTRÔLE NE COUVRE PAS : la pile k8s. La cohérence entre
+    `OPENTELEMETRY__ENDPOINT`, le collecteur OTLP et la NetworkPolicy appartient
+    à `check-k8s.py`, qui construit les overlays réellement déployés.
     """
     fautes: list[str] = []
 

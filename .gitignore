@@ -101,6 +101,9 @@ _to_delete/
 # fois dans l'historique se révoque, il ne se retire pas.
 motsdepasse-*.txt
 secret-hba-platform*.yaml
+secret-hba-identites*.yaml
+kubeconfig-prod.yaml
+kubeconfig-production.yaml
 secrets-hba-*/
 
 # LE COMPOSE DE PRODUCTION EST ENGENDRÉ — mais il est SUIVI, à dessein.
@@ -113,3 +116,5 @@ secrets-hba-*/
 # Ce qui ne doit JAMAIS entrer, c'est le fichier de valeurs.
 prod.env
 *.env.prod
+.env.prod
+*.prod.env

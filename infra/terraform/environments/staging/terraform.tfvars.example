@@ -23,6 +23,6 @@
 
 service_name = "0123456789abcdef0123456789abcdef"
 
-zone_dns = "hba-express.example"
+zone_dns = "hba-marketplace.fr"
 
 cle_ssh_publique = "ssh-ed25519 AAAA... hector@hba"

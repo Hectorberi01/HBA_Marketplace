@@ -4,8 +4,8 @@
 # `../../terraform/environments/production`. Voir `staging.yml.example` pour les
 # encadrés — ils valent à l'identique ici.
 #
-# TROIS NŒUDS, UN SEUL SERVEUR — voir l'encadré de `roles/k3s-serveur`.
-# Le plan de contrôle n'est PAS redondé. C'est l'écart connu au §24.
+# TROIS SERVEURS k3s. Le rôle démarre le premier avec `--cluster-init`, puis
+# joint les deux autres au même plan de contrôle embarqué.
 ---
 all:
   vars:
@@ -19,11 +19,11 @@ all:
         hba-production-1:
           ansible_host: 203.0.113.21
           ip_privee: 10.1.0.11
-    agents:
-      hosts:
         hba-production-2:
           ansible_host: 203.0.113.22
           ip_privee: 10.1.0.12
         hba-production-3:
           ansible_host: 203.0.113.23
           ip_privee: 10.1.0.13
+    agents:
+      hosts: {}

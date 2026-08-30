@@ -22,7 +22,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev, staging, develop]
 
 concurrency:
   # Une PR qui reçoit trois commits en cinq minutes n'a pas besoin de trois
@@ -158,8 +158,17 @@ jobs:
 
       - id: calcul
         run: |
-          base="${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
-          matrice=$(python3 scripts/ci-affected.py "$base")
+          if [ "${{ github.event_name }}" = "push" ] && \
+             { [ "${{ github.ref_name }}" = "dev" ] || \
+               [ "${{ github.ref_name }}" = "staging" ] || \
+               [ "${{ github.ref_name }}" = "develop" ]; }; then
+            # Les branches qui déclenchent un déploiement posent le même SHA sur
+            # tout l'overlay. Chaque image référencée doit donc exister avec ce SHA.
+            matrice=$(python3 scripts/ci-affected.py --tous)
+          else
+            base="${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
+            matrice=$(python3 scripts/ci-affected.py "$base")
+          fi
           echo "matrice=$matrice" >> "$GITHUB_OUTPUT"
           echo "vide=$([ "$matrice" = '[]' ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "Services affectés : $matrice"
@@ -167,11 +176,11 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   # 4. IMAGE OCI : CONSTRUCTION, SBOM, SCAN, SIGNATURE, PUBLICATION (§13).
   #
-  # SUR `main` SEULEMENT.
+  # SUR PUSH SEULEMENT.
   #
-  # Une PR vérifie que l'image SE CONSTRUIT ; elle ne publie rien. Publier depuis
-  # une branche remplirait le registre d'images qu'aucun déploiement n'atteindra,
-  # et brouillerait la traçabilité que le §13 demande — une image, un commit.
+  # Une PR vérifie que l'image SE CONSTRUIT ; elle ne publie rien. Les branches
+  # `dev`, `staging`, `develop` et `main` publient, car elles alimentent soit un
+  # cluster, soit une promotion manuelle. La traçabilité reste le SHA du commit.
   # ═══════════════════════════════════════════════════════════════════════════
   image:
     name: Image ${{ matrix.service }}
@@ -193,7 +202,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Se connecter au registre
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -208,16 +217,16 @@ jobs:
           # vit hors du dossier du service.
           context: .
           file: ${{ matrix.dockerfile }}
-          push: ${{ github.ref == 'refs/heads/main' }}
+          push: ${{ github.event_name == 'push' }}
           # LE SHA DU COMMIT, JAMAIS `latest` (§13).
           #
           # Le §13 impose des images immuables identifiées par SHA ou semver, et
-          # interdit `latest` pour un déploiement reproductible. Le tag `main`
+          # interdit `latest` pour un déploiement reproductible. Le tag de branche
           # ci-dessous existe pour la lisibilité humaine ; c'est le SHA qui est
           # déployé.
           tags: |
             ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:main
+            ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ github.ref_name }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           provenance: true
@@ -246,7 +255,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: "Signer l'image (§19 : registre privé et images signées)"
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'push'
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |

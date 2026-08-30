@@ -50,3 +50,6 @@ images:
   - name: hba/driver-service
     newName: ghcr.io/hectorberi01/driver-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/delivery-pricing-service
+    newName: ghcr.io/hectorberi01/delivery-pricing-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"

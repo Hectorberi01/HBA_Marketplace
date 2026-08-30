@@ -105,6 +105,18 @@ app.MapDeliveryPricingEndpoints();
 
 app.MapInternalGrpcService<DeliveryPricingGrpcService>();
 
+// SCHÉMA À JOUR AVANT D'OUVRIR LE PORT.
+//
+// Actif par défaut en Development seulement. En production, le Job Kubernetes
+// pose Database:MigrateOnly=true, applique les migrations puis sort avant
+// `app.Run()`.
+await app.MigrateHbaDatabaseAsync<DeliveryPricingDbContext>();
+
+if (app.SortirApresMigrations())
+{
+    return;
+}
+
 app.Run();
 
 public partial class Program

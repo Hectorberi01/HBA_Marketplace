@@ -154,8 +154,9 @@ export AUTHENTICATION__SIGNINGKEY="$(openssl rand -base64 48)"
 export INTERNAL__APIKEY="$(openssl rand -hex 32)"
 export SECURITY__SECRETPROTECTION__KEY="$(openssl rand -hex 32)"
 
-python3 scripts/db/secret-depuis-motsdepasse.py ./motsdepasse-<horodatage>.txt
+python3 scripts/db/secret-depuis-motsdepasse.py --env prod ./motsdepasse-<horodatage>.txt
 kubectl -n hba-prod apply -f ~/secrets-hba-prod/secret-hba-platform.yaml
+./scripts/check-secrets-cluster.sh prod
 ```
 
 Le script n'affiche **aucune valeur** : sa sortie ne donne que des noms de clés et
@@ -257,6 +258,7 @@ commite. Puis, sur ton poste :
 
 ```bash
 git pull
+./scripts/preflight-k8s.sh prod
 ```
 
 Pour le faire depuis le poste plutôt que par le workflow :
@@ -292,6 +294,7 @@ ne lancera **aucun pod**, et `kubectl logs` répondra « no pods found ». La ca
 n'est visible que dans `kubectl describe job`.
 
 ```bash
+./scripts/preflight-k8s.sh prod --cluster
 kubectl apply -k k8s/overlays/migrations-prod
 kubectl -n hba-prod get pods -l app.kubernetes.io/component=migration
 ```
@@ -323,7 +326,7 @@ Le `get pods` intercalé n'est pas décoratif : c'est lui qui distingue « les J
 tournent » de « les Jobs n'ont rien lancé ». Zéro pod à cet instant est une
 panne, pas un délai.
 
-Huit Jobs, engendrés depuis le câblage réel de chaque service par
+Neuf Jobs, engendrés depuis le câblage réel de chaque service par
 `scripts/generer-jobs-migration.py` — pas recopiés, dérivés : un Job écrit à la
 main diverge au premier changement du service.
 
@@ -332,9 +335,8 @@ Ils tournent avec `DATABASE__MIGRATEONLY=true` : les migrations s'appliquent,
 le conteneur démarrerait un serveur web, le Job resterait `Running`, et le `wait`
 expirerait sur une migration pourtant réussie.
 
-Huit et non neuf : `delivery-pricing-service` n'appelle jamais
-`MigrateHbaDatabaseAsync` — il lit les tables que `delivery-service` crée. Lui
-donner un Job le ferait tourner indéfiniment.
+`delivery-pricing-service` fait partie de ce lot : son `Program.cs` appelle
+`MigrateHbaDatabaseAsync` et sort proprement en mode `DATABASE__MIGRATEONLY`.
 
 Si un Job échoue :
 
@@ -451,9 +453,10 @@ sauvegarde — et il porte les pièces KYB et les preuves de livraison. Un stock
 objet externe reste le bon choix pour des pièces de conformité. Les identifiants
 employés sont ceux du compte root de MinIO, faute de compte de service limité.
 
-**Aucune supervision, aucune sauvegarde de base.** `OPENTELEMETRY__ENDPOINT` est
-vide, aucun collecteur n'est déployé, et la base n'a ni pgBackRest ni réplique.
-Le diagnostic tient dans `kubectl logs` et les sondes.
+**Supervision minimale, sauvegarde de base absente.** Le collecteur OTLP interne
+est déployé et les services pointent vers `otel-collector:4317`. Il manque encore
+la pile Helm Prometheus/Grafana/Loki/Tempo pour les dashboards, alertes et traces
+consultables. La base n'a toujours ni pgBackRest ni réplique.
 
 **Le cluster n'est pas reconstructible depuis Git seul.** Cinq Secrets sont créés
 à la main. Perdre le namespace, c'est perdre les valeurs — sauf si elles sont

@@ -64,6 +64,14 @@ patches:
         path: /spec/egress/1/to/0/ipBlock/cidr
         value: 10.20.0.2/32
 
+  - target:
+      kind: ConfigMap
+      name: hba-platform
+    patch: |-
+      - op: replace
+        path: /data/OPENTELEMETRY__ENDPOINT
+        value: http://otel-collector:4317
+
   # ═══════════════════════════════════════════════════════════════════════
   # CINQ DE CES PATCHES NE DÉSIGNAIENT RIEN — LIRE AVANT D'EN AJOUTER UN.
   #

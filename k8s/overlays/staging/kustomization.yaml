@@ -159,6 +159,14 @@ patches:
         value: 193.168.145.162/32
 
   - target:
+      kind: ConfigMap
+      name: hba-platform
+    patch: |-
+      - op: replace
+        path: /data/OPENTELEMETRY__ENDPOINT
+        value: http://otel-collector:4317
+
+  - target:
       kind: Ingress
     patch: |-
       - op: replace
@@ -248,6 +256,15 @@ images:
     newTag: "main"
   - name: hba/return-refund-service
     newName: ghcr.io/hectorberi01/return-refund-service
+    newTag: "main"
+  - name: hba/delivery-service
+    newName: ghcr.io/hectorberi01/delivery-service
+    newTag: "main"
+  - name: hba/driver-service
+    newName: ghcr.io/hectorberi01/driver-service
+    newTag: "main"
+  - name: hba/delivery-pricing-service
+    newName: ghcr.io/hectorberi01/delivery-pricing-service
     newTag: "main"
   - name: hba/api-gateway
     newName: ghcr.io/hectorberi01/api-gateway

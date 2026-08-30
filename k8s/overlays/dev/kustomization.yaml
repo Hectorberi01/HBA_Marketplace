@@ -59,6 +59,48 @@ patches:
         path: /spec/maxReplicas
         value: 1
 
+  # Dev reste volontairement sans collecteur OTLP : le ConfigMap garde
+  # `OPENTELEMETRY__ENDPOINT` vide, donc déployer un collecteur ici consommerait
+  # des ressources sans recevoir de trafic. On supprime surtout un effet de bord :
+  # le patch générique `ASPNETCORE_ENVIRONMENT=Development` ci-dessus réécrit les
+  # conteneurs de tous les Deployments et casse celui du collecteur.
+  - target:
+      kind: Deployment
+      name: otel-collector
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: otel-collector
+      $patch: delete
+  - target:
+      kind: Service
+      name: otel-collector
+    patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: otel-collector
+      $patch: delete
+  - target:
+      kind: ConfigMap
+      name: otel-collector-config
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: otel-collector-config
+      $patch: delete
+  - target:
+      kind: NetworkPolicy
+      name: allow-otel-collector-ingress
+    patch: |-
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-otel-collector-ingress
+      $patch: delete
+
   # La passerelle redescend à un replica ici. Le §4 la place à 2-3 parce qu'un
   # redémarrage coupe TOUT — mais en dev, « tout » vaut une branche en cours
   # d'intégration, et le second pod coûte un nœud déjà étroit.

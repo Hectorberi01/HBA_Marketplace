@@ -14,7 +14,7 @@ passage, pas à appliquer de confiance.
 | `k3s-agent` | `agents` | enrôlement des nœuds de charge |
 
 Le playbook s'arrête sur un cluster **vide**. Les opérateurs (ingress-nginx,
-cert-manager, CloudNativePG, Strimzi) et les charges (`k8s/overlays/`) viennent
+cert-manager, Strimzi) et les charges (`k8s/overlays/`) viennent
 après — voir `docs/DEPLOIEMENT.md`.
 
 ## Séquence
@@ -42,9 +42,9 @@ qu'il devient informatif : il dit alors ce qui a dérivé depuis le dernier pass
 
 ## Ce que ce dossier ne couvre pas
 
-- **Le plan de contrôle n'est pas redondé** — un seul serveur k3s, même en
-  production à trois nœuds. Écart connu au §24, encadré dans
-  `roles/k3s-serveur/tasks/main.yml`.
+- **Pas encore d'endpoint stable pour l'API k3s.** Le rôle sait former un plan
+  de contrôle HA si l'inventaire met trois hôtes dans `serveurs`, mais les agents
+  et les opérateurs utilisent encore le premier serveur comme point d'entrée.
 - **Pas de bastion ni de VPN.** Le §19 les demande. En l'état, SSH est ouvert sur
   l'interface publique des nœuds, par clé uniquement.
 - **Pas de rotation du jeton k3s** ni des clés SSH.

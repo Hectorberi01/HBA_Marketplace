@@ -46,12 +46,6 @@ try:
 except ImportError:  # pragma: no cover
     yaml = None  # type: ignore[assignment]
 
-try:
-    import yaml
-except ImportError:  # pragma: no cover
-    print("PyYAML absent — pip install pyyaml")
-    sys.exit(1)
-
 RACINE = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 OVERLAYS = ("dev", "staging", "prod")
 
@@ -156,6 +150,33 @@ def verifier(overlay: str, objets: list[dict]) -> list[str]:
                 fautes.append(
                     f"Secret {s['metadata']['name']} : « {cle} » porte une valeur "
                     f"en clair — le §12 l'interdit, et Git la garde après suppression")
+
+    configmaps = {o["metadata"]["name"]: o for o in objets if o["kind"] == "ConfigMap"}
+    hba_platform = configmaps.get("hba-platform")
+    endpoint_otel = ""
+    if hba_platform:
+        endpoint_otel = str((hba_platform.get("data") or {}).get("OPENTELEMETRY__ENDPOINT") or "").strip()
+
+    objets_nommes = {(o["kind"], o["metadata"]["name"]) for o in objets
+                     if isinstance(o.get("metadata"), dict) and o["metadata"].get("name")}
+
+    if endpoint_otel:
+        for attendu in (
+                ("Deployment", "otel-collector"),
+                ("Service", "otel-collector"),
+                ("NetworkPolicy", "allow-otel-collector-ingress")):
+            if attendu not in objets_nommes:
+                fautes.append(
+                    "OPENTELEMETRY__ENDPOINT est renseigné, mais %s/%s manque — "
+                    "les services journaliseraient des échecs OTLP en boucle (§16)"
+                    % attendu)
+
+    if overlay in ("staging", "prod"):
+        if endpoint_otel != "http://otel-collector:4317":
+            fautes.append(
+                "%s : OPENTELEMETRY__ENDPOINT vaut « %s » — staging/prod doivent "
+                "exporter vers le collecteur interne otel-collector:4317 (§16)"
+                % (overlay, endpoint_otel or "<vide>"))
 
     return fautes
 
@@ -561,8 +582,7 @@ def verifier_chaines_de_connexion() -> list[str]:
     if os.path.exists(overlay):
         with open(overlay, encoding="utf-8") as f:
             attendu = re.search(r"^namespace:\s*(\S+)", f.read(), re.MULTILINE)
-        defaut = re.search(r'NAMESPACE = os\.environ\.get\(\s*"[A-Z_]+"\s*,\s*"([^"]+)"\s*\)',
-                           source)
+        defaut = re.search(r'"prod"\s*:\s*\(\s*"([^"]+)"\s*,', source)
         if attendu is None or defaut is None:
             fautes.append("namespace de prod illisible — dans l'overlay ou dans le "
                           "generateur ; ce controle ne verifie plus rien")
@@ -790,12 +810,10 @@ def verifier_images_de_migration() -> list[str]:
         if nom not in migr:
             # UN SERVICE SANS MIGRATION N'A PAS DE JOB, ET C'EST CORRECT.
             #
-            # delivery-pricing-service porte une chaine de connexion mais
-            # n'appelle jamais `MigrateHbaDatabaseAsync` : il LIT les tables que
-            # delivery-service cree. Lui donner un Job serait pire qu'inutile —
-            # son conteneur n'a pas la sortie `SortirApresMigrations`, il
-            # demarrerait un serveur web, et le Job resterait `Running` jusqu'a
-            # l'expiration du `wait`.
+            # La regle suit le code : un Job n'a de sens que si le Program.cs
+            # appelle `MigrateHbaDatabaseAsync` puis `SortirApresMigrations`.
+            # Sinon le conteneur demarre un serveur web, le Job reste `Running`,
+            # et `kubectl wait` expire sur une etape qui n'avait rien a faire.
             if not service_a_des_migrations(nom.removeprefix("hba/")):
                 continue
             fautes.append(
@@ -845,6 +863,25 @@ def main() -> int:
         print("     https://kubectl.docs.kubernetes.io/installation/kustomize/")
         # Non bloquant : l'outil n'est pas une dépendance de compilation.
         return 1 if cibles else 0
+
+    if yaml is None:
+        print("   PyYAML absent — contrôle structurel du rendu ignoré (pip install pyyaml).")
+        voulus = [a for a in sys.argv[1:] if a in OVERLAYS] or list(OVERLAYS)
+        total = 0
+        for overlay in voulus:
+            chemin = os.path.join(RACINE, "k8s", "overlays", overlay)
+            sortie = subprocess.run(
+                ["kustomize", "build", chemin],
+                capture_output=True, text=True, check=False)
+            if sortie.returncode != 0:
+                print(f"❌ {overlay} : kustomize build a échoué :")
+                print(sortie.stderr.strip())
+                total += 1
+            else:
+                print(f"✓ {overlay} — rendu Kustomize valide")
+        print()
+        print(f"{len(voulus)} overlay(s) construit(s), {total + len(cibles)} écart(s) au cahier.")
+        return 1 if (total or cibles) else 0
 
     # ═════════════════════════════════════════════════════════════════════════
     # LA VERSION SE VÉRIFIE ICI, SINON L'ÉCHEC DÉSIGNE LE MAUVAIS COUPABLE.

@@ -9,8 +9,9 @@ kind: Kustomization
 # s'applique pas : il déploierait `hba/identity-service` sans tag dans le
 # namespace « hba ».
 #
-# `observability/` reste absent : c'est une brique tierce installée par Helm
-# (kube-prometheus-stack), pas des manifests que l'on réécrit.
+# `observability/` contient uniquement ce qui appartient à HBA : un collecteur
+# OTLP interne et ses Services. Les briques tierces lourdes — Prometheus, Grafana,
+# Loki, Tempo — restent installées par Helm, hors de cette base.
 #
 # `data/` et `kafka/` sont ici en revanche : les CR de CloudNativePG et de Strimzi
 # décrivent NOTRE base et NOTRE bus, pas l'opérateur qui les pilote. Les deux
@@ -24,3 +25,4 @@ resources:
   - apps
   - data
   - kafka
+  - observability

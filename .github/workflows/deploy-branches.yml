@@ -1,0 +1,224 @@
+name: Deploy Branches
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [dev, staging, develop]
+
+concurrency:
+  group: deploy-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  cible:
+    name: Choisir la cible
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    outputs:
+      environnement: ${{ steps.cible.outputs.environnement }}
+      namespace: ${{ steps.cible.outputs.namespace }}
+      overlay: ${{ steps.cible.outputs.overlay }}
+      migrations: ${{ steps.cible.outputs.migrations }}
+    steps:
+      - id: cible
+        run: |
+          case "${{ github.event.workflow_run.head_branch }}" in
+            dev)
+              echo "environnement=dev" >> "$GITHUB_OUTPUT"
+              echo "namespace=hba-dev" >> "$GITHUB_OUTPUT"
+              echo "overlay=k8s/overlays/dev" >> "$GITHUB_OUTPUT"
+              echo "migrations=false" >> "$GITHUB_OUTPUT"
+              ;;
+            staging)
+              echo "environnement=staging" >> "$GITHUB_OUTPUT"
+              echo "namespace=hba-staging" >> "$GITHUB_OUTPUT"
+              echo "overlay=k8s/overlays/staging" >> "$GITHUB_OUTPUT"
+              echo "migrations=false" >> "$GITHUB_OUTPUT"
+              ;;
+            develop)
+              echo "environnement=prod" >> "$GITHUB_OUTPUT"
+              echo "namespace=hba-prod" >> "$GITHUB_OUTPUT"
+              echo "overlay=k8s/overlays/prod" >> "$GITHUB_OUTPUT"
+              echo "migrations=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Branche ignorée"
+              ;;
+          esac
+
+  deployer:
+    name: Déployer ${{ needs.cible.outputs.environnement }}
+    needs: cible
+    if: needs.cible.outputs.environnement != ''
+    runs-on: ubuntu-latest
+    environment: ${{ needs.cible.outputs.environnement }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: azure/setup-kubectl@v4
+
+      - name: Installer kustomize
+        run: |
+          curl -sSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Installer les dépendances de contrôle
+        run: pip install --quiet pyyaml python-hcl2
+
+      - name: Configurer kubeconfig
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          test -n "$KUBECONFIG_B64" || { echo "::error::Secret KUBECONFIG_B64 absent dans l'environnement GitHub"; exit 1; }
+          mkdir -p "$HOME/.kube"
+          printf '%s' "$KUBECONFIG_B64" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          kubectl config current-context
+
+      - name: Poser le SHA sur l'overlay
+        env:
+          OVERLAY: ${{ needs.cible.outputs.overlay }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          PROPRIETAIRE: hectorberi01
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import yaml
+
+          overlay = os.environ["OVERLAY"]
+          sha = os.environ["SHA"]
+          owner = os.environ["PROPRIETAIRE"]
+
+          with open(os.path.join(overlay, "kustomization.yaml"), encoding="utf-8") as f:
+              kustomization = yaml.safe_load(f) or {}
+
+          for image in kustomization.get("images", []):
+              nom = image["name"]
+              service = nom.removeprefix("hba/")
+              subprocess.run(
+                  ["kustomize", "edit", "set", "image", f"{nom}=ghcr.io/{owner}/{service}:{sha}"],
+                  cwd=overlay,
+                  check=True,
+              )
+              print(f"{service} -> {sha}")
+          PY
+
+      - name: Poser le SHA sur les migrations prod
+        if: needs.cible.outputs.migrations == 'true'
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          PROPRIETAIRE: hectorberi01
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import yaml
+
+          overlay = "k8s/overlays/migrations-prod"
+          sha = os.environ["SHA"]
+          owner = os.environ["PROPRIETAIRE"]
+
+          with open(os.path.join(overlay, "kustomization.yaml"), encoding="utf-8") as f:
+              kustomization = yaml.safe_load(f) or {}
+
+          for image in kustomization.get("images", []):
+              nom = image["name"]
+              service = nom.removeprefix("hba/")
+              subprocess.run(
+                  ["kustomize", "edit", "set", "image", f"{nom}=ghcr.io/{owner}/{service}:{sha}"],
+                  cwd=overlay,
+                  check=True,
+              )
+              print(f"migration {service} -> {sha}")
+          PY
+
+      - name: Vérifier les signatures avant production
+        if: needs.cible.outputs.environnement == 'prod'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          PROPRIETAIRE: hectorberi01
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          curl -sSLo cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          chmod +x cosign
+
+          python3 - <<'PY' > /tmp/hba-services-a-verifier.txt
+          import yaml
+          k = yaml.safe_load(open("k8s/overlays/prod/kustomization.yaml", encoding="utf-8")) or {}
+          for image in k.get("images", []):
+              print(image["name"].removeprefix("hba/"))
+          PY
+
+          while IFS= read -r service; do
+            image="ghcr.io/${PROPRIETAIRE}/${service}:${SHA}"
+            ./cosign verify \
+              --certificate-identity-regexp ".*" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              "$image" >/dev/null
+            echo "signature OK : $image"
+          done < /tmp/hba-services-a-verifier.txt
+
+      - name: Pré-vol
+        run: bash scripts/preflight-k8s.sh ${{ needs.cible.outputs.environnement }} --cluster
+
+      - name: Appliquer les migrations prod
+        if: needs.cible.outputs.migrations == 'true'
+        run: |
+          kubectl apply -k k8s/overlays/migrations-prod
+          python3 - <<'PY'
+          import json
+          import subprocess
+          import sys
+          import time
+
+          deadline = time.time() + 900
+          while time.time() < deadline:
+              raw = subprocess.check_output([
+                  "kubectl", "-n", "hba-prod", "get", "job",
+                  "-l", "app.kubernetes.io/component=migration", "-o", "json",
+              ], text=True)
+              jobs = json.loads(raw).get("items", [])
+              if not jobs:
+                  print("Aucun Job de migration trouvé", file=sys.stderr)
+                  sys.exit(1)
+
+              failed = []
+              complete = []
+              for job in jobs:
+                  name = job["metadata"]["name"]
+                  conditions = {
+                      c.get("type"): c.get("status")
+                      for c in job.get("status", {}).get("conditions", [])
+                  }
+                  if conditions.get("Failed") == "True":
+                      failed.append(name)
+                  if conditions.get("Complete") == "True":
+                      complete.append(name)
+
+              if failed:
+                  print("Jobs de migration échoués : " + ", ".join(failed), file=sys.stderr)
+                  sys.exit(1)
+              if len(complete) == len(jobs):
+                  print("Jobs de migration complets : " + ", ".join(sorted(complete)))
+                  sys.exit(0)
+
+              print(f"Migrations en cours : {len(complete)}/{len(jobs)} complètes")
+              time.sleep(5)
+
+          print("Timeout en attendant les migrations", file=sys.stderr)
+          sys.exit(1)
+          PY
+
+      - name: Déployer les services
+        run: |
+          kubectl apply -k ${{ needs.cible.outputs.overlay }}
+          kubectl -n ${{ needs.cible.outputs.namespace }} rollout status deploy --timeout=15m

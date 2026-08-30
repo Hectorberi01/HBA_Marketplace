@@ -141,6 +141,52 @@ SECRETS = {
 # developpement. Un encaissement partirait sans jamais revenir, et la commande
 # resterait « en attente de paiement » alors que l'acheteur a paye.
 # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# L'IDENTITE gRPC : UNE CLE PRIVEE PAR HOTE, UN REGISTRE PUBLIC PARTAGE.
+#
+# CE QUI ETAIT CASSE : le compose n'en portait AUCUNE. Sans `Internal:PrivateKey`,
+# `InternalCallClientInterceptor` leve `FailedPrecondition: Internal identity not
+# configured.` — a l'emission, avant meme le reseau. Tout appel entre services
+# echoue donc, aujourd'hui, sur la pile deployee.
+#
+# Et rien ne l'aurait dit au demarrage : le seul garde du socle refuse le drapeau
+# `IdentitesNonSignees` hors Development. L'ABSENCE de cle, elle, passe le
+# demarrage sans un mot et ne se voit qu'au premier appel inter-services.
+#
+# LE NOM DE LA VARIABLE VIENT DU PROJET, PAS DU SERVICE COMPOSE.
+#
+# `scripts/generer-identites-internes.sh` nomme ses variables d'apres l'HOTE tel
+# que la table d'autorisations le connait — `HBA.Identity.Api`, pas
+# `identity-service` — et remplace les points par des soulignes. On lit donc le
+# nom du projet dans l'`ENTRYPOINT` du Dockerfile plutot que de recopier vingt
+# correspondances a la main : une table recopiee derive, un ENTRYPOINT non.
+#
+# CE QUE CELA NE COUVRE PAS : la rotation. Changer une cle demande de redemarrer
+# TOUS les hotes ensemble — un hote encore sur l'ancien registre rejette les
+# nouveaux appelants, et reciproquement. La rotation partielle coupe les appels
+# dans les deux sens.
+# ═══════════════════════════════════════════════════════════════════════════════
+ENTRYPOINT_DOTNET = re.compile(r'ENTRYPOINT\s*\[\s*"dotnet"\s*,\s*"([\w.]+)\.dll"')
+
+
+def projet_de_service(build):
+    """`build:` d'un service -> nom du projet .NET, lu dans son Dockerfile."""
+    if not isinstance(build, dict):
+        return None
+    chemin = build.get("dockerfile") or os.path.join(build.get("context", ""), "Dockerfile")
+    try:
+        with open(os.path.join(RACINE, chemin), encoding="utf-8") as f:
+            texte = f.read()
+    except OSError:
+        return None
+    trouve = ENTRYPOINT_DOTNET.search(texte)
+    return trouve.group(1) if trouve else None
+
+
+def variable_de_cle(projet):
+    return "INTERNAL_KEY_" + projet.upper().replace(".", "_")
+
+
 AJOUTS_ENVIRONNEMENT = {
     "payment-service": [
         ("PAYMENTS__FEDAPAY__APIKEY",
@@ -282,6 +328,13 @@ def ancre_de_production(lignes):
     if not corps:
         return []
 
+    # Le registre des cles PUBLIQUES est le MEME pour tous : l'ancre est
+    # exactement l'endroit pour ce genre de valeur. Les cles PRIVEES, elles,
+    # different par hote et se posent service par service.
+    corps.append("  INTERNAL__PUBLICKEYS: "
+                 "${INTERNAL_PUBLIC_KEYS:?le registre des cles publiques gRPC "
+                 "est obligatoire — scripts/generer-identites-internes.sh}\n")
+
     return [
         "# ═════════════════════════════════════════════════════════════════════════════\n",
         "# LES CLES PARTAGEES PAR TOUS LES SERVICES.\n",
@@ -318,6 +371,11 @@ def bloc_de_service(lignes, debut, fin):
 # par les controles : une ancre definie que personne ne fusionne, ou l'inverse,
 # ne doit pas passer inapercu.
 fusions = []
+
+# service compose -> nom de variable de sa cle privee. Rempli par `main` depuis
+# les Dockerfile ; vide tant que rien n'a ete lu, ce qui rend `transformer`
+# utilisable seul dans un test.
+CLES_INTERNES = {}
 
 
 def transformer(nom, corps):
@@ -378,11 +436,17 @@ def transformer(nom, corps):
         # Ecrits juste apres `environment:`, ils se lisent avant les dizaines de
         # variables heritees du developpement — et un `<<: *prod-auth` place la
         # ne les ecraserait pas, la fusion perdant contre les cles explicites.
-        if re.match(r"^    environment:\s*$", l) and nom in AJOUTS_ENVIRONNEMENT:
+        if re.match(r"^    environment:\s*$", l) and (
+                nom in AJOUTS_ENVIRONNEMENT or nom in CLES_INTERNES):
             sortie.append(l)
             sortie.append("      # Ajoutees pour la production : le compose de "
                           "developpement ne les porte pas.\n")
-            for cle, valeur in AJOUTS_ENVIRONNEMENT[nom]:
+            if nom in CLES_INTERNES:
+                sortie.append(
+                    "      INTERNAL__PRIVATEKEY: ${%s:?identite gRPC de %s absente "
+                    "— scripts/generer-identites-internes.sh}\n"
+                    % (CLES_INTERNES[nom], nom))
+            for cle, valeur in AJOUTS_ENVIRONNEMENT.get(nom, []):
                 sortie.append("      %s: %s\n" % (cle, valeur))
             i += 1
             continue
@@ -563,6 +627,14 @@ def main():
               if re.match(r"^  [a-z][a-z0-9-]*:\s*$", lignes[i])]
 
     retenus, ecartes = [], []
+    # LES CLES PRIVEES, DERIVEES DES DOCKERFILE.
+    import yaml as _y
+    source_chargee = _y.safe_load("".join(lignes))
+    for nom_service, valeur in (source_chargee.get("services") or {}).items():
+        projet = projet_de_service(valeur.get("build"))
+        if projet:
+            CLES_INTERNES[nom_service] = variable_de_cle(projet)
+
     for d in debuts:
         nom, corps = bloc_de_service(lignes, d, fin_services)
         if nom in HORS_PRODUCTION:

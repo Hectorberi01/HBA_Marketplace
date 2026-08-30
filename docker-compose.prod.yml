@@ -59,6 +59,7 @@ x-prod-auth: &prod-auth
   INTERNAL__APIKEY: ${INTERNAL__APIKEY:?INTERNAL__APIKEY est obligatoire en production}
   # INTERNAL__IDENTITESNONSIGNEES : retire — identites gRPC non signees : `AddHbaGrpc` leve hors Development.
   SECURITY__SECRETPROTECTION__KEY: ${SECURITY__SECRETPROTECTION__KEY:?SECURITY__SECRETPROTECTION__KEY est obligatoire en production}
+  INTERNAL__PUBLICKEYS: ${INTERNAL_PUBLIC_KEYS:?le registre des cles publiques gRPC est obligatoire — scripts/generer-identites-internes.sh}
 
 services:
 
@@ -166,6 +167,8 @@ services:
       context: .
       dockerfile: services/common/identity-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_IDENTITY_API:?identite gRPC de identity-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: identity-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -214,6 +217,8 @@ services:
       context: .
       dockerfile: services/common/user-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_USERS_API:?identite gRPC de user-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: user-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -244,6 +249,8 @@ services:
       context: .
       dockerfile: services/common/media-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_MEDIA_API:?identite gRPC de media-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: media-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -308,6 +315,8 @@ services:
       context: .
       dockerfile: services/marketplace/seller-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_MERCHANTS_API:?identite gRPC de seller-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: seller-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -365,6 +374,8 @@ services:
       context: .
       dockerfile: services/marketplace/catalog-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_CATALOG_API:?identite gRPC de catalog-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: catalog-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -409,6 +420,8 @@ services:
       context: .
       dockerfile: services/marketplace/inventory-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_INVENTORY_API:?identite gRPC de inventory-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: inventory-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -442,6 +455,8 @@ services:
       context: .
       dockerfile: services/marketplace/cart-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_COMMERCE_API:?identite gRPC de cart-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: cart-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -494,6 +509,8 @@ services:
       context: .
       dockerfile: services/marketplace/order-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_ORDER_API:?identite gRPC de order-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: order-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -552,6 +569,8 @@ services:
       context: .
       dockerfile: services/food/restaurant-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_FOOD_RESTAURANT_API:?identite gRPC de restaurant-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: restaurant-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -609,6 +628,8 @@ services:
       context: .
       dockerfile: services/food/food-cart-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_FOOD_CART_API:?identite gRPC de food-cart-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: food-cart-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -651,6 +672,8 @@ services:
       context: .
       dockerfile: services/food/food-order-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_FOOD_ORDER_API:?identite gRPC de food-order-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: food-order-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -696,6 +719,8 @@ services:
       context: .
       dockerfile: services/delivery/delivery-pricing-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_DELIVERY_PRICING_API:?identite gRPC de delivery-pricing-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: delivery-pricing-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -729,6 +754,8 @@ services:
       context: .
       dockerfile: services/delivery/delivery-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_DELIVERY_CORE_API:?identite gRPC de delivery-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: delivery-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -769,6 +796,8 @@ services:
       context: .
       dockerfile: services/delivery/driver-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_DELIVERY_DRIVER_API:?identite gRPC de driver-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: driver-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -795,6 +824,8 @@ services:
       context: .
       dockerfile: services/delivery/route-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_DELIVERY_ROUTE_API:?identite gRPC de route-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: route-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -822,6 +853,7 @@ services:
       dockerfile: services/common/payment-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_FINANCIAL_API:?identite gRPC de payment-service absente — scripts/generer-identites-internes.sh}
       PAYMENTS__FEDAPAY__APIKEY: ${PAYMENTS__FEDAPAY__APIKEY:?la cle FedaPay sk_live_... est obligatoire}
       PAYMENTS__FEDAPAY__WEBHOOKSECRET: ${PAYMENTS__FEDAPAY__WEBHOOKSECRET:?sans lui les notifications FedaPay sont rejetees}
       PAYMENTS__FEDAPAY__BASEURL: https://api.fedapay.com/v1
@@ -887,6 +919,8 @@ services:
       context: .
       dockerfile: services/common/review-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_ENGAGEMENT_API:?identite gRPC de review-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: review-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -935,6 +969,8 @@ services:
       context: .
       dockerfile: services/common/promotion-service/Dockerfile
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_PROMOTIONS_API:?identite gRPC de promotion-service absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       SERVICE_NAME: promotion-service
       ASPNETCORE_ENVIRONMENT: Production
@@ -987,6 +1023,8 @@ services:
     # proxy de Coolify sache ou router le domaine.
     expose: ["8080"]
     environment:
+      # Ajoutees pour la production : le compose de developpement ne les porte pas.
+      INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_GATEWAY_API:?identite gRPC de gateway absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth
       ASPNETCORE_ENVIRONMENT: Production
 

@@ -35,7 +35,7 @@ variable "zone" {
 }
 
 variable "sous_domaine" {
-  description = "« api » en production, « api.staging » ailleurs (§2 : un hôte par environnement)."
+  description = "Sous-domaine publie par l'Ingress, ex. « api » en production ou « backendapi.marketplace-staging » en staging."
   type        = string
 }
 
