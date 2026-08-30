@@ -22,9 +22,6 @@
 #   redis-ui
 #     console d'exploration — jamais en production
 #
-#   kafka-ui
-#     console d'exploration — jamais en production
-#
 #   minio-init
 #     amorçage de développement ; en production, voir le runbook
 #
@@ -121,6 +118,24 @@ services:
 
     restart: unless-stopped
 
+  kafka-ui:
+    container_name: hba-kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    environment:
+      KAFKA_CLUSTERS_0_NAME: hba-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    # Console : publiee sur la BOUCLE LOCALE, jamais sur 0.0.0.0.
+    # Acces par tunnel : ssh -L <port>:127.0.0.1:<port> <hote>
+    ports:
+      - "127.0.0.1:8090:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - hba-backend
+
+    restart: unless-stopped
+
   minio:
     container_name: hba-minio
     image: minio/minio:latest
@@ -128,8 +143,10 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER est obligatoire en production}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD est obligatoire en production}
-    # `ports:` retiré : publier sur le VPS, c'est publier sur Internet.
-    # Les services se joignent par le réseau `hba-backend`.
+    # Console : publiee sur la BOUCLE LOCALE, jamais sur 0.0.0.0.
+    # Acces par tunnel : ssh -L <port>:127.0.0.1:<port> <hote>
+    ports:
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio-data:/data
     networks:

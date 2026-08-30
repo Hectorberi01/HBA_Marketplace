@@ -56,7 +56,6 @@ PROPRIETAIRE = "hectorberi01"
 HORS_PRODUCTION = {
     "postgres": "la base vit sur un second VPS, jointe par le tunnel",
     "redis-ui": "console d'exploration — jamais en production",
-    "kafka-ui": "console d'exploration — jamais en production",
     "minio-init": "amorçage de développement ; en production, voir le runbook",
 }
 
@@ -171,6 +170,36 @@ PORTS_AUTORISES = set()
 
 # Services dont le port doit rester DECLARE pour que le proxy le trouve.
 PORTS_EXPOSES = {"gateway": "8080"}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LES CONSOLES : PUBLIEES SUR LA BOUCLE LOCALE, ET NULLE PART AILLEURS.
+#
+# `ports: ["9001:9001"]` ecoute sur 0.0.0.0 — donc sur Internet. Une console
+# MinIO ouverte donne les pieces KYB des vendeurs ; Kafka UI n'a AUCUNE
+# authentification, et qui l'atteint lit et ecrit tous les sujets.
+#
+# `127.0.0.1:9001:9001` ecoute sur la boucle locale du VPS. Aucun paquet venu du
+# reseau ne l'atteint — pas parce qu'un pare-feu le filtre, mais parce que la
+# socket n'est pas exposee. C'est une propriete du noyau, pas une regle qu'on
+# peut oublier de charger.
+#
+# On y accede par un tunnel SSH :
+#
+#     ssh -L 9001:127.0.0.1:9001 ovh-server
+#
+# L'authentification devient celle de SSH : une cle sur le VPS. C'est plus fort
+# que tout mot de passe qu'on poserait devant ces consoles.
+#
+# CE QUE CELA NE COUVRE PAS : qui a un acces SSH au VPS a ces consoles, donc les
+# pieces KYB et les sujets Kafka. Le peripetre est celui des cles autorisees.
+# ═══════════════════════════════════════════════════════════════════════════════
+PORTS_LOOPBACK = {
+    "kafka-ui": [("8090", "8080")],   # console Kafka
+    "minio": [("9001", "9001")],      # console MinIO SEULE — l'API S3 (9000) reste interne
+}
+
+# Images sans `build:` qui sont legitimes : ce ne sont pas nos services.
+IMAGES_TIERCES = ("redis", "confluentinc", "minio", "danielgatis", "provectuslabs")
 
 # Ce qui trahit un secret laisse en clair. Le controle final s'appuie dessus.
 MOTIFS_SUSPECTS = [
@@ -372,8 +401,15 @@ def transformer(nom, corps):
             i += 1
             while i < len(corps) and re.match(r"^      [-#]", corps[i]):
                 i += 1
-            sortie.append("    # `ports:` retiré : publier sur le VPS, c'est publier sur Internet.\n")
-            sortie.append("    # Les services se joignent par le réseau `hba-backend`.\n")
+            if nom not in PORTS_LOOPBACK:
+                sortie.append("    # `ports:` retiré : publier sur le VPS, c'est publier sur Internet.\n")
+                sortie.append("    # Les services se joignent par le réseau `hba-backend`.\n")
+            if nom in PORTS_LOOPBACK:
+                sortie.append("    # Console : publiee sur la BOUCLE LOCALE, jamais sur 0.0.0.0.\n")
+                sortie.append("    # Acces par tunnel : ssh -L <port>:127.0.0.1:<port> <hote>\n")
+                sortie.append("    ports:\n")
+                for hote, conteneur in PORTS_LOOPBACK[nom]:
+                    sortie.append('      - "127.0.0.1:%s:%s"\n' % (hote, conteneur))
             if nom in PORTS_EXPOSES:
                 sortie.append("    # `expose:` ne publie rien — il DECLARE le port, pour que le\n")
                 sortie.append("    # proxy de Coolify sache ou router le domaine.\n")
@@ -579,8 +615,7 @@ def main():
         return 1
     sans_build = [n for n, v in (rendu_charge.get("services") or {}).items()
                   if "image" in v and "build" not in v
-                  and not str(v["image"]).startswith(("redis", "confluentinc",
-                                                      "minio", "danielgatis"))]
+                  and not str(v["image"]).startswith(IMAGES_TIERCES)]
     if sans_build:
         print("REFUS : %s ont une image mais aucun `build` — rien ne pourrait les "
               "produire sans registre." % ", ".join(sans_build), file=sys.stderr)

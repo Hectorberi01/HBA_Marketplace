@@ -357,6 +357,40 @@ adapte le facteur de réplication au nombre de courtiers réellement présents. 
 annonce le fichier compose qu'il vise : le lancer sur le mauvais créerait les
 sujets dans le Kafka du poste pendant qu'on croit préparer le VPS.
 
+## 4 bis. Les consoles : Kafka UI et MinIO
+
+Elles sont publiées **sur la boucle locale du VPS uniquement** :
+
+| Console | Port | Ce qu'elle donne |
+|---|---|---|
+| Kafka UI | `127.0.0.1:8090` | tous les sujets, en lecture ET en écriture |
+| MinIO | `127.0.0.1:9001` | tous les objets, dont les pièces KYB des vendeurs |
+
+**Pourquoi la boucle locale et non un domaine.** Kafka UI n'a aucune
+authentification ; MinIO en a une, mais son contenu est le plus sensible de la
+plateforme. `ports: ["9001:9001"]` écoute sur `0.0.0.0`, donc sur Internet — et
+Docker écrit ses règles directement dans nftables, en amont d'un pare-feu posé à
+la main. `127.0.0.1:9001:9001` n'expose pas la socket au réseau : c'est une
+propriété du noyau, pas une règle qu'on peut oublier de charger.
+
+Depuis le poste :
+
+```bash
+ssh -L 8090:127.0.0.1:8090 -L 9001:127.0.0.1:9001 ovh-server
+```
+
+Puis, tant que ce terminal reste ouvert : <http://localhost:8090> pour Kafka,
+<http://localhost:9001> pour MinIO — identifiants `MINIO_ROOT_USER` et
+`MINIO_ROOT_PASSWORD`.
+
+L'authentification devient celle de SSH. **Ce que cela ne couvre pas :** qui a
+une clé SSH sur le VPS a ces deux consoles, donc les pièces KYB et l'écriture
+sur tous les sujets. Le périmètre est celui de `~/.ssh/authorized_keys`.
+
+`redis-ui` reste écartée : Redis ne porte que du cache et des verrous, et une
+console de plus est une surface de plus. Elle s'ajouterait de la même façon,
+dans `PORTS_LOOPBACK`.
+
 ## 5. Les buckets MinIO
 
 MinIO ne les crée pas tout seul, et `media-service` démarre très bien sans eux —
