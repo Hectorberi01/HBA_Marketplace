@@ -35,6 +35,21 @@ Aucune clé Stripe, PayPal ou Moov n'est fournie.
 
 ---
 
+## 0. Deux chemins, et il faut choisir le sien
+
+**Depuis le poste — `./scripts/deployer.sh prod`.** Le client Docker parle au
+démon du VPS par un contexte SSH. Le compose, le fichier d'environnement et les
+sources sont lus **sur le poste** ; seuls les appels d'API et le contexte de
+build partent. La destination SSH est l'alias `ovh-server` de `~/.ssh/config` —
+c'est lui qui porte le port 8022, l'utilisateur et la clé.
+
+**Depuis le VPS — les commandes `docker compose` de ce runbook.** Tout est
+local à la machine, dépôt cloné compris.
+
+Les deux fonctionnent. Ce qui ne fonctionne pas, c'est de mélanger : un fichier
+d'environnement posé sur le VPS n'est **jamais lu** par `deployer.sh`, parce que
+`--env-file` est traité par le client compose, ici.
+
 ## 1. Le fichier d'environnement, hors du dépôt
 
 Chaque secret du compose est une référence `${VAR:?...}` : Compose **refuse de
@@ -45,7 +60,12 @@ vide. Les valeurs vivent dans un fichier que Git ne voit jamais.
 umask 077
 mkdir -p ~/secrets-hba-prod
 $EDITOR ~/secrets-hba-prod/prod.env
+chmod 600 ~/secrets-hba-prod/prod.env
 ```
+
+Sur le POSTE si l'on déploie avec `deployer.sh`, sur le VPS si l'on lance
+compose là-bas. `deployer.sh` refuse de partir si le fichier manque ou s'il est
+lisible par d'autres que son propriétaire ; `HBA_ENV_FILE=<chemin>` le déplace.
 
 Il lui faut :
 

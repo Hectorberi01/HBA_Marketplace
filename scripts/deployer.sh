@@ -40,7 +40,28 @@ cd "$ROOT_DIR"
 # joignable que par le tunnel, et rien de ce script n'a à s'y connecter.
 VPS_STAGING="193.168.145.162"
 VPS_PROD="79.137.35.129"
-UTILISATEUR_VPS="${HBA_VPS_USER:-root}"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# LA DESTINATION EST UN ALIAS SSH, PAS UN COUPLE UTILISATEUR@ADRESSE.
+#
+# CE QUI ÉTAIT CASSÉ : ce script posait `root@<ip>` sur le port 22. Le VPS de
+# production écoute le 8022, avec l'utilisateur `ubuntu` et une clé dédiée.
+# `ssh root@79.137.35.129 true` rend « Connection refused », et le transport SSH
+# de Docker, lui, ne rend RIEN — juste un contexte injoignable.
+#
+# Recopier port, utilisateur et clé ici les mettrait à deux endroits, et
+# `~/.ssh/config` resterait la source de vérité pour `ssh` mais pas pour ce
+# script. Pire : le nom donné à `ssh` est ce qui sélectionne le bloc `Host`.
+# `ssh ubuntu@79.137.35.129 -p 8022` NE lit PAS `IdentityFile` du bloc
+# `Host ovh-server` — la correspondance se fait sur le nom écrit, pas sur
+# l'adresse résolue. L'alias est donc le seul moyen d'hériter de la clé.
+#
+# CE QUE CELA NE COUVRE PAS : l'alias vit dans `~/.ssh/config`, hors du dépôt.
+# Un autre poste n'a pas le même. D'où les deux variables d'environnement, et
+# la vérification plus bas que l'alias résout bien vers l'adresse attendue.
+# ═════════════════════════════════════════════════════════════════════════════
+DESTINATION_STAGING="${HBA_SSH_STAGING:-hba-staging}"
+DESTINATION_PROD="${HBA_SSH_PROD:-ovh-server}"
 
 rouge()  { printf '\033[31m%s\033[0m\n' "$*" >&2; }
 vert()   { printf '\033[32m%s\033[0m\n' "$*"; }
@@ -58,8 +79,13 @@ usage: ./scripts/deployer.sh <dev|staging|prod> [options]
   --sujets         crée les sujets Kafka après le démarrage.
   --oui            ne demande aucune confirmation (pour un usage scripté).
 
-Le fichier d'environnement est attendu en ~/secrets-hba-<cible>/<cible>.env
-sur le VPS pour staging et prod. Voir docs/RUNBOOK-COMPOSE.md.
+Le fichier d'environnement est lu SUR CE POSTE, en
+~/secrets-hba-<cible>/<cible>.env — compose le lit côté client, pas sur le VPS.
+Le remplacer par HBA_ENV_FILE=<chemin>. Voir docs/RUNBOOK-COMPOSE.md.
+
+La destination SSH est un alias de ~/.ssh/config : « ovh-server » pour la
+production, « hba-staging » pour le staging. La remplacer par HBA_SSH_PROD ou
+HBA_SSH_STAGING. C'est l'alias qui porte le port et la clé.
 FIN
   exit 2
 }
@@ -82,13 +108,15 @@ done
 
 case "$CIBLE" in
   dev)
-    COMPOSE="docker-compose.dev.yml"; HOTE=""; ENV_FILE="" ;;
+    COMPOSE="docker-compose.dev.yml"; HOTE=""; DESTINATION=""; ENV_FILE="" ;;
   staging)
     COMPOSE="docker-compose.prod.yml"; HOTE="$VPS_STAGING"
-    ENV_FILE="\$HOME/secrets-hba-staging/staging.env" ;;
+    DESTINATION="$DESTINATION_STAGING"
+    ENV_FILE="${HBA_ENV_FILE:-$HOME/secrets-hba-staging/staging.env}" ;;
   prod)
     COMPOSE="docker-compose.prod.yml"; HOTE="$VPS_PROD"
-    ENV_FILE="\$HOME/secrets-hba-prod/prod.env" ;;
+    DESTINATION="$DESTINATION_PROD"
+    ENV_FILE="${HBA_ENV_FILE:-$HOME/secrets-hba-prod/prod.env}" ;;
   *) rouge "cible inconnue : $CIBLE"; usage ;;
 esac
 
@@ -188,15 +216,82 @@ fi
 # SSH comme contexte de build. Aucune image ne transite en tant qu'image.
 # ═════════════════════════════════════════════════════════════════════════════
 CONTEXTE="hba-${CIBLE}"
-titre "Contexte Docker « ${CONTEXTE} » → ${UTILISATEUR_VPS}@${HOTE}"
+titre "Contexte Docker « ${CONTEXTE} » → ${DESTINATION}"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ON RÉSOUT L'ALIAS AVANT DE S'EN SERVIR, ET ON VÉRIFIE OÙ IL MÈNE.
+#
+# `ssh -G` rend la configuration EFFECTIVE pour une destination, sans ouvrir de
+# connexion : l'adresse, l'utilisateur, le port, tels que `ssh` les emploiera.
+#
+# Le contrôle qui compte est la dernière ligne : que l'alias mène bien à
+# l'adresse que ce script associe à la cible. Sans lui, un `Host ovh-server`
+# réécrit un jour vers une autre machine déploierait la production ailleurs,
+# et rien ne le dirait. Un alias absent tombe dans le même filet : `ssh -G`
+# rend alors le nom lui-même comme hôte, qui ne ressemble à aucune adresse.
+# ═════════════════════════════════════════════════════════════════════════════
+CONFIG_SSH="$(ssh -G "$DESTINATION" 2>/dev/null || true)"
+HOTE_RESOLU="$(printf '%s\n' "$CONFIG_SSH" | awk '/^hostname /{print $2; exit}')"
+USER_RESOLU="$(printf '%s\n' "$CONFIG_SSH" | awk '/^user /{print $2; exit}')"
+PORT_RESOLU="$(printf '%s\n' "$CONFIG_SSH" | awk '/^port /{print $2; exit}')"
+
+info "alias         : ${DESTINATION}"
+info "résout vers   : ${USER_RESOLU:-?}@${HOTE_RESOLU:-?}:${PORT_RESOLU:-?}"
+
+if [ "$HOTE_RESOLU" != "$HOTE" ]; then
+  rouge "REFUS : « ${DESTINATION} » ne mène pas à la machine attendue pour ${CIBLE}."
+  rouge "  attendu : ${HOTE}"
+  rouge "  résolu  : ${HOTE_RESOLU:-<rien>}"
+  rouge ""
+  rouge "  Si l'alias n'existe pas sur ce poste, l'ajouter à ~/.ssh/config :"
+  rouge ""
+  rouge "      Host ${DESTINATION}"
+  rouge "          HostName ${HOTE}"
+  rouge "          User <utilisateur>"
+  rouge "          Port <port>"
+  rouge "          IdentityFile ~/.ssh/<clé>"
+  rouge "          IdentitiesOnly yes"
+  rouge ""
+  rouge "  Ou désigner un autre alias : HBA_SSH_$(printf '%s' "$CIBLE" | tr '[:lower:]' '[:upper:]')=<alias> ./scripts/deployer.sh ${CIBLE}"
+  exit 1
+fi
+
+POINT_ATTENDU="ssh://${DESTINATION}"
 
 if ! docker context inspect "$CONTEXTE" >/dev/null 2>&1; then
   docker context create "$CONTEXTE" \
-    --docker "host=ssh://${UTILISATEUR_VPS}@${HOTE}" \
+    --docker "host=${POINT_ATTENDU}" \
     --description "HBA ${CIBLE}"
   info "contexte créé"
 else
-  info "contexte déjà présent"
+  # ═══════════════════════════════════════════════════════════════════════════
+  # UN CONTEXTE EXISTANT N'EST PAS UN CONTEXTE CORRECT.
+  #
+  # `docker context create` ne s'exécute qu'à la première fois. Si l'adresse du
+  # VPS change, ou si HBA_SSH_PROD est posé après coup, le contexte garde son
+  # ancien point de terminaison — et ce script le réemploie en silence.
+  #
+  # Le cas qui coûte cher : déployer la PRODUCTION sur le staging parce que
+  # « hba-prod » avait été créé un jour où HOTE valait autre chose. Aucune
+  # commande n'échoue, `ps` montre des conteneurs qui tournent, et la mauvaise
+  # machine sert le trafic.
+  #
+  # On compare donc, et on refuse. La correction est destructrice d'un objet
+  # local seulement, d'où le fait qu'on la nomme au lieu de la faire : effacer
+  # un contexte que quelqu'un a réglé à la main pour de bonnes raisons serait
+  # pire que s'arrêter.
+  # ═══════════════════════════════════════════════════════════════════════════
+  POINT_ACTUEL="$(docker context inspect "$CONTEXTE" \
+    --format '{{.Endpoints.docker.Host}}' 2>/dev/null || echo "")"
+
+  if [ "$POINT_ACTUEL" != "$POINT_ATTENDU" ]; then
+    rouge "REFUS : le contexte « ${CONTEXTE} » ne pointe pas où ce script croit."
+    rouge "  attendu : ${POINT_ATTENDU}"
+    rouge "  actuel  : ${POINT_ACTUEL:-<illisible>}"
+    rouge "  Corriger : docker context rm ${CONTEXTE}   puis relancer."
+    exit 1
+  fi
+  info "contexte déjà présent, et il pointe bien ${POINT_ACTUEL}"
 fi
 
 # ON VÉRIFIE QU'ON PARLE BIEN À LA BONNE MACHINE.
@@ -206,7 +301,31 @@ fi
 NOM_DISTANT="$(docker --context "$CONTEXTE" info --format '{{.Name}}' 2>/dev/null || true)"
 if [ -z "$NOM_DISTANT" ]; then
   rouge "Impossible de joindre le démon Docker de ${HOTE}."
-  rouge "  Vérifier : ssh ${UTILISATEUR_VPS}@${HOTE} docker version"
+  rouge ""
+  # LE TRANSPORT SSH DE DOCKER EST NON INTERACTIF.
+  #
+  # Il n'a ni terminal ni moyen de poser une question. Tout ce qui ferait
+  # s'arrêter `ssh` sur une invite — l'empreinte d'un hôte jamais joint, une
+  # demande de mot de passe, une phrase de passe de clé — ne produit PAS de
+  # message : la connexion meurt, et `docker info` rend une chaîne vide. D'où
+  # cette liste, qui distingue les quatre pannes derrière le même silence.
+  rouge "  La connexion SSH de Docker ne peut RIEN demander. Elle échoue sans"
+  rouge "  un mot dès qu'une invite apparaît. Dans l'ordre :"
+  rouge ""
+  rouge "  1. ssh ${DESTINATION} true"
+  rouge "     Si elle demande d'accepter une empreinte, ou un mot de passe, c'est là."
+  rouge "     Une connexion manuelle une fois suffit à enregistrer l'empreinte ;"
+  rouge "     le mot de passe, lui, demande une clé : ssh-copy-id ${DESTINATION}"
+  rouge ""
+  rouge "  2. ssh ${DESTINATION} docker version"
+  rouge "     Docker peut simplement ne pas être installé sur le VPS."
+  rouge ""
+  rouge "  3. ssh ${DESTINATION} id"
+  rouge "     L'utilisateur doit pouvoir parler au démon — root, ou membre du"
+  rouge "     groupe docker."
+  rouge ""
+  rouge "  4. docker context inspect ${CONTEXTE} --format '{{.Endpoints.docker.Host}}'"
+  rouge "     Pour lire l'adresse que le contexte emploie réellement."
   exit 1
 fi
 info "démon joint : ${NOM_DISTANT}"
@@ -237,6 +356,45 @@ fi
 # vient d'être construit — mais il le fait avec le SHA, donc `docker images` sur
 # le VPS dit quel commit tourne.
 # ═════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════════════════
+# LE FICHIER D'ENVIRONNEMENT EST LU SUR LE POSTE, PAS SUR LE VPS.
+#
+# CE QUI ÉTAIT CASSÉ : ce script posait `ENV_FILE="\$HOME/secrets-hba-prod/..."`,
+# avec le dollar échappé, en croyant désigner un chemin CHEZ LE VPS. Deux fautes
+# dans une seule ligne.
+#
+# La première : `--env-file` et `-f` sont lus par le CLIENT compose, ici, sur le
+# Mac. Seuls les appels d'API partent vers le démon distant. Un fichier posé sur
+# le VPS n'aurait jamais été ouvert.
+#
+# La seconde : la chaîne littérale « $HOME/secrets-... » n'est développée par
+# personne — ni ici, puisque le dollar est échappé, ni là-bas, puisque rien ne
+# passe par un shell distant. Compose aurait cherché un dossier nommé « $HOME ».
+#
+# CE QUE CELA NE COUVRE PAS : le fichier reste en clair sur le poste. C'est le
+# prix d'un déploiement depuis la machine du développeur, et c'est pourquoi on
+# exige au moins qu'il ne soit lisible que par son propriétaire.
+# ═════════════════════════════════════════════════════════════════════════════
+if [ ! -f "$ENV_FILE" ]; then
+  rouge "Fichier d'environnement introuvable : ${ENV_FILE}"
+  rouge "  Il est lu ICI, sur ce poste — pas sur le VPS."
+  rouge "  Voir docs/RUNBOOK-COMPOSE.md §1 pour la liste des variables attendues."
+  rouge "  Autre emplacement : HBA_ENV_FILE=<chemin> ./scripts/deployer.sh ${CIBLE}"
+  exit 1
+fi
+
+# GNU d'abord : sur macOS `stat -c` échoue proprement et l'on bascule sur `-f`,
+# alors que `stat -f` sous GNU signifie « système de fichiers » et rendrait un
+# « ? » silencieux — le contrôle serait sauté sans que rien ne le dise.
+MODE_ENV="$(stat -c '%a' "$ENV_FILE" 2>/dev/null || stat -f '%Lp' "$ENV_FILE" 2>/dev/null || echo "?")"
+if [ "$MODE_ENV" != "600" ] && [ "$MODE_ENV" != "?" ]; then
+  rouge "REFUS : ${ENV_FILE} est en mode ${MODE_ENV}."
+  rouge "  Il porte tous les mots de passe de ${CIBLE}. Corriger :"
+  rouge "      chmod 600 ${ENV_FILE}"
+  exit 1
+fi
+info "environnement : ${ENV_FILE} (mode ${MODE_ENV}, lu sur ce poste)"
+
 COMPOSE_DISTANT=(docker --context "$CONTEXTE" compose
                  --env-file "$ENV_FILE" -f "$COMPOSE" -p "hba-${CIBLE}")
 

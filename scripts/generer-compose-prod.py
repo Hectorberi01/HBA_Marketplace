@@ -150,6 +150,71 @@ MOTIFS_SUSPECTS = [
 ]
 
 
+# Reglages qui n'existent QUE en developpement, et dont la presence en
+# production empeche le demarrage — c'est leur role.
+DEV_SEULEMENT = {
+    "INTERNAL__IDENTITESNONSIGNEES":
+        "identites gRPC non signees : `AddHbaGrpc` leve hors Development",
+}
+
+
+def ancre_de_production(lignes):
+    """Rejoue l'ancre `x-dev-auth` en version production.
+
+    Les cles sont les memes — c'est le point : ce que vingt-et-un services
+    attendent ne se decide pas ici. Seules les VALEURS changent, et seulement
+    pour celles que `SECRETS` designe.
+    """
+    debut = next((i for i, l in enumerate(lignes)
+                  if l.startswith("x-dev-auth:")), None)
+    if debut is None:
+        return []
+
+    corps = []
+    for l in lignes[debut + 1:]:
+        if l.strip() and not l.startswith(" "):
+            break
+        m = re.match(r"^  ([A-Z][A-Z0-9_]*):\s*(.*)$", l)
+        if not m:
+            continue
+        cle, valeur = m.group(1), m.group(2).strip()
+
+        if cle in DEV_SEULEMENT:
+            corps.append("  # %s : retire — %s.\n" % (cle, DEV_SEULEMENT[cle]))
+            continue
+        if cle in SECRETS:
+            corps.append("  %s: ${%s:?%s est obligatoire en production}\n"
+                         % (cle, cle, cle))
+            continue
+        if cle in REMPLACEMENTS:
+            corps.append("  %s: %s\n" % (cle, REMPLACEMENTS[cle]))
+            continue
+        corps.append("  %s: %s\n" % (cle, valeur))
+
+    if not corps:
+        return []
+
+    return [
+        "# ═════════════════════════════════════════════════════════════════════════════\n",
+        "# LES CLES PARTAGEES PAR TOUS LES SERVICES.\n",
+        "#\n",
+        "# Meme forme que `x-dev-auth` dans le compose de developpement, memes cles —\n",
+        "# et c'est voulu : ce que les services attendent ne se decide pas ici. Seules\n",
+        "# les valeurs changent, remplacees par des references obligatoires.\n",
+        "#\n",
+        "# AUTHENTICATION__SIGNINGKEY et JWT__SIGNINGKEY doivent porter la MEME valeur :\n",
+        "# identity-service signe avec l'une, les autres verifient avec l'autre.\n",
+        "#\n",
+        "# INTERNAL__APIKEY doit etre IDENTIQUE partout — l'appelant la presente,\n",
+        "# l'appele la compare. Une divergence rend `NotFound`, muet sur la cause.\n",
+        "#\n",
+        "# SECURITY__SECRETPROTECTION__KEY ne se regenere PAS : ce qu'elle a chiffre ne\n",
+        "# se dechiffre pas avec la suivante.\n",
+        "# ═════════════════════════════════════════════════════════════════════════════\n",
+        "x-prod-auth: &prod-auth\n",
+    ] + corps + ["\n"]
+
+
 def bloc_de_service(lignes, debut, fin):
     """Rend (nom, lignes du bloc). `debut` est l'index de la ligne `  nom:`."""
     nom = lignes[debut].strip().rstrip(":")
@@ -159,6 +224,12 @@ def bloc_de_service(lignes, debut, fin):
             break
         corps.append(l)
     return nom, corps
+
+
+# Les services qui fusionnent l'ancre partagee. Rempli par `transformer`, relu
+# par les controles : une ancre definie que personne ne fusionne, ou l'inverse,
+# ne doit pas passer inapercu.
+fusions = []
 
 
 def transformer(nom, corps):
@@ -194,8 +265,25 @@ def transformer(nom, corps):
                 i += 1
             continue
 
-        # L'ancre de developpement porte des secrets en clair : elle saute.
+        # ═══════════════════════════════════════════════════════════════════
+        # LA FUSION CHANGE D'ANCRE — ELLE NE DISPARAIT PAS.
+        #
+        # CE QUI ETAIT CASSE : ce bloc jetait `<<: *dev-auth` et ne mettait RIEN
+        # a la place. Le raisonnement etait juste — l'ancre de developpement
+        # porte trois secrets en clair — et la conclusion fausse.
+        #
+        # Vingt-et-un services tiraient de cette ancre AUTHENTICATION__SIGNINGKEY,
+        # INTERNAL__APIKEY et SECURITY__SECRETPROTECTION__KEY. Le compose engendre
+        # n'en portait plus qu'une occurrence, celle ecrite en clair dans un seul
+        # service. Les vingt autres demarraient sans clé de signature, sans clé
+        # interne et sans clé de chiffrement.
+        #
+        # On ecrit donc une ancre de PRODUCTION, faite des memes cles mais dont
+        # les secrets sont des references `${...:?}`, et chaque service la fusionne.
+        # ═══════════════════════════════════════════════════════════════════
         if "<<: *dev-auth" in l:
+            sortie.append("      <<: *prod-auth\n")
+            fusions.append(nom)
             i += 1
             continue
 
@@ -355,6 +443,15 @@ def main():
                 entete.append("#     %s\n" % morceau)
     entete.append("# ═══════════════════════════════════════════════════════════════════════════════\n")
     entete.append("\n")
+
+    # L'ANCRE DOIT PRECEDER SES ALIAS : YAML resout dans l'ordre du document.
+    ancre = ancre_de_production(lignes)
+    if not ancre:
+        print("aucune ancre `x-dev-auth` dans la source — les cles partagees "
+              "seraient perdues pour tous les services", file=sys.stderr)
+        return 1
+    entete.extend(ancre)
+
     entete.append("services:\n")
 
     corps_total = []
@@ -417,6 +514,33 @@ def main():
         if combien != 1:
             print("REFUS : %d section(s) `%s` dans le rendu, une seule attendue."
                   % (combien, section), file=sys.stderr)
+            return 1
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # CHAQUE SERVICE QUI FUSIONNAIT L'ANCRE DOIT ENCORE LA FUSIONNER.
+    #
+    # Le defaut que ce controle ferme : la fusion `<<: *dev-auth` etait jetee
+    # sans remplacement, et vingt-et-un services perdaient leur cle de
+    # signature, leur cle interne et leur cle de chiffrement. Le fichier restait
+    # du YAML valide, Compose demarrait, et les services rendaient 401 partout.
+    #
+    # On compare donc ce que la source demandait a ce que le rendu porte. Une
+    # ancre definie que personne ne fusionne compte aussi comme un echec : elle
+    # signalerait que le remplacement n'a pas eu lieu.
+    # ═══════════════════════════════════════════════════════════════════════
+    attendues = len(fusions)
+    obtenues = sum(1 for l in rendu.splitlines() if l.strip() == "<<: *prod-auth")
+    if attendues == 0 or obtenues != attendues:
+        print("REFUS : %d service(s) fusionnaient l'ancre partagée, %d la fusionnent "
+              "dans le rendu." % (attendues, obtenues), file=sys.stderr)
+        print("    Sans elle : ni clé de signature, ni clé interne, ni clé de "
+              "chiffrement.", file=sys.stderr)
+        return 1
+
+    for cle in DEV_SEULEMENT:
+        if any(l.strip().startswith(cle + ":") for l in rendu.splitlines()):
+            print("REFUS : %s survit au rendu — ce réglage empêche le démarrage "
+                  "hors Development." % cle, file=sys.stderr)
             return 1
 
     if fuites:
