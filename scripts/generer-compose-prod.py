@@ -71,6 +71,14 @@ BLOQUES = {
         "deux adaptateurs gRPC restent des bouchons — la marchandise retournée "
         "n'est jamais remise en stock, et aucune course d'enlèvement n'est "
         "créée alors qu'un numéro est rendu au client.",
+    "payment-service":
+        "PaymentsModuleInstaller REFUSE de démarrer en production sans "
+        "prestataire réel : il faut au moins une clé PSP pour encaisser, et "
+        "une clé FedaPay LIVE avec EnablePayouts=true pour verser. Ces deux "
+        "gardes sont délibérées — une passerelle simulée marquerait les "
+        "commandes « payées » et clôturerait les retraits vendeur sans qu'un "
+        "centime ne bouge. CONSÉQUENCE : aucun encaissement, aucun versement, "
+        "et les appels gRPC d'order-service vers le paiement échouent.",
 }
 
 # Tout ce qui ne sera PAS dans `services:` — et qu'aucun `depends_on` ne doit

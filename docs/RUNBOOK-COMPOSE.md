@@ -29,9 +29,20 @@ marchandise retournée n'est jamais remise en stock, et aucune course d'enlèvem
 n'est créée alors qu'un numéro est rendu au client. Le troisième — la vérification
 des preuves photo — a été écrit le 29 août.
 
-**payment-service est déployé mais n'encaisse rien.** En production, une
-passerelle non configurée n'est pas simulée : elle n'est pas enregistrée du tout.
-Aucune clé Stripe, PayPal ou Moov n'est fournie.
+**payment-service — écarté, et c'est plus grave que « il n'encaisse rien ».**
+Cette ligne disait qu'il était déployé sans encaisser. C'était faux : il **refuse
+de démarrer**. `PaymentsModuleInstaller` lève dans deux cas, tous deux réunis
+aujourd'hui — aucune clé PSP pour encaisser, et pas de clé FedaPay LIVE avec
+`EnablePayouts=true` pour verser.
+
+Les deux gardes sont délibérées et justes. Une passerelle simulée marquerait les
+commandes « payées » sans qu'un centime ne bouge, et clôturerait un retrait
+vendeur en « payé » avec un solde débité — sans moyen de distinguer après coup un
+versement simulé d'un versement réel perdu.
+
+Conséquence : aucun encaissement, aucun versement, et les appels gRPC
+d'order-service vers le paiement échouent. Le jour où une clé existe, le retirer
+de `BLOQUES` dans `scripts/generer-compose-prod.py` suffit.
 
 ---
 
