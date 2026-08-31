@@ -73,6 +73,73 @@ patches:
         value: http://otel-collector:4317
 
   # ═══════════════════════════════════════════════════════════════════════
+  # KAFKA DESCEND À UN COURTIER — DÉCISION DU 31 AOÛT 2026.
+  #
+  # LA PRODUCTION TOURNE SUR UN SEUL NŒUD (k3s sur 79.137.35.129).
+  #
+  # `node-pool.yaml` demande 3 répliques et `cluster.yaml` demande
+  # `default.replication.factor: 3` avec `min.insync.replicas: 2`. Ces réglages
+  # protègent d'une PERTE DE NŒUD : trois copies sur trois machines, une écriture
+  # acquittée seulement quand deux d'entre elles l'ont reçue.
+  #
+  # SUR UN NŒUD UNIQUE, CETTE PROTECTION N'EXISTE PAS. Les trois répliques
+  # atterrissent sur le même disque, dans le même noyau, derrière le même
+  # onduleur. La panne dont elles protègent les emporte toutes les trois
+  # ensemble. La garantie est ÉCRITE mais pas OBTENUE — le même défaut que les
+  # patches morts documentés plus bas, sous une autre forme.
+  #
+  # ET ELLE COÛTE. Trois brokers réservent 1500m de CPU et 3 Gi de mémoire, plus
+  # 90 Gi de volumes, pour trois copies du même flux sur le même support.
+  #
+  # POURQUOI CE N'EST PAS QU'UNE QUESTION DE CAPACITÉ : à trois répliques
+  # DEMANDÉES sur un seul broker DISPONIBLE, Strimzi refuse la création des
+  # topics (« replication factor larger than available brokers ») et les
+  # partitions restent sans leader. Les services démarrent, et le premier
+  # événement publié reste en attente sans message qui nomme la cause. Laisser 3
+  # ici ne serait donc pas « prudent », ce serait cassé.
+  #
+  # LES DEUX PATCHES SONT APPARIÉS, comme dans le calque staging : un pool à 1
+  # avec un facteur 3 laisse tout sous-répliqué ; un facteur 1 sur un pool resté
+  # à 3 gâche deux machines. Les changer ensemble, jamais l'un sans l'autre.
+  # `min.insync.replicas: 1` est OBLIGATOIRE ici : avec la valeur 2 et un seul
+  # broker, TOUTE écriture Kafka bloquerait faute d'une seconde copie à attendre.
+  #
+  # CE QUE CE CHANGEMENT NE COUVRE PAS. Il ne remplace pas la durabilité perdue :
+  # avec un courtier, la perte du disque perd les messages non encore consommés.
+  # Ce qui protège réellement le dépôt reste la table `outbox_messages` en base —
+  # sur un AUTRE serveur — que `OutboxRetryPolicy` rejoue. Le jour où un second
+  # nœud rejoint le cluster, ces deux patches et `kafka-topics.yaml` (via
+  # `scripts/k8s-kafka-topics.py`) reviennent à 3 et 2, ensemble.
+  # ═══════════════════════════════════════════════════════════════════════
+  - target:
+      kind: KafkaNodePool
+      name: broker
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  - target:
+      kind: Kafka
+      name: kafka
+    patch: |-
+      - op: replace
+        path: /spec/kafka/config/default.replication.factor
+        value: 1
+      - op: replace
+        path: /spec/kafka/config/min.insync.replicas
+        value: 1
+      - op: replace
+        path: /spec/kafka/config/offsets.topic.replication.factor
+        value: 1
+      - op: replace
+        path: /spec/kafka/config/transaction.state.log.replication.factor
+        value: 1
+      - op: replace
+        path: /spec/kafka/config/transaction.state.log.min.isr
+        value: 1
+
+  # ═══════════════════════════════════════════════════════════════════════
   # CINQ DE CES PATCHES NE DÉSIGNAIENT RIEN — LIRE AVANT D'EN AJOUTER UN.
   #
   # Ce bloc en comptait DIX. Cinq visaient des noms que la base ne produit pas,
@@ -472,4 +539,16 @@ images:
     newTag: "REMPLACE-PAR-LA-PROMOTION"
   - name: hba/delivery-pricing-service
     newName: ghcr.io/hectorberi01/delivery-pricing-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/food-cart-service
+    newName: ghcr.io/hectorberi01/food-cart-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/food-order-service
+    newName: ghcr.io/hectorberi01/food-order-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/restaurant-service
+    newName: ghcr.io/hectorberi01/restaurant-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/route-service
+    newName: ghcr.io/hectorberi01/route-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"

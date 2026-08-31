@@ -60,6 +60,14 @@ CLES = [
     ("CONNECTIONSTRINGS__DELIVERY", "hba_delivery"),
     ("CONNECTIONSTRINGS__DRIVER", "hba_delivery"),
     ("CONNECTIONSTRINGS__DELIVERYPRICING", "hba_delivery"),
+    # route-service partage lui aussi hba_delivery.
+    ("CONNECTIONSTRINGS__ROUTE", "hba_delivery"),
+    # Les trois services food partagent hba_food. Une cle par service quand meme :
+    # le jour ou l'un demenage vers sa propre base, on change une valeur ici et
+    # aucun manifeste.
+    ("CONNECTIONSTRINGS__FOODCART", "hba_food"),
+    ("CONNECTIONSTRINGS__FOODORDER", "hba_food"),
+    ("CONNECTIONSTRINGS__RESTAURANT", "hba_food"),
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -92,9 +100,44 @@ def engendrer_hex_32():
     return secrets.token_hex(32)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE DEFAUT REDIS ETAIT `redis:6379`, SANS MOT DE PASSE — ET IL PASSAIT TOUS LES
+# CONTROLES.
+#
+# `k8s/base/data/redis/statefulset.yaml` demarre Redis avec `--requirepass`, le
+# mot de passe venant du Secret `redis`. Une chaine de connexion sans
+# `password=` est donc REFUSEE par Redis — mais elle n'est pas VIDE, donc
+# `check-secrets-cluster.sh` la voyait bonne, et rien ne levait au demarrage des
+# services. Le symptome serait arrive au premier acces : `NOAUTH Authentication
+# required`, longtemps apres le deploiement, et loin de sa cause.
+#
+# CE SCRIPT ENGENDRE DESORMAIS LE MOT DE PASSE ET ECRIT LES DEUX OBJETS.
+#
+# Le meme secret alimente la chaine de connexion de `hba-platform` ET le Secret
+# `redis` que lit le StatefulSet, ecrits dans le MEME fichier de sortie. Les
+# deux ne peuvent plus diverger : un seul `kubectl apply` les pose ensemble.
+# C'etait jusqu'ici une discipline humaine — deux commandes a ne pas separer —
+# et une discipline humaine finit toujours par etre separee.
+#
+# QUAND LA VALEUR VIENT D'AILLEURS, LE SECOND OBJET N'EST PAS ECRIT. Une valeur
+# reprise du cluster ou posee en variable d'environnement suppose un Secret
+# `redis` deja en place et deja accorde : le reecrire avec un mot de passe neuf
+# casserait Redis. Le script verifie alors seulement qu'il EXISTE, et le signale
+# s'il manque.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Retient le mot de passe Redis engendre pendant ce passage, pour que le second
+# objet YAML porte exactement la meme valeur que la chaine de connexion.
+REDIS_ENGENDRE = {}
+
+
+def engendrer_connexion_redis():
+    REDIS_ENGENDRE["password"] = base64.b64encode(secrets.token_bytes(24)).decode("ascii")
+    return "redis:6379,password=%s" % REDIS_ENGENDRE["password"]
+
+
 AUTRES_CLES = {
-    # Redis tourne dans le cluster : le nom du Service suffit, ce n'est pas un secret.
-    "REDIS__CONNECTIONSTRING": lambda: "redis:6379",
+    "REDIS__CONNECTIONSTRING": engendrer_connexion_redis,
     "AUTHENTICATION__SIGNINGKEY": engendrer_base64_48,
     "INTERNAL__APIKEY": engendrer_hex_32,
     "SECURITY__SECRETPROTECTION__KEY": engendrer_hex_32,
@@ -196,6 +239,19 @@ def valeurs_du_cluster(namespace):
             # quelle, encodee, pour ne pas la perdre.
             valeurs[cle] = None
     return valeurs, "Secret %s lu dans %s" % (NOM_SECRET, namespace)
+
+
+def secret_existe(namespace, nom):
+    """Vrai si le Secret existe deja. Aucune valeur n'est lue ni affichee."""
+    if not shutil.which("kubectl"):
+        return None
+    try:
+        r = subprocess.run(
+            ["kubectl", "-n", namespace, "get", "secret", nom],
+            capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.returncode == 0
 
 
 def main():
@@ -316,7 +372,51 @@ def main():
         # configuration de conteneur, pas de guillemets manquants.
         lignes.append('  %s: "%s"' % (cle, encodee))
 
-    os.makedirs(os.path.dirname(sortie), exist_ok=True)
+    # ═══════════════════════════════════════════════════════════════════════
+    # LE SECRET `redis`, DANS LE MEME FICHIER — POUR QU'IL SOIT POSE ENSEMBLE.
+    #
+    # Le StatefulSet Redis lit `password` ici ; les services lisent la chaine de
+    # connexion ci-dessus. Deux valeurs differentes ne levent NULLE PART au
+    # demarrage : elles rendent `NOAUTH Authentication required` au premier
+    # acces. Les ecrire dans le meme document, depuis la meme variable, est ce
+    # qui rend la divergence impossible.
+    # ═══════════════════════════════════════════════════════════════════════
+    if REDIS_ENGENDRE:
+        encodee = base64.b64encode(
+            REDIS_ENGENDRE["password"].encode("utf-8")).decode("ascii")
+        lignes += [
+            "---",
+            "apiVersion: v1",
+            "kind: Secret",
+            "metadata:",
+            "  name: redis",
+            "  namespace: %s" % namespace,
+            "type: Opaque",
+            "data:",
+            '  password: "%s"' % encodee,
+        ]
+        print("  Secret redis  : ECRIT dans le meme fichier (mot de passe engendre)")
+    else:
+        present = secret_existe(namespace, "redis")
+        if present is False:
+            print("  Secret redis  : ABSENT du cluster, et ce script n'a pas engendre "
+                  "de mot de passe (la chaine vient du cluster ou de l'environnement).",
+                  file=sys.stderr)
+            print("                  Redis restera en CreateContainerConfigError. "
+                  "Poser le Secret `redis` avec le MEME mot de passe que celui "
+                  "contenu dans REDIS__CONNECTIONSTRING.", file=sys.stderr)
+        elif present is True:
+            print("  Secret redis  : deja present, laisse intact")
+        else:
+            print("  Secret redis  : non verifie (kubectl indisponible)")
+
+    # `os.path.dirname` rend une chaine VIDE pour un nom de fichier nu, et
+    # `os.makedirs("")` leve `FileNotFoundError` sur un chemin vide — une trace
+    # qui pointe `os.mkdir` et ne dit rien de la cause. Le cas se produit des
+    # qu'on ecrit dans le repertoire courant : `... out.txt secret.yaml`.
+    dossier = os.path.dirname(os.path.abspath(sortie))
+    if dossier:
+        os.makedirs(dossier, exist_ok=True)
     # Ouverture en 0600 des la creation : pas de fenetre ou le fichier est lisible.
     fd = os.open(sortie, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as f:

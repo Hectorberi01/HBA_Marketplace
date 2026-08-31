@@ -295,7 +295,7 @@ images:
 #
 # Ce kustomization existe pour etre applique SEUL, avant les services :
 #
-#     kubectl apply -k k8s/migrations-prod
+#     kubectl apply -k k8s/overlays/migrations-prod
 #
 # L'inclure dans la base ferait tourner une migration a chaque `apply -k`, donc
 # a chaque changement de configuration sans rapport. Une migration se declenche,
@@ -326,6 +326,23 @@ resources:
     chemin_prod = os.path.join(RACINE, "k8s", "overlays", "prod", "kustomization.yaml")
     chemin_migr = os.path.join(RACINE, "k8s", "overlays", "migrations-prod",
                                "kustomization.yaml")
+    # L'ABSENCE DE L'UN DES DEUX FICHIERS EST UNE ANOMALIE, PAS UN CAS NORMAL.
+    #
+    # Ce `if` etait MUET dans les deux sens : un calque renomme, deplace ou
+    # simplement absent faisait sauter l'etape, et le script annoncait quand
+    # meme sa reussite. Les dix-huit Jobs seraient restes sur
+    # `hba/<service>:latest`, un tag qui n'est dans aucun registre — et le
+    # symptome ne serait apparu qu'au `kubectl apply`, en ImagePullBackOff, qui
+    # se lit comme un probleme de droits sur le registre.
+    #
+    # Les deux chemins existent aujourd'hui ; ce garde-fou est la pour le jour
+    # ou l'un des deux bougera.
+    for chemin in (chemin_prod, chemin_migr):
+        if not os.path.exists(chemin):
+            anomalies.append(
+                "%s est absent : les Jobs restent sur des images non publiees"
+                % os.path.relpath(chemin, RACINE))
+
     if os.path.exists(chemin_prod) and os.path.exists(chemin_migr):
         with open(chemin_prod, encoding="utf-8") as f:
             images_prod = re.findall(

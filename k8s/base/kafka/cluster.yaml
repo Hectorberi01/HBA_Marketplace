@@ -22,6 +22,23 @@
 # ces garanties n'y sont pas observables, et trois brokers y coûteraient trois
 # fois le stockage pour rien.
 # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# `v1beta2` FIXE LA VERSION DE L'OPÉRATEUR STRIMZI — NE PAS INSTALLER « latest ».
+#
+# Strimzi 1.0.0 (avril 2026) NE SERT PLUS QUE L'API `v1` : `v1beta2`, `v1beta1`
+# et `v1alpha1` y sont retirées. Installer l'opérateur « latest » sur ce dépôt
+# fait échouer `kubectl apply -k` sur « no matches for kind "Kafka" in version
+# "kafka.strimzi.io/v1beta2" » — pour ce fichier, pour `node-pool.yaml`, et pour
+# les vingt `KafkaTopic` de chaque calque.
+#
+# LA VERSION ÉPINGLÉE EST 0.51.0, la dernière du cycle 0.x, qui sert encore
+# `v1beta2`. `docs/RUNBOOK-K3S.md` (étape 6) l'installe explicitement.
+#
+# L'ÉCHEC EST BRUYANT, ET C'EST LA SEULE BONNE NOUVELLE : il arrive au `apply`,
+# pas six heures plus tard. Passer en `v1` demande de convertir CES TROIS
+# FAMILLES de ressources et les CRD, dans cet ordre — c'est un chantier à part,
+# pas une étape d'installation.
+# ═══════════════════════════════════════════════════════════════════════════════
 apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:

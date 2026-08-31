@@ -26,3 +26,4 @@ resources:
   # - secret.yaml            # voir l'encadré ci-dessus — créé par kubectl, pas par kustomize
   # - secret-identites.yaml  # idem : identités gRPC, engendrées par scripts/generer-identites-internes.sh
   # - secret-notifications.yaml  # idem : compte de service Firebase, monté en fichier par notification-service
+  # - secret-paiements.yaml      # idem : clés FedaPay — une clé live déplace de l'argent, elle ne voyage pas par envFrom

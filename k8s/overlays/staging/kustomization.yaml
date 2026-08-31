@@ -269,3 +269,15 @@ images:
   - name: hba/api-gateway
     newName: ghcr.io/hectorberi01/api-gateway
     newTag: "main"
+  - name: hba/food-cart-service
+    newName: ghcr.io/hectorberi01/food-cart-service
+    newTag: "main"
+  - name: hba/food-order-service
+    newName: ghcr.io/hectorberi01/food-order-service
+    newTag: "main"
+  - name: hba/restaurant-service
+    newName: ghcr.io/hectorberi01/restaurant-service
+    newTag: "main"
+  - name: hba/route-service
+    newName: ghcr.io/hectorberi01/route-service
+    newTag: "main"

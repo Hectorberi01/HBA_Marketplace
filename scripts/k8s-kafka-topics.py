@@ -50,12 +50,32 @@ OPTIONS_CS = os.path.join(KAFKA, "KafkaEventBusOptions.cs")
 # commentaires du fichier citent des noms de sujets, jamais sous cette forme.
 ENTREE = re.compile(r'\["([A-Za-z0-9._-]+)"\]\s*=\s*"([A-Za-z0-9._-]+)"')
 
-# Réplication : le §9 exige 3 en production. Un seul courtier en dev et staging —
-# trois y coûteraient trois fois le stockage pour une garantie que personne n'y
-# observe, et la création échouerait (« replication factor larger than available
-# brokers »).
-REPLICAS = {"dev": 1, "staging": 1, "prod": 3}
-MIN_ISR = {"dev": 1, "staging": 1, "prod": 2}
+# Réplication : un seul courtier partout, y compris en production depuis le
+# 31 août 2026. Trois répliques coûteraient trois fois le stockage pour une
+# garantie que personne n'observe, et la création échouerait de toute façon
+# (« replication factor larger than available brokers »).
+#
+# LA PRODUCTION EST PASSÉE DE 3 À 1, ET CE N'EST PAS UN RELÂCHEMENT.
+#
+# Le §9 demande 3 parce que trois copies sur TROIS MACHINES survivent à la perte
+# de l'une d'elles. La production tourne sur un nœud k3s unique
+# (79.137.35.129) : les trois répliques vivraient sur le même disque et la panne
+# dont elles protègent les emporterait ensemble. La garantie serait écrite et
+# jamais obtenue.
+#
+# CES VALEURS SONT APPARIÉES AVEC `k8s/overlays/prod/kustomization.yaml`, qui
+# descend `KafkaNodePool/broker` à 1 réplique et les cinq facteurs du `Kafka` à
+# 1. Les trois réglages changent ENSEMBLE ou pas du tout : des topics à
+# `replicas: 3` sur un pool à 1 restent sans leader, et les producteurs bloquent
+# sans message qui nomme la cause.
+#
+# CE QUE CE CHANGEMENT NE COUVRE PAS. La durabilité perdue n'est pas remplacée
+# ici : avec un courtier, la perte du disque perd les messages non consommés. Ce
+# qui protège le dépôt reste `outbox_messages`, en base, sur un autre serveur.
+# Le jour où un second nœud rejoint le cluster, remettre 3 et 2 ci-dessous ET
+# dans le calque prod, puis régénérer.
+REPLICAS = {"dev": 1, "staging": 1, "prod": 1}
+MIN_ISR = {"dev": 1, "staging": 1, "prod": 1}
 
 # Sept jours, comme avant : c'est la rétention que le §9 demande sur un topic
 # métier. Elle est UNIFORME parce que le sujet l'est aussi — un sujet par

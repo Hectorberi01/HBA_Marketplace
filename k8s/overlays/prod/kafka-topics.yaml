@@ -71,11 +71,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -89,11 +89,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -107,11 +107,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -125,11 +125,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -143,11 +143,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -161,11 +161,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -179,11 +179,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -197,11 +197,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -215,11 +215,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -233,11 +233,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -251,11 +251,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -269,11 +269,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -287,11 +287,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -305,11 +305,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -323,11 +323,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -341,11 +341,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -359,11 +359,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -377,11 +377,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -395,11 +395,11 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -413,8 +413,8 @@ spec:
   # à une partition, un second pod du service resterait inactif. On peut en
   # ajouter, jamais en retirer — et l'ajout casse l'ordre par clé du déjà-écrit.
   partitions: 3
-  replicas: 3
+  replicas: 1
   config:
     retention.ms: "604800000"
     compression.type: lz4
-    min.insync.replicas: "2"
+    min.insync.replicas: "1"

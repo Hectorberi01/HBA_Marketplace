@@ -1,5 +1,31 @@
 name: Deploy Branches
 
+# ══════════════════════════════════════════════════════════════════════════════
+# `develop` EST LA BRANCHE DE PRODUCTION. `main` NE DEPLOIE RIEN.
+#
+# C'EST DELIBERE, ET C'EST CONTRE-INTUITIF — d'ou cet encadre.
+#
+# `main` est la branche PAR DEFAUT du depot (`origin/HEAD` y pointe). Quiconque
+# arrive sur ce projet supposera donc que `main` est la production, poussera
+# dessus, verra la CI passer au vert, et attendra un deploiement qui ne viendra
+# jamais. Aucune erreur ne s'affichera : `main` n'est simplement pas dans la
+# liste `branches:` ci-dessous, et le workflow ne se declenche pas du tout.
+#
+# La correspondance retenue le 31 aout 2026 :
+#
+#     dev      -> hba-dev       (calque dev,     sans migrations)
+#     staging  -> hba-staging   (calque staging, sans migrations)
+#     develop  -> hba-prod      (calque prod,    AVEC migrations)
+#     main     -> rien
+#
+# CE QUE CE CHOIX NE COUVRE PAS. Rien n'empeche de pousser sur `main` : la
+# branche vit, la CI la construit, et son contenu ne part jamais en production.
+# Si `main` doit un jour devenir la branche de production, il faut changer
+# TROIS endroits ensemble — la liste `branches:` du declencheur, le `case` du
+# job `cible`, et cet encadre. Changer le `case` seul ne ferait rien : le
+# workflow ne se declencherait toujours pas.
+# ══════════════════════════════════════════════════════════════════════════════
+
 on:
   workflow_run:
     workflows: ["CI"]
@@ -158,10 +184,32 @@ jobs:
               print(image["name"].removeprefix("hba/"))
           PY
 
+          # ═══════════════════════════════════════════════════════════════
+          # L'IDENTITE EST ANCREE SUR CE DEPOT ET CE WORKFLOW.
+          #
+          # CE CONTROLE ACCEPTAIT N'IMPORTE QUEL SIGNATAIRE. Avec
+          # `--certificate-identity-regexp ".*"`, cosign se contentait de
+          # verifier que l'image avait ete signee PAR UN workflow GitHub
+          # Actions — n'importe lequel, dans n'importe quel depot public de la
+          # planete. L'etape s'appelait « Verifier les signatures avant
+          # production » et ne verifiait pas la provenance : elle verifiait
+          # qu'une signature existait.
+          #
+          # Le motif ci-dessous exige `Hectorberi01/HBA_Marketplace`, le
+          # workflow `ci.yml`, et une branche du depot. Le `refs/heads/` final
+          # laisse la branche libre — dev, staging et develop signent tous — mais
+          # refuse une signature venue d'un tag ou d'une pull request forkee.
+          #
+          # CE QUE CE CONTROLE NE COUVRE PAS. Il prouve QUI a signe, pas QUOI :
+          # une image compromise signee par notre propre CI passerait. C'est le
+          # role des controles de build, pas de celui-ci.
+          # ═══════════════════════════════════════════════════════════════
+          IDENTITE='^https://github\.com/Hectorberi01/HBA_Marketplace/\.github/workflows/ci\.yml@refs/heads/'
+
           while IFS= read -r service; do
             image="ghcr.io/${PROPRIETAIRE}/${service}:${SHA}"
             ./cosign verify \
-              --certificate-identity-regexp ".*" \
+              --certificate-identity-regexp "$IDENTITE" \
               --certificate-oidc-issuer https://token.actions.githubusercontent.com \
               "$image" >/dev/null
             echo "signature OK : $image"

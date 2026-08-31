@@ -44,6 +44,24 @@ images:
   - name: hba/review-service
     newName: ghcr.io/hectorberi01/review-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/catalog-service
+    newName: ghcr.io/hectorberi01/catalog-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/cart-service
+    newName: ghcr.io/hectorberi01/cart-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/inventory-service
+    newName: ghcr.io/hectorberi01/inventory-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/order-service
+    newName: ghcr.io/hectorberi01/order-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/seller-service
+    newName: ghcr.io/hectorberi01/seller-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/return-refund-service
+    newName: ghcr.io/hectorberi01/return-refund-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
   - name: hba/delivery-service
     newName: ghcr.io/hectorberi01/delivery-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"
@@ -52,4 +70,13 @@ images:
     newTag: "REMPLACE-PAR-LA-PROMOTION"
   - name: hba/delivery-pricing-service
     newName: ghcr.io/hectorberi01/delivery-pricing-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/food-cart-service
+    newName: ghcr.io/hectorberi01/food-cart-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/food-order-service
+    newName: ghcr.io/hectorberi01/food-order-service
+    newTag: "REMPLACE-PAR-LA-PROMOTION"
+  - name: hba/restaurant-service
+    newName: ghcr.io/hectorberi01/restaurant-service
     newTag: "REMPLACE-PAR-LA-PROMOTION"

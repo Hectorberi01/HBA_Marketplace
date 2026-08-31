@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENGENDRE PAR scripts/generer-jobs-migration.py — NE PAS EDITER A LA MAIN.
 #
-# Le cablage vient de k8s/base/services/payment-service/kustomization.yaml. Modifier le
+# Le cablage vient de k8s/base/services/seller-service/kustomization.yaml. Modifier le
 # service, puis relancer le script : une divergence entre le Job et le Deployment
 # ferait migrer contre une configuration qui n'est plus celle du service.
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -68,7 +68,7 @@ spec:
             - name: ASPNETCORE_ENVIRONMENT
               value: Production
             - name: SERVICE_NAME
-              value: payment-service
+              value: seller-service
 
             # ═══════════════════════════════════════════════════════════
             # CHAQUE SERVICE SA BASE, ET C'EST CETTE ENTRÉE QUI LE FAIT.
@@ -85,7 +85,7 @@ spec:
             # d'une clé propre au service. Le mot de passe ne quitte pas le
             # Secret, donc rien de sensible n'entre dans Git.
             #
-            # Base « hba_financial » : celle qu'emploie déjà le compose de
+            # Base « hba_merchant » : celle qu'emploie déjà le compose de
             # développement. La renommer ici ferait diverger les deux
             # environnements pour un gain cosmétique.
             # ═══════════════════════════════════════════════════════════
@@ -93,13 +93,13 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: hba-platform
-                  key: CONNECTIONSTRINGS__PAYMENT
+                  key: CONNECTIONSTRINGS__SELLER
 
             # ═══════════════════════════════════════════════════════════
             # L'IDENTITÉ DE CET HÔTE, ET D'AUCUN AUTRE.
             #
             # Le nom présenté aux autres services est celui de l'assemblage
-            # d'entrée — « HBA.Financial.Api » — car `Internal:ServiceName`
+            # d'entrée — « HBA.Merchants.Api » — car `Internal:ServiceName`
             # n'est pas posé (la variable `SERVICE_NAME` ci-dessus est un
             # autre réglage, elle ne l'alimente pas). La clé du Secret suit
             # donc ce nom, exactement comme l'écrit
@@ -113,59 +113,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: hba-identites-internes
-                  key: INTERNAL_KEY_HBA_FINANCIAL_API
-
-            # ═══════════════════════════════════════════════════════════
-            # FEDAPAY — DEUX SECRETS, QUATRE DÉCISIONS.
-            #
-            # LES SECRETS VIENNENT DE `hba-paiements`, PAS DE
-            # `hba-platform`. Le gabarit monte `hba-platform` par
-            # `envFrom` : toutes ses clés, dans tous les conteneurs. Une
-            # clé `sk_live_…` y serait lisible par les dix-huit autres
-            # services, dont aucun n'encaisse. Une clé live n'est pas un
-            # mot de passe de base — elle DÉPLACE DE L'ARGENT.
-            #
-            # LES QUATRE AUTRES SONT EN CLAIR, ET C'EST VOULU. Ce ne sont
-            # pas des secrets mais des décisions : elles doivent se relire
-            # dans Git, et une revue doit pouvoir les contester.
-            #
-            # SANS L'UNE DES DEUX PREMIÈRES, LE SERVICE NE DÉMARRE PAS.
-            # `PaymentsModuleInstaller` refuse la production sans
-            # prestataire réel, et refuse aussi les versements sans clé
-            # LIVE avec `EnablePayouts`. Les deux gardes sont délibérées.
-            # ═══════════════════════════════════════════════════════════
-            - name: PAYMENTS__FEDAPAY__APIKEY
-              valueFrom:
-                secretKeyRef:
-                  name: hba-paiements
-                  key: PAYMENTS__FEDAPAY__APIKEY
-
-            - name: PAYMENTS__FEDAPAY__WEBHOOKSECRET
-              valueFrom:
-                secretKeyRef:
-                  name: hba-paiements
-                  key: PAYMENTS__FEDAPAY__WEBHOOKSECRET
-
-            # `KeyMatchesEnvironment` refuse le démarrage si la clé et
-            # l'URL ne désignent pas le même monde. `sk_live_…` exige
-            # celle-ci ; `sk_sandbox_…` exigerait sandbox-api.fedapay.com.
-            - name: PAYMENTS__FEDAPAY__BASEURL
-              value: "https://api.fedapay.com/v1"
-
-            # Les versements réels ne sont possibles qu'en LIVE : le bac à
-            # sable refuse les dépôts Mobile Money (403), et un retrait
-            # simulé serait clôturé « payé » sans qu'aucun argent ne parte.
-            - name: PAYMENTS__FEDAPAY__ENABLEPAYOUTS
-              value: "true"
-
-            - name: PAYMENTS__FEDAPAY__CURRENCY
-              value: "XOF"
-
-            # Où FedaPay notifie ET renvoie l'acheteur. Le chemin est le
-            # chemin PUBLIC : la passerelle réécrit `/api/payments/**` en
-            # `/api/financial/payments/**` avant de transmettre.
-            - name: PAYMENTS__FEDAPAY__CALLBACKURL
-              value: "https://api.hba-express.com/api/payments/webhooks/fedapay"
+                  key: INTERNAL_KEY_HBA_MERCHANTS_API
 
           resources:
             requests:

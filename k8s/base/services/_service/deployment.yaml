@@ -169,9 +169,42 @@ spec:
           # Valeurs du §7. `requests` dimensionne le placement, `limits` borne le
           # dégât d'une fuite. Les deux sont obligatoires : sans `requests`, le
           # scheduler place à l'aveugle ; sans `limits`, un pod affame ses voisins.
+          #
+          # LE `requests.cpu` EST PASSÉ DE 250m À 100m LE 31 AOÛT 2026.
+          #
+          # `requests` N'EST PAS UNE CONSOMMATION, C'EST UNE RÉSERVATION. Le
+          # scheduler soustrait la valeur de la capacité du nœud au moment du
+          # placement, que le pod s'en serve ou non, et refuse de placer dès que
+          # la somme dépasse l'allouable. À 250m, l'arbre de production réservait :
+          #
+          #   20 workloads (19 services + la passerelle),
+          #   dont 8 à deux replicas dans le calque prod          = 28 pods
+          #   28 × 250m                                           = 7000m
+          #   + Kafka 500m, Redis 100m, MinIO 100m, otel 100m     = 7800m
+          #
+          # sur les 8 vCPU du VPS — avant k3s, CoreDNS, ingress-nginx,
+          # cert-manager et l'opérateur Strimzi, qui réservent aussi. Les derniers
+          # services seraient restés `Pending` sur `Insufficient cpu`, et le
+          # message ne désigne pas le pod fautif : il désigne le dernier arrivé.
+          #
+          # À 100m la même somme fait 2800m + 700m, soit moins de la moitié du
+          # nœud, et il reste de quoi placer un pod de plus pendant un rolling
+          # update (`maxSurge: 1` ci-dessus en crée un avant de retirer l'ancien).
+          #
+          # LE COMPTE INCLUT LA PASSERELLE, qui n'est pas dans
+          # `services/kustomization.yaml` mais dans `apps/gateway` : c'est le
+          # vingtième workload, et l'oublier est l'erreur naturelle ici.
+          #
+          # CE QUE CE CHANGEMENT NE COUVRE PAS. Il ne réduit PAS ce qu'un service
+          # peut consommer : `limits` reste à 1000m, donc un pod chargé prend
+          # toujours jusqu'à un cœur entier. Il change seulement la part garantie
+          # sous contention — un service réellement affamé le sera plus tôt qu'avant,
+          # et c'est le HPA, pas cette valeur, qui doit y répondre. Il ne dit rien
+          # non plus de la mémoire, qui n'était pas la contrainte (27 × 256Mi =
+          # 6,75 Gi sur 24 Gi).
           resources:
             requests:
-              cpu: "250m"
+              cpu: "100m"
               memory: "256Mi"
             limits:
               cpu: "1000m"

@@ -83,17 +83,47 @@ resources:
   # `hba_delivery`, dont la base et le rôle existent depuis le premier passage de
   # `creer-bases.sh`.
   #
-  # `route-service` N'EST PAS LÀ, ET C'EST DÉLIBÉRÉ : l'audit du 27 août n'a
-  # trouvé aucun appelant dans le dépôt. Le déployer ferait tourner un pod que
-  # personne n'interroge.
+  # `route-service` EST LÀ DEPUIS LE 30 AOÛT, ET LA RAISON DE SON ABSENCE TIENT
+  # TOUJOURS : l'audit du 27 août n'a trouvé aucun appelant dans le dépôt, et le
+  # relevé du graphe gRPC le confirme — le domaine `route` n'apparaît dans la
+  # liste d'appels d'AUCUN hôte.
+  #
+  # On le déploie quand même, sur décision explicite : la plateforme est mise en
+  # production au complet, et un service absent est plus difficile à diagnostiquer
+  # qu'un service inutilisé. CE QUE CELA COÛTE : un pod, sa part de mémoire, et
+  # une base migrée que rien ne lit. Le jour où l'on cherche à réduire, c'est le
+  # premier candidat.
   - delivery-service
   - driver-service
   - delivery-pricing-service
+  - route-service
 
-  # ── marketplace — lot suivant, une ligne à décommenter chacune ─────────────
-  # - catalog-service
-  # - cart-service
-  # - inventory-service
-  # - order-service
-  # - seller-service
-  # - return-refund-service
+  # ── marketplace ───────────────────────────────────────────────────────────
+  #
+  # Ces six dossiers existaient, complets, et n'étaient référencés nulle part —
+  # `kustomize build` les ignorait sans un mot pendant que l'overlay de production
+  # déclarait pourtant leurs images. Le cluster n'aurait porté ni catalogue, ni
+  # panier, ni commande, ni vendeur, et la passerelle aurait routé vers des
+  # services inexistants. Un dossier non listé ne produit aucune erreur, seulement
+  # une absence.
+  #
+  # `return-refund-service` DÉMARRE, mais deux de ses adaptateurs gRPC restent des
+  # bouchons — `check-grpc-stubs.py` les nomme. La marchandise retournée n'est
+  # jamais remise en stock, et aucune course d'enlèvement n'est créée alors qu'un
+  # numéro de retour est rendu au client. Le déployer expose ces deux trous ; ne
+  # pas le déployer les cache. On choisit de les exposer.
+  - catalog-service
+  - cart-service
+  - inventory-service
+  - order-service
+  - seller-service
+  - return-refund-service
+
+  # ── food ──────────────────────────────────────────────────────────────────
+  #
+  # Les trois partagent `hba_food`. Chacun garde SA clé de chaîne de connexion :
+  # le jour où l'un déménage vers sa propre base, on change une valeur de Secret
+  # et aucun manifeste.
+  - food-cart-service
+  - food-order-service
+  - restaurant-service

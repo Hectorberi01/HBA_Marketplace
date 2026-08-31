@@ -3,7 +3,7 @@
 #
 # Ce kustomization existe pour etre applique SEUL, avant les services :
 #
-#     kubectl apply -k k8s/migrations-prod
+#     kubectl apply -k k8s/overlays/migrations-prod
 #
 # L'inclure dans la base ferait tourner une migration a chaque `apply -k`, donc
 # a chaque changement de configuration sans rapport. Une migration se declenche,
@@ -24,3 +24,12 @@ resources:
   - delivery-service
   - driver-service
   - delivery-pricing-service
+  - catalog-service
+  - cart-service
+  - inventory-service
+  - order-service
+  - seller-service
+  - return-refund-service
+  - food-cart-service
+  - food-order-service
+  - restaurant-service
