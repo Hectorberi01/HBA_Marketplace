@@ -24,6 +24,7 @@ internal sealed record VendeurInscrit(Guid UserId, Guid SellerId, HttpClient Cli
 /// </summary>
 internal static class Parcours
 {
+    
     /// <summary>
     /// Inscrit un vendeur et rend de quoi agir en son nom.
     /// </summary>
