@@ -801,7 +801,56 @@ approuve chaque déploiement de production. Sans cette règle, un merge sur
 
 ---
 
-## 15. Ce qui reste ouvert après ce runbook
+## 15. Publier depuis le poste, quand la CI bloque
+
+La CI est le chemin normal. Quand sa barrière de tests bloque et qu'il faut
+déployer malgré tout, `scripts/publier-images.sh` construit et pousse les images
+depuis le poste :
+
+```bash
+cd ~/Documents/HBA
+./scripts/publier-images.sh --sans-pousser --seulement identity-service   # éprouver d'abord
+./scripts/publier-images.sh                                              # les 21, avec publication
+```
+
+Il faut un jeton GitHub avec la portée **`write:packages`** (celui du tirage n'a
+que `read:packages`). Le script le lit sur l'entrée standard, jamais en argument.
+
+**`--platform linux/amd64` est la raison d'être de ce script.** Un Mac Apple
+Silicon construit en arm64 par défaut. Le VPS est en amd64. Une image arm64 se
+construit sans erreur, se pousse sans erreur, et le pod meurt au démarrage sur
+« exec format error » — un message qui ne nomme jamais l'architecture. La
+première construction est lente : l'étage SDK tourne sous émulation.
+
+**La liste vient de deux inventaires confrontés** : `ci-affected.py --tous` pour
+la correspondance service → Dockerfile, et les images de `k8s/overlays/prod` pour
+ce que la production réclame. Une image réclamée sans Dockerfile arrête tout —
+sinon un pod resterait en `ImagePullBackOff` sur un « denied » qui se lit comme
+un problème de droits.
+
+**Le tag est le SHA court du HEAD, et l'arbre doit être propre.** Un arbre
+modifié produirait des images dont le tag nomme un commit qui ne contient pas ce
+qu'elles portent. `--tag` force, en connaissance de cause ; `latest` est refusé.
+
+Ensuite, poser le tag et dérouler les étapes 11 et 12 — le script rappelle les
+commandes en fin d'exécution.
+
+### Ce que ce chemin ne couvre pas
+
+**Les images ne sont pas signées.** La CI signe en keyless via l'identité OIDC du
+workflow, qu'un poste ne peut pas produire. Les images publiées ainsi seront donc
+**refusées** par la vérification cosign de `cd.yml` et de `deploy-branches.yml` :
+une fois la CI de nouveau verte, il faudra republier par elle pour que la chaîne
+automatique reprenne la main.
+
+**Rien ne les a validées** sinon ce que vous avez lancé vous-même. La barrière de
+tests reste dans la CI, entière — ce script la contourne, il ne la retire pas, et
+la distinction compte : le prochain qui poussera sur `develop` retrouvera la
+porte fermée tant que le défaut n'est pas corrigé.
+
+---
+
+## 16. Ce qui reste ouvert après ce runbook
 
 - `notification-service` : adaptateur `ISmsSender` absent. **Code, pas
   configuration.**
