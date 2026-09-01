@@ -850,7 +850,66 @@ porte fermée tant que le défaut n'est pas corrigé.
 
 ---
 
-## 16. Ce qui reste ouvert après ce runbook
+## 16. Remonter les services un par un
+
+`scripts/deployer-service-prod.sh <service>` applique **les seules ressources
+d'un service** — son Deployment, son Service, son HPA, son PDB, son
+ServiceAccount — en filtrant le rendu du calque sur
+`app.kubernetes.io/name`. La ConfigMap, les Secrets et les NetworkPolicies ne
+portent pas cette étiquette et ne sont donc pas touchés.
+
+```bash
+./scripts/deployer-service-prod.sh --liste                      # ce qui est déployable
+./scripts/deployer-service-prod.sh identity-service             # un service
+./scripts/deployer-service-prod.sh catalog-service --tag <sha>  # avec une nouvelle image
+```
+
+Il **refuse** si le contexte `kubectl` ne vise pas `79.137.35.129`. Le contexte
+`orbstack` du poste répond lui aussi : se tromper de cluster ne rend aucune
+erreur, l'objet est appliqué — ailleurs. C'est arrivé deux fois pendant
+l'installation.
+
+### L'ordre, et pourquoi il est celui-là
+
+**1. `identity-service`.** Tout le monde en dépend : c'est lui qui émet les
+jetons que les dix-huit autres valident. Un défaut ici se lit partout ailleurs
+en 401, et on cherche au mauvais endroit.
+
+**2. `user-service`, `media-service`.** Les socles transverses. media porte les
+pièces KYB et les images produit ; user, les profils. Ils n'appellent presque
+personne.
+
+**3. `catalog-service`, `inventory-service`.** La donnée produit. catalog
+interroge inventory ; ni l'un ni l'autre n'a besoin du reste.
+
+**4. `seller-service`, `promotion-service`, `review-service`.** Ils lisent
+catalog et media, et sont lus par le panier.
+
+**5. `cart-service`, `order-service`, `payment-service`.** Le chemin d'achat.
+C'est le premier palier où un appel gRPC traverse trois services : si les
+identités internes sont mauvaises, c'est ici que ça se voit.
+
+**6. `delivery-service`, `driver-service`, `delivery-pricing-service`,
+`route-service`.** La livraison, qui consomme les commandes.
+
+**7. `food-cart-service`, `food-order-service`, `restaurant-service`.** Le lot
+restauration, indépendant du reste.
+
+**8. `api-gateway`, en dernier.** C'est la porte d'entrée : la remonter avant
+les autres exposerait des services à moitié prêts, et les clients verraient des
+502 sur des routes qui allaient fonctionner deux minutes plus tard.
+
+### Ce que la sonde ne dit pas
+
+Un rollout vert prouve que le processus démarre et se déclare prêt. Il ne prouve
+pas qu'un appel métier aboutit. À chaque palier, éprouvez une route réelle — et
+au palier 5, une route qui **traverse deux services** : c'est le seul moyen de
+vérifier les identités gRPC. Un `Unauthenticated` là désigne une clé privée qui
+ne correspond pas au registre public, et rien d'autre ne le révèle.
+
+---
+
+## 17. Ce qui reste ouvert après ce runbook
 
 - `notification-service` : adaptateur `ISmsSender` absent. **Code, pas
   configuration.**
