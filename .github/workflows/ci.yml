@@ -127,7 +127,32 @@ jobs:
         continue-on-error: true
         run: dotnet list HBA.sln package --vulnerable --include-transitive
 
-      - run: dotnet test HBA.sln --configuration Release --no-build --logger "trx;LogFileName=tests.trx"
+      # ═════════════════════════════════════════════════════════════════════
+      # LE SECOND LOGGER REND VISIBLE CE QUI MANQUAIT LE PLUS.
+      #
+      # Avec le seul logger `trx`, un echec d'integration ne laisse que le
+      # message de l'assertion et le corps de la reponse HTTP. Or nos reponses
+      # 500 ne portent qu'un `correlationId` : l'EXCEPTION est ecrite par le
+      # gestionnaire global dans les journaux de l'hote de test, et ces
+      # journaux n'apparaissaient nulle part.
+      #
+      # Consequence vecue les 30 et 31 aout : vingt-trois echecs identiques,
+      # deux soirees d'analyse statique, et la cause jamais lue — seulement sa
+      # consequence. `console;verbosity=detailed` fait remonter la sortie de
+      # l'hote dans le journal du job.
+      #
+      # CE QUE CA COUTE : un journal de job nettement plus volumineux. C'est le
+      # prix d'un echec diagnosticable du premier coup, et il est bien
+      # inferieur au temps qu'on vient d'y passer.
+      #
+      # CE QUE CA NE COUVRE PAS : rien n'est capture si l'hote de test coupe
+      # ses propres fournisseurs de journalisation. Si un echec reste muet
+      # malgre ce logger, c'est la fixture qu'il faut regarder, pas ce reglage.
+      # ═════════════════════════════════════════════════════════════════════
+      - run: |
+          dotnet test HBA.sln --configuration Release --no-build \
+            --logger "trx;LogFileName=tests.trx" \
+            --logger "console;verbosity=detailed"
 
       - name: Conserver les résultats de test
         if: always()

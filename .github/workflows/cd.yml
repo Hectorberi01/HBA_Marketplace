@@ -103,10 +103,27 @@ jobs:
           print(' '.join(i['name'].removeprefix('hba/') for i in k.get('images', [])))
           ")
 
+          # ═══════════════════════════════════════════════════════════════
+          # L'IDENTITE EST ANCREE SUR CE DEPOT ET CE WORKFLOW.
+          #
+          # Le motif etait `.*` : cosign se contentait alors de verifier que
+          # l'image avait ete signee PAR UN workflow GitHub Actions — n'importe
+          # lequel, dans n'importe quel depot public. Le commentaire ci-dessus
+          # dit « la CI de ce depot » ; le controle, lui, ne le verifiait pas.
+          #
+          # Meme motif que dans `deploy-branches.yml`, et pour la meme raison :
+          # les deux chemins de promotion doivent exiger la meme provenance,
+          # sinon celui qu'on resserre n'est qu'une fausse assurance sur l'autre.
+          #
+          # CE QUE CE CONTROLE NE COUVRE PAS. Il prouve QUI a signe, pas QUOI :
+          # une image compromise signee par notre propre CI passerait.
+          # ═══════════════════════════════════════════════════════════════
+          IDENTITE='^https://github\.com/Hectorberi01/HBA_Marketplace/\.github/workflows/ci\.yml@refs/heads/'
+
           for service in $services; do
             image="ghcr.io/${{ env.PROPRIETAIRE }}/${service}:${{ inputs.sha }}"
             if ! ./cosign verify \
-                  --certificate-identity-regexp ".*" \
+                  --certificate-identity-regexp "$IDENTITE" \
                   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
                   "$image" >/dev/null 2>&1; then
               echo "::error::$image non signée ou absente — promotion refusée"
