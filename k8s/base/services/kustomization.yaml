@@ -117,7 +117,41 @@ resources:
   - inventory-service
   - order-service
   - seller-service
-  - return-refund-service
+  # ═══════════════════════════════════════════════════════════════════════════
+  # return-refund-service EST RETIRÉ DU LOT — REFUS DÉLIBÉRÉ DE SON PROPRE CODE.
+  #
+  # `ReturnRefundModuleInstaller.GuardSimulatedGrpcAdapters` bloque le démarrage
+  # en production parce que DEUX de ses adaptateurs gRPC sont simulés : ils
+  # fabriquent leur réponse et rendent un succès sans contacter personne.
+  #
+  #   • `InventoryGrpcClient.ProcessReturnedStockAsync` — la marchandise
+  #     retournée n'est JAMAIS remise en stock, alors que le retour est clos
+  #     « remettable en rayon » ;
+  #   • `DeliveryGrpcClient.CreateReturnDeliveryAsync` — AUCUNE course
+  #     d'enlèvement n'est créée ; le numéro rendu au client ne correspond à rien.
+  #
+  # LE GARDE A RAISON, ET C'EST POUR ÇA QU'ON LE SUIT. Sans lui, le service
+  # démarrerait, traiterait des retours, et produirait des effets métier qui
+  # n'existent pas — sans une erreur, sans une ligne de journal, et sans aucun
+  # moyen de reconstituer après coup ce qui aurait dû se passer.
+  #
+  # CONSTATÉ LE 1er SEPTEMBRE 2026 au premier déploiement réel : son Job de
+  # migration échoue AUSSI, parce que le garde s'exécute dans `AddHbaService`,
+  # donc AVANT `MigrateHbaDatabaseAsync`. Le laisser dans le lot bloquait le
+  # `kubectl wait` sur les dix-huit Jobs.
+  #
+  # CE QUE SON ABSENCE COÛTE : aucun retour ni remboursement n'est traité. Le
+  # reste de la marketplace fonctionne — le panier, la commande, le paiement et
+  # l'expédition ne dépendent pas de lui.
+  #
+  # POUR LE RÉINTÉGRER : implémenter réellement ces deux appels (clients gRPC
+  # engendrés depuis les .proto d'inventory-service et delivery-service), puis
+  # retirer leur ligne de `GuardSimulatedGrpcAdapters`. Sa base est partagée
+  # avec cart (`hba_commerce`, déjà migrée) et ses clés sont déjà en place :
+  # décommenter la ligne suivante suffira, puis régénérer les Jobs avec
+  # `python3 scripts/generer-jobs-migration.py`.
+  # ═══════════════════════════════════════════════════════════════════════════
+  # - return-refund-service
 
   # ── food ──────────────────────────────────────────────────────────────────
   #

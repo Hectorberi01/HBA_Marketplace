@@ -29,7 +29,6 @@ resources:
   - inventory-service
   - order-service
   - seller-service
-  - return-refund-service
   - food-cart-service
   - food-order-service
   - restaurant-service

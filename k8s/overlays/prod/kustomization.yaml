@@ -491,64 +491,64 @@ patches:
 images:
   - name: hba/identity-service
     newName: ghcr.io/hectorberi01/identity-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/user-service
     newName: ghcr.io/hectorberi01/user-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/media-service
     newName: ghcr.io/hectorberi01/media-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/notification-service
     newName: ghcr.io/hectorberi01/notification-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/payment-service
     newName: ghcr.io/hectorberi01/payment-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/promotion-service
     newName: ghcr.io/hectorberi01/promotion-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/review-service
     newName: ghcr.io/hectorberi01/review-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/catalog-service
     newName: ghcr.io/hectorberi01/catalog-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/cart-service
     newName: ghcr.io/hectorberi01/cart-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/inventory-service
     newName: ghcr.io/hectorberi01/inventory-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/order-service
     newName: ghcr.io/hectorberi01/order-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/seller-service
     newName: ghcr.io/hectorberi01/seller-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/return-refund-service
     newName: ghcr.io/hectorberi01/return-refund-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/api-gateway
     newName: ghcr.io/hectorberi01/api-gateway
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/delivery-service
     newName: ghcr.io/hectorberi01/delivery-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/driver-service
     newName: ghcr.io/hectorberi01/driver-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/delivery-pricing-service
     newName: ghcr.io/hectorberi01/delivery-pricing-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/food-cart-service
     newName: ghcr.io/hectorberi01/food-cart-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/food-order-service
     newName: ghcr.io/hectorberi01/food-order-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/restaurant-service
     newName: ghcr.io/hectorberi01/restaurant-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"
   - name: hba/route-service
     newName: ghcr.io/hectorberi01/route-service
-    newTag: "REMPLACE-PAR-LA-PROMOTION"
+    newTag: "3f5bbbab346b"

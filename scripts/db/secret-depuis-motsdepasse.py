@@ -338,6 +338,30 @@ def main():
                 "elle vient — l'ajouter a AUTRES_CLES ou la poser en variable "
                 "d'environnement" % cle)
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # `JWT__SIGNINGKEY` EST UNE COPIE DE `AUTHENTICATION__SIGNINGKEY`.
+    #
+    # Le socle lit `Authentication:SigningKey` pour VALIDER les jetons ;
+    # identity-service lit `Jwt:SigningKey` pour les EMETTRE. Deux noms
+    # historiques, un seul secret.
+    #
+    # ELLE EST DERIVEE ICI, ET NON RESOLUE COMME LES AUTRES. Si on la laissait
+    # passer par `AUTRES_CLES`, elle serait ENGENDREE independamment au premier
+    # deploiement : identity signerait avec une valeur, les dix-neuf autres
+    # services valideraient avec une autre, et TOUT appel authentifie reviendrait
+    # en 401 — sans qu'aucun journal ne nomme la cause. La divergence doit etre
+    # impossible par construction, pas evitee par discipline.
+    #
+    # CE QUE CA NE COUVRE PAS : si quelqu'un pose `JWT__SIGNINGKEY` a la main
+    # dans le cluster avec une autre valeur, ce script la REMPLACE au prochain
+    # passage. C'est voulu — l'egalite prime sur ce qui a ete pose a part.
+    # ═══════════════════════════════════════════════════════════════════════
+    if "JWT__SIGNINGKEY" in declarees and "AUTHENTICATION__SIGNINGKEY" in valeurs:
+        valeurs["JWT__SIGNINGKEY"] = valeurs["AUTHENTICATION__SIGNINGKEY"]
+        origine["JWT__SIGNINGKEY"] = "COPIE de AUTHENTICATION__SIGNINGKEY"
+        anomalies = [a for a in anomalies
+                     if not a.startswith("JWT__SIGNINGKEY :")]
+
     if anomalies:
         for a in anomalies:
             print("  ANOMALIE " + a, file=sys.stderr)

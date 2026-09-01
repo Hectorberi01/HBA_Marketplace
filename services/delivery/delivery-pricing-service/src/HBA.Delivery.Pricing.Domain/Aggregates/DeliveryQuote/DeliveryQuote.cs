@@ -42,6 +42,77 @@ public sealed record DeliveryQuote(
     string PricingVersion,
     string Status)
 {
+    // ═════════════════════════════════════════════════════════════════════════
+    // LE CONSTRUCTEUR QU'EF SAIT LIER — SANS LUI, LE SERVICE NE DÉMARRE PAS.
+    //
+    // CE DÉFAUT A EMPÊCHÉ delivery-pricing-service DE DÉMARRER, DEPUIS TOUJOURS.
+    //
+    // EF Core ne peut lier à un paramètre de constructeur que des propriétés
+    // MAPPÉES. `Pickup`, `Dropoff` et `Components` sont déclarés `OwnsOne` dans
+    // `DeliveryPricingDbContext` : ce sont des NAVIGATIONS vers des types
+    // possédés, et EF refuse explicitement de les lier. Le message est net :
+    //
+    //   No suitable constructor was found for entity type 'DeliveryQuote'.
+    //   Cannot bind 'Pickup', 'Dropoff', 'Components' in 'DeliveryQuote(...)'
+    //
+    // L'ÉCHEC ARRIVE À LA FINALISATION DU MODÈLE, donc au démarrage de l'hôte —
+    // avant la moindre requête, et avant même la migration. Constaté le
+    // 1er septembre 2026 sur le premier Job de migration de production.
+    //
+    // POURQUOI AUCUN TEST NE L'A VU. Les 50 tests de `HBA.Delivery.UnitTests`
+    // n'instancient jamais le `DbContext` : ils éprouvent le calcul de prix, pas
+    // la persistance. Le modèle EF n'était donc finalisé nulle part avant la
+    // production. C'est le trou de couverture qu'il faut retenir de ce défaut,
+    // plus que le défaut lui-même.
+    //
+    // CE CONSTRUCTEUR NE PORTE QUE DES SCALAIRES. EF le choisit — il retient
+    // celui dont il sait lier le plus de paramètres — puis pose `Pickup`,
+    // `Dropoff` et `Components` par leurs navigations, comme il le fait pour
+    // tout type possédé. Il est `private` : personne d'autre qu'EF ne doit
+    // construire un devis sans lieu ni décomposition de prix.
+    //
+    // CE QU'IL NE COUVRE PAS. Il ne change ni le schéma, ni les colonnes, ni le
+    // constructeur public : le reste du code continue de construire un devis
+    // complet, en une fois. Et il ne dispense pas d'un test qui finalise le
+    // modèle — sans lui, le prochain type possédé ajouté ici casserait de la
+    // même façon, et se découvrirait au même endroit.
+    // ═════════════════════════════════════════════════════════════════════════
+    private DeliveryQuote(
+        Guid id,
+        Guid? sellerId,
+        Guid? storeId,
+        int distanceMeters,
+        int durationSeconds,
+        string? vehicleType,
+        string serviceLevel,
+        long subtotal,
+        long discount,
+        long total,
+        string currency,
+        DateTimeOffset expiresAt,
+        string pricingVersion,
+        string status)
+        : this(
+            id,
+            sellerId,
+            storeId,
+            null!,
+            null!,
+            distanceMeters,
+            durationSeconds,
+            vehicleType,
+            serviceLevel,
+            subtotal,
+            null!,
+            discount,
+            total,
+            currency,
+            expiresAt,
+            pricingVersion,
+            status)
+    {
+    }
+
     public Guid? ConsumedByDeliveryId { get; init; }
     public DateTimeOffset? ConsumedAt { get; init; }
 
