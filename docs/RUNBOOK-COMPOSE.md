@@ -1,5 +1,18 @@
 # Runbook — déploiement Docker Compose de production
 
+> **Depuis le 2 septembre 2026, une partie des commandes de ce document
+> n'existe plus.** L'outillage de déploiement local a été supprimé : `ansible/`,
+> `scripts/deployer.sh`, `scripts/deployer-ansible.sh`,
+> `scripts/deployer-service-prod.sh`, `scripts/migrer-prod.sh`,
+> `scripts/publier-images.sh`, et neuf scripts Python.
+>
+> Le déploiement passe désormais par la CI :
+> **`.github/workflows/deploy-compose.yml`** pour la production Compose +
+> Traefik, **`.github/workflows/deploy-branches.yml`** pour Kubernetes.
+> Les explications de ce runbook restent valables — ce sont les commandes qui
+> ont déménagé, pas les raisons.
+
+
 | | |
 |---|---|
 | VPS applicatif | **79.137.35.129** |
@@ -140,7 +153,7 @@ Elles se saisissent dans l'onglet **Environment Variables** de la ressource, et
 non dans un fichier. La liste exacte se lit sans rien afficher de secret :
 
 ```bash
-python3 scripts/verifier-env-compose.py docker-compose.prod.yml
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 ```
 
 #### Ne jamais coller le bloc de la section 1 dans Coolify
@@ -284,7 +297,7 @@ n'en porte qu'une. C'est une lacune connue, notée à la fin de ce runbook.
 depuis le Mac :
 
 ```bash
-./scripts/deployer.sh prod --migrer --sujets
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 ```
 
 Il enchaîne : contrôles du dépôt, `dotnet build`, `dotnet test`, puis
@@ -318,9 +331,9 @@ La production demande une confirmation tapée.
 ### Ce que le script fait aussi
 
 ```bash
-./scripts/deployer.sh dev --sujets          # tout en local
-./scripts/deployer.sh staging --migrer      # 193.168.145.162
-./scripts/deployer.sh prod --sans-build     # redéployer sans reconstruire
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 ```
 
 Compose s'arrête sur la première variable d'environnement manquante en la

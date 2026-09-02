@@ -1,7 +1,12 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # TOPICS KAFKA — ENVIRONNEMENT « prod » (§9).
 #
-# FICHIER GÉNÉRÉ PAR `scripts/k8s-kafka-topics.py`. NE PAS ÉDITER À LA MAIN.
+# TENU À LA MAIN depuis le 2 septembre 2026.
+#
+# Ce fichier était généré par `scripts/k8s-kafka-topics.py`, supprimé avec
+# l'outillage Python. `scripts/check-kafka-topics.py` continue de vérifier que
+# cette liste est bien le miroir de `HbaTopics.DomaineParService` : une
+# divergence introduite à la main ne passera pas la barrière.
 #
 # CETTE LISTE EST LE MIROIR DE `HbaTopics.DomaineParService`.
 #
@@ -55,8 +60,8 @@
 # rien dire. Le §19.2 remet l'environnement dans le nom, et c'est une de ses
 # raisons d'être.
 #
-# Régénérer après tout ajout de service au catalogue :
-#     python3 scripts/k8s-kafka-topics.py
+# Après tout ajout de service au catalogue, ajouter le sujet ici, puis
+# contrôler avec `python3 scripts/check-kafka-topics.py`.
 # ═══════════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: kafka.strimzi.io/v1beta2

@@ -1059,7 +1059,7 @@ def main():
     # « denied », qui se lit comme un jeton sans droits.
     #
     # La reference est `ci-affected.py --tous` : la meme source que la matrice
-    # de construction de la CI et que `publier-images.sh`. Trois inventaires,
+    # de construction de la CI. Deux inventaires,
     # une seule verite.
     #
     # CE QUE CE CONTROLE NE COUVRE PAS : il verifie que l'image est PUBLIABLE,

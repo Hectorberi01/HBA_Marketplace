@@ -60,7 +60,7 @@ titre "Images"
 if [ "$ENVIRONNEMENT" = "prod" ]; then
   if grep -q "REMPLACE-PAR-LA-PROMOTION" "$TMP"; then
     ko "l'overlay prod porte encore le placeholder REMPLACE-PAR-LA-PROMOTION"
-    echo "Lancer d'abord la promotion CI/CD ou scripts/poser-tag-prod.py <sha>." >&2
+    echo "Lancer d'abord la promotion CI/CD (workflow CD) : elle pose le tag." >&2
     exit 1
   fi
 fi

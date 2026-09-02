@@ -1,5 +1,18 @@
 # Guide de deploiement Kubernetes - dev, staging, production
 
+> **Depuis le 2 septembre 2026, une partie des commandes de ce document
+> n'existe plus.** L'outillage de déploiement local a été supprimé : `ansible/`,
+> `scripts/deployer.sh`, `scripts/deployer-ansible.sh`,
+> `scripts/deployer-service-prod.sh`, `scripts/migrer-prod.sh`,
+> `scripts/publier-images.sh`, et neuf scripts Python.
+>
+> Le déploiement passe désormais par la CI :
+> **`.github/workflows/deploy-compose.yml`** pour la production Compose +
+> Traefik, **`.github/workflows/deploy-branches.yml`** pour Kubernetes.
+> Les explications de ce runbook restent valables — ce sont les commandes qui
+> ont déménagé, pas les raisons.
+
+
 Ce document explique comment deployer HBAExpress avec Kubernetes, Ansible et CI/CD, en partant du principe que le lecteur ne connait pas encore ces outils.
 
 Il est volontairement pratique : chaque section explique d'abord les mots importants, puis donne les commandes a executer, puis indique comment verifier que l'etape a vraiment fonctionne.
@@ -177,7 +190,7 @@ Outils recommandes :
 Depuis la racine du depot :
 
 ```bash
-python3 scripts/k8s-kafka-topics.py
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 python3 scripts/check-k8s.py
 kustomize build k8s/overlays/dev >/tmp/hba-dev.yaml
 kustomize build k8s/overlays/staging >/tmp/hba-staging.yaml
@@ -870,7 +883,7 @@ Exemples :
 Les topics doivent etre declares dans les overlays :
 
 ```bash
-python3 scripts/k8s-kafka-topics.py
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 kubectl -n hba-staging get kafkatopics
 ```
 

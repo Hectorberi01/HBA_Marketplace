@@ -1,5 +1,18 @@
 # Déploiement et vérification — local, dev, pré-production, production
 
+> **Depuis le 2 septembre 2026, une partie des commandes de ce document
+> n'existe plus.** L'outillage de déploiement local a été supprimé : `ansible/`,
+> `scripts/deployer.sh`, `scripts/deployer-ansible.sh`,
+> `scripts/deployer-service-prod.sh`, `scripts/migrer-prod.sh`,
+> `scripts/publier-images.sh`, et neuf scripts Python.
+>
+> Le déploiement passe désormais par la CI :
+> **`.github/workflows/deploy-compose.yml`** pour la production Compose +
+> Traefik, **`.github/workflows/deploy-branches.yml`** pour Kubernetes.
+> Les explications de ce runbook restent valables — ce sont les commandes qui
+> ont déménagé, pas les raisons.
+
+
 > **Ce document décrit les quatre étages dans l'ordre où on les traverse.**
 > Chaque étage a une question à laquelle il répond, et une seule. Sauter un
 > étage, c'est reporter sa question à l'étage suivant — où elle coûte dix fois
@@ -751,12 +764,12 @@ la connexion fonctionnerait très bien.
 
 ```bash
 # staging
-python3 scripts/db/secret-depuis-motsdepasse.py --env staging ./motsdepasse-<horodatage>.txt
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 kubectl -n hba-staging apply -f ~/secrets-hba-staging/secret-hba-platform.yaml
 ./scripts/check-secrets-cluster.sh staging
 
 # production
-python3 scripts/db/secret-depuis-motsdepasse.py --env prod ./motsdepasse-<horodatage>.txt
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 kubectl -n hba-prod apply -f ~/secrets-hba-prod/secret-hba-platform.yaml
 ./scripts/check-secrets-cluster.sh prod
 ```

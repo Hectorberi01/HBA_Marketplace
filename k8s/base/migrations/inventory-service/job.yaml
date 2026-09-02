@@ -1,5 +1,10 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# ENGENDRE PAR scripts/generer-jobs-migration.py — NE PAS EDITER A LA MAIN.
+# TENU A LA MAIN depuis le 2 septembre 2026.
+#
+# Ce fichier etait engendre par `scripts/generer-jobs-migration.py`, supprime
+# avec l'outillage Python. Le generateur sera repris par l'outil de controles
+# .NET ; d'ici la, ajouter un service de migration se fait a la main, ici et
+# dans `kustomization.yaml`, et RIEN ne verifie que les deux concordent.
 #
 # Le cablage vient de k8s/base/services/inventory-service/kustomization.yaml. Modifier le
 # service, puis relancer le script : une divergence entre le Job et le Deployment

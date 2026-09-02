@@ -1,5 +1,18 @@
 # RUNBOOK — k3s sur le VPS de production
 
+> **Depuis le 2 septembre 2026, une partie des commandes de ce document
+> n'existe plus.** L'outillage de déploiement local a été supprimé : `ansible/`,
+> `scripts/deployer.sh`, `scripts/deployer-ansible.sh`,
+> `scripts/deployer-service-prod.sh`, `scripts/migrer-prod.sh`,
+> `scripts/publier-images.sh`, et neuf scripts Python.
+>
+> Le déploiement passe désormais par la CI :
+> **`.github/workflows/deploy-compose.yml`** pour la production Compose +
+> Traefik, **`.github/workflows/deploy-branches.yml`** pour Kubernetes.
+> Les explications de ce runbook restent valables — ce sont les commandes qui
+> ont déménagé, pas les raisons.
+
+
 > Cible : `79.137.35.129` (8 vCPU, 24 Go, 200 Go), utilisateur `ubuntu`,
 > SSH `ovh-server` (port 8022, clé dédiée).
 > Base de données : VPS séparé, joignable en `10.20.0.2:5432` par WireGuard.
@@ -346,7 +359,7 @@ l'historique du shell et la sortie d'un terminal.
 
 ```bash
 chmod 600 ~/hba-prod.env          # le script refuse tout autre mode
-python3 scripts/db/motsdepasse-depuis-env.py ~/hba-prod.env ~/hba-motsdepasse-prod.txt
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 ```
 
 Il n'affiche que des noms de rôles et des longueurs. La liste des rôles attendus
@@ -387,7 +400,7 @@ déménage vers sa propre base, on change une valeur ici et aucun manifeste.
 
 ```bash
 export KUBECONFIG=~/.kube/hba-prod.yaml
-python3 scripts/db/secret-depuis-motsdepasse.py --env prod \
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
   ~/hba-motsdepasse-prod.txt /tmp/secret-hba-platform.yaml
 
 kubectl apply -f /tmp/secret-hba-platform.yaml
@@ -433,7 +446,7 @@ read -rs AUTHENTICATION__SIGNINGKEY;      export AUTHENTICATION__SIGNINGKEY
 read -rs INTERNAL__APIKEY;                export INTERNAL__APIKEY
 read -rs SECURITY__SECRETPROTECTION__KEY; export SECURITY__SECRETPROTECTION__KEY
 
-python3 scripts/db/secret-depuis-motsdepasse.py --env prod \
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
   ~/hba-motsdepasse-prod.txt /tmp/secret-hba-platform.yaml
 
 unset AUTHENTICATION__SIGNINGKEY INTERNAL__APIKEY SECURITY__SECRETPROTECTION__KEY
@@ -809,8 +822,8 @@ depuis le poste :
 
 ```bash
 cd ~/Documents/HBA
-./scripts/publier-images.sh --sans-pousser --seulement identity-service   # éprouver d'abord
-./scripts/publier-images.sh                                              # les 21, avec publication
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 ```
 
 Il faut un jeton GitHub avec la portée **`write:packages`** (celui du tirage n'a
@@ -859,9 +872,9 @@ ServiceAccount — en filtrant le rendu du calque sur
 portent pas cette étiquette et ne sont donc pas touchés.
 
 ```bash
-./scripts/deployer-service-prod.sh --liste                      # ce qui est déployable
-./scripts/deployer-service-prod.sh identity-service             # un service
-./scripts/deployer-service-prod.sh catalog-service --tag <sha>  # avec une nouvelle image
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 ```
 
 Il **refuse** si le contexte `kubectl` ne vise pas `79.137.35.129`. Le contexte

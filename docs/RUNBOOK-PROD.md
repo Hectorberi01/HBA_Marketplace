@@ -1,5 +1,18 @@
 # Runbook — premier déploiement en production
 
+> **Depuis le 2 septembre 2026, une partie des commandes de ce document
+> n'existe plus.** L'outillage de déploiement local a été supprimé : `ansible/`,
+> `scripts/deployer.sh`, `scripts/deployer-ansible.sh`,
+> `scripts/deployer-service-prod.sh`, `scripts/migrer-prod.sh`,
+> `scripts/publier-images.sh`, et neuf scripts Python.
+>
+> Le déploiement passe désormais par la CI :
+> **`.github/workflows/deploy-compose.yml`** pour la production Compose +
+> Traefik, **`.github/workflows/deploy-branches.yml`** pour Kubernetes.
+> Les explications de ce runbook restent valables — ce sont les commandes qui
+> ont déménagé, pas les raisons.
+
+
 | | |
 |---|---|
 | VPS applicatif | **79.137.35.129** |
@@ -154,7 +167,7 @@ export AUTHENTICATION__SIGNINGKEY="$(openssl rand -base64 48)"
 export INTERNAL__APIKEY="$(openssl rand -hex 32)"
 export SECURITY__SECRETPROTECTION__KEY="$(openssl rand -hex 32)"
 
-python3 scripts/db/secret-depuis-motsdepasse.py --env prod ./motsdepasse-<horodatage>.txt
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 kubectl -n hba-prod apply -f ~/secrets-hba-prod/secret-hba-platform.yaml
 ./scripts/check-secrets-cluster.sh prod
 ```
@@ -264,7 +277,7 @@ git pull
 Pour le faire depuis le poste plutôt que par le workflow :
 
 ```bash
-python3 scripts/poser-tag-prod.py <tag>
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 ```
 
 Le §13 exige une image immuable : `latest`, `main` et le placeholder sont

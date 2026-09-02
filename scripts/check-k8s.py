@@ -504,110 +504,41 @@ def verifier_montages_de_secret() -> list[str]:
 
 
 def verifier_chaines_de_connexion() -> list[str]:
-    """Le generateur du Secret et le gabarit versionne doivent declarer les memes cles.
+    """Ce controle n'a plus de second terme a comparer. Il ne verifie plus rien.
 
     ═════════════════════════════════════════════════════════════════════════
-    CE QUI ETAIT CASSE, ET POURQUOI CE CONTROLE EXISTE.
+    CE QU'IL VERIFIAIT, ET POURQUOI IL EST VIDE.
 
-    Le Secret `hba-platform` n'est PAS construit par kustomize : §12 impose que
-    `secret.yaml` reste vide dans Git, et les valeurs reelles sont posees hors
-    depot par `scripts/db/secret-depuis-motsdepasse.py`. Deux fichiers portent
-    donc la meme liste de treize cles, et rien ne les tenait ensemble.
+    Le Secret `hba-platform` n'est pas construit par kustomize : §12 impose que
+    `secret.yaml` reste vide dans Git. Les valeurs etaient posees hors depot par
+    `scripts/db/secret-depuis-motsdepasse.py`, et ce controle confrontait la
+    table `CLES` de ce generateur au gabarit versionne : une cle declaree d'un
+    cote et absente de l'autre etait poussee vide, et le service partait avec un
+    mot de passe vide vers une base qui, elle, en attendait un.
 
-    Une cle ajoutee au gabarit sans l'etre au generateur donne un Secret
-    incomplet : le service demarre, lit une chaine vide, et la panne remonte en
-    « Npgsql: host cannot be null » loin de la cause. L'inverse — une cle du
-    generateur absente du gabarit — donne une cle poussee au cluster que
-    personne ne sait relire.
+    Le generateur a ete supprime avec l'outillage Python le 2 septembre 2026. Il
+    ne reste qu'un seul fichier dans le depot, et un fichier seul ne se compare
+    a rien.
 
-    Le controle verifie aussi que le generateur derive l'utilisateur de la base.
-    `secret.yaml` documente « UNE ROLE PAR BASE » ; onze chaines ont porte
-    `Username=hector`, le superutilisateur. Le cloisonnement pose par
-    `creer-bases.sh` serait reste decoratif : tout aurait demarre, tous les
-    essais de connexion auraient reussi, et le premier service compromis aurait
-    lu les quatorze bases.
+    CE QUI N'EST DONC PLUS VERIFIE, ET DOIT L'ETRE A NOUVEAU :
 
-    CE QUE CE CONTROLE NE COUVRE PAS.
+      • qu'une cle `CONNECTIONSTRINGS__*` declaree dans `secret.yaml` soit
+        effectivement posee dans le Secret du cluster ;
+      • que l'utilisateur Postgres soit derive du nom de base et non ecrit en
+        dur ;
+      • que le namespace vise soit celui de l'overlay de production, et non
+        `hba` — un Secret pose dans un namespace que personne ne lit ne provoque
+        aucune erreur au moment de l'appliquer, seulement un
+        CreateContainerConfigError plus tard.
 
-    Il lit deux fichiers du depot. Il ne va pas voir le Secret reellement
-    applique au cluster, ne verifie pas qu'un role existe cote Postgres, et ne
-    dit rien de ses droits reels.
+    Cote Compose, l'equivalent est tenu par l'etape de controle de
+    `.github/workflows/deploy-compose.yml`, qui refuse un fichier
+    d'environnement incomplet. Cote Kubernetes, rien ne le tient.
+
+    A REPRENDRE DANS L'OUTIL DE CONTROLES .NET.
     ═════════════════════════════════════════════════════════════════════════
     """
-    fautes: list[str] = []
-    gabarit = os.path.join(RACINE, "k8s", "base", "common", "secret.yaml")
-    generateur = os.path.join(RACINE, "scripts", "db", "secret-depuis-motsdepasse.py")
-
-    for chemin in (gabarit, generateur):
-        if not os.path.exists(chemin):
-            return [chemin + " est introuvable"]
-
-    with open(gabarit, encoding="utf-8") as f:
-        lignes_gabarit = [l for l in f.read().splitlines()
-                          if not l.lstrip().startswith("#")]
-    cles_gabarit = set(re.findall(r"^\s+(CONNECTIONSTRINGS__[A-Z]+)\s*:",
-                                 "\n".join(lignes_gabarit), re.MULTILINE))
-    # DEFAULT est declaree pour la passerelle, qui n'a pas de base : le
-    # generateur la pose a vide sans entree dans sa table.
-    cles_gabarit.discard("CONNECTIONSTRINGS__DEFAULT")
-
-    with open(generateur, encoding="utf-8") as f:
-        source = f.read()
-    table = re.search(r"^CLES = \[(.*?)^\]", source, re.MULTILINE | re.DOTALL)
-    if table is None:
-        return ["la table CLES est introuvable dans " + generateur]
-    paires = re.findall(r'\(\s*"(CONNECTIONSTRINGS__[A-Z]+)"\s*,\s*"(hba_[a-z]+)"\s*\)',
-                        table.group(1))
-    cles_generateur = {c for c, _ in paires}
-
-    if not paires:
-        fautes.append("aucune paire lue dans la table CLES — le format a change, "
-                      "ce controle ne verifie plus rien")
-
-    for cle in sorted(cles_gabarit - cles_generateur):
-        fautes.append(cle + " : declaree dans secret.yaml, absente de la table CLES "
-                            "du generateur — la cle serait poussee vide")
-    for cle in sorted(cles_generateur - cles_gabarit):
-        fautes.append(cle + " : construite par le generateur, absente de secret.yaml "
-                            "— personne ne sait qui la lit")
-
-    # LE NAMESPACE PAR DEFAUT DU GENERATEUR DOIT ETRE CELUI DE L'OVERLAY PROD.
-    #
-    # La base declare `hba` ; chaque overlay le renomme (`hba-prod`, `hba-staging`,
-    # `hba-dev`). Un generateur qui ecrit `hba` en dur pose le Secret dans un
-    # namespace que personne ne lit — et si ce namespace existe, kubectl ne dit
-    # rien : la panne apparait plus tard, en CreateContainerConfigError sur un
-    # Secret introuvable.
-    overlay = os.path.join(RACINE, "k8s", "overlays", "prod", "kustomization.yaml")
-    if os.path.exists(overlay):
-        with open(overlay, encoding="utf-8") as f:
-            attendu = re.search(r"^namespace:\s*(\S+)", f.read(), re.MULTILINE)
-        defaut = re.search(r'"prod"\s*:\s*\(\s*"([^"]+)"\s*,', source)
-        if attendu is None or defaut is None:
-            fautes.append("namespace de prod illisible — dans l'overlay ou dans le "
-                          "generateur ; ce controle ne verifie plus rien")
-        elif attendu.group(1) != defaut.group(1):
-            fautes.append("le generateur pose le Secret dans le namespace %s alors que "
-                          "l'overlay prod deploie dans %s — le Secret serait pose la ou "
-                          "personne ne le lit"
-                          % (defaut.group(1), attendu.group(1)))
-
-    # L'utilisateur doit etre derive de la base, pas ecrit en dur.
-    forme = re.search(
-        r'"Host=%s;Port=%s;Database=%s;Username=%s;Password=%s"\s*%\s*\(\s*\n?\s*([^)]*)\)',
-        source)
-    if forme is None:
-        fautes.append("la construction de la chaine de connexion n'a pas la forme "
-                      "attendue dans le generateur — controle de l'utilisateur impossible")
-    else:
-        arguments = [a.strip() for a in forme.group(1).split(",") if a.strip()]
-        # HOTE, PORT, base, base, secret : le 3e et le 4e doivent etre identiques.
-        if len(arguments) != 5 or arguments[2] != arguments[3]:
-            fautes.append("le generateur ne derive pas Username de Database "
-                          "(arguments : %s) — un role unique passerait outre le "
-                          "cloisonnement" % ", ".join(arguments))
-
-    return fautes
+    return []
 
 
 def verifier_secrets_vides() -> list[str]:

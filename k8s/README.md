@@ -123,7 +123,7 @@ Le §19.2 met l'environnement dans le nom du topic, donc les trois listes diffè
 et Kustomize ne sait pas réécrire un segment au milieu d'un nom.
 
 ```bash
-python3 scripts/k8s-kafka-topics.py     # après tout ajout d'événement
+# commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 ```
 
 `check-k8s.py` refuse un fichier périmé. La raison : un topic manquant n'échoue
