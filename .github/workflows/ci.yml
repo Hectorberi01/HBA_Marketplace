@@ -239,6 +239,32 @@ jobs:
           fi
           echo "✓ Les $passes projets de test passent."
 
+      # ═════════════════════════════════════════════════════════════════════
+      # NOMMER LE PROJET NE SUFFIT PAS : IL FAUT NOMMER LE CAS.
+      #
+      # La boucle ci-dessus dit « HBA.Merchants.IntegrationTests a échoué ».
+      # Pour savoir LEQUEL de ses trente-huit cas est tombé, il fallait ensuite
+      # dérouler le journal du job — lisible des seuls administrateurs du
+      # dépôt — ou télécharger l'artefact `.trx`, qui demande la même chose.
+      # Autrement dit : la cause d'un échec n'était accessible qu'à une
+      # personne, et seulement depuis un poste.
+      #
+      # Ce pas relit les `.trx` et écrit le nom du cas, son assertion et le
+      # haut de sa pile dans le résumé de l'exécution, visible sur la page du
+      # run par quiconque voit le dépôt.
+      #
+      # `if: failure()` : sur un vert il n'y a rien à raconter.
+      #
+      # CE QUE ÇA NE COUVRE PAS : un projet dont l'hôte de test meurt avant
+      # d'écrire son rapport ne laisse aucun `.trx`. Le verbe le DIT plutôt que
+      # de conclure « aucun échec ».
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Détail des cas en échec
+        if: failure()
+        run: |
+          dotnet run --project tools/HBA.Controls -c Release --no-build \
+            --verbosity quiet -- resume-tests
+
       - name: Conserver les résultats de test
         if: always()
         uses: actions/upload-artifact@v4

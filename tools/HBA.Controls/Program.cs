@@ -15,6 +15,9 @@ using HBA.Controls.Controles;
 //     dotnet run --project tools/HBA.Controls -- compose-prod
 //         engendre docker-compose.prod.yml depuis docker-compose.dev.yml.
 //
+//     dotnet run --project tools/HBA.Controls -- resume-tests [dossier]
+//         relit les rapports .trx et nomme les cas de test en échec.
+//
 // IL REMPLACE PROGRESSIVEMENT `scripts/check-*.py`. Tant que le portage n'est
 // pas fini, les deux coexistent et `scripts/check-all.sh` lance les deux : un
 // contrôle porté est RETIRÉ du côté Python dans le même commit que son arrivée
@@ -70,11 +73,19 @@ if (args.Length > 0 && args[0] == ComposeProd.Verbe)
     return ComposeProd.Executer();
 }
 
+// `resume-tests` ne rend pas non plus de verdict : il RELIT les rapports `.trx`
+// d'une exécution de tests et nomme les cas tombés. Il rend toujours 0 — le
+// rouge appartient à `dotnet test`, qui l'a déjà posé.
+if (args.Length > 0 && args[0] == ResumeTests.Verbe)
+{
+    return ResumeTests.Executer(args);
+}
+
 var demandes = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
 
 // Un contrôle qui porterait le nom d'un verbe deviendrait inatteignable, en
 // silence. On refuse la collision plutôt que de la découvrir en production.
-string[] verbes = [ImagesAffectees.Verbe, ComposeProd.Verbe];
+string[] verbes = [ImagesAffectees.Verbe, ComposeProd.Verbe, ResumeTests.Verbe];
 var collision = controles.FirstOrDefault(c => verbes.Contains(c.Nom));
 if (collision is not null)
 {
