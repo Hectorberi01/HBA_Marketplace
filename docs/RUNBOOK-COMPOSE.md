@@ -22,10 +22,11 @@
 
 **18 services applicatifs** plus Redis, Kafka, MinIO, rembg et la passerelle.
 
-`docker-compose.prod.yml` est **engendré** par `scripts/generer-compose-prod.py`
-depuis `docker-compose.dev.yml`. Ne pas l'éditer à la main : la prochaine
-génération écraserait la correction. Corriger le service dans le compose de
-développement, puis relancer le script.
+`docker-compose.prod.yml` est **engendré** par
+`dotnet run --project tools/HBA.Controls -- compose-prod` depuis
+`docker-compose.dev.yml`. Ne pas l'éditer à la main : la prochaine génération
+écraserait la correction. Corriger le service dans le compose de développement,
+puis relancer.
 
 ---
 

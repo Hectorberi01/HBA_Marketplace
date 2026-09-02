@@ -48,6 +48,17 @@ public static class ImagesAffectees
 
     private sealed record Image(string Nom, string Dockerfile, IReadOnlyList<string> Dossiers);
 
+    /// <summary>
+    /// Les noms des images que la CI sait publier.
+    /// </summary>
+    /// <remarks>
+    /// `generer-compose-prod` lisait cette liste en lançant `ci-affected.py` en
+    /// sous-processus, puis en analysant son JSON. Ici c'est un appel de
+    /// méthode : même source de vérité, une source de panne en moins.
+    /// </remarks>
+    public static HashSet<string> NomsPubliables()
+        => Catalogue().Select(i => i.Nom).ToHashSet(StringComparer.Ordinal);
+
     /// <summary>Point d'entrée. Rend le code de sortie du processus.</summary>
     public static int Executer(string[] args)
     {

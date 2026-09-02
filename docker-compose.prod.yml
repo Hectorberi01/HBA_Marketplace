@@ -1,18 +1,19 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# ENGENDRÉ PAR scripts/generer-compose-prod.py — NE PAS ÉDITER À LA MAIN.
+# ENGENDRÉ PAR `dotnet run --project tools/HBA.Controls -- compose-prod`.
+# NE PAS ÉDITER À LA MAIN.
 #
 # La source est `docker-compose.dev.yml`, seule description complète des vingt
-# services. Modifier un service là-bas, puis relancer le script : un second
-# compose écrit à la main divergerait au premier changement de variable, et la
-# divergence ne se verrait qu'en production.
+# services. Modifier un service là-bas, puis relancer : un second compose écrit
+# à la main divergerait au premier changement de variable, et la divergence ne
+# se verrait qu'en production.
 #
 # LES VALEURS NE SONT PAS ICI. Chaque secret est une référence `${VAR:?...}` :
 # Compose REFUSE de démarrer si la variable est absente, plutôt que de lancer un
 # service avec une chaîne vide. Les valeurs vivent dans un fichier d'environnement
-# hors du dépôt — voir docs/RUNBOOK-COMPOSE.md.
+# hors du dépôt — voir docs/RUNBOOK-TRAEFIK.md.
 #
-# CE QUE CE FICHIER NE PORTE PAS : le proxy TLS qui sert api.hba-express.com, la
-# création des buckets MinIO, et les migrations de base. Tout est dans le runbook.
+# CE QUE CE FICHIER NE PORTE PAS : la création des buckets MinIO et les
+# migrations de base. Tout est dans le runbook.
 #
 # SERVICES ÉCARTÉS, ET POURQUOI :
 #

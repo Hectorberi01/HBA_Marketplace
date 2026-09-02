@@ -12,6 +12,9 @@ using HBA.Controls.Controles;
 //     dotnet run --project tools/HBA.Controls -- images-affectees --tous
 //         la matrice de construction de la CI, en JSON sur la sortie standard.
 //
+//     dotnet run --project tools/HBA.Controls -- compose-prod
+//         engendre docker-compose.prod.yml depuis docker-compose.dev.yml.
+//
 // IL REMPLACE PROGRESSIVEMENT `scripts/check-*.py`. Tant que le portage n'est
 // pas fini, les deux coexistent et `scripts/check-all.sh` lance les deux : un
 // contrôle porté est RETIRÉ du côté Python dans le même commit que son arrivée
@@ -42,13 +45,20 @@ if (args.Length > 0 && args[0] == ImagesAffectees.Verbe)
     return ImagesAffectees.Executer(args);
 }
 
+if (args.Length > 0 && args[0] == ComposeProd.Verbe)
+{
+    return ComposeProd.Executer();
+}
+
 var demandes = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
 
 // Un contrôle qui porterait le nom d'un verbe deviendrait inatteignable, en
 // silence. On refuse la collision plutôt que de la découvrir en production.
-if (controles.Any(c => c.Nom == ImagesAffectees.Verbe))
+string[] verbes = [ImagesAffectees.Verbe, ComposeProd.Verbe];
+var collision = controles.FirstOrDefault(c => verbes.Contains(c.Nom));
+if (collision is not null)
 {
-    Console.Error.WriteLine($"un contrôle porte le nom du verbe « {ImagesAffectees.Verbe} » : "
+    Console.Error.WriteLine($"un contrôle porte le nom du verbe « {collision.Nom} » : "
                             + "il ne pourrait jamais être lancé");
     return 2;
 }
