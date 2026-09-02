@@ -224,6 +224,46 @@ def variable_de_cle(projet):
     return "INTERNAL_KEY_" + projet.upper().replace(".", "_")
 
 
+def build_de_bloc(corps):
+    """Rend le `build:` d'un bloc de service, sous la forme d'un dictionnaire.
+
+    ═════════════════════════════════════════════════════════════════════════
+    POURQUOI PAS PyYAML.
+
+    Ce script LISAIT le compose source avec PyYAML pour cette seule
+    information. Sur une machine sans PyYAML — la situation par défaut d'un
+    macOS neuf — il s'arrêtait sur un `ModuleNotFoundError` au milieu de la
+    barrière de déploiement, alors que tout le reste de son travail est
+    strictement ligne à ligne et n'a jamais eu besoin d'une bibliothèque.
+
+    Les autres contrôles du dépôt s'AUTORISENT à s'ignorer quand PyYAML manque.
+    Un générateur ne le peut pas : son produit est le compose de production. Il
+    doit donc marcher partout, avec la bibliothèque standard seule.
+
+    CE QUE CETTE FONCTION NE COUVRE PAS : la forme courte `build: ./chemin`,
+    qui rendait déjà `None` avec PyYAML (`isinstance(build, dict)` était faux),
+    et les ancres YAML à l'intérieur d'un `build:`. Le compose source n'en
+    utilise pas ; si cela changeait, la clé privée du service concerné
+    manquerait — et le contrôle des clés, plus bas, le dirait.
+    ═════════════════════════════════════════════════════════════════════════
+    """
+    for i, ligne in enumerate(corps):
+        if ligne.rstrip() != "    build:":
+            continue
+        champs = {}
+        for suite in corps[i + 1:]:
+            if not suite.strip():
+                continue
+            indentation = len(suite) - len(suite.lstrip())
+            if indentation <= 4:
+                break
+            paire = re.match(r"\s*([a-z_]+)\s*:\s*(.*?)\s*$", suite)
+            if paire:
+                champs[paire.group(1)] = paire.group(2).strip("\"'")
+        return champs or None
+    return None
+
+
 AJOUTS_ENVIRONNEMENT = {
     "payment-service": [
         ("PAYMENTS__FEDAPAY__APIKEY",
@@ -790,10 +830,9 @@ def main():
 
     retenus, ecartes = [], []
     # LES CLES PRIVEES, DERIVEES DES DOCKERFILE.
-    import yaml as _y
-    source_chargee = _y.safe_load("".join(lignes))
-    for nom_service, valeur in (source_chargee.get("services") or {}).items():
-        projet = projet_de_service(valeur.get("build"))
+    for d in debuts:
+        nom_service, corps_service = bloc_de_service(lignes, d, fin_services)
+        projet = projet_de_service(build_de_bloc(corps_service))
         if projet:
             CLES_INTERNES[nom_service] = variable_de_cle(projet)
 
