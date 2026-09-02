@@ -428,7 +428,9 @@ public sealed class AutorisationsGrpcControle : IControle
         if (fautes.Count > 0)
         {
             fautes.Add(
-                "`dotnet run --project tools/HBA.Controls -- autorisations-grpc régénère la table. "
+                "la RÉGÉNÉRATION de la table : `--ecrire` l'écrivait, ce port ne "
+                + "fait que vérifier. Ajouter une méthode gRPC demande d'éditer "
+                + "`AutorisationsGrpc.cs` à la main — ce contrôle dit quoi y mettre. "
                 + "Ce contrôle CONSTATE seulement : il ne réécrit pas le dépôt qu'il lit.");
         }
 

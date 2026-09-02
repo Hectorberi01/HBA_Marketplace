@@ -41,9 +41,16 @@ namespace HBA.Controls.Controles;
 /// LE SCRIPT D'ORIGINE. Celui-ci créait le fichier quand il manquait, et le
 /// mettait à jour sur `--accepter`. Un contrôle rend un verdict ; il ne modifie
 /// pas le dépôt qu'il examine, et <see cref="IControle"/> n'a pas d'options. Un
-/// instantané absent est donc une FAUTE qui nomme le geste à faire, et
-/// l'acceptation d'un changement voulu reste
-/// `dotnet run --project tools/HBA.Controls -- event-contracts
+/// instantané absent est donc une FAUTE qui nomme le geste à faire.
+///
+/// L'ACCEPTATION D'UN CHANGEMENT VOULU N'EST PLUS AUTOMATISÉE.
+///
+/// `check-event-contracts.py --accepter` réécrivait l'instantané. Ce port ne le
+/// fait pas : un contrôle rend un verdict, il ne réécrit pas le dépôt — et le
+/// script qui le faisait a été supprimé le 2 septembre 2026. Accepter un
+/// changement voulu se fait désormais À LA MAIN, en éditant
+/// `docs/contrats-evenements.json` dans le MÊME commit que le changement, pour
+/// que le relecteur voie exactement ce qui a bougé.
 ///
 /// CE QU'IL NE VOIT PAS : le SENS d'un contrat. Un champ conservé, de même nom et
 /// de même type, mais dont la signification change — une énumération à laquelle on
@@ -84,8 +91,8 @@ public sealed class EventContractsControle : IControle
             return new Verdict(
                 [$"{Depot.Relatif(instantane)} est absent : il n'y a RIEN à quoi "
                  + $"comparer les {actuels.Count} événement(s) lus. Créer l'instantané "
-                 + "avec `dotnet run --project tools/HBA.Controls -- event-contracts le "
-                 + "relire, et le committer avec le code qu'il décrit."],
+                 + "à la main, le relire, et le committer avec le code qu'il "
+                 + "décrit — aucune commande ne l'écrit."],
                 [],
                 nonCouvert);
         }
@@ -181,8 +188,9 @@ public sealed class EventContractsControle : IControle
         if (ruptures.Count > 0)
         {
             constats.Add("si le changement est VOULU, il ne se glisse pas : "
-                         + "`dotnet run --project tools/HBA.Controls -- event-contracts met "
-                         + "l'instantané à jour, et la revue voit exactement ce qui a bougé");
+                         + "éditer `docs/contrats-evenements.json` dans le MÊME "
+                         + "commit met l'instantané à jour, et la revue voit "
+                         + "exactement ce qui a bougé");
         }
 
         return new Verdict(ruptures, constats, nonCouvert);
@@ -314,7 +322,8 @@ public sealed class EventContractsControle : IControle
         [
             "ce contrôle ne met PAS l'instantané à jour : un contrôle rend un "
             + "verdict, il ne réécrit pas le dépôt. L'acceptation d'un changement "
-            + "voulu reste `dotnet run --project tools/HBA.Controls -- event-contracts
+            + "voulu se fait à la main dans `docs/contrats-evenements.json` : "
+            + "le script qui l'automatisait a été supprimé avec l'outillage Python",
             "le SENS d'un champ : même nom, même type, signification changée — une "
             + "valeur ajoutée à une énumération, une unité qui change — passe sans "
             + "un mot",
