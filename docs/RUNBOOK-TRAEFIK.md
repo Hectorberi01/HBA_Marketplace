@@ -6,6 +6,43 @@
 
 ---
 
+## Le chemin normal est maintenant la CI
+
+Les sections 3 à 6 de ce runbook — porter le compose, porter le fichier
+d'environnement, se connecter au registre, tirer, démarrer, vérifier — sont
+exécutées par **`.github/workflows/deploy-compose.yml`**, déclenché à la main
+depuis l'onglet Actions avec le tag des images à déployer.
+
+**Ce runbook reste la référence** pour deux choses : comprendre ce que le
+workflow fait, et déployer quand la CI est indisponible. Les commandes n'ont pas
+changé ; c'est leur exécution qui a déménagé.
+
+Ce que le workflow exige, et qui doit exister dans l'environnement GitHub
+`production` avant le premier déclenchement :
+
+| Nom | Nature | Contenu |
+|---|---|---|
+| `VPS_SSH_KEY` | secret | clé privée OpenSSH sans phrase de passe |
+| `VPS_KNOWN_HOSTS` | secret | sortie de `ssh-keyscan -p 8022 79.137.35.129` |
+| `PROD_ENV_FILE` | secret | le fichier d'environnement entier, 46 variables |
+| `GHCR_TOKEN` | secret | jeton GitHub, portée `read:packages` |
+| `VPS_HOST` | variable | `79.137.35.129` |
+| `VPS_USER` | variable | `ubuntu` |
+| `VPS_PORT` | variable | `8022` |
+| `HBA_DOMAINE` | variable | `api.hba-express.com` |
+
+**`VPS_KNOWN_HOSTS` n'est pas un confort.** Le workflow envoie au VPS un fichier
+qui porte quatorze mots de passe de base, les clés de signature des jetons et la
+clé FedaPay de production. Sans empreinte, `StrictHostKeyChecking=no` les
+enverrait à qui répond à cette adresse. Le job refuse de démarrer sans elle.
+
+**Poser une règle de révision obligatoire sur l'environnement `production`**
+(Settings → Environments → production → Required reviewers) ajoute une
+approbation humaine devant `docker compose up -d`. Sans elle, quiconque peut
+lancer le workflow met en ligne.
+
+---
+
 ## 0. Ce que ce runbook fait, et ce qu'il ne fait pas
 
 **Il fait** : mettre k3s en pause, puis lancer les vingt-cinq conteneurs du
@@ -71,12 +108,13 @@ HBA_ACME_EMAIL=hector.adjakpa@hbatechettrade.com
 HBA_TAG=<le tag des images publiées>
 ```
 
-Le contrôle les liste toutes, et n'affiche jamais de valeur :
+Le contrôle qui les liste toutes vit désormais **dans le workflow**, étape
+« Écrire et contrôler le fichier d'environnement ». Il ne s'exécute donc plus
+depuis le Mac : c'est la CI qui refuse de déployer un fichier incomplet.
 
-```bash
-cd ~/Documents/HBA
-python3 scripts/verifier-env-compose.py docker-compose.prod.yml ~/secrets-hba-prod/prod.env
-```
+Il vérifie quatre choses, et n'affiche jamais de valeur : les variables
+absentes, les variables présentes mais vides, les `$` non échappés, et l'égalité
+du couple de clés de signature.
 
 **`AUTHENTICATION__SIGNINGKEY` et `JWT__SIGNINGKEY` doivent porter la MÊME
 valeur** — le script le vérifie. Le socle valide les jetons avec la première,

@@ -1,0 +1,314 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DÉPLOIEMENT DE LA PRODUCTION — DOCKER COMPOSE ET TRAEFIK SUR LE VPS.
+#
+# CE QUE CE WORKFLOW REMPLACE.
+#
+# La séquence de `docs/RUNBOOK-TRAEFIK.md`, jusqu'ici tapée à la main depuis le
+# Mac : porter le compose, porter le fichier d'environnement, se connecter au
+# registre, tirer, construire `rembg`, démarrer, vérifier. Sept étapes dont
+# aucune ne laissait de trace, et dont l'ordre comptait.
+#
+# POURQUOI IL N'EST PAS AUTOMATIQUE SUR `push`.
+#
+# `develop` est la branche de production. Un déclenchement sur `push` mettrait
+# en ligne chaque fusion sans que personne ne l'ait décidé. Le déclenchement est
+# donc manuel, et le job passe par l'environnement GitHub `production` : y
+# poser une règle de révision obligatoire ajoute une approbation humaine devant
+# `docker compose up -d`.
+#
+# CE QU'IL NE FAIT PAS.
+#
+#   • Il ne CONSTRUIT ni ne PUBLIE aucune image. Il déploie un tag qui existe
+#     déjà dans ghcr.io — c'est le travail de `ci.yml`. Un tag absent est
+#     découvert par le `pull`, avant que quoi que ce soit ne redémarre.
+#   • Il ne régénère pas `docker-compose.prod.yml`. Le fichier versionné fait
+#     foi ; c'est l'outil de contrôles .NET qui reprendra sa génération.
+#   • Il ne migre pas les bases et ne crée pas les buckets MinIO. Voir le
+#     runbook, sections 8 et 9.
+#   • Il ne sait pas revenir en arrière. Un `up -d` avec le tag précédent est
+#     le retour arrière, et il faut le lancer soi-même.
+#
+# LES SECRETS ET VARIABLES QU'IL EXIGE (environnement `production`) :
+#
+#   secrets.VPS_SSH_KEY      clé privée OpenSSH, sans phrase de passe
+#   secrets.VPS_KNOWN_HOSTS  la ligne known_hosts du VPS — VOIR PLUS BAS
+#   secrets.PROD_ENV_FILE    le fichier d'environnement entier, 46 variables
+#   secrets.GHCR_TOKEN       jeton GitHub avec la portée `read:packages`
+#   vars.VPS_HOST            79.137.35.129
+#   vars.VPS_USER            ubuntu
+#   vars.VPS_PORT            8022
+#   vars.HBA_DOMAINE         api.hba-express.com
+#
+# POURQUOI `VPS_KNOWN_HOSTS` EST OBLIGATOIRE ET NON UN CONFORT.
+#
+# Ce job envoie au VPS un fichier qui porte quatorze mots de passe de base, les
+# clés de signature des jetons et la clé FedaPay de production. Avec
+# `StrictHostKeyChecking=no`, il les enverrait à QUI RÉPOND à cette adresse.
+# Le job refuse donc de démarrer sans empreinte, plutôt que de désactiver la
+# vérification pour se simplifier la vie. La ligne s'obtient depuis le Mac :
+#
+#     ssh-keyscan -p 8022 79.137.35.129
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+name: Déployer la production (Compose)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag des images à déployer (le SHA publié par la CI)"
+        required: true
+        type: string
+      construire_rembg:
+        description: "Reconstruire rembg sur le VPS (inutile si infra/rembg n'a pas bougé)"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  # Deux déploiements simultanés écriraient le même `.env` et lanceraient deux
+  # `up -d` concurrents sur le même projet Compose. Le second attend.
+  group: deploiement-production
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    name: Déployer ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ─────────────────────────────────────────────────────────────────────
+      # LE FICHIER D'ENVIRONNEMENT, VÉRIFIÉ AVANT DE PARTIR.
+      #
+      # `${VAR:?...}` arrête l'interpolation à la PREMIÈRE variable manquante.
+      # Sur un fichier auquel il manque neuf clés, cela fait neuf déploiements
+      # ratés, chacun découvrant une clé de plus. Ce contrôle les liste toutes
+      # en une passe, avant tout envoi.
+      #
+      # AUCUN CHEMIN DE CODE NE DOIT IMPRIMER UNE VALEUR. Ce pas lit tous les
+      # secrets de production ; il n'affiche que des NOMS. C'est la seule règle
+      # qui compte ici, et elle vaut pour toute modification future.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Écrire et contrôler le fichier d'environnement
+        env:
+          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
+        run: |
+          set -euo pipefail
+          test -n "$PROD_ENV_FILE" || {
+            echo "::error::Secret PROD_ENV_FILE absent dans l'environnement production"
+            exit 1
+          }
+
+          umask 077
+          printf '%s\n' "$PROD_ENV_FILE" > /tmp/hba-prod.env
+
+          # Variables exigées par le compose, hors lignes commentées.
+          grep -vE '^[[:space:]]*#' docker-compose.prod.yml \
+            | grep -oE '\$\{[A-Za-z_][A-Za-z0-9_]*:\?' \
+            | sed -E 's/^\$\{//; s/:\?$//' \
+            | sort -u > /tmp/requises.txt
+
+          # `HBA_TAG` est fourni par ce workflow, pas par le fichier.
+          sed -i '/^HBA_TAG$/d' /tmp/requises.txt
+
+          grep -vE '^[[:space:]]*(#|$)' /tmp/hba-prod.env \
+            | grep '=' \
+            | sed -E 's/=.*//; s/^[[:space:]]+//; s/[[:space:]]+$//' \
+            | sort -u > /tmp/presentes.txt
+
+          absentes=$(comm -23 /tmp/requises.txt /tmp/presentes.txt)
+
+          # Présentes mais vides : le service part avec une chaîne vide et
+          # échoue à la connexion sur une erreur qui ne nomme pas la variable.
+          vides=""
+          while IFS= read -r nom; do
+            [ -n "$nom" ] || continue
+            # Une variable absente est deja signalee comme absente : la compter
+            # aussi comme vide ferait lire deux fautes la ou il n'y en a qu'une.
+            grep -q "^${nom}=" /tmp/hba-prod.env || continue
+            valeur=$(grep -m1 "^${nom}=" /tmp/hba-prod.env | cut -d= -f2- || true)
+            if [ -z "$(printf '%s' "$valeur" | tr -d '[:space:]')" ]; then
+              vides="${vides}${nom}"$'\n'
+            fi
+          done < /tmp/requises.txt
+
+          # ─────────────────────────────────────────────────────────────────
+          # UN `$` DANS UNE VALEUR EST LU PAR COMPOSE COMME UNE RÉFÉRENCE.
+          #
+          # Compose interpole AUSSI le fichier d'environnement. Un mot de passe
+          # contenant `$abc` devient une variable nommée `abc`, absente, donc
+          # vide : le service part avec un mot de passe TRONQUÉ et échoue sur
+          # une erreur qui parle d'authentification, pas de `$`.
+          # L'échappement est `$$`.
+          # ─────────────────────────────────────────────────────────────────
+          dollars=$(awk -F= '/^[A-Za-z_]/ {
+              nom = $1; sub(/^[^=]*=/, "", $0);
+              if ($0 ~ /(^|[^$])\$([^$]|$)/) print nom
+            }' /tmp/hba-prod.env || true)
+
+          # `AUTHENTICATION__SIGNINGKEY` et `JWT__SIGNINGKEY` : deux noms pour
+          # une seule clé. Le socle valide avec la première, identity-service
+          # émet avec la seconde. Une divergence rend 401 partout, sans cause
+          # nommée nulle part.
+          a=$(grep -m1 '^AUTHENTICATION__SIGNINGKEY=' /tmp/hba-prod.env | cut -d= -f2- || true)
+          b=$(grep -m1 '^JWT__SIGNINGKEY=' /tmp/hba-prod.env | cut -d= -f2- || true)
+          divergentes=""
+          if [ -n "$a" ] && [ -n "$b" ] && [ "$a" != "$b" ]; then
+            divergentes="oui"
+          fi
+          unset a b
+
+          faute=0
+          if [ -n "$absentes" ]; then
+            echo "::error::variables absentes du fichier d'environnement :"
+            printf '    %s\n' $absentes
+            faute=1
+          fi
+          if [ -n "$(printf '%s' "$vides" | tr -d '[:space:]')" ]; then
+            echo "::error::variables présentes mais vides :"
+            printf '%s' "$vides" | sed 's/^/    /'
+            faute=1
+          fi
+          if [ -n "$dollars" ]; then
+            echo "::error::valeurs contenant un \$ non échappé (doubler : \$\$) :"
+            printf '    %s\n' $dollars
+            faute=1
+          fi
+          if [ -n "$divergentes" ]; then
+            echo "::error::AUTHENTICATION__SIGNINGKEY et JWT__SIGNINGKEY diffèrent — elles doivent être IDENTIQUES"
+            faute=1
+          fi
+          [ "$faute" -eq 0 ] || exit 1
+
+          echo "$(wc -l < /tmp/requises.txt) variable(s) obligatoire(s), toutes renseignées."
+
+          # Le tag part dans le même fichier : le compose le lit comme les
+          # autres, et le VPS garde ainsi la trace de ce qui y tourne.
+          printf 'HBA_TAG=%s\n' "${{ inputs.tag }}" >> /tmp/hba-prod.env
+
+      - name: Préparer SSH
+        env:
+          CLE: ${{ secrets.VPS_SSH_KEY }}
+          EMPREINTES: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$CLE" || { echo "::error::Secret VPS_SSH_KEY absent"; exit 1; }
+          test -n "$EMPREINTES" || {
+            echo "::error::Secret VPS_KNOWN_HOSTS absent. Ce job envoie le fichier"
+            echo "::error::d'environnement de production ; sans empreinte, il l'enverrait"
+            echo "::error::à qui répond à cette adresse. Obtenir la ligne avec :"
+            echo "::error::  ssh-keyscan -p ${{ vars.VPS_PORT }} ${{ vars.VPS_HOST }}"
+            exit 1
+          }
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CLE" > ~/.ssh/id_deploiement
+          printf '%s\n' "$EMPREINTES" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_deploiement ~/.ssh/known_hosts
+
+      - name: Porter le compose et rembg
+        run: |
+          set -euo pipefail
+          SSH="ssh -i $HOME/.ssh/id_deploiement -p ${{ vars.VPS_PORT }} -o StrictHostKeyChecking=yes"
+          CIBLE="${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}"
+
+          $SSH "$CIBLE" 'mkdir -p /opt/hba/infra'
+          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
+            -o StrictHostKeyChecking=yes \
+            docker-compose.prod.yml "$CIBLE:/opt/hba/"
+          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
+            -o StrictHostKeyChecking=yes -r \
+            infra/rembg "$CIBLE:/opt/hba/infra/"
+
+      - name: Porter le fichier d'environnement
+        run: |
+          set -euo pipefail
+          CIBLE="${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}"
+          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
+            -o StrictHostKeyChecking=yes \
+            /tmp/hba-prod.env "$CIBLE:/opt/hba/.env"
+          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
+            -o StrictHostKeyChecking=yes "$CIBLE" 'chmod 600 /opt/hba/.env'
+          shred -u /tmp/hba-prod.env
+
+      # Les images sont privées. Le jeton passe par l'entrée standard de
+      # `docker login` : il n'apparaît donc ni dans la ligne de commande du VPS,
+      # ni dans son historique de shell, ni dans le journal de ce job.
+      - name: Connecter le VPS au registre
+        env:
+          JETON: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$JETON" || { echo "::error::Secret GHCR_TOKEN absent"; exit 1; }
+          printf '%s' "$JETON" | ssh -i "$HOME/.ssh/id_deploiement" \
+            -p ${{ vars.VPS_PORT }} -o StrictHostKeyChecking=yes \
+            "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
+            'sudo docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin'
+
+      # `pull` SÉPARÉMENT, ET AVANT TOUT LE RESTE : c'est là que se voit une
+      # image absente du registre ou un tag qui n'existe pas, et l'erreur nomme
+      # l'image. Mélangé au `up`, le même échec arrive au milieu du démarrage
+      # de vingt-cinq conteneurs, quand la moitié tourne déjà.
+      - name: Tirer les images
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
+            -o StrictHostKeyChecking=yes \
+            "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
+            'cd /opt/hba && sudo docker compose -p hba pull'
+
+      - name: Construire rembg
+        if: ${{ inputs.construire_rembg }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
+            -o StrictHostKeyChecking=yes \
+            "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
+            'cd /opt/hba && sudo docker compose -p hba build rembg'
+
+      - name: Démarrer
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
+            -o StrictHostKeyChecking=yes \
+            "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
+            'cd /opt/hba && sudo docker compose -p hba up -d --remove-orphans'
+
+      # ─────────────────────────────────────────────────────────────────────
+      # LA VÉRIFICATION FAIT ÉCHOUER LE JOB, elle ne se contente pas d'afficher.
+      #
+      # Un déploiement qui laisse trois conteneurs en redémarrage permanent et
+      # se conclut en vert est pire qu'un déploiement raté : personne ne va
+      # regarder. Le certificat, lui, prend une à deux minutes — d'où l'attente
+      # avant l'appel HTTPS.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Vérifier
+        run: |
+          set -euo pipefail
+          SSH="ssh -i $HOME/.ssh/id_deploiement -p ${{ vars.VPS_PORT }} -o StrictHostKeyChecking=yes ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}"
+
+          sleep 30
+          $SSH 'cd /opt/hba && sudo docker compose -p hba ps'
+
+          hors=$($SSH 'sudo docker ps --filter "label=com.docker.compose.project=hba" --format "{{.Names}}\t{{.Status}}" | grep -v " Up " || true')
+          if [ -n "$hors" ]; then
+            echo "::error::des conteneurs ne sont pas Up :"
+            printf '%s\n' "$hors"
+            $SSH 'sudo docker logs hba-traefik --tail=40 || true'
+            exit 1
+          fi
+
+          for essai in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              "https://${{ vars.HBA_DOMAINE }}/health/ready" || echo 000)
+            [ "$code" = "200" ] && { echo "santé : 200"; exit 0; }
+            echo "tentative $essai : $code — le certificat Let'"'"'s Encrypt peut prendre deux minutes"
+            sleep 20
+          done
+          echo "::error::/health/ready ne rend pas 200 après deux minutes"
+          $SSH 'sudo docker logs hba-traefik --tail=40 || true'
+          exit 1
