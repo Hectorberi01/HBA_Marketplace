@@ -446,6 +446,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Delivery.Pricing.Infras
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Delivery.Pricing.Api", "services\delivery\delivery-pricing-service\src\HBA.Delivery.Pricing.Api\HBA.Delivery.Pricing.Api.csproj", "{D9000004-0000-4000-8000-0000000000D4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{3F5B1A64-9C27-4E18-B0D3-6A1E7C4D8F92}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Controls", "tools\HBA.Controls\HBA.Controls.csproj", "{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -2488,11 +2492,24 @@ Global
 		{0D7F2D24-7486-4A89-A661-BE7118A010D8}.Release|x64.Build.0 = Release|Any CPU
 		{0D7F2D24-7486-4A89-A661-BE7118A010D8}.Release|x86.ActiveCfg = Release|Any CPU
 		{0D7F2D24-7486-4A89-A661-BE7118A010D8}.Release|x86.Build.0 = Release|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Debug|x64.Build.0 = Debug|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Debug|x86.Build.0 = Debug|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Release|x64.ActiveCfg = Release|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Release|x64.Build.0 = Release|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Release|x86.ActiveCfg = Release|Any CPU
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{7C2D48E1-5A93-4B60-9E77-2F81B3C05A46} = {3F5B1A64-9C27-4E18-B0D3-6A1E7C4D8F92}
 		{4D90A52B-C4E4-5D6C-A92F-8CC0C9B8671C} = {36F75ADA-E425-5EEB-BC09-6205C5489081}
 		{D9000001-0000-4000-8000-0000000000D1} = {D9000000-0000-4000-8000-0000000000D0}
 		{D9000002-0000-4000-8000-0000000000D2} = {D9000000-0000-4000-8000-0000000000D0}

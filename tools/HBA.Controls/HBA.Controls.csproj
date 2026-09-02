@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    L'OUTIL DE CONTRÔLES — IL REMPLACE LES SCRIPTS PYTHON DE `scripts/`.
+
+    AUCUNE RÉFÉRENCE DE PAQUET, ET C'EST UNE CONTRAINTE, PAS UN HASARD.
+
+    Cet outil tourne dans la CI AVANT que la solution ne soit restaurée, et il
+    doit pouvoir tourner sur un poste neuf. Chaque dépendance ajoutée devient une
+    restauration de plus avant le premier contrôle, et un point de panne dans un
+    travail dont le seul rôle est de dire si le dépôt est sain. La bibliothèque
+    standard suffit : ces contrôles lisent des fichiers texte.
+
+    Le jour où l'un d'eux aura besoin d'analyser du C# pour de vrai, Roslyn
+    (`Microsoft.CodeAnalysis.CSharp`) sera la bonne réponse — les expressions
+    rationnelles des scripts Python se sont trompées plus d'une fois. Ce jour-là,
+    déclarer la version dans `Directory.Packages.props`, JAMAIS ici : la gestion
+    centralisée est active et un `Version=` dans un csproj lève NU1008.
+
+    `TargetFramework` et `Nullable` viennent de `Directory.Build.props`.
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>HBA.Controls</RootNamespace>
+    <AssemblyName>HBA.Controls</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

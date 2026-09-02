@@ -12,7 +12,7 @@ set -uo pipefail
 #                          plus loin sur des `using` — le message d'erreur
 #                          désigne alors des espaces de noms, jamais la ligne
 #                          fautive. Les projets de test ne sont dans aucune
-#                          solution : `check-solution.py` ne peut pas les voir.
+#                          solution : le contrôle de solution ne peut pas les voir.
 #   • check-di.py          une interface injectée que personne ne fournit.
 #   • check-usings.py      un type référencé sans `using` accessible — un namespace
 #                          FRÈRE ne compte pas, et c'est le piège qui a coûté trois
@@ -166,13 +166,33 @@ check_connection_strings() {
 #
 # `HBA.sln` a cassé le build avec MSB5023 — vingt lignes d'imbrication laissées
 # derrière des projets retirés — pendant que les quinze autres contrôles
-# passaient. Zéro fichier C# en cause. Voir l'en-tête de check-solution.py.
-run "Cohérence de la solution"     "$PYTHON" "$ROOT_DIR/scripts/check-solution.py"
+# passaient. Zéro fichier C# en cause. Voir SolutionControle.cs, dont l'en-tête
+# porte l'histoire complète.
+# ═══════════════════════════════════════════════════════════════════════════════
+# LE PORTAGE VERS `tools/HBA.Controls` A COMMENCÉ.
+#
+# `check-solution.py` est le premier contrôle porté en C# (SolutionControle).
+# Les deux exemplaires
+# NE COEXISTENT PAS : le Python est supprimé dans le commit qui apporte le C#.
+# Deux exemplaires du même contrôle divergeraient au premier correctif, et c'est
+# celui qui se tait qu'on croirait.
+#
+# `dotnet` ABSENT NE FAIT PAS ÉCHOUER LA BARRIÈRE, MAIS LE DIT. Le dépôt est en
+# .NET : un poste sans SDK ne peut de toute façon rien construire, et le contrôle
+# suivant s'en apercevra. Ce qu'on refuse, c'est le vert silencieux.
+# ═══════════════════════════════════════════════════════════════════════════════
+if command -v dotnet >/dev/null 2>&1; then
+  run "Cohérence de la solution"   dotnet run --project "$ROOT_DIR/tools/HBA.Controls" \
+                                     --verbosity quiet -- solution
+else
+  echo "   dotnet absent — « Cohérence de la solution » NON EXÉCUTÉ."
+  echo "     Ce contrôle vit désormais dans tools/HBA.Controls."
+fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # JUSTE APRÈS LA SOLUTION, ET C'EST VOLONTAIRE : LES DEUX SE COMPLÈTENT.
 #
-# `check-solution.py` vérifie `HBA.sln` — que chaque projet listé existe, qu'aucun
+# Le contrôle de solution vérifie `HBA.sln` — que chaque projet listé existe, qu'aucun
 # GUID n'est orphelin. Il ne voit QUE ce que la solution liste, et les projets de
 # TEST n'y sont pas.
 #

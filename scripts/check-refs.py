@@ -18,7 +18,8 @@ ensuite sur les `using` en CS0234 : « le nom d'espace de noms n'existe pas ». 
 lit cinq erreurs qui parlent d'espaces de noms, et la ligne qui dit la vraie
 cause est un warning au milieu.
 
-POURQUOI `check-solution.py` NE L'A PAS VU. Il vérifie la cohérence de `HBA.sln`
+POURQUOI LE CONTRÔLE DE SOLUTION NE L'A PAS VU (aujourd'hui `tools/HBA.Controls`,
+naguère `check-solution.py`). Il vérifie la cohérence de `HBA.sln`
 — que chaque projet listé existe, qu'aucun GUID n'est orphelin. Or ce projet de
 test N'EST PAS dans la solution : il n'y avait donc rien à vérifier de son côté.
 Les deux contrôles sont complémentaires, et c'est l'espace entre eux qui a laissé
