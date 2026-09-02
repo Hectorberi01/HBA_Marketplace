@@ -154,10 +154,55 @@ jobs:
       # ses propres fournisseurs de journalisation. Si un echec reste muet
       # malgre ce logger, c'est la fixture qu'il faut regarder, pas ce reglage.
       # ═════════════════════════════════════════════════════════════════════
+      # ═════════════════════════════════════════════════════════════════════
+      # UN PROCESSUS PAR PROJET DE TEST — ET C'EST UNE CORRECTION DE DEFAUT,
+      # PAS UN CONFORT.
+      #
+      # CE QUI SE PASSAIT. `dotnet test HBA.sln` remet PLUSIEURS assemblies de
+      # test au MEME hote de test quand elles ciblent le meme cadre. Or quatre
+      # harnais posent leur configuration en variables d'ENVIRONNEMENT — c'est-a-
+      # dire au niveau du PROCESSUS :
+      #
+      #   MerchantsIntegrationFixture   SERVICE_NAME=seller-service,  OUTBOX_ENABLED=true
+      #   CatalogIntegrationFixture     SERVICE_NAME=catalog-service, OUTBOX_ENABLED=true
+      #   OrderIntegrationFixture       SERVICE_NAME=order-service,   OUTBOX_ENABLED=true
+      #   AuthorizationTestFactory                                    OUTBOX_ENABLED=false
+      #
+      # et chacun y pose SA chaine de connexion, vers SON conteneur Postgres.
+      # AUCUN ne remet ces variables a leur valeur d'origine : zero remise a
+      # zero dans les quatre fichiers.
+      #
+      # Le dernier ecrivain gagne. Un hote deja demarre se retrouve a lire la
+      # base d'une autre suite — conteneur qui, a ce moment-la, est souvent deja
+      # detruit. D'ou 23 echecs IDENTIQUES dans Merchants, une suite qui passe
+      # SEULE (38/38) et tombe en solution complete, et un ordre qui change d'une
+      # execution a l'autre.
+      #
+      # Isoler les processus rend la collision impossible sans toucher au code de
+      # test. C'est plus lent : chaque projet paie son propre demarrage.
+      #
+      # CE QUE CA NE CORRIGE PAS — et il faudra y revenir : deux harnais dans une
+      # MEME assembly se marcheraient toujours dessus, et un `dotnet test
+      # HBA.sln` lance a la main sur un poste retombe dans le meme piege. La vraie
+      # reponse est que ces harnais cessent de configurer par variables de
+      # processus et passent par `ConfigureAppConfiguration`, propre a chaque
+      # hote.
+      #
+      # `|| echec=1` PLUTOT QU'UN ARRET IMMEDIAT : on veut la liste COMPLETE des
+      # projets en echec en une execution, pas le premier seulement.
+      # ═════════════════════════════════════════════════════════════════════
       - run: |
-          dotnet test HBA.sln --configuration Release --no-build \
-            --logger "trx;LogFileName=tests.trx" \
-            --logger "console;verbosity=detailed"
+          set -uo pipefail
+          echec=0
+          for projet in $(dotnet sln HBA.sln list | grep -E 'tests[/\\].*\.csproj$'); do
+            nom=$(basename "$projet" .csproj)
+            echo "::group::$nom"
+            dotnet test "$projet" --configuration Release --no-build \
+              --logger "trx;LogFileName=$nom.trx" \
+              --logger "console;verbosity=detailed" || echec=1
+            echo "::endgroup::"
+          done
+          exit "$echec"
 
       - name: Conserver les résultats de test
         if: always()
