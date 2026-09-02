@@ -55,7 +55,7 @@ import re
 import sys
 
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-IGNORES = ("obj", "bin", "_to_delete", "node_modules", ".git", "clients")
+IGNORES = ("obj", "bin", "_to_delete", "node_modules", ".git", "clients", "tools")
 
 TABLE_CS = os.path.join(
     RACINE, "shared", "common", "HBA.Shared.Hosting", "Grpc", "AutorisationsGrpc.cs")

@@ -30,8 +30,24 @@ using HBA.Controls.Controles;
 
 IControle[] controles =
 [
-    new SolutionControle(),
+    new AccoladesControle(),
+    new AdressesServiceControle(),
+    new AuditTrailControle(),
+    new AutorisationsGrpcControle(),
+    new ConfigEtGardesControle(),
+    new DockerfilesControle(),
+    new EventConsumersControle(),
+    new EventContractsControle(),
+    new GatewayControle(),
+    new GrpcRpcControle(),
+    new GrpcStubsControle(),
+    new ImplementationsControle(),
+    new KafkaTopicsControle(),
+    new PermissionsControle(),
     new ReferencesControle(),
+    new SolutionControle(),
+    new UsingsControle(),
+    new WorkflowsControle(),
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
