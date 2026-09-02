@@ -201,4 +201,24 @@ public sealed class SolutionControle : IControle
 
         return cites;
     }
+
+    /// <summary>Occurrences d'une sous-chaîne littérale.</summary>
+    /// <remarks>
+    /// Une expression rationnelle ferait l'affaire, mais `GlobalSection(`
+    /// contient une parenthèse : il faudrait l'échapper, et un échappement
+    /// oublié transformerait le compte en groupe de capture vide qui compte
+    /// tout autre chose sans rien signaler.
+    /// </remarks>
+    private static int Compter(string texte, string aiguille)
+    {
+        var total = 0;
+        var index = 0;
+        while ((index = texte.IndexOf(aiguille, index, StringComparison.Ordinal)) >= 0)
+        {
+            total++;
+            index += aiguille.Length;
+        }
+
+        return total;
+    }
 }
