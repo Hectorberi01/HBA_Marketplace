@@ -130,6 +130,20 @@ TOTAL=0
 run() {
   local label="$1"; shift
   TOTAL=$((TOTAL + 1))
+  # UN SCRIPT ABSENT EST UNE FAUTE DE LA BARRIERE, PAS UN CONTROLE EN ECHEC.
+  # La distinction compte : « le controle X a trouve une anomalie » et « le
+  # controle X n'existe plus » demandent deux gestes opposes, et le second est
+  # reste invisible une semaine faute d'etre nomme.
+  if [ "$1" = "$PYTHON" ] && [ -n "${2:-}" ] && [ ! -f "$2" ]; then
+    echo
+    echo "── $label"
+    echo "  ❌ CONTROLE INTROUVABLE : $2"
+    echo "     Son appel a survecu a sa suppression. Retirer la ligne, ou"
+    echo "     restaurer le controle — mais ne pas laisser la barriere echouer"
+    echo "     sur une cause qui n'a rien a voir avec le depot."
+    FAILED=$((FAILED + 1))
+    return 1
+  fi
   echo
   echo "── $label"
   if "$@"; then
@@ -218,7 +232,20 @@ run_dotnet "Cohérence de la solution" "solution"
 # ═══════════════════════════════════════════════════════════════════════════════
 run_dotnet "Références de projet" "references"
 run "Structure des fichiers C#"    "$PYTHON" "$ROOT_DIR/scripts/check-braces.py"
-run "Dépendances non résolues"     "$PYTHON" "$ROOT_DIR/scripts/check-di.py"          "$@"
+# ═══════════════════════════════════════════════════════════════════════════════
+# `check-di.py` A ETE SUPPRIME LE 28 AOUT 2026 (commit f417fc5, « nettoyage ») ET
+# SON APPEL EST RESTE ICI. LA BARRIERE ECHOUAIT DEPUIS, A CHAQUE EXECUTION.
+#
+# `run` compte un echec quand la commande echoue, et `python3` sur un fichier
+# absent echoue. `check-all.sh` se terminant par `exit "$FAILED"`, la barriere ne
+# pouvait PLUS JAMAIS rendre 0 — quel que soit l'etat du depot. L'etape
+# `check-all` de `ci.yml` echouait donc a chaque execution, pour une raison
+# etrangere aux tests et que le journal noyait au milieu de vingt controles.
+#
+# C'EST LE MEME DEFAUT QUE CELUI QUE `check-solution` EXISTE POUR ATTRAPER :
+# un retrait qui enleve la chose mais laisse la ligne qui l'appelle. La solution
+# avait son controle ; la barriere elle-meme n'en avait aucun.
+# ═══════════════════════════════════════════════════════════════════════════════
 run "Types hors portée"            "$PYTHON" "$ROOT_DIR/scripts/check-usings.py"      "$@"
 run "Fermeture des Dockerfiles"    "$PYTHON" "$ROOT_DIR/scripts/check-dockerfiles.py" "$@"
 run "Migrations à froid"           "$PYTHON" "$ROOT_DIR/scripts/check-migrations.py"  "$@"
