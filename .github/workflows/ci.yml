@@ -193,16 +193,51 @@ jobs:
       # ═════════════════════════════════════════════════════════════════════
       - run: |
           set -uo pipefail
-          echec=0
+          rates=""
+          passes=0
           for projet in $(dotnet sln HBA.sln list | grep -E 'tests[/\\].*\.csproj$'); do
             nom=$(basename "$projet" .csproj)
             echo "::group::$nom"
-            dotnet test "$projet" --configuration Release --no-build \
-              --logger "trx;LogFileName=$nom.trx" \
-              --logger "console;verbosity=detailed" || echec=1
+            if dotnet test "$projet" --configuration Release --no-build \
+                 --logger "trx;LogFileName=$nom.trx" \
+                 --logger "console;verbosity=detailed"; then
+              passes=$((passes + 1))
+            else
+              rates="${rates}${nom} "
+              echo "::error title=Tests en échec::$nom"
+            fi
             echo "::endgroup::"
           done
-          exit "$echec"
+
+          # ═══════════════════════════════════════════════════════════════════
+          # LA BOUCLE DOIT NOMMER CE QUI A ECHOUE, PAS SEULEMENT ECHOUER.
+          #
+          # Premiere version : un `|| echec=1` et un `exit "$echec"`. Le pas
+          # devenait rouge en fin de boucle, apres le journal du DERNIER projet —
+          # qui, lui, avait reussi. Pour savoir lequel avait casse, il fallait
+          # derouler seize mille lignes et ouvrir les groupes un par un.
+          #
+          # C'est le meme defaut que celui de `check-di.py` : un echec dont la
+          # cause n'est pas nommee coute plus cher que l'echec lui-meme. Les
+          # projets rates sont desormais listes ici, poses en annotation
+          # `::error::` sur le travail, et ecrits dans le resume de l'execution.
+          # ═══════════════════════════════════════════════════════════════════
+          echo
+          echo "── Bilan : $passes projet(s) au vert"
+          if [ -n "$rates" ]; then
+            echo "❌ En échec :"
+            for nom in $rates; do echo "     $nom"; done
+            {
+              echo "## Tests en échec"
+              echo
+              for nom in $rates; do echo "- \`$nom\`"; done
+              echo
+              echo "Le détail est dans le groupe portant ce nom, et dans"
+              echo "l'artefact \`resultats-tests\` (\`<nom>.trx\`)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "✓ Les $passes projets de test passent."
 
       - name: Conserver les résultats de test
         if: always()
