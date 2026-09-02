@@ -59,11 +59,11 @@ on:
         description: "Tag des images à déployer (le SHA publié par la CI)"
         required: true
         type: string
-      construire_rembg:
-        description: "Reconstruire rembg sur le VPS (inutile si infra/rembg n'a pas bougé)"
+      tags_ansible:
+        description: "N'exécuter que ces blocs (preparation, transfert, images, migration, sujets, demarrage, tls, verification). Vide = tout."
         required: false
-        default: false
-        type: boolean
+        default: ""
+        type: string
 
 concurrency:
   # Deux déploiements simultanés écriraient le même `.env` et lanceraient deux
@@ -210,82 +210,49 @@ jobs:
           printf '%s\n' "$EMPREINTES" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_deploiement ~/.ssh/known_hosts
 
-      - name: Porter le compose et rembg
-        run: |
-          set -euo pipefail
-          SSH="ssh -i $HOME/.ssh/id_deploiement -p ${{ vars.VPS_PORT }} -o StrictHostKeyChecking=yes"
-          CIBLE="${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}"
-
-          $SSH "$CIBLE" 'mkdir -p /opt/hba/infra'
-          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
-            -o StrictHostKeyChecking=yes \
-            docker-compose.prod.yml "$CIBLE:/opt/hba/"
-          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
-            -o StrictHostKeyChecking=yes -r \
-            infra/rembg "$CIBLE:/opt/hba/infra/"
-
-      - name: Porter le fichier d'environnement
-        run: |
-          set -euo pipefail
-          CIBLE="${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}"
-          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
-            -o StrictHostKeyChecking=yes \
-            /tmp/hba-prod.env "$CIBLE:/opt/hba/.env"
-          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
-            -o StrictHostKeyChecking=yes "$CIBLE" 'chmod 600 /opt/hba/.env'
-          shred -u /tmp/hba-prod.env
-
-      # Les images sont privées. Le jeton passe par l'entrée standard de
-      # `docker login` : il n'apparaît donc ni dans la ligne de commande du VPS,
-      # ni dans son historique de shell, ni dans le journal de ce job.
-      - name: Connecter le VPS au registre
-        env:
-          JETON: ${{ secrets.GHCR_TOKEN }}
-        run: |
-          set -euo pipefail
-          test -n "$JETON" || { echo "::error::Secret GHCR_TOKEN absent"; exit 1; }
-          printf '%s' "$JETON" | ssh -i "$HOME/.ssh/id_deploiement" \
-            -p ${{ vars.VPS_PORT }} -o StrictHostKeyChecking=yes \
-            "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
-            'sudo docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin'
-
-      # `pull` SÉPARÉMENT, ET AVANT TOUT LE RESTE : c'est là que se voit une
-      # image absente du registre ou un tag qui n'existe pas, et l'erreur nomme
-      # l'image. Mélangé au `up`, le même échec arrive au milieu du démarrage
-      # de vingt-cinq conteneurs, quand la moitié tourne déjà.
-      - name: Tirer les images
-        run: |
-          set -euo pipefail
-          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
-            -o StrictHostKeyChecking=yes \
-            "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
-            'cd /opt/hba && sudo docker compose -p hba pull'
-
-      - name: Construire rembg
-        if: ${{ inputs.construire_rembg }}
-        run: |
-          set -euo pipefail
-          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
-            -o StrictHostKeyChecking=yes \
-            "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
-            'cd /opt/hba && sudo docker compose -p hba build rembg'
-
-      - name: Démarrer
-        run: |
-          set -euo pipefail
-          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
-            -o StrictHostKeyChecking=yes \
-            "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
-            'cd /opt/hba && sudo docker compose -p hba up -d --remove-orphans'
-
-      # ─────────────────────────────────────────────────────────────────────
-      # LA VÉRIFICATION FAIT ÉCHOUER LE JOB, elle ne se contente pas d'afficher.
+      # ═════════════════════════════════════════════════════════════════════
+      # LE DEPLOIEMENT PASSE PAR ANSIBLE, PLUS PAR SIX `ssh` A LA SUITE.
       #
-      # Un déploiement qui laisse trois conteneurs en redémarrage permanent et
-      # se conclut en vert est pire qu'un déploiement raté : personne ne va
-      # regarder. Le certificat, lui, prend une à deux minutes — d'où l'attente
-      # avant l'appel HTTPS.
-      # ─────────────────────────────────────────────────────────────────────
+      # CE QUE LES `ssh` NE SAVAIENT PAS FAIRE. Ils portaient le compose, le
+      # `.env`, se connectaient au registre, tiraient, demarraient. Ils ne
+      # preparaient PAS le VPS (paquets, pare-feu, tunnel), ne migraient PAS les
+      # bases, ne creaient PAS les sujets Kafka. Ces trois etapes restaient dans
+      # le runbook, c'est-a-dire dans la tete de celui qui deployait.
+      #
+      # `ansible/deployer-prod.yml` porte les huit blocs, et chacun est
+      # IDEMPOTENT : le relancer sur un VPS deja en etat ne refait que ce qui a
+      # bouge. Six `ssh` a la suite, eux, refont tout a chaque fois — et
+      # echouent a mi-chemin en laissant le VPS dans un etat que personne ne
+      # sait nommer.
+      #
+      # `--tags` PERMET DE N'EN REJOUER QU'UNE PARTIE : preparation, transfert,
+      # images, migration, sujets, demarrage, tls, verification.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Installer Ansible
+        run: pipx install --include-deps ansible-core || pip install --quiet ansible-core
+
+      - name: Déployer
+        env:
+          # Le jeton ne passe PAS par la ligne de commande : `-e cle=valeur`
+          # apparaitrait dans la liste des processus du runner. Le playbook le
+          # lit dans l'environnement.
+          HBA_GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          HBA_ENV_FILE: /tmp/hba-prod.env
+          ANSIBLE_HOST_KEY_CHECKING: "True"
+          ANSIBLE_PRIVATE_KEY_FILE: ${{ github.workspace }}/../.ssh/id_deploiement
+        run: |
+          set -euo pipefail
+          test -n "$HBA_GHCR_TOKEN" || { echo "::error::Secret GHCR_TOKEN absent"; exit 1; }
+          ansible-playbook \
+            -i ansible/inventaire/prod.yml \
+            ansible/deployer-prod.yml \
+            --private-key "$HOME/.ssh/id_deploiement" \
+            -e "hba_hote=${{ vars.VPS_HOST }}" \
+            -e "hba_port_ssh=${{ vars.VPS_PORT }}" \
+            -e "hba_utilisateur=${{ vars.VPS_USER }}" \
+            -e "hba_tag=${{ inputs.tag }}" \
+            ${{ inputs.tags_ansible && format('--tags {0}', inputs.tags_ansible) || '' }}
+
       - name: Vérifier
         run: |
           set -euo pipefail

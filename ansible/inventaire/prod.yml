@@ -1,0 +1,46 @@
+# ==============================================================================
+# INVENTAIRE DE PRODUCTION — UN SEUL HOTE, ET C'EST UNE REGLE DE SURETE.
+#
+# LE VPS DE BASE DE DONNEES N'ENTRE JAMAIS ICI.
+#
+# `10.20.0.2` heberge PostgreSQL derriere le tunnel WireGuard. Le faire entrer
+# dans cet inventaire le soumettrait aux roles de preparation — dont le
+# durcissement nftables, qui fermerait 5432. Les quatorze bases deviendraient
+# injoignables depuis l'applicatif, et le symptome serait un DELAI D'ATTENTE :
+# indiscernable d'un mot de passe faux, d'un `pg_hba` mal regle ou d'une route
+# absente.
+#
+# Ce serveur se gere a la main, et c'est deliberement inconfortable : ce qui
+# demande un geste explicite ne se fait pas par inadvertance.
+#
+# LA CONNEXION PASSE PAR L'ALIAS SSH, PAS PAR L'ADRESSE.
+#
+# `ansible_host: ovh-server` laisse `~/.ssh/config` decider du port (8022), de
+# l'utilisateur et de la cle. Ecrire l'adresse ici court-circuiterait ce bloc :
+# ssh choisit son `Host` sur le NOM ECRIT en ligne de commande, pas sur
+# l'adresse resolue — c'est ce qui avait fait echouer le contexte Docker le
+# 30 aout.
+# ==============================================================================
+production:
+  hosts:
+    hba-prod:
+      # `ovh-server` ETAIT UN ALIAS DE `~/.ssh/config`, QUI N'EXISTE QUE SUR LE
+      # POSTE DE DEVELOPPEMENT. Dans un travail GitHub Actions il n'y a pas de
+      # `~/.ssh/config` : Ansible aurait tente de resoudre « ovh-server » comme
+      # un nom DNS et echoue sur une erreur de resolution, pas de connexion.
+      # L'adresse et le port sont donc explicites, et surchargeables par `-e`
+      # pour ne pas figer une IP dans le depot.
+      ansible_host: "{{ hba_hote | default('79.137.35.129') }}"
+      ansible_port: "{{ hba_port_ssh | default(8022) }}"
+      ansible_user: "{{ hba_utilisateur | default('ubuntu') }}"
+      ansible_become: true
+
+  vars:
+    # Le domaine public et l'adresse ACME. Ils doivent concorder avec le
+    # fichier d'environnement du compose : `verifier-env-compose.py` les exige.
+    hba_domaine: api.hba-express.com
+    hba_adresse_publique: 79.137.35.129
+
+    # Ou vit la pile sur le VPS.
+    hba_racine: /opt/hba
+    hba_projet: hba
