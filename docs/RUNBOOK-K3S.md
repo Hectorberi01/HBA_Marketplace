@@ -835,7 +835,7 @@ construit sans erreur, se pousse sans erreur, et le pod meurt au démarrage sur
 « exec format error » — un message qui ne nomme jamais l'architecture. La
 première construction est lente : l'étage SDK tourne sous émulation.
 
-**La liste vient de deux inventaires confrontés** : `ci-affected.py --tous` pour
+**La liste vient de deux inventaires confrontés** : `images-affectees --tous` pour
 la correspondance service → Dockerfile, et les images de `k8s/overlays/prod` pour
 ce que la production réclame. Une image réclamée sans Dockerfile arrête tout —
 sinon un pod resterait en `ImagePullBackOff` sur un « denied » qui se lit comme

@@ -10,7 +10,7 @@
 # Quinze fichiers quasi identiques auraient satisfait la lettre et créé le défaut
 # que ce dépôt combat partout ailleurs — quinze copies qui divergent, dont on en
 # oublie deux le jour où l'on change une étape. La raison est ici satisfaite par
-# `scripts/ci-affected.py`, qui calcule les images réellement touchées depuis le
+# `tools/HBA.Controls images-affectees`, qui calcule les images réellement touchées depuis le
 # GRAPHE DE RÉFÉRENCES des `.csproj`, transitivement.
 #
 # Une liste de chemins tenue à la main aurait échoué autrement, et en silence : le
@@ -181,6 +181,22 @@ jobs:
           # reconstruirait TOUT. Un pipeline correct mais quinze fois trop long.
           fetch-depth: 0
 
+      # LE SDK EST NÉCESSAIRE DEPUIS QUE LE CALCUL EST EN C#. Ce travail ne
+      # compilait rien auparavant : le calcul était en Python. Sans cette étape,
+      # `dotnet` est absent, la commande échoue, et `matrice` reste vide — une CI
+      # verte qui ne construit AUCUNE image.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      # ON CONSTRUIT AVANT, ET SÉPARÉMENT, POUR QUE `matrice` NE CONTIENNE QUE
+      # DU JSON. `dotnet run` écrit ses diagnostics de compilation sur la sortie
+      # standard : une seule ligne d'avertissement, et `$(...)` capture du texte
+      # que `strategy.matrix` refuse — sans que rien ne dise que la cause est un
+      # avertissement de build.
+      - name: Construire l'outil de contrôles
+        run: dotnet build tools/HBA.Controls -c Release --verbosity quiet
+
       - id: calcul
         run: |
           if [ "${{ github.event_name }}" = "push" ] && \
@@ -189,11 +205,23 @@ jobs:
                [ "${{ github.ref_name }}" = "develop" ]; }; then
             # Les branches qui déclenchent un déploiement posent le même SHA sur
             # tout l'overlay. Chaque image référencée doit donc exister avec ce SHA.
-            matrice=$(python3 scripts/ci-affected.py --tous)
+            matrice=$(dotnet run --project tools/HBA.Controls -c Release --no-build \
+                        --verbosity quiet -- images-affectees --tous)
           else
             base="${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
-            matrice=$(python3 scripts/ci-affected.py "$base")
+            matrice=$(dotnet run --project tools/HBA.Controls -c Release --no-build \
+                        --verbosity quiet -- images-affectees "$base")
           fi
+          # UNE MATRICE QUI N'EST PAS DU JSON DOIT ARRÊTER LE TRAVAIL, PAS LE
+          # LAISSER CONTINUER À VIDE. Sans ce contrôle, une sortie polluée donne
+          # `vide=false` avec une matrice illisible, ou `vide=true` sur une
+          # chaîne nulle : une CI verte qui ne construit aucune image.
+          if ! printf '%s' "$matrice" | jq -e 'type == "array"' >/dev/null 2>&1; then
+            echo "::error::le calcul de la matrice n'a pas rendu un tableau JSON :"
+            printf '%s\n' "$matrice"
+            exit 1
+          fi
+
           echo "matrice=$matrice" >> "$GITHUB_OUTPUT"
           echo "vide=$([ "$matrice" = '[]' ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "Services affectés : $matrice"

@@ -14,7 +14,7 @@ la branche poussée.
 **Un pipeline par service, pas un pipeline pour tout** reste la règle, mais elle
 est tenue autrement que par quinze fichiers. Sa raison — ne pas reconstruire
 treize services à chaque commit, pour pouvoir corriger la restauration sans
-redéployer les paiements — est satisfaite par `scripts/ci-affected.py`, qui
+redéployer les paiements — est satisfaite par `tools/HBA.Controls`, qui
 calcule les images réellement touchées.
 
 Quinze fichiers quasi identiques auraient satisfait la lettre et créé le défaut
@@ -24,8 +24,8 @@ deux le jour où l'on change une étape.
 ## Les services affectés sont calculés, pas listés
 
 ```bash
-python3 scripts/ci-affected.py origin/main   # ce qu'un diff reconstruit
-python3 scripts/ci-affected.py --liste       # les 30 images et leur fermeture
+dotnet run --project tools/HBA.Controls -- images-affectees origin/main  # ce qu'un diff reconstruit
+dotnet run --project tools/HBA.Controls -- images-affectees --liste      # les images et leur fermeture
 ```
 
 Le calcul suit le **graphe de références des `.csproj`**, transitivement — le même

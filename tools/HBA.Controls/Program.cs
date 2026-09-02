@@ -8,6 +8,10 @@ using HBA.Controls.Controles;
 //     dotnet run --project tools/HBA.Controls -- solution  un seul
 //     dotnet run --project tools/HBA.Controls -- --liste   ce qui existe
 //
+//     dotnet run --project tools/HBA.Controls -- images-affectees <base>
+//     dotnet run --project tools/HBA.Controls -- images-affectees --tous
+//         la matrice de construction de la CI, en JSON sur la sortie standard.
+//
 // IL REMPLACE PROGRESSIVEMENT `scripts/check-*.py`. Tant que le portage n'est
 // pas fini, les deux coexistent et `scripts/check-all.sh` lance les deux : un
 // contrôle porté est RETIRÉ du côté Python dans le même commit que son arrivée
@@ -27,7 +31,27 @@ IControle[] controles =
     new ReferencesControle(),
 ];
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// LES VERBES QUI NE SONT PAS DES CONTRÔLES.
+//
+// `images-affectees` ne rend pas un verdict : il rend la matrice de construction
+// de la CI, sur la sortie standard, en JSON. Le mélanger aux contrôles ferait
+// écrire ce JSON au milieu d'un rapport de barrière.
+if (args.Length > 0 && args[0] == ImagesAffectees.Verbe)
+{
+    return ImagesAffectees.Executer(args);
+}
+
 var demandes = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+
+// Un contrôle qui porterait le nom d'un verbe deviendrait inatteignable, en
+// silence. On refuse la collision plutôt que de la découvrir en production.
+if (controles.Any(c => c.Nom == ImagesAffectees.Verbe))
+{
+    Console.Error.WriteLine($"un contrôle porte le nom du verbe « {ImagesAffectees.Verbe} » : "
+                            + "il ne pourrait jamais être lancé");
+    return 2;
+}
 
 if (args.Contains("--liste"))
 {

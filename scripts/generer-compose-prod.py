@@ -74,7 +74,7 @@ NOMS_IMAGES = {"gateway": "api-gateway"}
 # ══════════════════════════════════════════════════════════════════════════════
 # LES SERVICES CONSTRUITS SUR PLACE — CEUX QUE LA CI NE PUBLIE PAS.
 #
-# `rembg` n'a pas de Dockerfile dans `ci-affected.py` : il n'est jamais construit
+# `rembg` n'a pas de Dockerfile connu de `images-affectees` : il n'est jamais construit
 # par la CI, et son image n'existe dans aucun registre. Il garde donc son
 # `build:` et se construit sur le VPS depuis `infra/rembg` — c'est une image
 # Python legere, pas les vingt hotes .NET.
@@ -928,14 +928,28 @@ def main():
                 cle = ligne.split(":")[0].strip()
                 fuites.append("ligne %d : %s — %s" % (numero, cle, quoi))
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # LA LISTE DES IMAGES VIENT DESORMAIS DE `tools/HBA.Controls`.
+    #
+    # `scripts/ci-affected.py` a ete porte en C# et supprime. La source reste la
+    # MEME que celle de la matrice de construction de la CI — c'est tout
+    # l'interet : un nom d'image qui diverge entre le compose et la CI produit
+    # un `pull` d'une image qui n'a jamais ete publiee.
+    #
+    # LE REFUS EST CONSERVE TEL QUEL. Si l'outil ne repond pas — SDK absent,
+    # compilation cassee — ce generateur s'ARRETE. Il ne poursuit pas sans le
+    # controle des noms : un compose engendre sans cette verification a l'air
+    # complet et designe des images absentes du registre.
+    # ═══════════════════════════════════════════════════════════════════════
     try:
         publiables = {e["service"] for e in json.loads(subprocess.check_output(
-            [sys.executable, os.path.join("scripts", "ci-affected.py"), "--tous"],
+            ["dotnet", "run", "--project", os.path.join("tools", "HBA.Controls"),
+             "--verbosity", "quiet", "--", "images-affectees", "--tous"],
             cwd=RACINE, text=True))}
     except (subprocess.SubprocessError, ValueError, OSError) as e:
-        print("REFUS : impossible de lire ci-affected.py (%s) — le controle des "
-              "noms d'images ne peut pas s'executer." % type(e).__name__,
-              file=sys.stderr)
+        print("REFUS : impossible de lire la liste des images depuis "
+              "tools/HBA.Controls (%s) — le controle des noms d'images ne peut "
+              "pas s'executer." % type(e).__name__, file=sys.stderr)
         return 1
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -1058,7 +1072,7 @@ def main():
     # Le jour ou l'on tire — c'est-a-dire le jour du deploiement — il devient
     # « denied », qui se lit comme un jeton sans droits.
     #
-    # La reference est `ci-affected.py --tous` : la meme source que la matrice
+    # La reference est `images-affectees --tous` : la meme source que la matrice
     # de construction de la CI. Deux inventaires,
     # une seule verite.
     #
@@ -1081,7 +1095,7 @@ def main():
 
     if inconnues:
         print("REFUS : %d image(s) du rendu ne sont publiees par aucune Dockerfile "
-              "connue de ci-affected.py :" % len(inconnues), file=sys.stderr)
+              "connue de images-affectees :" % len(inconnues), file=sys.stderr)
         for i in sorted(set(inconnues)):
             print("    %s" % i, file=sys.stderr)
         print("    Ajouter la traduction a NOMS_IMAGES, ou le service a "
