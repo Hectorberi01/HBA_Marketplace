@@ -7,7 +7,7 @@ set -uo pipefail
 # Chacun est né d'une panne réelle, et chacun attrape une classe d'erreurs que
 # le compilateur ne voit pas :
 #
-#   • check-refs.py        une `ProjectReference` dont la cible n'existe plus.
+#   • references (C#)      une `ProjectReference` dont la cible n'existe plus.
 #                          MSBuild n'en fait qu'un AVERTISSEMENT, puis échoue
 #                          plus loin sur des `using` — le message d'erreur
 #                          désigne alors des espaces de noms, jamais la ligne
@@ -181,13 +181,25 @@ check_connection_strings() {
 # .NET : un poste sans SDK ne peut de toute façon rien construire, et le contrôle
 # suivant s'en apercevra. Ce qu'on refuse, c'est le vert silencieux.
 # ═══════════════════════════════════════════════════════════════════════════════
-if command -v dotnet >/dev/null 2>&1; then
-  run "Cohérence de la solution"   dotnet run --project "$ROOT_DIR/tools/HBA.Controls" \
-                                     --verbosity quiet -- solution
-else
-  echo "   dotnet absent — « Cohérence de la solution » NON EXÉCUTÉ."
-  echo "     Ce contrôle vit désormais dans tools/HBA.Controls."
-fi
+# `run_dotnet <libellé> <nom du contrôle>` — un contrôle porté en C#.
+#
+# `dotnet` ABSENT NE FAIT PAS ÉCHOUER LA BARRIÈRE, MAIS LE DIT. Le dépôt est en
+# .NET : un poste sans SDK ne peut de toute façon rien construire. Ce qu'on
+# refuse, c'est le vert silencieux — le défaut corrigé quatre fois ici.
+DOTNET_NON_EXECUTES=0
+run_dotnet() {
+  local libelle="$1"
+  local controle="$2"
+  if command -v dotnet >/dev/null 2>&1; then
+    run "$libelle" dotnet run --project "$ROOT_DIR/tools/HBA.Controls" \
+                     --verbosity quiet -- "$controle"
+  else
+    DOTNET_NON_EXECUTES=$((DOTNET_NON_EXECUTES + 1))
+    echo "   dotnet absent — « $libelle » NON EXÉCUTÉ (tools/HBA.Controls)."
+  fi
+}
+
+run_dotnet "Cohérence de la solution" "solution"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # JUSTE APRÈS LA SOLUTION, ET C'EST VOLONTAIRE : LES DEUX SE COMPLÈTENT.
@@ -204,7 +216,7 @@ fi
 #
 # Celui-ci part des `.csproj` du DISQUE, sans passer par aucune solution.
 # ═══════════════════════════════════════════════════════════════════════════════
-run "Références de projet"         "$PYTHON" "$ROOT_DIR/scripts/check-refs.py"
+run_dotnet "Références de projet" "references"
 run "Structure des fichiers C#"    "$PYTHON" "$ROOT_DIR/scripts/check-braces.py"
 run "Dépendances non résolues"     "$PYTHON" "$ROOT_DIR/scripts/check-di.py"          "$@"
 run "Types hors portée"            "$PYTHON" "$ROOT_DIR/scripts/check-usings.py"      "$@"
@@ -366,6 +378,14 @@ if [ "$FAILED" -eq 0 ]; then
   echo "✓ Les $TOTAL contrôles passent."
 else
   echo "✗ $FAILED contrôle(s) en échec — voir ci-dessus."
+fi
+
+# UN CONTRÔLE SAUTÉ SE COMPTE DANS LE VERDICT, PAS SEULEMENT DANS LE DÉFILEMENT.
+# Sans cette ligne, « Les N contrôles passent » se lit comme « tout a été
+# vérifié » alors que deux d'entre eux n'ont pas tourné.
+if [ "$DOTNET_NON_EXECUTES" -gt 0 ]; then
+  echo "  ⓘ $DOTNET_NON_EXECUTES contrôle(s) NON EXÉCUTÉ(S) : dotnet absent."
+  echo "    Ils vivent dans tools/HBA.Controls. Installer le SDK .NET 9 les rallume."
 fi
 
 exit "$FAILED"

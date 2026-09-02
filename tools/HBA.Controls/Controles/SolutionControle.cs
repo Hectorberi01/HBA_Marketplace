@@ -191,34 +191,14 @@ public sealed class SolutionControle : IControle
     private static HashSet<string> ProjetsReferences()
     {
         var cites = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var motif = new Regex(
-            @"<ProjectReference\s[^>]*Include\s*=\s*""([^""]+)""",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-        foreach (var csproj in Depot.Fichiers(Depot.Racine, ".csproj"))
+        foreach (var csproj in Projets.Tous())
         {
-            var dossier = Path.GetDirectoryName(csproj)!;
-            foreach (Match m in motif.Matches(File.ReadAllText(csproj)))
+            foreach (var (_, absolu) in Projets.References(csproj))
             {
-                var brut = m.Groups[1].Value.Replace('\\', Path.DirectorySeparatorChar);
-                var absolu = Path.GetFullPath(Path.Combine(dossier, brut));
                 cites.Add(Depot.Relatif(absolu));
             }
         }
 
         return cites;
-    }
-
-    private static int Compter(string texte, string aiguille)
-    {
-        var total = 0;
-        var index = 0;
-        while ((index = texte.IndexOf(aiguille, index, StringComparison.Ordinal)) >= 0)
-        {
-            total++;
-            index += aiguille.Length;
-        }
-
-        return total;
     }
 }

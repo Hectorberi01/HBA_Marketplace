@@ -24,6 +24,7 @@ using HBA.Controls.Controles;
 IControle[] controles =
 [
     new SolutionControle(),
+    new ReferencesControle(),
 ];
 
 var demandes = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
