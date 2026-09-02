@@ -310,7 +310,7 @@ public sealed class InternalCallServerInterceptor : Interceptor
             // et sa signature EST valide. Répondre `Unauthenticated` enverrait
             // l'exploitation chercher une clé mal déployée alors que le problème
             // est une table d'autorisations qui n'a pas suivi un nouvel appel —
-            // c'est-à-dire un oubli de `scripts/check-autorisations-grpc.py`, pas
+            // c'est-à-dire un oubli de le contrôle `autorisations-grpc`, pas
             // un incident de secret.
             //
             // Comme `Unauthenticated`, ce code n'est pas compté par le

@@ -9,7 +9,7 @@ nommaient les sujets Kafka et qu'aucun ne se parlait.
 
 | Ce que ce dossier annonçait | Où c'est, aujourd'hui |
 |---|---|
-| « le format de chaque événement publié » | `docs/contrats-evenements.json` — instantané versionné des **140 événements**, comparé à chaque exécution par `scripts/check-event-contracts.py` |
+| « le format de chaque événement publié » | `docs/contrats-evenements.json` — instantané versionné des **140 événements**, comparé à chaque exécution par le contrôle `event-contracts` |
 | « il leur faudra un nom stable et indépendant du langage » | l'attribut `[HbaEvent(domaine, entité, action, Version)]` et `HbaTopics` (D31) — un seul endroit dérive le nom du sujet, pour le producteur comme pour le consommateur |
 | « on ajoute, on ne retire pas ; on versionne, on ne renomme pas » | la **règle additive D32**, tenue par `check-event-contracts.py` : retirer ou renommer un champ fait échouer le contrôle |
 

@@ -26,7 +26,7 @@ namespace HBA.Catalog.Domain.Products.Events;
 /// Vérifié avant de le retirer : `ProductStatusChangedIntegrationEvent` n'était lu
 /// nulle part dans le dépôt. Il était publié à chaque changement de statut, sur
 /// chaque produit, et personne n'écoutait — exactement ce que
-/// `scripts/check-event-consumers.py` existe pour rendre visible.
+/// le contrôle `event-consumers` existe pour rendre visible.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public sealed record ProductSubmittedForReviewDomainEvent(

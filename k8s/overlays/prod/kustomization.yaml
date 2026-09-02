@@ -163,7 +163,7 @@ patches:
   # il faudra rajouter leurs deux patches ICI, avec le nom que produira
   # réellement leur `namePrefix` — pas celui du domaine.
   #
-  # `scripts/check-k8s.py` refuse désormais toute cible sans correspondance, et
+  # le contrôle `k8s` refuse désormais toute cible sans correspondance, et
   # il le fait SANS kustomize : c'est ce qui a permis de trouver ceci.
   # ═══════════════════════════════════════════════════════════════════════
 

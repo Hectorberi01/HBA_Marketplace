@@ -15,7 +15,7 @@
 # LES IMAGES DOIVENT ETRE CELLES DE `overlays/prod`. Migrer avec une image plus
 # ancienne que celle qui servira applique un schema en retard sur le code : le
 # service demarre et echoue sur une colonne absente, loin de la cause.
-# `scripts/check-k8s.py` verifie cet accord.
+# le contrôle `k8s` verifie cet accord.
 # ═══════════════════════════════════════════════════════════════════════════════
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

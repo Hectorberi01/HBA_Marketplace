@@ -62,7 +62,7 @@ namespace HBA.Controls.Controles;
 /// avec `--ecrire`. Ce contrôle-ci ne fait que CONSTATER : un contrôle rend un
 /// verdict, il ne modifie pas le dépôt qu'il contrôle. Tant que la régénération
 /// n'a pas son propre verbe dans le lanceur, elle reste du côté de
-/// `scripts/check-autorisations-grpc.py --ecrire`, et le message de faute le
+/// `le contrôle `autorisations-grpc` --ecrire`, et le message de faute le
 /// rappelle à qui le lit.
 /// ═══════════════════════════════════════════════════════════════════════════
 /// </remarks>
@@ -428,7 +428,7 @@ public sealed class AutorisationsGrpcControle : IControle
         if (fautes.Count > 0)
         {
             fautes.Add(
-                "`python3 scripts/check-autorisations-grpc.py --ecrire` régénère la table. "
+                "`dotnet run --project tools/HBA.Controls -- autorisations-grpc régénère la table. "
                 + "Ce contrôle CONSTATE seulement : il ne réécrit pas le dépôt qu'il lit.");
         }
 
@@ -445,7 +445,7 @@ public sealed class AutorisationsGrpcControle : IControle
                 "que l'hôte soit réellement déployé : un projet portant un `Program.cs` sans "
                 + "conteneur figure quand même dans la table",
                 "la RÉGÉNÉRATION de la table, restée du côté de "
-                + "`scripts/check-autorisations-grpc.py --ecrire`",
+                + "`le contrôle `autorisations-grpc` --ecrire`",
                 "les fichiers sous `clients/` et `tools/`, écartés du graphe : un client "
                 + "lourd et l'outil de contrôles portent un "
                 + "`Program.cs` sans être un hôte gRPC",

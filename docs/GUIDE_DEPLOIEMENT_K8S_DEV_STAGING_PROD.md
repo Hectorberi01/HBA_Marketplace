@@ -191,7 +191,7 @@ Depuis la racine du depot :
 
 ```bash
 # commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
-python3 scripts/check-k8s.py
+dotnet run --project tools/HBA.Controls -- k8s
 kustomize build k8s/overlays/dev >/tmp/hba-dev.yaml
 kustomize build k8s/overlays/staging >/tmp/hba-staging.yaml
 kustomize build k8s/overlays/prod >/tmp/hba-prod.yaml
@@ -565,7 +565,7 @@ Creer `hba-platform` et `hba-identites-internes` comme indique en section 10, av
 ### 12.4 Verifier le rendu
 
 ```bash
-python3 scripts/check-k8s.py
+dotnet run --project tools/HBA.Controls -- k8s
 kustomize build k8s/overlays/dev >/tmp/hba-dev.yaml
 ```
 
@@ -612,7 +612,7 @@ Staging doit etre traite comme une repetition generale de la production.
 
 ```bash
 git status --short
-python3 scripts/check-k8s.py
+dotnet run --project tools/HBA.Controls -- k8s
 kustomize build k8s/overlays/staging >/tmp/hba-staging.yaml
 ```
 
@@ -744,7 +744,7 @@ Le workflow prepare la promotion. Il ne fait pas le deploiement Kubernetes.
 git pull
 git diff HEAD~1 -- k8s/overlays/prod
 kustomize build k8s/overlays/prod >/tmp/hba-prod.yaml
-python3 scripts/check-k8s.py
+dotnet run --project tools/HBA.Controls -- k8s
 ```
 
 Verifier :
@@ -845,7 +845,7 @@ Pour chaque service manquant :
 7. ajouter la chaine de connexion dans le secret `hba-platform` si le service a sa base ;
 8. ajouter les topics Kafka necessaires ;
 9. ajouter les routes gateway ou BFF si exposees ;
-10. lancer `python3 scripts/check-k8s.py`.
+10. lancer `dotnet run --project tools/HBA.Controls -- k8s`.
 
 ## 16. Communication interservices
 
@@ -1147,7 +1147,7 @@ Avant :
 - Strimzi installe ;
 - ingress-nginx installe si besoin ;
 - secrets dev crees ;
-- `python3 scripts/check-k8s.py` vert ;
+- `dotnet run --project tools/HBA.Controls -- k8s` vert ;
 - `kustomize build k8s/overlays/dev` vert.
 
 Apres :
@@ -1172,7 +1172,7 @@ Avant :
 - migrations appliquees ;
 - Strimzi pret ;
 - Redis et MinIO prets ;
-- `python3 scripts/check-k8s.py` vert.
+- `dotnet run --project tools/HBA.Controls -- k8s` vert.
 
 Apres :
 
@@ -1236,7 +1236,7 @@ Pour rendre le deploiement plus robuste :
 Dev :
 
 ```bash
-python3 scripts/check-k8s.py
+dotnet run --project tools/HBA.Controls -- k8s
 kustomize build k8s/overlays/dev >/tmp/hba-dev.yaml
 kubectl create namespace hba-dev
 # creer hba-platform
@@ -1264,7 +1264,7 @@ export KUBECONFIG=infra/ansible/kubeconfig-staging.yaml
 # appliquer migrations
 
 cd /Users/hector/Documents/HBA
-python3 scripts/check-k8s.py
+dotnet run --project tools/HBA.Controls -- k8s
 kubectl apply -k k8s/overlays/staging
 kubectl -n hba-staging rollout status deploy --timeout=10m
 curl -fsS https://backendapi.marketplace-staging.hba-marketplace.fr/health/ready
@@ -1276,7 +1276,7 @@ Production :
 # choisir un SHA valide en staging
 gh workflow run cd.yml -f environnement=prod -f sha=<sha-git>
 git pull
-python3 scripts/check-k8s.py
+dotnet run --project tools/HBA.Controls -- k8s
 kustomize build k8s/overlays/prod >/tmp/hba-prod.yaml
 
 # backup

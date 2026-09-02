@@ -4,7 +4,7 @@ set -uo pipefail
 # ═══════════════════════════════════════════════════════════════════════════════
 # LES TABLES CONFIGURÉES QU'AUCUNE MIGRATION NE CRÉE.
 #
-# `scripts/check-migrations.py` les liste. Ce script les rattrape, en laissant
+# le contrôle `migrations` les liste. Ce script les rattrape, en laissant
 # `dotnet ef` faire le travail.
 #
 # IL N'A PLUS DE LISTE DE SERVICES, ET C'EST LA CORRECTION D'UN DÉFAUT RÉEL.
@@ -184,9 +184,9 @@ projet_infrastructure() {
 # vert que ce script existe pour empêcher, reproduit dans le script lui-même.
 # Trouvé en le simulant depuis un autre dossier.
 # ═══════════════════════════════════════════════════════════════════════════════
-if ! EN_DEFAUT="$(python3 "$ROOT_DIR/scripts/check-migrations.py" --services-en-defaut)"; then
+if ! EN_DEFAUT="$(python3 "$ROOT_DIR/le contrôle `migrations`" --services-en-defaut)"; then
   echo "❌ Le contrôle des migrations n'a pas pu s'exécuter — rien n'a été généré."
-  echo "   python3 $ROOT_DIR/scripts/check-migrations.py --services-en-defaut"
+  echo "   python3 $ROOT_DIR/le contrôle `migrations` --services-en-defaut"
   exit 1
 fi
 
@@ -390,4 +390,4 @@ fi
 # « La commande a rendu 0 » dit que le fichier a été écrit, pas que la table
 # manquante y est. On rejoue donc le contrôle qui a motivé le script.
 echo "── Vérification"
-python3 "$ROOT_DIR/scripts/check-migrations.py"
+python3 "$ROOT_DIR/le contrôle `migrations`"

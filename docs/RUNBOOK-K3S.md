@@ -627,8 +627,8 @@ colonne manquante. `check-k8s.py` vérifie leur accord.
 ```bash
 kustomize build k8s/overlays/migrations-prod > /dev/null && echo "migrations : rendu ok"
 kustomize build k8s/overlays/prod            > /dev/null && echo "prod       : rendu ok"
-python3 scripts/check-k8s.py
-python3 scripts/check-kafka-topics.py
+dotnet run --project tools/HBA.Controls -- k8s
+dotnet run --project tools/HBA.Controls -- kafka-topics
 ```
 
 `check-k8s.py` est SANS kustomize pour l'essentiel : c'est lui qui a trouvé les

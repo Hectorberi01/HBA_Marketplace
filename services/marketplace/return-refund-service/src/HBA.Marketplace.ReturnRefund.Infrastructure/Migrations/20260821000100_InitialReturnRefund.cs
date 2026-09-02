@@ -23,7 +23,7 @@ namespace HBA.Marketplace.ReturnRefund.Infrastructure.Migrations
     /// c'est la première requête métier qui rendait « relation … does not exist ».
     /// Un démarrage réussi sur une base vide est le pire des deux mondes.
     ///
-    /// `scripts/check-migrations.py` listait les neuf tables manquantes depuis le
+    /// le contrôle `migrations` listait les neuf tables manquantes depuis le
     /// début. Personne ne lisait sa sortie.
     ///
     /// ÉCRITE À LA MAIN : attributs `[DbContext]` + `[Migration]` (sans eux EF ne

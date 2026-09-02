@@ -28,7 +28,7 @@
 **Les deux dernières colonnes disent la vérité, et il faut la lire.** Le code
 Terraform et Ansible de `infra/` n'a **jamais été appliqué** : pas d'identifiants
 OVH, donc pas de `terraform plan`, pas de `ansible-playbook`. Sa syntaxe et son
-câblage sont vérifiés à chaque `check-all.sh` (`scripts/check-infra.py`) ; son
+câblage sont vérifiés à chaque `check-all.sh` (le contrôle `infra`) ; son
 comportement ne l'est pas. Les étages 3 et 4 sont une **procédure proposée**, à
 relire avant le premier passage — pas un mode d'emploi éprouvé.
 

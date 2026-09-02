@@ -4,7 +4,7 @@
 # TENU À LA MAIN depuis le 2 septembre 2026.
 #
 # Ce fichier était généré par `scripts/k8s-kafka-topics.py`, supprimé avec
-# l'outillage Python. `scripts/check-kafka-topics.py` continue de vérifier que
+# l'outillage Python. le contrôle `kafka-topics` continue de vérifier que
 # cette liste est bien le miroir de `HbaTopics.DomaineParService` : une
 # divergence introduite à la main ne passera pas la barrière.
 #
@@ -16,7 +16,7 @@
 # `KafkaIntegrationEventConsumer` s'abonne : trois sources d'un même nom, une seule
 # dérivation. Ajouter un service à la table et régénérer, jamais éditer ici.
 #
-# `scripts/check-kafka-topics.py` vérifie que ce fichier n'a pas divergé.
+# le contrôle `kafka-topics` vérifie que ce fichier n'a pas divergé.
 #
 # UN SUJET ABSENT D'ICI N'ÉCHOUE PAS — IL EST CRÉÉ SANS CE QU'ON VOULAIT.
 #
@@ -61,7 +61,7 @@
 # raisons d'être.
 #
 # Après tout ajout de service au catalogue, ajouter le sujet ici, puis
-# contrôler avec `python3 scripts/check-kafka-topics.py`.
+# contrôler avec `dotnet run --project tools/HBA.Controls -- kafka-topics`.
 # ═══════════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: kafka.strimzi.io/v1beta2

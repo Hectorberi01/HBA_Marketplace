@@ -31,7 +31,7 @@ namespace HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.InventoryClient;
 ///
 /// CE QUI L'AVAIT LAISSÉE PASSER.
 ///
-/// `scripts/check-grpc-stubs.py` balayait `<dépôt>/src`, chemin hérité du
+/// le contrôle `grpc-stubs` balayait `<dépôt>/src`, chemin hérité du
 /// monolithe et inexistant dans ce monorepo. Il rendait « 0 bouchon » depuis
 /// toujours. Réparé, il désigne cette classe.
 /// ═════════════════════════════════════════════════════════════════════════════

@@ -33,7 +33,7 @@ déployée. Mais ils ne doivent pas être lus comme l'état du système.
 
 **`terraform/` et `ansible/` n'ont jamais tourné** — pas d'identifiants OVH,
 donc ni `terraform plan` ni `ansible-playbook`. Leur syntaxe et leur câblage sont
-vérifiés à chaque `./scripts/check-all.sh` (`scripts/check-infra.py`, ou
+vérifiés à chaque `./scripts/check-all.sh` (le contrôle `infra`, ou
 `make infra`) ; leur comportement ne l'est pas. À relire avant le premier
 passage, pas à appliquer de confiance.
 

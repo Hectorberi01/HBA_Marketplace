@@ -103,7 +103,7 @@ Le choix entre les deux modes reste opérationnel :
 
 ## Le contrôle qui manquait
 
-`scripts/check-workflows.py`, dans `check-all.sh`.
+le contrôle `workflows`, dans `check-all.sh`.
 
 **Un workflow au YAML invalide ne se plaint pas — il ne tourne pas.** Aucune
 exécution n'apparaît, aucune notification ne part, aucun statut ne remonte sur la

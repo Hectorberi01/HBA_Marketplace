@@ -238,7 +238,7 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         // Un fait du cycle de vie sans enregistrement est levé par l'agrégat, ne
         // trouve aucun handler, et disparaît. Rien n'échoue : le produit change
         // bien de statut, seul l'extérieur ne l'apprend jamais. C'est le défaut
-        // que `scripts/check-event-consumers.py` existe pour rendre visible, et il
+        // que le contrôle `event-consumers` existe pour rendre visible, et il
         // ne se voit pas autrement.
         services.AddScoped<IDomainEventHandler<ProductSubmittedForReviewDomainEvent>, ProductSubmittedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<ProductApprovedDomainEvent>, ProductApprovedDomainEventHandler>();

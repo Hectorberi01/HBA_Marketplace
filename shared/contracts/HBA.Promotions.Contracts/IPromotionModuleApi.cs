@@ -33,7 +33,7 @@ public sealed record PromotionEvaluationContext(
 ///
 /// LES TROIS CHAMPS SONT AJOUTÉS EN FIN, AVEC UN DÉFAUT (D32).
 ///
-/// `scripts/check-event-contracts.py` ne surveille que les `*IntegrationEvent`,
+/// le contrôle `event-contracts` ne surveille que les `*IntegrationEvent`,
 /// mais la règle vaut pour tous les contrats de ce dépôt : on n'ajoute que de
 /// l'OPTIONNEL ; une rupture crée un nouveau type. Un appelant déjà déployé
 /// continue de construire ce record avec six arguments et continue de compiler.

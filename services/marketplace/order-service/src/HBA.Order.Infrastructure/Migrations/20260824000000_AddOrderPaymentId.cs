@@ -19,7 +19,7 @@ namespace HBA.Orders.Infrastructure.Migrations;
 /// « 42703: column o.PaymentId does not exist » — la même famille de panne que la
 /// colonne <c>TraceParent</c> de l'outbox.
 ///
-/// `scripts/check-migrations.py` ne pouvait pas l'attraper : il lit les fichiers
+/// le contrôle `migrations` ne pouvait pas l'attraper : il lit les fichiers
 /// `.cs` du dossier, là où EF lit les attributs (limite L2 de DATABASE_AUDIT).
 /// ═════════════════════════════════════════════════════════════════════════
 /// </summary>

@@ -16,7 +16,7 @@ namespace HBA.Delivery.Pricing.Infrastructure.Migrations
     /// et AUCUN dossier `Migrations`. Le schéma `delivery_pricing` n'existait donc
     /// dans aucune base : la première lecture rendait « relation … does not exist ».
     ///
-    /// `scripts/check-migrations.py` le signalait depuis le début
+    /// le contrôle `migrations` le signalait depuis le début
     /// (« tables delivery_quotes, delivery_zones, pricing_rules »). Le service
     /// n'était pas non plus inscrit dans `HBA.sln`, donc invisible dans l'IDE —
     /// les deux oublis se protégeaient l'un l'autre.

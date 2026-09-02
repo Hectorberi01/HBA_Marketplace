@@ -271,7 +271,7 @@ public static class FinancialEndpoints
         // relecture.
         //
         // ON NE RÉÉCRIT PAS ICI LE NOM DE CETTE MÉTHODE FANTÔME, ET C'EST
-        // DÉLIBÉRÉ. `scripts/check-config-and-guards.py` refuse qu'un nom en
+        // DÉLIBÉRÉ. le contrôle `config-et-gardes` refuse qu'un nom en
         // `Ensure*Async`/`Deny*Async` soit cité sans exister — y compris pour le
         // dénoncer. Le citer laisserait deux occurrences à quiconque cherche la
         // méthode, et lui ferait croire qu'elle existe quelque part.

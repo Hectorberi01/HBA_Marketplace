@@ -53,7 +53,7 @@ public sealed class OrderingModuleInstaller : IModuleInstaller
         // l'injectent tous. Contrairement à un gestionnaire d'événement oublié —
         // qui laisse le service démarrer et échoue en silence au premier message —
         // celle-ci fait échouer `ValidateOnBuild`, donc le démarrage. C'est le
-        // bon sens du défaut, et c'est aussi ce que `scripts/check-di.py` attrape.
+        // bon sens du défaut, et c'est aussi ce que le contrôle `(supprimé le 28 août 2026)` attrape.
         services.AddScoped<ISellerOrderRepository, SellerOrderRepository>();
 
         services.AddScoped<IOrderingModuleApi, OrderingModuleApi>();

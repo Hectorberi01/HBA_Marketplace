@@ -175,7 +175,7 @@ jobs:
           # la nouvelle, et l'erreur remonte à la première requête qui touche une
           # colonne que la migration n'a pas créée.
           #
-          # `scripts/check-k8s.py` refuse ce désaccord ; cette étape fait qu'il
+          # Le contrôle `k8s` refuse ce désaccord ; cette étape fait qu'il
           # n'a pas à le refuser.
           pip install --quiet pyyaml
           noms=$(python3 -c "
@@ -190,12 +190,19 @@ jobs:
             echo "  migration $service -> ${{ inputs.sha }}"
           done
 
+      # LE SDK EST NECESSAIRE DEPUIS QUE LES CONTROLES SONT EN C#. Ce travail ne
+      # compilait rien : le controle etait en Python. Sans cette etape, la
+      # verification du rendu ne tourne pas — et une promotion qui laisse un
+      # `latest` derriere elle partirait en production sans un mot.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
       - name: Vérifier le rendu
         run: |
-          pip install --quiet pyyaml
           # Le contrôle refuse `latest` et toute image sans tag en production : il
           # échoue donc si la promotion a laissé une entrée derrière elle.
-          python3 scripts/check-k8s.py ${{ inputs.environnement }}
+          dotnet run --project tools/HBA.Controls --verbosity quiet -- k8s
 
       - name: Commiter la promotion
         run: |

@@ -38,7 +38,7 @@ public sealed class MealOrderingDbContext : ModuleDbContext, IMealOrderUnitOfWor
     ///
     /// Activé DANS LE MÊME COMMIT que la migration qui crée `audit_entries` : une
     /// entité présente dans le modèle sans table correspondante fait échouer tout
-    /// démarrage à froid, et `scripts/check-migrations.py` le refuse.
+    /// démarrage à froid, et le contrôle `migrations` le refuse.
     ///
     /// Une commande est un fait comptable — qui l'a annulée, quand, après quel
     /// arbitrage. C'est la première chose qu'on cherche devant une réclamation.

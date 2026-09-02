@@ -70,7 +70,7 @@ k8s-dev: ## Rend les manifests de l'environnement dev
 	kustomize build k8s/overlays/dev
 
 k8s-check: ## Construit les trois overlays et verifie le cahier Infrastructure
-	python3 scripts/check-k8s.py
+	dotnet run --project tools/HBA.Controls --verbosity quiet -- k8s
 
 migrations: ## Genere les migrations EF manquantes (hors ligne, sans base)
 	./scripts/db/add-missing-migrations.sh
@@ -93,7 +93,7 @@ migrate: ## Rappelle comment les migrations s'appliquent selon l'environnement
 	@echo "Generer les migrations manquantes : make migrations"
 
 infra: ## Verifie Terraform et Ansible (syntaxe et cablage, sans fournisseur)
-	python3 scripts/check-infra.py
+	dotnet run --project tools/HBA.Controls --verbosity quiet -- infra
 
 seed: ## Injecte les donnees de demonstration
 	./scripts/seed-accounts.sh && ./scripts/seed-stores.sh && ./scripts/seed-catalog-categories.sh

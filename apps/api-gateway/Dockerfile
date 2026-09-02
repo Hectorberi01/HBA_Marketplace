@@ -97,7 +97,7 @@ ARG BFF=apps/api-gateway
 #
 # Sans cette copie, `dotnet restore` échoue sur un csproj introuvable. Rien ne
 # l'aurait signalé avant : `dotnet build` local voit tout le dépôt, et
-# `scripts/check-dockerfiles.py` ne parcourt que `services/*`.
+# le contrôle `dockerfiles` ne parcourt que `services/*`.
 #
 # Le dossier entier plutôt que les trois csproj concernés : c'est la convention
 # des treize services (cf. `services/*/Dockerfile`), et `Grpc.Tools` a de toute

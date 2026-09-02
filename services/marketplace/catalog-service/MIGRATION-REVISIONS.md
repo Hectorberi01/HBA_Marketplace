@@ -108,7 +108,7 @@ Puis, sur une base **neuve**, la vraie vérification :
 
 ```bash
 ./scripts/dev-up.sh --fresh
-python3 scripts/check-migrations.py catalog-service   # doit passer
+dotnet run --project tools/HBA.Controls -- migrations   # doit passer
 ```
 
 ---

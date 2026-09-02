@@ -34,6 +34,7 @@ IControle[] controles =
     new AdressesServiceControle(),
     new AuditTrailControle(),
     new AutorisationsGrpcControle(),
+    new ChainesConnexionControle(),
     new ConfigEtGardesControle(),
     new DockerfilesControle(),
     new EventConsumersControle(),

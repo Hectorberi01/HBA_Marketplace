@@ -104,7 +104,7 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
         //
         // CE QUI L'AVAIT LAISSÉ PASSER.
         //
-        // `scripts/check-grpc-stubs.py` balayait `<dépôt>/src`, dossier hérité du
+        // le contrôle `grpc-stubs` balayait `<dépôt>/src`, dossier hérité du
         // monolithe et inexistant ici : il rendait « 0 bouchon » depuis toujours.
         // Réparé, il désigne ces trois classes — et sait désormais reconnaître le
         // cas « classe *GrpcClient sans aucun champ client », qui est précisément
@@ -173,7 +173,7 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
     /// Elle ne se met pas à jour toute seule. Implémenter réellement l'un de ces
     /// trois adaptateurs SANS retirer sa ligne d'ici bloquerait la production
     /// pour rien — l'inverse du défaut qu'on corrige, mais un défaut quand même.
-    /// `scripts/check-grpc-stubs.py` est le filet : il liste les bouchons réels à
+    /// le contrôle `grpc-stubs` est le filet : il liste les bouchons réels à
     /// chaque exécution de `scripts/check-all.sh`, et l'écart entre sa sortie et
     /// cette liste se voit en une lecture.
     /// ═════════════════════════════════════════════════════════════════════════

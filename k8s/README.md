@@ -42,7 +42,7 @@ Ajouter un service tient donc en un dossier de trente lignes.
 
 ```bash
 kustomize build k8s/overlays/dev
-python3 scripts/check-k8s.py          # inclus dans ./scripts/check-all.sh
+dotnet run --project tools/HBA.Controls -- k8s          # inclus dans ./scripts/check-all.sh
 ```
 
 `check-k8s.py` **construit** les trois overlays et vérifie le résultat : non-root,

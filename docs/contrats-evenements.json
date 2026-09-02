@@ -1,5 +1,5 @@
 {
-  "_lire": "Instantané des contrats d'événements d'intégration. Tenu par scripts/check-event-contracts.py. La convention est ADDITIVE (D32) : on n'ajoute que des champs optionnels ; une rupture crée un NOUVEAU type d'événement. Mettre ce fichier à jour dans le même commit que le changement, pour que le relecteur voie exactement ce qui a bougé.",
+  "_lire": "Instantané des contrats d'événements d'intégration. Tenu par le contrôle `event-contracts`. La convention est ADDITIVE (D32) : on n'ajoute que des champs optionnels ; une rupture crée un NOUVEAU type d'événement. Mettre ce fichier à jour dans le même commit que le changement, pour que le relecteur voie exactement ce qui a bougé.",
   "evenements": {
     "BrandCreatedIntegrationEvent": {
       "champs": {

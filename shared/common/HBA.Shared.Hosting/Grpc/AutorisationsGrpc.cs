@@ -15,7 +15,7 @@ namespace HBA.Shared.Hosting.Grpc;
 ///
 /// CETTE TABLE EST ENGENDRÉE À PARTIR DU CODE, PAS ÉCRITE À LA MAIN.
 ///
-/// `scripts/check-autorisations-grpc.py` la recalcule depuis le graphe réel des
+/// le contrôle `autorisations-grpc` la recalcule depuis le graphe réel des
 /// références de projet et des sites d'appel, et ÉCHOUE si elle diverge. Une
 /// autorisation ajoutée à la main sans appel correspondant est donc rejetée par
 /// le contrôle, comme l'est un appel ajouté sans autorisation. C'est la seule
@@ -92,7 +92,7 @@ public static class AutorisationsGrpc
     /// <summary>Les hôtes connus de la table, pour les contrôles de démarrage.</summary>
     public static IReadOnlyCollection<string> Appelants => _table.Keys;
 
-    // ENGENDRÉ — voir `scripts/check-autorisations-grpc.py`. Ne pas éditer à la
+    // ENGENDRÉ — voir le contrôle `autorisations-grpc`. Ne pas éditer à la
     // main : le contrôle recalcule cette table et échoue à la moindre divergence.
     private static readonly FrozenDictionary<string, FrozenSet<string>> _table =
         new Dictionary<string, FrozenSet<string>>(StringComparer.Ordinal)

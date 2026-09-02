@@ -178,7 +178,7 @@ done < <(echo "$PAIRES" | awk -v p="$PREFIXE" -v v="$VERSION" '{print p "." $2 "
 # On interroge donc la table. Un `KAFKA__PRODUCER` qui n'y est pas décrit un
 # service qui PUBLIE là où personne n'écoute, silencieux des deux côtés : le
 # producteur réussit, le consommateur ne sait pas qu'il rate quelque chose.
-# `scripts/check-kafka-topics.py` fait le même rapprochement, hors ligne et sans
+# le contrôle `kafka-topics` fait le même rapprochement, hors ligne et sans
 # courtier.
 check_producers() {
   local orphans=0 producer domaine
@@ -201,7 +201,7 @@ check_producers() {
   # publient vraiment de ceux qui ne font que déclarer un nom.
   [ "$orphans" -eq 0 ] || {
     echo "  → $orphans producteur(s) hors catalogue." >&2
-    echo "    Lesquels publient vraiment : python3 scripts/check-kafka-topics.py" >&2
+    echo "    Lesquels publient vraiment : dotnet run --project tools/HBA.Controls -- kafka-topics" >&2
   }
 }
 

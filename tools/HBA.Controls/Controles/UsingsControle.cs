@@ -285,6 +285,9 @@ public sealed class UsingsControle : IControle
                 "les fichiers sans instruction `namespace` : ni indexés, ni examinés — "
                 + "c'est le cas des `Program` des API",
                 "les dossiers `Migrations`, écartés du balayage",
+            "le dossier `tools/`, écarté depuis qu'il a produit un faux "
+            + "rapprochement : ses types ne sont visibles d'aucun projet "
+            + "applicatif, mais leurs noms courts entraient en collision",
                 "les alias `using X = Y;`, lus comme un `using` du namespace `X`",
                 "les `global using` d'un autre projet, invisibles au fichier qui en "
                 + "profite",
@@ -300,10 +303,28 @@ public sealed class UsingsControle : IControle
     /// LES MIGRATIONS SONT ÉCARTÉES PARCE QU'ELLES SONT ENGENDRÉES. Personne ne
     /// les écrit à la main, elles portent leurs `using` en propre, et elles
     /// pèsent le quart des fichiers du dépôt.
+    ///
+    /// `tools/` EST ÉCARTÉ DEPUIS LE 2 SEPTEMBRE 2026, ET LE DÉFAUT ÉTAIT RÉEL.
+    ///
+    /// Ce contrôle rapproche les types par leur NOM COURT sur tout le dépôt.
+    /// Dès que cet outil de contrôles y est entré, son type `Verdict` est venu
+    /// se poser en face du `Verdict` de la passerelle, et le contrôle a annoncé
+    /// « TokenRevocationMiddleware.cs : Verdict déclaré dans HBA.Controls » —
+    /// un rapprochement qui ne peut pas exister : `tools/` n'est référencé par
+    /// aucun projet applicatif, ses types ne sont visibles de nulle part.
+    ///
+    /// La règle générale : tout projet ajouté au dépôt qui n'est pas dans le
+    /// graphe de compilation des applications ajoute des HOMONYMES, donc du
+    /// bruit. Un contrôle qui crie sur ce qu'il a lui-même introduit finit par
+    /// être ignoré en entier.
     /// </remarks>
     private static IReadOnlyList<string> Fichiers()
         => Depot.Fichiers(Depot.Racine, ".cs")
-            .Where(f => !Depot.Relatif(f).Split('/').Contains("Migrations"))
+            .Where(f =>
+            {
+                var segments = Depot.Relatif(f).Split('/');
+                return !segments.Contains("Migrations") && segments[0] != "tools";
+            })
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
 

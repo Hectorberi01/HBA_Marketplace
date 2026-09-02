@@ -139,7 +139,7 @@ patches:
   # la décision prise le 27 août, et `RUNBOOK-STAGING.md` la déroule. Ce patch
   # était un reste du plan abandonné d'une base dans le cluster.
   #
-  # `scripts/check-k8s.py` refuse désormais toute cible de patch sans
+  # le contrôle `k8s` refuse désormais toute cible de patch sans
   # correspondance, sans avoir besoin de kustomize.
   # ═══════════════════════════════════════════════════════════════════════
 

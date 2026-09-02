@@ -49,7 +49,7 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
     /// FAUX PAR DÉFAUT, ET CE N'EST PAS UNE TIÉDEUR.
     ///
     /// Une entité ajoutée au modèle sans migration correspondante fait échouer tout
-    /// démarrage à froid — c'est exactement ce que `scripts/check-migrations.py`
+    /// démarrage à froid — c'est exactement ce que le contrôle `migrations`
     /// attrape, et il le ferait pour les dix-neuf contextes d'un coup si ce
     /// booléen valait vrai ici. L'activation se fait donc module par module, DANS
     /// LE MÊME COMMIT que sa migration.

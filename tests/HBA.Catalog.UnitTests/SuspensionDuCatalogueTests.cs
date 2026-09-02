@@ -31,7 +31,7 @@ namespace HBA.Catalog.UnitTests;
 /// Ils ne prouvent PAS le câblage — que l'événement d'intégration arrive bien
 /// jusqu'à ces gestionnaires. C'est l'enregistrement dans `CatalogModuleInstaller`
 /// qui en répond, et c'est précisément ce qui manquait : un événement sans
-/// gestionnaire enregistré est ignoré EN SILENCE. `scripts/check-di.py` vérifie
+/// gestionnaire enregistré est ignoré EN SILENCE. le contrôle `(supprimé le 28 août 2026)` vérifie
 /// que rien n'est injecté sans être fourni ; il ne vérifie pas qu'un consommateur
 /// existe. Un test de bout en bout avec courtier reste à écrire.
 /// ═════════════════════════════════════════════════════════════════════════════

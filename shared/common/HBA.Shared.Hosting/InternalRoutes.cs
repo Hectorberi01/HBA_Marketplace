@@ -116,7 +116,7 @@ public sealed class InternalCallOptions
     /// Le nom d'assembly, lui, vient du code, est unique, et ne peut pas être
     /// oublié dans un fichier d'environnement. Le renommer sans mettre à jour la
     /// table d'autorisations couperait le service — c'est précisément ce que
-    /// `scripts/check-autorisations-grpc.py` refuse.
+    /// le contrôle `autorisations-grpc` refuse.
     /// </remarks>
     public string? ServiceName { get; init; }
 

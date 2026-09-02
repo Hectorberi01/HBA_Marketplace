@@ -43,7 +43,7 @@
 #
 # `OpenTelemetry__Endpoint` est désormais posé dans le bloc `environment:` des
 # quatorze processus — la source à laquelle un service ne peut pas échapper —
-# et `scripts/check-infra.py` refuse un service qui n'en aurait pas.
+# et le contrôle `infra` refuse un service qui n'en aurait pas.
 # ═══════════════════════════════════════════════════════════════════════════
 
 global:

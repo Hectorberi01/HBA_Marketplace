@@ -84,7 +84,7 @@
     de test, précisément parce qu'un test « n'est déployé nulle part ». C'est ce
     raisonnement qui a produit l'oubli.
 
-    `scripts/check-refs.py` refuse désormais toute `ProjectReference` dont la
+    le contrôle `references` refuse désormais toute `ProjectReference` dont la
     cible n'existe pas, sur TOUT le dépôt, tests compris.
     ═════════════════════════════════════════════════════════════════════════
 

@@ -71,11 +71,16 @@ jobs:
           curl -sSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
 
-      - name: Installer les dépendances des contrôles
-        # python-hcl2 sert à `check-infra.py`. Sans lui le contrôle ne casse pas :
-        # il s'ignore — ce qui serait une CI verte sur une infrastructure jamais
-        # relue. On l'installe donc explicitement.
-        run: pip install --quiet pyyaml python-hcl2
+      # LES CONTROLES N'ONT PLUS AUCUNE DEPENDANCE DE PAQUET.
+      #
+      # `pip install pyyaml python-hcl2` etait installe ici parce que, sans eux,
+      # `check-infra.py` et `check-k8s.py` ne cassaient pas : ils s'IGNORAIENT.
+      # Une CI verte sur une infrastructure jamais relue. Les vingt-deux
+      # controles sont en C# et lisent YAML et HCL avec leurs propres lecteurs —
+      # ce qu'ils ne savent pas lire, ils le DISENT au lieu de se taire.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
 
       - name: check-all
         run: ./scripts/check-all.sh

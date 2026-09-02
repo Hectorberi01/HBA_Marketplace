@@ -125,7 +125,7 @@ public sealed class HbaEventAttribute : Attribute
     /// message acquitté. C'est un filet contre une entorse à la règle, pas un
     /// mécanisme de migration.
     ///
-    /// `scripts/check-event-contracts.py` tient l'instantané des contrats et
+    /// le contrôle `event-contracts` tient l'instantané des contrats et
     /// échoue sur toute rupture. Il ne l'interdit pas — il la rend visible en revue.
     /// ═════════════════════════════════════════════════════════════════════════
     /// </remarks>

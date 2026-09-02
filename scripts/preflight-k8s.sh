@@ -52,8 +52,10 @@ kustomize build "$OVERLAY" >"$TMP"
 ok "$OVERLAY se construit"
 
 titre "Contrôles statiques"
-"$PYTHON" scripts/check-k8s.py "$ENVIRONNEMENT"
-"$PYTHON" scripts/check-infra.py
+# Les controles sont passes en C# le 2 septembre 2026. `k8s` prend l'overlay en
+# argument comme le faisait le script Python ; `infra` n'en prend pas.
+dotnet run --project "$(dirname "$0")/../tools/HBA.Controls" --verbosity quiet \
+  -- k8s infra
 ok "contrôles dépôt au vert"
 
 titre "Images"

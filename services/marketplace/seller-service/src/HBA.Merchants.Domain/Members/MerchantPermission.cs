@@ -363,7 +363,7 @@ public static class MerchantPermissions
     /// Une permission qu'aucun code n'interroge est un droit affiché au vendeur,
     /// cochable dans un rôle personnalisé, et sans le moindre effet. Le catalogue
     /// en comptait sept ; il fallait croiser cinquante-sept déclarations avec tous
-    /// les appels du dépôt pour s'en apercevoir. `scripts/check-permissions.py` le
+    /// les appels du dépôt pour s'en apercevoir. le contrôle `permissions` le
     /// fait désormais à chaque exécution, et compare le résultat à CETTE liste :
     /// toute divergence, dans un sens ou dans l'autre, est une anomalie.
     ///

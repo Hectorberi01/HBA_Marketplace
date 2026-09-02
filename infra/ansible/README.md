@@ -1,7 +1,7 @@
 # Ansible — k3s sur les VMs OVH
 
 **CE CODE N'A JAMAIS ÉTÉ EXÉCUTÉ.** Sa syntaxe YAML est vérifiée
-(`scripts/check-infra.py`, lancé par `scripts/check-all.sh`), son comportement ne
+(le contrôle `infra`, lancé par `scripts/check-all.sh`), son comportement ne
 l'est pas : cela demande des machines réelles. À relire avant le premier
 passage, pas à appliquer de confiance.
 
