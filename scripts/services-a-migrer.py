@@ -27,7 +27,9 @@ CE QUE CE SCRIPT NE VERIFIE PAS :
 ═══════════════════════════════════════════════════════════════════════════════
 """
 import io
+import json
 import os
+import subprocess
 import sys
 
 import yaml
@@ -53,11 +55,45 @@ def main():
     chemin = os.path.join(RACINE, "docker-compose.prod.yml")
     compose = yaml.safe_load(io.open(chemin, encoding="utf-8").read())
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # LE DOSSIER VIENT DE `ci-affected.py`, PLUS DE `build:`.
+    #
+    # CE SCRIPT S'EST TU LE 1er SEPTEMBRE 2026, ET C'ETAIT MA FAUTE.
+    #
+    # Il deduisait le dossier de chaque service de son `build:` dans le compose
+    # de production. Le jour ou `generer-compose-prod.py` a cesse d'emettre
+    # `build:` — les images viennent desormais du registre — ce script n'a plus
+    # trouve AUCUN service, et a rendu « aucun service porteur de migrations ».
+    #
+    # L'ECHEC A ETE FRANC, et c'est la seule bonne nouvelle : le script refuse
+    # plutot que de rendre une liste vide qu'un appelant aurait prise pour
+    # « rien a migrer ». Sans ce garde, la migration de production aurait ete
+    # sautee en silence.
+    #
+    # La source est maintenant `ci-affected.py --tous`, qui donne service ->
+    # Dockerfile : la meme table que la matrice de la CI, que
+    # `publier-images.sh` et que le controle des noms d'images du generateur.
+    # Le lien avec le compose se fait par le NOM D'IMAGE, seul champ qui reste.
+    # ═══════════════════════════════════════════════════════════════════════
+    try:
+        matrice = json.loads(subprocess.check_output(
+            [sys.executable, os.path.join("scripts", "ci-affected.py"), "--tous"],
+            cwd=RACINE, text=True))
+    except (subprocess.SubprocessError, ValueError, OSError) as e:
+        print("impossible de lire ci-affected.py (%s)" % type(e).__name__,
+              file=sys.stderr)
+        return 1
+    dockerfiles = {e["service"]: e["dockerfile"] for e in matrice}
+
     trouves = []
     for nom, valeur in sorted((compose.get("services") or {}).items()):
-        build = valeur.get("build")
-        if not isinstance(build, dict):
+        image = str(valeur.get("image") or "")
+        if "/" not in image:
             continue                      # redis, kafka, minio : pas de code a nous
+        publie = image.split("/")[-1].split(":")[0]
+        if publie not in dockerfiles:
+            continue                      # rembg : construit sur place, pas de DbContext
+        build = {"dockerfile": dockerfiles[publie]}
         # LE DOSSIER DU SERVICE, ET SURTOUT PAS LA RACINE DU DEPOT.
         #
         # CE QUI ETAIT CASSE : ce script lisait `build.dockerfile` et prenait son

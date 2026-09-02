@@ -163,9 +163,6 @@ services:
   identity-service:
     container_name: hba-identity-service
     image: ghcr.io/hectorberi01/identity-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/common/identity-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_IDENTITY_API:?identite gRPC de identity-service absente — scripts/generer-identites-internes.sh}
@@ -213,9 +210,6 @@ services:
   user-service:
     container_name: hba-user-service
     image: ghcr.io/hectorberi01/user-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/common/user-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_USERS_API:?identite gRPC de user-service absente — scripts/generer-identites-internes.sh}
@@ -245,9 +239,6 @@ services:
   media-service:
     container_name: hba-media-service
     image: ghcr.io/hectorberi01/media-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/common/media-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_MEDIA_API:?identite gRPC de media-service absente — scripts/generer-identites-internes.sh}
@@ -311,9 +302,6 @@ services:
   seller-service:
     container_name: hba-seller-service
     image: ghcr.io/hectorberi01/seller-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/marketplace/seller-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_MERCHANTS_API:?identite gRPC de seller-service absente — scripts/generer-identites-internes.sh}
@@ -370,9 +358,6 @@ services:
   catalog-service:
     container_name: hba-catalog-service
     image: ghcr.io/hectorberi01/catalog-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/marketplace/catalog-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_CATALOG_API:?identite gRPC de catalog-service absente — scripts/generer-identites-internes.sh}
@@ -416,9 +401,6 @@ services:
   inventory-service:
     container_name: hba-inventory-service
     image: ghcr.io/hectorberi01/inventory-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/marketplace/inventory-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_INVENTORY_API:?identite gRPC de inventory-service absente — scripts/generer-identites-internes.sh}
@@ -451,9 +433,6 @@ services:
   cart-service:
     container_name: hba-cart-service
     image: ghcr.io/hectorberi01/cart-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/marketplace/cart-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_COMMERCE_API:?identite gRPC de cart-service absente — scripts/generer-identites-internes.sh}
@@ -505,9 +484,6 @@ services:
   order-service:
     container_name: hba-order-service
     image: ghcr.io/hectorberi01/order-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/marketplace/order-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_ORDER_API:?identite gRPC de order-service absente — scripts/generer-identites-internes.sh}
@@ -565,9 +541,6 @@ services:
   restaurant-service:
     container_name: hba-restaurant-service
     image: ghcr.io/hectorberi01/restaurant-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/food/restaurant-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_FOOD_RESTAURANT_API:?identite gRPC de restaurant-service absente — scripts/generer-identites-internes.sh}
@@ -624,9 +597,6 @@ services:
   food-cart-service:
     container_name: hba-food-cart-service
     image: ghcr.io/hectorberi01/food-cart-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/food/food-cart-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_FOOD_CART_API:?identite gRPC de food-cart-service absente — scripts/generer-identites-internes.sh}
@@ -668,9 +638,6 @@ services:
   food-order-service:
     container_name: hba-food-order-service
     image: ghcr.io/hectorberi01/food-order-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/food/food-order-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_FOOD_ORDER_API:?identite gRPC de food-order-service absente — scripts/generer-identites-internes.sh}
@@ -715,9 +682,6 @@ services:
   delivery-pricing-service:
     container_name: hba-delivery-pricing-service
     image: ghcr.io/hectorberi01/delivery-pricing-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/delivery/delivery-pricing-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_DELIVERY_PRICING_API:?identite gRPC de delivery-pricing-service absente — scripts/generer-identites-internes.sh}
@@ -750,9 +714,6 @@ services:
   delivery-service:
     container_name: hba-delivery-service
     image: ghcr.io/hectorberi01/delivery-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/delivery/delivery-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_DELIVERY_CORE_API:?identite gRPC de delivery-service absente — scripts/generer-identites-internes.sh}
@@ -792,9 +753,6 @@ services:
   driver-service:
     container_name: hba-driver-service
     image: ghcr.io/hectorberi01/driver-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/delivery/driver-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_DELIVERY_DRIVER_API:?identite gRPC de driver-service absente — scripts/generer-identites-internes.sh}
@@ -820,9 +778,6 @@ services:
   route-service:
     container_name: hba-route-service
     image: ghcr.io/hectorberi01/route-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/delivery/route-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_DELIVERY_ROUTE_API:?identite gRPC de route-service absente — scripts/generer-identites-internes.sh}
@@ -848,9 +803,6 @@ services:
   payment-service:
     container_name: hba-payment-service
     image: ghcr.io/hectorberi01/payment-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/common/payment-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_FINANCIAL_API:?identite gRPC de payment-service absente — scripts/generer-identites-internes.sh}
@@ -915,9 +867,6 @@ services:
   review-service:
     container_name: hba-review-service
     image: ghcr.io/hectorberi01/review-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/common/review-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_ENGAGEMENT_API:?identite gRPC de review-service absente — scripts/generer-identites-internes.sh}
@@ -965,9 +914,6 @@ services:
   promotion-service:
     container_name: hba-promotion-service
     image: ghcr.io/hectorberi01/promotion-service:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      context: .
-      dockerfile: services/common/promotion-service/Dockerfile
     environment:
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_PROMOTIONS_API:?identite gRPC de promotion-service absente — scripts/generer-identites-internes.sh}
@@ -1010,13 +956,7 @@ services:
 
   gateway:
     container_name: hba-gateway
-    image: ghcr.io/hectorberi01/gateway:${HBA_TAG:?le tag d'image est obligatoire}
-    build:
-      # Contexte = racine `HBA/`, comme les services. Le Dockerfile a
-      # besoin de `Directory.Build.props` et `Directory.Packages.props`, qui
-      # vivent ici : sans eux, le projet n'a ni cadre cible ni version de paquet.
-      context: .
-      dockerfile: apps/api-gateway/Dockerfile
+    image: ghcr.io/hectorberi01/api-gateway:${HBA_TAG:?le tag d'image est obligatoire}
     # `ports:` retiré : publier sur le VPS, c'est publier sur Internet.
     # Les services se joignent par le réseau `hba-backend`.
     # `expose:` ne publie rien — il DECLARE le port, pour que le
@@ -1107,11 +1047,58 @@ services:
     networks: [hba-backend]
 
     restart: unless-stopped
+    # Routage public — lu par Traefik. Ce service est le SEUL a porter
+    # `traefik.enable` : voir l'encadre du bloc traefik plus bas.
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: hba-backend
+      traefik.http.routers.hba.rule: Host(`${HBA_DOMAINE:?le domaine public est obligatoire}`)
+      traefik.http.routers.hba.entrypoints: websecure
+      traefik.http.routers.hba.tls.certresolver: lets
+      traefik.http.services.hba.loadbalancer.server.port: "8080"
+
+  traefik:
+    container_name: hba-traefik
+    image: traefik:v3.3
+    restart: unless-stopped
+    command:
+      # Decouverte par etiquettes, et RIEN par defaut.
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=hba-backend
+      # 80 redirige vers 443 : aucun trafic applicatif en clair.
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      # Let's Encrypt, defi HTTP-01 sur l'entree 80 laissee ouverte
+      # pour ca — la redirection ci-dessus epargne `/.well-known/`.
+      - --certificatesResolvers.lets.acme.email=${HBA_ACME_EMAIL:?l'adresse pour Let's Encrypt est obligatoire}
+      - --certificatesResolvers.lets.acme.storage=/acme/acme.json
+      - --certificatesResolvers.lets.acme.httpChallenge.entryPoint=web
+      # Aucun tableau de bord : il exposerait tout le routage.
+      - --api=false
+      - --log.level=INFO
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Lecture seule — mais l'API Docker rend quand meme les variables
+      # d'environnement de tous les conteneurs. Voir l'encadre.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Les certificats survivent aux redemarrages. Sans ce volume,
+      # chaque `up` redemanderait un certificat, et Let's Encrypt
+      # limite a cinq echecs par heure et par domaine.
+      - traefik-acme:/acme
+    networks:
+      - hba-backend
 
 volumes:
   kafka-data:
   minio-data:
   rembg-models:
+  traefik-acme:
 
 networks:
   hba-backend:

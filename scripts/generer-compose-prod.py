@@ -38,8 +38,10 @@ CE QUE CE SCRIPT NE FAIT PAS :
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
+import json
 import os
 import re
+import subprocess
 import sys
 
 RACINE = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -47,6 +49,41 @@ SOURCE = os.path.join(RACINE, "docker-compose.dev.yml")
 SORTIE = os.path.join(RACINE, "docker-compose.prod.yml")
 
 PROPRIETAIRE = "hectorberi01"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LE NOM DU SERVICE COMPOSE N'EST PAS TOUJOURS LE NOM DE L'IMAGE PUBLIEE.
+#
+# CE DEFAUT AURAIT FAIT ECHOUER LE PREMIER `compose pull` DE PRODUCTION.
+#
+# Le generateur derivait le nom de l'image du nom du SERVICE COMPOSE. Or la CI
+# publie sous le nom de DOSSIER du service : `apps/api-gateway` donne
+# `ghcr.io/hectorberi01/api-gateway`, tandis que le compose nomme ce service
+# `gateway`. Le fichier engendre reclamait donc
+# `ghcr.io/hectorberi01/gateway:<sha>`, qui n'existe dans aucun registre.
+#
+# LE SYMPTOME AURAIT DESIGNE LES DROITS, PAS LE NOM : un depot prive absent rend
+# « denied », exactement comme un jeton sans portee. On aurait cherche du cote
+# du `docker login`.
+#
+# C'est le meme double vocabulaire que partout ailleurs dans cette plateforme —
+# le module se nomme par domaine, le depot par dossier. On le traduit ici, une
+# fois, et `verifier_images_publiees` ci-dessous refuse toute autre divergence.
+# ══════════════════════════════════════════════════════════════════════════════
+NOMS_IMAGES = {"gateway": "api-gateway"}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LES SERVICES CONSTRUITS SUR PLACE — CEUX QUE LA CI NE PUBLIE PAS.
+#
+# `rembg` n'a pas de Dockerfile dans `ci-affected.py` : il n'est jamais construit
+# par la CI, et son image n'existe dans aucun registre. Il garde donc son
+# `build:` et se construit sur le VPS depuis `infra/rembg` — c'est une image
+# Python legere, pas les vingt hotes .NET.
+#
+# Pour tous les autres, `build:` est RETIRE en production : les images viennent
+# du registre. Le garder ferait construire sur le VPS une image deja publiee —
+# une heure de CPU, et surtout un binaire different de celui qui a ete signe.
+# ══════════════════════════════════════════════════════════════════════════════
+CONSTRUITS_SUR_PLACE = {"rembg"}
 
 # Services d'infrastructure et d'outillage qui ne vont pas en production.
 #   postgres  : la base vit sur un second VPS (§2), joignable par le tunnel.
@@ -272,7 +309,8 @@ PORTS_LOOPBACK = {
 }
 
 # Images sans `build:` qui sont legitimes : ce ne sont pas nos services.
-IMAGES_TIERCES = ("redis", "confluentinc", "minio", "danielgatis", "provectuslabs")
+IMAGES_TIERCES = ("redis", "confluentinc", "minio", "danielgatis", "provectuslabs",
+                  "traefik")
 
 # Ce qui trahit un secret laisse en clair. Le controle final s'appuie dessus.
 MOTIFS_SUSPECTS = [
@@ -402,13 +440,33 @@ def transformer(nom, corps):
         # changer ici.
         # ═══════════════════════════════════════════════════════════════════
         if re.match(r"^    build:\s*$", l):
+            # LE NOM DE L'IMAGE VIENT DE `NOMS_IMAGES` QUAND IL DIFFERE.
+            # Voir l'encadre de cette table : `gateway` se publie `api-gateway`.
+            image = NOMS_IMAGES.get(nom, nom)
             sortie.append("    image: ghcr.io/%s/%s:${HBA_TAG:?le tag d'image est obligatoire}\n"
-                          % (PROPRIETAIRE, nom))
-            sortie.append(l)
+                          % (PROPRIETAIRE, image))
             i += 1
+            bloc_build = []
             while i < len(corps) and re.match(r"^      ", corps[i]):
-                sortie.append(corps[i])
+                bloc_build.append(corps[i])
                 i += 1
+
+            # ═══════════════════════════════════════════════════════════════
+            # `build:` NE SURVIT QU'AUX SERVICES QUE LA CI NE PUBLIE PAS.
+            #
+            # Le garder partout faisait CONSTRUIRE sur le VPS des images deja
+            # publiees et signees : une heure de CPU, et un binaire qui n'est
+            # pas celui qu'on a verifie. Compose, quand `build:` est present et
+            # l'image absente localement, construit au lieu de tirer — donc le
+            # registre n'aurait jamais servi.
+            #
+            # CE QUE CE CHOIX NE COUVRE PAS : sans `build:`, un service dont
+            # l'image manque au registre echoue au `pull`, franchement. C'est
+            # voulu — mieux vaut ce refus qu'une construction silencieuse.
+            # ═══════════════════════════════════════════════════════════════
+            if nom in CONSTRUITS_SUR_PLACE:
+                sortie.append(l)
+                sortie.extend(bloc_build)
             continue
 
         # ═══════════════════════════════════════════════════════════════════
@@ -595,6 +653,110 @@ def transformer(nom, corps):
     return sortie
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# TRAEFIK — LE SEUL CONTENEUR QUI TOUCHE INTERNET.
+#
+# POURQUOI IL EST ENGENDRE ICI, ET PAS ECRIT A LA MAIN DANS LE COMPOSE.
+#
+# `docker-compose.prod.yml` porte « NE PAS EDITER A LA MAIN » : tout ajout
+# manuel disparait a la prochaine regeneration. Traefik vit donc dans le
+# generateur, comme l'ancre de production et les identites internes.
+#
+# `exposedByDefault=false` EST LA LIGNE LA PLUS IMPORTANTE DE CE BLOC.
+#
+# Le fournisseur Docker de Traefik publie, PAR DEFAUT, TOUT conteneur qu'il
+# voit. Sans ce reglage, les vingt-quatre services — Kafka, MinIO, Redis, les
+# vingt hotes .NET — deviendraient joignables depuis Internet sous des noms
+# engendres, sans authentification et sans qu'aucune erreur ne le signale. Seule
+# la passerelle porte `traefik.enable=true`.
+#
+# LE SOCKET DOCKER EST MONTE EN LECTURE SEULE, ET CE N'EST PAS ANODIN.
+#
+# Meme en lecture, l'API Docker rend les variables d'environnement de TOUS les
+# conteneurs — donc les mots de passe de base, la cle FedaPay et les cles de
+# signature. Un Traefik compromis les lit. C'est le compromis assume de la
+# decouverte par etiquettes ; l'alternative (fichier statique) coute la
+# decouverte automatique. A savoir, et a ne pas oublier.
+#
+# `--api=false` : PAS DE TABLEAU DE BORD. Celui de Traefik expose la
+# configuration complete du routage. La regle de cette plateforme est
+# constante : aucune console d'administration derriere l'entree publique.
+#
+# CE QUE CE BLOC NE COUVRE PAS :
+#   - il ne limite ni le debit ni la taille des requetes. nginx-ingress posait
+#     `proxy-body-size: 20m` pour les pieces KYB ; Traefik n'a pas de limite par
+#     defaut, donc rien a regler — mais rien ne protege non plus d'un envoi
+#     massif ;
+#   - il ne fait aucune terminaison mTLS ni aucune authentification : la
+#     passerelle reste seule juge des jetons ;
+#   - le certificat est demande a Let's Encrypt par defi HTTP-01. Il exige que
+#     le DNS pointe deja la machine ET que le port 80 reponde depuis Internet.
+# ══════════════════════════════════════════════════════════════════════════════
+
+SERVICE_PUBLIC = "gateway"
+PORT_PUBLIC = "8080"
+DOMAINE_PUBLIC = "${HBA_DOMAINE:?le domaine public est obligatoire}"
+COURRIEL_ACME = "${HBA_ACME_EMAIL:?l'adresse pour Let's Encrypt est obligatoire}"
+VERSION_TRAEFIK = "traefik:v3.3"
+
+
+def etiquettes_traefik():
+    """Les etiquettes de routage, posees sur le service public."""
+    return [
+        "    # Routage public — lu par Traefik. Ce service est le SEUL a porter\n",
+        "    # `traefik.enable` : voir l'encadre du bloc traefik plus bas.\n",
+        "    labels:\n",
+        '      traefik.enable: "true"\n',
+        "      traefik.docker.network: hba-backend\n",
+        "      traefik.http.routers.hba.rule: Host(`%s`)\n" % DOMAINE_PUBLIC,
+        "      traefik.http.routers.hba.entrypoints: websecure\n",
+        "      traefik.http.routers.hba.tls.certresolver: lets\n",
+        '      traefik.http.services.hba.loadbalancer.server.port: "%s"\n' % PORT_PUBLIC,
+    ]
+
+
+def traefik_service():
+    """Le bloc de service Traefik, ajoute au rendu."""
+    return [
+        "\n  traefik:\n",
+        "    container_name: hba-traefik\n",
+        "    image: %s\n" % VERSION_TRAEFIK,
+        "    restart: unless-stopped\n",
+        "    command:\n",
+        "      # Decouverte par etiquettes, et RIEN par defaut.\n",
+        "      - --providers.docker=true\n",
+        "      - --providers.docker.exposedByDefault=false\n",
+        "      - --providers.docker.network=hba-backend\n",
+        "      # 80 redirige vers 443 : aucun trafic applicatif en clair.\n",
+        "      - --entryPoints.web.address=:80\n",
+        "      - --entryPoints.websecure.address=:443\n",
+        "      - --entryPoints.web.http.redirections.entryPoint.to=websecure\n",
+        "      - --entryPoints.web.http.redirections.entryPoint.scheme=https\n",
+        "      # Let's Encrypt, defi HTTP-01 sur l'entree 80 laissee ouverte\n",
+        "      # pour ca — la redirection ci-dessus epargne `/.well-known/`.\n",
+        "      - --certificatesResolvers.lets.acme.email=%s\n" % COURRIEL_ACME,
+        "      - --certificatesResolvers.lets.acme.storage=/acme/acme.json\n",
+        "      - --certificatesResolvers.lets.acme.httpChallenge.entryPoint=web\n",
+        "      # Aucun tableau de bord : il exposerait tout le routage.\n",
+        "      - --api=false\n",
+        "      - --log.level=INFO\n",
+        "      - --accesslog=true\n",
+        "    ports:\n",
+        '      - "80:80"\n',
+        '      - "443:443"\n',
+        "    volumes:\n",
+        "      # Lecture seule — mais l'API Docker rend quand meme les variables\n",
+        "      # d'environnement de tous les conteneurs. Voir l'encadre.\n",
+        "      - /var/run/docker.sock:/var/run/docker.sock:ro\n",
+        "      # Les certificats survivent aux redemarrages. Sans ce volume,\n",
+        "      # chaque `up` redemanderait un certificat, et Let's Encrypt\n",
+        "      # limite a cinq echecs par heure et par domaine.\n",
+        "      - traefik-acme:/acme\n",
+        "    networks:\n",
+        "      - hba-backend\n",
+    ]
+
+
 def main():
     if not os.path.exists(SOURCE):
         print("introuvable : %s" % SOURCE, file=sys.stderr)
@@ -692,11 +854,20 @@ def main():
         corps_total.append("\n  %s:\n" % nom)
         corps_total.extend(corps)
 
+        # Le routage public est POSE SUR LA PASSERELLE, pas sur Traefik.
+        # Traefik decouvre ses routes par les etiquettes des conteneurs : c'est
+        # ce qui permet a `traefik_service()` de ne rien savoir de la passerelle.
+        if nom == SERVICE_PUBLIC:
+            corps_total.extend(etiquettes_traefik())
+
+    corps_total.extend(traefik_service())
+
     queue = [
         "\nvolumes:\n",
         "  kafka-data:\n",
         "  minio-data:\n",
         "  rembg-models:\n",
+        "  traefik-acme:\n",
         "\nnetworks:\n",
         "  hba-backend:\n",
     ]
@@ -718,20 +889,59 @@ def main():
                 cle = ligne.split(":")[0].strip()
                 fuites.append("ligne %d : %s — %s" % (numero, cle, quoi))
 
-    # Tout service applicatif doit pouvoir etre CONSTRUIT : sans registre, une
-    # image sans `build` est une image que personne ne peut produire.
+    try:
+        publiables = {e["service"] for e in json.loads(subprocess.check_output(
+            [sys.executable, os.path.join("scripts", "ci-affected.py"), "--tous"],
+            cwd=RACINE, text=True))}
+    except (subprocess.SubprocessError, ValueError, OSError) as e:
+        print("REFUS : impossible de lire ci-affected.py (%s) — le controle des "
+              "noms d'images ne peut pas s'executer." % type(e).__name__,
+              file=sys.stderr)
+        return 1
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # CE CONTROLE A ETE RETOURNE LE 1er SEPTEMBRE 2026 — SA PREMISSE A CHANGE.
+    #
+    # Il exigeait qu'un service applicatif porte un `build:`, au motif qu'« une
+    # image sans build est une image que personne ne peut produire ». C'etait
+    # vrai TANT QU'IL N'Y AVAIT PAS DE REGISTRE. Depuis que la CI publie les
+    # vingt-et-une images sur ghcr, l'inverse est vrai : garder `build:` fait
+    # CONSTRUIRE sur le VPS une image deja publiee et signee — une heure de CPU,
+    # et un binaire qui n'est pas celui qu'on a verifie.
+    #
+    # LA NOUVELLE REGLE : un service applicatif doit avoir SOIT une image
+    # publiable par la CI, SOIT un `build:`. Les deux ensemble sont tolerees
+    # pour `CONSTRUITS_SUR_PLACE` (rembg), qui n'est publie nulle part.
+    #
+    # Ce qui reste interdit, et c'est le vrai danger : une image que personne ne
+    # publie ET qu'aucun `build:` ne produit. Elle echouerait au `pull`, en
+    # production, sur un « denied » qui se lit comme un probleme de droits.
+    # ═══════════════════════════════════════════════════════════════════════
     import yaml as _yaml
     try:
         rendu_charge = _yaml.safe_load(rendu)
     except Exception as e:
         print("REFUS : le rendu n'est pas du YAML valide (%s)" % e, file=sys.stderr)
         return 1
-    sans_build = [n for n, v in (rendu_charge.get("services") or {}).items()
-                  if "image" in v and "build" not in v
-                  and not str(v["image"]).startswith(IMAGES_TIERCES)]
+
+    orphelins = []
+    for n, v in (rendu_charge.get("services") or {}).items():
+        image = str(v.get("image", ""))
+        if not image or image.startswith(IMAGES_TIERCES):
+            continue
+        if "build" in v:
+            continue
+        nom_image = image.split("/")[-1].split(":")[0]
+        if nom_image not in publiables:
+            orphelins.append(n)
+
+    sans_build = orphelins
     if sans_build:
-        print("REFUS : %s ont une image mais aucun `build` — rien ne pourrait les "
-              "produire sans registre." % ", ".join(sans_build), file=sys.stderr)
+        print("REFUS : %s portent une image que la CI ne publie pas, et aucun "
+              "`build:` ne pourrait la produire." % ", ".join(sans_build),
+              file=sys.stderr)
+        print("    Ajouter la traduction a NOMS_IMAGES, ou le service a "
+              "CONSTRUITS_SUR_PLACE.", file=sys.stderr)
         return 1
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -798,6 +1008,46 @@ def main():
             print("REFUS : %s survit au rendu — ce réglage empêche le démarrage "
                   "hors Development." % cle, file=sys.stderr)
             return 1
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # CHAQUE IMAGE DU REGISTRE DOIT EXISTER DANS CE QUE LA CI PUBLIE.
+    #
+    # LE DEFAUT QUE CE CONTROLE FERME : le rendu reclamait
+    # `ghcr.io/hectorberi01/gateway`, publie en realite sous `api-gateway`.
+    # Personne ne l'a vu parce que `build:` etait conserve : Compose construisait
+    # l'image au lieu de la tirer, et le nom du registre ne servait a rien.
+    # Le jour ou l'on tire — c'est-a-dire le jour du deploiement — il devient
+    # « denied », qui se lit comme un jeton sans droits.
+    #
+    # La reference est `ci-affected.py --tous` : la meme source que la matrice
+    # de construction de la CI et que `publier-images.sh`. Trois inventaires,
+    # une seule verite.
+    #
+    # CE QUE CE CONTROLE NE COUVRE PAS : il verifie que l'image est PUBLIABLE,
+    # pas qu'elle a ete PUBLIEE sous le tag demande. Seul le registre le sait.
+    # ═══════════════════════════════════════════════════════════════════════
+    # Les services construits sur place portent un nom d'image du registre par
+    # commodite — `docker images` dit alors quel commit tourne — mais rien ne
+    # les y publie. Ils sont donc exemptes de ce controle, et couverts par le
+    # precedent, qui exige leur `build:`.
+    exemptes = {NOMS_IMAGES.get(n, n) for n in CONSTRUITS_SUR_PLACE}
+
+    prefixe = "    image: ghcr.io/%s/" % PROPRIETAIRE
+    inconnues = []
+    for ligne in rendu.splitlines():
+        if ligne.startswith(prefixe):
+            image = ligne[len(prefixe):].split(":", 1)[0]
+            if image not in publiables and image not in exemptes:
+                inconnues.append(image)
+
+    if inconnues:
+        print("REFUS : %d image(s) du rendu ne sont publiees par aucune Dockerfile "
+              "connue de ci-affected.py :" % len(inconnues), file=sys.stderr)
+        for i in sorted(set(inconnues)):
+            print("    %s" % i, file=sys.stderr)
+        print("    Ajouter la traduction a NOMS_IMAGES, ou le service a "
+              "CONSTRUITS_SUR_PLACE.", file=sys.stderr)
+        return 1
 
     if fuites:
         print("REFUS : %d secret(s) de développement survivraient à la transformation."
