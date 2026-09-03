@@ -1,262 +1,131 @@
-# Workflows GitHub Actions
+# Les workflows du dépôt
 
-Ce dossier porte la CI/CD du backend HBAExpress.
+Deux fichiers, et c'est tout. Le chemin Kubernetes — `cd.yml`,
+`deploy-branches.yml`, les calques de `k8s/` — a été retiré le 3 septembre 2026 ;
+la production tourne sur **Docker Compose + Traefik**.
 
-## Workflows
+| fichier | déclencheur | ce qu'il fait |
+|---|---|---|
+| `ci.yml` | `push` sur `main`, `dev`, `staging`, `develop` et toute PR | barrière, compilation, tests, images |
+| `deploy-compose.yml` | **manuel** (`workflow_dispatch`) | déploie un tag donné sur le VPS de production |
 
-- `ci.yml` — contrôles dépôt, compilation .NET, tests, build Docker, SBOM, scan
-  Trivy, signature cosign et publication GHCR.
-- `deploy-branches.yml` — déploiement automatique après une CI verte, selon la
-  branche poussée.
-- `cd.yml` — promotion manuelle GitOps, conservée pour poser et committer un tag
-  d'image dans un overlay sans appliquer directement au cluster.
+---
 
-## Mapping Des Branches
+## `ci.yml` — quatre travaux
 
-| Branche poussée | Environnement GitHub | Namespace Kubernetes | Overlay appliqué | Migrations |
-|---|---|---|---|---|
-| `dev` | `dev` | `hba-dev` | `k8s/overlays/dev` | non |
-| `staging` | `staging` | `hba-staging` | `k8s/overlays/staging` | non |
-| `develop` | `prod` | `hba-prod` | `k8s/overlays/prod` | oui, via `k8s/overlays/migrations-prod` |
+### 1. Contrôles du dépôt
 
-Sur `dev`, `staging` et `develop`, la CI reconstruit toutes les images. C'est
-volontaire : le déploiement pose le SHA du commit sur tout l'overlay, donc chaque
-image référencée doit exister avec ce SHA.
+`scripts/check-all.sh`, qui n'est plus qu'un point d'entrée : il lance
+`tools/HBA.Controls`, vingt contrôles écrits en C#. Chacun attrape une classe
+d'erreurs que le compilateur ne voit pas — une dépendance injectée que personne
+ne fournit, un `using` manquant sur un namespace frère, un projet non copié dans
+une image, une table configurée sans migration.
 
-## Prérequis GitHub
+**`dotnet` absent fait échouer ce travail.** Rendre 0 « pour ne pas bloquer »
+transformerait la barrière en décoration — « les 0 contrôles passent ».
 
-1. Aller dans le dépôt GitHub.
-2. Ouvrir `Settings` → `Actions` → `General`.
-3. Dans `Workflow permissions`, choisir `Read and write permissions`.
-4. Cocher `Allow GitHub Actions to create and approve pull requests` seulement si
-   des workflows futurs doivent ouvrir des PR. Les workflows actuels n'en ont pas
-   besoin.
-5. Sauvegarder.
+### 2. Compilation et tests
 
-Ces permissions permettent à `ci.yml` de publier les images dans GHCR avec
-`GITHUB_TOKEN`. Le workflow de déploiement lit ensuite ces images depuis le même
-registre.
+`dotnet build` sur la solution, puis **un processus par projet de test**. Ce
+découpage n'est pas un confort : quatre harnais posent leur configuration en
+variables d'environnement, au niveau du processus, et aucun ne les remet à leur
+valeur d'origine. Dans un hôte partagé, le dernier écrivain gagne et une suite
+lit la base d'une autre.
 
-## Environnements GitHub
+Un projet en échec est **nommé** : annotation `::error::`, bilan en fin de
+boucle, et le détail de chaque cas — assertion, exception du serveur, haut de la
+pile — dans le résumé de l'exécution, via `resume-tests`.
 
-Créer trois environnements dans `Settings` → `Environments` :
+### 3. Services affectés
 
-1. `dev`
-2. `staging`
-3. `prod`
+`tools/HBA.Controls images-affectees` calcule les images réellement touchées
+depuis le **graphe de références des `.csproj`**, transitivement. Une liste de
+chemins tenue à la main échouerait autrement, et en silence : le service n'est
+pas reconstruit, l'image publiée reste l'ancienne, et la correction qu'on croit
+déployée ne l'est pas.
 
-Dans `prod`, ajouter une protection :
+Sur `dev`, `staging` et `develop`, la matrice contient **tout** : ces branches
+déploient, et chaque image référencée doit exister avec ce SHA.
 
-1. Ouvrir l'environnement `prod`.
-2. Activer `Required reviewers`.
-3. Ajouter au moins un validateur humain.
-4. Sauvegarder.
+### 4. Image *<service>* (matrice)
 
-Sans cette protection, un push sur `develop` déclenche directement un déploiement
-production après CI verte.
+Construction, publication sur `ghcr.io`, scan Trivy, **signature cosign sans
+clé**. L'identité du signataire est le workflow lui-même, attesté par Sigstore :
+aucune clé privée à stocker ni à faire tourner.
 
-## Secrets À Créer
+Le scan Trivy **ne fait pas échouer** la publication : une CVE publiée dans une
+dépendance transitive bloquerait toutes les PR d'un coup, y compris celle qui la
+corrige.
 
-Dans chaque environnement GitHub (`dev`, `staging`, `prod`), créer le secret :
+---
 
-| Secret | Contenu |
+## `deploy-compose.yml` — la production
+
+Lancement **manuel**, deux entrées :
+
+| entrée | valeur |
 |---|---|
-| `KUBECONFIG_B64` | kubeconfig du cluster cible, encodé en base64 sur une seule ligne |
+| `tag` | le SHA publié par la CI — celui des images à déployer |
+| `tags_ansible` | vide pour tout ; sinon `preparation`, `transfert`, `images`, `migration`, `sujets`, `demarrage`, `tls`, `verification` |
 
-Le secret est par environnement, pas global au dépôt. Cela évite qu'un workflow
-staging puisse utiliser le kubeconfig de production.
+Le travail passe par l'environnement GitHub **`prod`** : c'est lui qui porte les
+secrets. Un nom d'environnement inconnu n'est pas une erreur pour GitHub — il le
+crée à la volée, **vide** — d'où un déploiement qui partirait sans un seul
+secret.
 
-### Générer `KUBECONFIG_B64`
+### L'ordre des étapes, et pourquoi
 
-Linux :
+1. **Le fichier d'environnement**, écrit depuis `PROD_ENV_FILE` en `0600`.
+2. **`scripts/verifier-env-compose.sh`** liste d'un coup les quarante-six
+   variables absentes, vides, ou portant un `$` non échappé. Sans lui,
+   `${VAR:?…}` arrête l'interpolation à la **première** manquante : neuf clés
+   oubliées font neuf allers-retours vers le VPS.
+3. **SSH**, avec `known_hosts` vérifié par `ssh-keygen -F` sur `[hôte]:port`.
+   Un port non standard s'écrit entre crochets ; une ligne au format du port 22
+   ne correspond à rien et rend un « Host key verification failed » muet.
+4. **Les signatures**, vérifiées pour les vingt images du compose avant tout
+   transfert. La liste est **lue dans le compose**, pas tenue à la main.
+5. **Ansible** — `ansible/deployer-prod.yml`, huit blocs étiquetés.
 
-```bash
-base64 -w0 kubeconfig-dev.yaml
-```
+### Ce qui n'est PAS couvert
 
-macOS :
+- **La porte du §23 sur les vulnérabilités** n'est pas portée ici. `cd.yml` la
+  portait avant sa suppression. Le rescan des vingt images au registre coûte
+  plusieurs minutes ; le faire sur un sous-ensemble ou en ignorant le code de
+  sortie serait pire que de l'annoncer absente.
+- **Les images tierces** — Traefik, Kafka, MinIO, Redis — ne sont pas signées
+  par nous et ne sont pas vérifiées.
+- **Le VPS de base de données** (`10.20.0.2`, derrière WireGuard) n'entre
+  jamais dans l'inventaire Ansible : les rôles de préparation y appliqueraient
+  le durcissement nftables, qui fermerait 5432. Les quatorze bases
+  deviendraient injoignables, et le symptôme serait un **délai d'attente** —
+  indiscernable d'un mot de passe faux ou d'une route absente.
 
-```bash
-base64 < kubeconfig-dev.yaml | tr -d '\n'
-```
+---
 
-Répéter avec le bon fichier pour chaque environnement :
+## Les secrets et variables
 
-```bash
-base64 < kubeconfig-dev.yaml | tr -d '\n'
-base64 < kubeconfig-staging.yaml | tr -d '\n'
-base64 < kubeconfig-prod.yaml | tr -d '\n'
-```
+Environnement `prod` :
 
-Coller la sortie dans `Settings` → `Environments` → `<env>` → `Secrets` →
-`Add secret`.
+| nom | nature |
+|---|---|
+| `PROD_ENV_FILE` | secret — les quarante-six variables du compose |
+| `VPS_SSH_KEY` | secret — clé privée de déploiement |
+| `VPS_KNOWN_HOSTS` | secret — sortie de `ssh-keyscan -p <port> <hôte>` |
+| `GHCR_TOKEN` | secret — lecture du registre depuis le VPS |
+| `VPS_HOST`, `VPS_PORT`, `VPS_USER` | variables |
 
-## Droits Kubernetes Du Kubeconfig
+`VPS_KNOWN_HOSTS` doit contenir la **sortie** de `ssh-keyscan`, pas la commande.
+Chaque ligne commence par `[<hôte>]:<port>`.
 
-Le kubeconfig donné à GitHub doit pouvoir faire au minimum :
+---
 
-- lire le namespace cible ;
-- lire les Secrets attendus par `scripts/check-secrets-cluster.sh` pour staging et
-  prod ;
-- faire `kubectl apply --dry-run=server -k ...` ;
-- créer ou modifier les objets de l'overlay ;
-- lire les Jobs de migration en production ;
-- lire l'état des Deployments pour `rollout status`.
+## Les actions tierces sont épinglées par empreinte
 
-Pour un premier déploiement, un kubeconfig admin du cluster fonctionne. Pour un
-durcissement production, remplacer ensuite par un ServiceAccount limité au
-namespace cible.
+`trivy-action` et `cosign` sont figés par SHA ou par version, jamais par
+`latest`. Trois pannes en une soirée l'ont imposé : une étiquette supprimée en
+amont (`trivy-action@0.28.0`), puis l'étiquette qu'elle appelait elle-même
+(`setup-trivy@v0.2.1`), puis un limiteur de débit.
 
-## Préparer Les Branches
-
-Créer ou pousser les branches attendues :
-
-```bash
-git push origin dev
-git push origin staging
-git push origin develop
-```
-
-Le workflow `deploy-branches.yml` ne se lance pas directement sur `push`. Il se
-lance après la fin du workflow `CI`, via `workflow_run`. Si la CI échoue, aucun
-déploiement ne part.
-
-## Premier Test Dev
-
-1. Vérifier que l'environnement GitHub `dev` porte `KUBECONFIG_B64`.
-2. Pousser un commit sur `dev`.
-3. Aller dans `Actions` → `CI`.
-4. Attendre que `CI` soit verte.
-5. Aller dans `Actions` → `Deploy Branches`.
-6. Vérifier que la cible affichée est `dev`.
-7. Vérifier côté cluster :
-
-```bash
-kubectl -n hba-dev get pods
-kubectl -n hba-dev rollout status deploy --timeout=15m
-```
-
-## Premier Test Staging
-
-Avant de pousser sur `staging`, le DNS doit être correct :
-
-```bash
-./scripts/check-dns-ingress.sh staging
-```
-
-Puis :
-
-```bash
-git push origin staging
-```
-
-Après exécution :
-
-```bash
-kubectl -n hba-staging get pods
-kubectl -n hba-staging get certificate
-kubectl -n hba-staging rollout status deploy --timeout=15m
-```
-
-Si `check-dns-ingress.sh` échoue, le workflow échouera aussi au pré-vol. C'est
-voulu : cert-manager ne peut pas émettre un certificat sur un domaine qui pointe
-vers la mauvaise IP.
-
-## Premier Test Production
-
-Avant de pousser sur `develop` :
-
-1. Vérifier que l'environnement GitHub `prod` porte `KUBECONFIG_B64`.
-2. Vérifier que `prod` a un validateur humain obligatoire.
-3. Vérifier le DNS :
-
-```bash
-./scripts/check-dns-ingress.sh prod
-```
-
-4. Pousser :
-
-```bash
-git push origin develop
-```
-
-5. Attendre la CI.
-6. Ouvrir `Actions` → `Deploy Branches`.
-7. Approuver l'environnement `prod`.
-
-Le workflow production fait ensuite :
-
-1. pose le SHA du commit dans `k8s/overlays/prod` dans le runner ;
-2. pose le même SHA dans `k8s/overlays/migrations-prod` ;
-3. vérifie les signatures cosign des images ;
-4. lance `scripts/preflight-k8s.sh prod --cluster` ;
-5. applique les migrations ;
-6. attend que tous les Jobs de migration soient `Complete` ;
-7. applique `k8s/overlays/prod` ;
-8. attend le rollout des Deployments.
-
-## Vérifications Après Déploiement
-
-Dev :
-
-```bash
-kubectl -n hba-dev get pods
-kubectl -n hba-dev get deploy
-```
-
-Staging :
-
-```bash
-kubectl -n hba-staging get pods
-kubectl -n hba-staging get certificate
-kubectl -n hba-staging logs deploy/gateway-service --tail=100
-```
-
-Production :
-
-```bash
-kubectl -n hba-prod get pods
-kubectl -n hba-prod get job -l app.kubernetes.io/component=migration
-kubectl -n hba-prod rollout status deploy --timeout=15m
-```
-
-## Rollback
-
-Rollback staging :
-
-```bash
-./scripts/rollback-k8s.sh staging <service>
-```
-
-Rollback production :
-
-```bash
-./scripts/rollback-k8s.sh prod <service>
-```
-
-Après un rollback production, Git ne reflète plus ce qui tourne. Il faut ensuite
-repromouvoir le SHA restauré avec `cd.yml` ou refaire un commit de déploiement,
-sinon le prochain `kubectl apply` remettra la version fautive.
-
-## Dépannage
-
-`KUBECONFIG_B64 absent` :
-
-- le secret n'est pas créé dans l'environnement GitHub ciblé ;
-- vérifier que le nom est exactement `KUBECONFIG_B64`.
-
-`ImagePullBackOff` :
-
-- vérifier que la CI a publié l'image du service avec le SHA du commit ;
-- vérifier que le secret Kubernetes `ghcr` existe dans le namespace.
-
-`preflight-k8s.sh staging` échoue sur DNS :
-
-- corriger l'enregistrement A de `backendapi.marketplace-staging.hba-marketplace.fr` ;
-- attendre la propagation DNS ;
-- relancer le workflow.
-
-`prod` attend une approbation :
-
-- c'est la protection de l'environnement GitHub `prod` ;
-- approuver dans l'écran du workflow GitHub Actions.
+**Épingler une action ne fige pas ce qu'elle appelle.** On hérite de la
+discipline de son auteur.
