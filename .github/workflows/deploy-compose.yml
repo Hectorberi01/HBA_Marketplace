@@ -218,7 +218,14 @@ jobs:
           umask 077
           mkdir -p ~/.ssh
           printf '%s\n' "$CLE" > ~/.ssh/id_deploiement
-          printf '%s\n' "$EMPREINTES" > ~/.ssh/known_hosts
+          # `tr -d '\r'` : UN RETOUR CHARIOT REND LA LIGNE ILLISIBLE, EN SILENCE.
+          #
+          # Un secret colle depuis un editeur Windows, ou recopie a travers un
+          # presse-papier qui normalise les fins de ligne, porte des CRLF. ssh
+          # ne signale pas l'entree malformee : il ne la reconnait simplement
+          # pas, et rend « Host key verification failed » — le meme message que
+          # pour une empreinte absente.
+          printf '%s\n' "$EMPREINTES" | tr -d '\r' > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_deploiement ~/.ssh/known_hosts
 
           # ═══════════════════════════════════════════════════════════════════
