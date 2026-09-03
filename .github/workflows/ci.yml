@@ -419,24 +419,36 @@ jobs:
           sbom: true
 
       # ═════════════════════════════════════════════════════════════════════
-      # ÉPINGLÉE PAR SON EMPREINTE, ET NON PAR UNE ÉTIQUETTE.
+      # ÉPINGLÉE PAR SON EMPREINTE, ET EN VERSION RÉCENTE. DEUX PANNES, DEUX
+      #    LEÇONS.
       #
-      # `@0.28.0` a cessé de se résoudre — « unable to find version 0.28.0 » —
-      # et les vingt et un travaux d'image sont tombés en trois secondes, sans
-      # qu'une ligne du dépôt n'ait changé. Le projet amont publie ses versions
-      # sous `v0.28.0` ; l'étiquette sans `v` a disparu.
+      # 1. `@0.28.0` a cessé de se résoudre — « unable to find version
+      #    0.28.0 ». Amont publie ses versions sous `v0.28.0` ; l'étiquette
+      #    sans `v` a été retirée, et les vingt et un travaux d'image sont
+      #    tombés en trois secondes sans qu'une ligne du dépôt n'ait changé.
       #
-      # Une empreinte de commit ne peut ni disparaître ni être redirigée. C'est
-      # aussi ce que demande la chaîne d'approvisionnement : une étiquette est
-      # déplaçable, et une action tierce déplacée s'exécute avec le jeton du
-      # travail.
+      # 2. Épingler l'empreinte de v0.28.0 n'a PAS suffi, et c'est le point
+      #    important : cette version référence elle-même
+      #    `aquasecurity/setup-trivy@v0.2.1` PAR ÉTIQUETTE, et cette
+      #    étiquette-là a disparu aussi. Amont ne conserve plus que v0.2.6,
+      #    v0.3.0 et v0.3.1. Épingler une action ne fige donc pas ses propres
+      #    dépendances : on hérite de la fragilité de son auteur.
       #
-      # CE QUE ÇA NE COUVRE PAS : plus aucune montée de version automatique. La
-      # remonter demande de changer l'empreinte ET le commentaire ensemble —
-      # c'est le prix, et il est voulu.
+      # v0.36.0 corrige la cause : elle référence `setup-trivy` PAR EMPREINTE
+      # (3fb12ec, v0.2.6). Une empreinte de commit ne peut ni disparaître ni
+      # être redirigée — contrairement à une étiquette, qu'un auteur peut
+      # déplacer sur du code qui s'exécutera avec le jeton de ce travail.
+      #
+      # Les cinq entrées utilisées ici — `image-ref`, `format`, `output`,
+      # `exit-code`, `severity` — existent à l'identique en v0.36.0 ; seul le
+      # défaut de `severity` a changé, et on le pose explicitement.
+      #
+      # CE QUE ÇA NE COUVRE PAS : plus aucune montée de version automatique, et
+      # rien n'empêche une VERSION FUTURE de trivy-action de revenir à une
+      # référence par étiquette. C'est un risque amont, pas un réglage d'ici.
       # ═════════════════════════════════════════════════════════════════════
       - name: Scan de vulnérabilité
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ github.sha }}
           format: sarif
