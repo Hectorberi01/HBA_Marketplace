@@ -284,6 +284,93 @@ jobs:
       # `--tags` PERMET DE N'EN REJOUER QU'UNE PARTIE : preparation, transfert,
       # images, migration, sujets, demarrage, tls, verification.
       # ═════════════════════════════════════════════════════════════════════
+      # ═════════════════════════════════════════════════════════════════════
+      # LES SIGNATURES SONT VERIFIEES AVANT DE DEPLOYER — §19.
+      #
+      # CE QUE CETTE ETAPE RECUPERE. `cd.yml` portait cette garde ; il est
+      # supprime avec le chemin Kubernetes. Sans elle, la CI continuerait de
+      # SIGNER les images et plus rien ne verifierait ces signatures avant de
+      # les faire tourner : le registre pourrait servir une image poussee par
+      # n'importe quel jeton ayant le droit d'ecrire, et le VPS la demarrerait.
+      #
+      # `cosign verify` en mode sans cle : l'identite du signataire est le
+      # WORKFLOW lui-meme, atteste par Sigstore. On exige donc que l'image ait
+      # ete signee par `ci.yml` de CE depot, sur une branche de CE depot.
+      # `--certificate-identity-regexp` est ancre des deux cotes : sans `^` et
+      # `$`, `HBA_Marketplace` accepterait `HBA_Marketplace-fork`.
+      #
+      # LA LISTE VIENT DU COMPOSE, PAS D'UNE LISTE TENUE A LA MAIN. C'est
+      # exactement ce qui va tourner : une image ajoutee au compose et oubliee
+      # ici serait deployee sans verification, et personne ne le verrait.
+      #
+      # CE QUE CA NE COUVRE PAS :
+      #   . les vulnerabilites. `cd.yml` portait aussi la porte du §23 (aucune
+      #     criticite HIGH/CRITICAL avant production). Elle N'EST PAS encore
+      #     portee ici : le rescan des vingt images au registre coute plusieurs
+      #     minutes, et le faire mal — sur un sous-ensemble, ou en ignorant le
+      #     code de sortie — serait pire que de l'annoncer absente.
+      #   . les images qui ne viennent pas de ghcr.io (traefik, postgres,
+      #     kafka…) : elles ne sont pas signees par nous et ne sont pas
+      #     verifiees ici.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Verifier les signatures des images (§19)
+        env:
+          DEPOT: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          version=v3.1.3
+          url="https://github.com/sigstore/cosign/releases/download/${version}/cosign-linux-amd64"
+          obtenu=0
+          for essai in 1 2 3; do
+            if curl -sSLf --connect-timeout 10 --max-time 120 -o cosign "$url"; then
+              obtenu=1; break
+            fi
+            echo "cosign : tentative $essai echouee, nouvelle tentative dans $((essai * 5))s"
+            sleep $((essai * 5))
+          done
+          [ "$obtenu" -eq 1 ] || { echo "::error title=cosign::telechargement impossible — $url"; exit 1; }
+          chmod +x cosign
+
+          # Les depots d'images du compose, sans le tag : il vient de l'entree.
+          mapfile -t images < <(
+            grep -oE 'image: ghcr\.io/[a-z0-9._/-]+:' docker-compose.prod.yml \
+              | sed -e 's/^image: //' -e 's/:$//' \
+              | sort -u
+          )
+
+          [ "${#images[@]}" -gt 0 ] || {
+            echo "::error title=Signatures::aucune image ghcr.io trouvee dans docker-compose.prod.yml"
+            exit 1
+          }
+
+          echo "${#images[@]} image(s) a verifier, tag ${{ inputs.tag }}"
+
+          rates=()
+          for depot in "${images[@]}"; do
+            if ./cosign verify \
+                 --certificate-identity-regexp "^https://github.com/${DEPOT}/\.github/workflows/ci\.yml@refs/heads/.+$" \
+                 --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                 "${depot}:${{ inputs.tag }}" > /dev/null 2>&1; then
+              echo "  ✓ ${depot}"
+            else
+              echo "  ✗ ${depot}"
+              rates+=("$depot")
+            fi
+          done
+
+          if [ "${#rates[@]}" -gt 0 ]; then
+            echo "::error title=Signatures::${#rates[@]} image(s) non signee(s) par ci.yml de ${DEPOT}"
+            for d in "${rates[@]}"; do
+              echo "::error::  ${d}:${{ inputs.tag }}"
+            done
+            echo "Une image non verifiee n'est pas deployee. Verifier que la CI a bien"
+            echo "publie ET signe ce tag : etape « Signer l'image » du travail Image <service>."
+            exit 1
+          fi
+
+          echo "Les ${#images[@]} images sont signees par ci.yml de ${DEPOT}."
+
       - name: Installer Ansible
         run: pipx install --include-deps ansible-core || pip install --quiet ansible-core
 

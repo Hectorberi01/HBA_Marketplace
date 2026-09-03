@@ -1,3 +1,17 @@
+> **CE DOCUMENT DECRIT UN CHEMIN RETIRE DU DEPOT (3 septembre 2026).**
+>
+> Il parle de Kubernetes, de k3s, de calques kustomize et de `kubectl`. Ces
+> dossiers — `k8s/`, `infra/ansible/`, `infra/terraform/` — n'existent plus, et
+> les workflows qui les employaient non plus.
+>
+> **La production tourne sur Docker Compose + Traefik.** Le document a jour est
+> [`RUNBOOK-COMPOSE.md`](RUNBOOK-COMPOSE.md), et le deploiement passe par le
+> workflow « Deployer la production (Compose) ».
+>
+> Celui-ci est conserve pour son historique : il explique POURQUOI certains
+> choix ont ete faits, et plusieurs de ces raisons valent encore. Ne pas
+> l'appliquer tel quel.
+
 # Runbook — premier déploiement staging
 
 > **Depuis le 2 septembre 2026, une partie des commandes de ce document
