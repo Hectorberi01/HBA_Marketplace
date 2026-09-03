@@ -167,18 +167,54 @@
             group: root
             mode: "0750"
 
-        - name: Les ports 80 et 443 sont libres avant d'aller plus loin
+        # ══════════════════════════════════════════════════════════════════
+        # `ss` NE DIT JAMAIS « traefik » POUR UN PORT PUBLIE PAR DOCKER.
+        #
+        # CE QUI ETAIT CASSE. Cette garde cherchait la chaine « traefik » dans
+        # la sortie de `ss`. Or Docker publie un port en interposant son propre
+        # relais : le processus qui DETIENT la socket s'appelle toujours
+        # `docker-proxy`, quel que soit le conteneur derriere.
+        #
+        # La garde ne pouvait donc JAMAIS passer des lors qu'un conteneur tient
+        # 80 ou 443 — y compris notre propre Traefik. Elle bloquait le
+        # deploiement en accusant « autre chose que Traefik » alors qu'elle
+        # etait incapable, par construction, de reconnaitre Traefik.
+        #
+        # On demande donc a Docker, qui sait quel CONTENEUR publie quoi. Ce que
+        # `ss` rend reste affiche dans le message : quand le coupable n'est pas
+        # un conteneur, c'est la seule piste.
+        #
+        # CE QUE CA NE COUVRE PAS : un conteneur qui porterait « traefik » dans
+        # son nom sans etre le notre — celui de Coolify, par exemple, s'appelle
+        # `coolify-proxy` et sera bien refuse, mais un `traefik` etranger
+        # passerait. Le nom est un indice, pas une preuve.
+        # ══════════════════════════════════════════════════════════════════
+        - name: Ce qui tient 80 et 443 au niveau du systeme
           ansible.builtin.shell:
             cmd: ss -tulpn | grep -E ':(80|443)\s' || true
           changed_when: false
           register: ports_occupes
 
-        - name: Refuser si quelque chose tient encore 80 ou 443
+        - name: Les conteneurs qui publient 80 ou 443
+          ansible.builtin.shell:
+            cmd: >-
+              docker ps --filter publish=80 --filter publish=443
+              --format '{% raw %}{{.Names}}{% endraw %}' || true
+          changed_when: false
+          register: conteneurs_ports
+
+        - name: Refuser si autre chose que Traefik tient 80 ou 443
+          vars:
+            intrus: "{{ conteneurs_ports.stdout_lines | reject('search', 'traefik') | list }}"
           ansible.builtin.assert:
-            that: ports_occupes.stdout | trim == "" or 'traefik' in ports_occupes.stdout
+            that: >-
+              ports_occupes.stdout | trim == ''
+              or (conteneurs_ports.stdout_lines | length > 0 and intrus | length == 0)
             fail_msg: >-
-              80 ou 443 sont pris par autre chose que Traefik :
-              {{ ports_occupes.stdout }}
+              80 ou 443 sont pris par autre chose que Traefik.
+              Conteneurs qui publient ces ports : {{ conteneurs_ports.stdout_lines | default([]) | join(', ') | default('aucun', true) }}.
+              Intrus : {{ intrus | join(', ') | default('aucun conteneur — un processus hote tient le port', true) }}.
+              Detail systeme : {{ ports_occupes.stdout }}
               Traefik ne pourra pas se lier, et l'erreur ne nommera pas le coupable.
 
     # ══════════════════════════════════════════════════════════════════════
