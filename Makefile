@@ -9,7 +9,7 @@
 COMPOSE := docker compose -f docker-compose.dev.yml
 
 .DEFAULT_GOAL := help
-.PHONY: help restore build test up down logs ps clean check migrate migrations seed infra k8s-dev k8s-check
+.PHONY: help restore build test up down logs ps clean check migrate migrations seed deployer
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -66,12 +66,6 @@ ps: ## Etat des conteneurs
 check: ## Lance les controles du depot (DI, migrations, Dockerfiles, gRPC)
 	./scripts/check-all.sh
 
-k8s-dev: ## Rend les manifests de l'environnement dev
-	kustomize build k8s/overlays/dev
-
-k8s-check: ## Construit les trois overlays et verifie le cahier Infrastructure
-	dotnet run --project tools/HBA.Controls --verbosity quiet -- k8s
-
 migrations: ## Genere les migrations EF manquantes (hors ligne, sans base)
 	./scripts/db/add-missing-migrations.sh
 
@@ -92,8 +86,18 @@ migrate: ## Rappelle comment les migrations s'appliquent selon l'environnement
 	@echo "               Voir docs/DEPLOIEMENT.md, etages 2 et 3."
 	@echo "Generer les migrations manquantes : make migrations"
 
-infra: ## Verifie Terraform et Ansible (syntaxe et cablage, sans fournisseur)
-	dotnet run --project tools/HBA.Controls --verbosity quiet -- infra
+deployer: ## Rappelle comment deployer la production (le deploiement passe par la CI)
+	@echo "Le deploiement de production ne se lance PAS depuis un poste."
+	@echo
+	@echo "  GitHub -> Actions -> « Deployer la production (Compose) » -> Run workflow"
+	@echo "     tag          = le SHA publie par la CI"
+	@echo "     tags_ansible = vide pour tout"
+	@echo
+	@echo "Il verifie les signatures cosign des vingt images avant tout transfert,"
+	@echo "puis joue ansible/deployer-prod.yml sur le VPS."
+	@echo
+	@echo "Pour eprouver le fichier d'environnement sans rien deployer :"
+	@echo "  ./scripts/verifier-env-compose.sh docker-compose.prod.yml <fichier.env>"
 
 seed: ## Injecte les donnees de demonstration
 	./scripts/seed-accounts.sh && ./scripts/seed-stores.sh && ./scripts/seed-catalog-categories.sh
