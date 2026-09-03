@@ -221,6 +221,44 @@ jobs:
           printf '%s\n' "$EMPREINTES" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_deploiement ~/.ssh/known_hosts
 
+          # ═══════════════════════════════════════════════════════════════════
+          # L'EMPREINTE PRESENTE NE VAUT RIEN SI ELLE NE DESIGNE PAS CE PORT.
+          #
+          # CE QUI S'EST PASSE. Le secret existait, le pas passait au vert, et
+          # Ansible tombait douze lignes plus loin sur « Host key verification
+          # failed » — un message qui ne dit ni quel hote, ni pourquoi.
+          #
+          # Un serveur sur un port NON STANDARD s'ecrit entre crochets dans
+          # known_hosts :
+          #
+          #     [79.137.35.129]:8022 ssh-ed25519 AAAA...
+          #
+          # Une ligne produite par `ssh-keyscan 79.137.35.129` — sans `-p` —
+          # donne la forme du port 22 et ne correspond a RIEN pour une
+          # connexion sur 8022. Idem pour une ligne recopiee d'un poste ou
+          # l'hote est connu sous un alias `~/.ssh/config`.
+          #
+          # `ssh-keygen -F` pose la question exactement comme ssh se la pose,
+          # entrees hachees comprises. On la pose donc ICI, pendant qu'on peut
+          # encore nommer la cause.
+          #
+          # CE QUE CA NE VERIFIE PAS : que la cle soit la BONNE. Une empreinte
+          # d'un autre serveur passerait ce controle et echouerait a la
+          # connexion — c'est deliberement le role de ssh, pas le notre.
+          # ═══════════════════════════════════════════════════════════════════
+          cible="[${{ vars.VPS_HOST }}]:${{ vars.VPS_PORT }}"
+          if ! ssh-keygen -F "$cible" -f ~/.ssh/known_hosts >/dev/null 2>&1; then
+            echo "::error title=VPS_KNOWN_HOSTS::aucune entree pour $cible"
+            echo "::error::Le secret existe mais ne designe pas cet hote sur ce port."
+            echo "::error::Un port non standard s'ecrit entre crochets. Regenerer avec :"
+            echo "::error::  ssh-keyscan -p ${{ vars.VPS_PORT }} ${{ vars.VPS_HOST }}"
+            echo "::error::et coller TOUTES les lignes rendues dans le secret."
+            echo "Entrees actuellement presentes (types et hotes seulement) :"
+            awk '{print "  " $1 " " $2}' ~/.ssh/known_hosts
+            exit 1
+          fi
+          echo "known_hosts : entree trouvee pour $cible"
+
       # ═════════════════════════════════════════════════════════════════════
       # LE DEPLOIEMENT PASSE PAR ANSIBLE, PLUS PAR SIX `ssh` A LA SUITE.
       #
