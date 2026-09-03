@@ -418,8 +418,25 @@ jobs:
           provenance: true
           sbom: true
 
+      # ═════════════════════════════════════════════════════════════════════
+      # ÉPINGLÉE PAR SON EMPREINTE, ET NON PAR UNE ÉTIQUETTE.
+      #
+      # `@0.28.0` a cessé de se résoudre — « unable to find version 0.28.0 » —
+      # et les vingt et un travaux d'image sont tombés en trois secondes, sans
+      # qu'une ligne du dépôt n'ait changé. Le projet amont publie ses versions
+      # sous `v0.28.0` ; l'étiquette sans `v` a disparu.
+      #
+      # Une empreinte de commit ne peut ni disparaître ni être redirigée. C'est
+      # aussi ce que demande la chaîne d'approvisionnement : une étiquette est
+      # déplaçable, et une action tierce déplacée s'exécute avec le jeton du
+      # travail.
+      #
+      # CE QUE ÇA NE COUVRE PAS : plus aucune montée de version automatique. La
+      # remonter demande de changer l'empreinte ET le commentaire ensemble —
+      # c'est le prix, et il est voulu.
+      # ═════════════════════════════════════════════════════════════════════
       - name: Scan de vulnérabilité
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ github.sha }}
           format: sarif
