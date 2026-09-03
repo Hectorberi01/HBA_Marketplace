@@ -37,8 +37,20 @@ public static class ResumeTests
     /// Au-delà, GitHub cesse d'afficher les annotations d'un pas.
     private const int AnnotationsMaximum = 8;
 
-    /// De quoi porter la première ligne d'exception, pas la pile entière.
-    private const int LignesDAnnotation = 6;
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// SIX LIGNES NE SUFFISAIENT PAS, ET L'ON A PERDU UN CYCLE POUR ÇA.
+    ///
+    /// La coupe tombait exactement sur « An exception was thrown while attempting
+    /// to evaluate a LINQ query parameter expression. See the INNER EXCEPTION for
+    /// more information » — c'est-à-dire sur la phrase qui renvoie à ce qui
+    /// n'était pas rendu. Une annotation qui s'arrête à l'invitation à lire la
+    /// suite ne vaut pas mieux qu'une annotation vide.
+    ///
+    /// Trente lignes portent l'exception, ses exceptions internes et le haut de
+    /// la pile. Le champ accepte plusieurs milliers de caractères ; le vrai coût
+    /// est la lisibilité, pas la limite.
+    /// ═════════════════════════════════════════════════════════════════════════
+    private const int LignesDAnnotation = 30;
 
     private static readonly XNamespace Trx =
         "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
@@ -246,7 +258,7 @@ public static class ResumeTests
             {
                 texte.AppendLine($"- **{echec.Test}**");
 
-                var message = Lignes(echec.Message, 12).ToArray();
+                var message = Lignes(echec.Message, 40).ToArray();
                 if (message.Length > 0)
                 {
                     texte.AppendLine();
