@@ -68,8 +68,30 @@ jobs:
 
       - name: Installer kustomize
         run: |
-          curl -sSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          # ═══════════════════════════════════════════════════════════════════
+          # UNE VERSION FIGEE, TELECHARGEE DIRECTEMENT.
+          #
+          # `install_kustomize.sh` interroge l'API GitHub pour trouver la
+          # derniere version. Sur un runner partage, cette API est limitee par
+          # adresse : le 3 septembre, l'installation a rendu « Github
+          # rate-limiter failed the request » et la barriere est tombee en 6
+          # secondes, sans le moindre rapport avec l'etat du depot.
+          #
+          # Un actif de release ne passe pas par cette limite, et une version
+          # figee rend la barriere reproductible : deux executions du meme
+          # commit ne peuvent plus differer parce qu'amont a publie une version.
+          #
+          # CE QUE CA NE COUVRE PAS : plus rien ne remonte automatiquement de
+          # version. Il faudra changer ce numero a la main le jour ou un
+          # overlay demandera une fonctionnalite plus recente — le controle
+          # `k8s` refuse deja kustomize en version 4, il le dira.
+          # ═══════════════════════════════════════════════════════════════════
+          version=5.4.3
+          curl -sSLf -o kustomize.tar.gz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${version}/kustomize_v${version}_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz kustomize
           sudo mv kustomize /usr/local/bin/
+          kustomize version
 
       # LES CONTROLES N'ONT PLUS AUCUNE DEPENDANCE DE PAQUET.
       #

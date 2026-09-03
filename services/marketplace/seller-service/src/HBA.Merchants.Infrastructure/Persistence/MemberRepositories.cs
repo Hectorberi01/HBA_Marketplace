@@ -188,7 +188,47 @@ internal sealed class SellerRoleRepository : ISellerRoleRepository
             return [];
         }
 
-        var cles = ids.Distinct().ToArray();
+        // ═════════════════════════════════════════════════════════════════════
+        // UNE LISTE, ET SURTOUT PAS UN TABLEAU. LA RAISON N'EST PAS UN GOÛT.
+        //
+        // CE QUI SE PASSAIT. Avec `ids.Distinct().ToArray()`, l'appel
+        // `cles.Contains(r.Id)` ne se liait plus à `Enumerable.Contains` mais à
+        // `MemoryExtensions.Contains(ReadOnlySpan<T>, T)` : depuis les types
+        // « span de première classe » de C# 13, un tableau se convertit
+        // implicitement en `ReadOnlySpan<T>`, et cette surcharge l'emporte dès
+        // que T implémente `IEquatable<T>` — ce que fait `SellerRoleId`.
+        //
+        // À l'exécution, EF Core évalue ce paramètre avec l'INTERPRÉTEUR
+        // d'arbres d'expressions (`Compile(preferInterpretation: true)`). Or un
+        // `ref struct` ne peut pas être argument générique : l'interpréteur
+        // tombe sur
+        //
+        //   ArgumentException: GenericArguments[1],
+        //   'System.ReadOnlySpan`1[SellerRoleId]', on 'FuncCallInstruction`2'
+        //   violates the constraint of type 'TRet'
+        //
+        // enveloppé par EF en « An exception was thrown while attempting to
+        // evaluate a LINQ query parameter expression ». Le service rendait donc
+        // 500 sur CHAQUE route portant un {sellerId} — la garde d'appartenance
+        // passe ici — pendant que l'inscription, qui ne résout aucun rôle,
+        // continuait de répondre 201.
+        //
+        // POURQUOI ÇA NE SE VOYAIT QUE SUR LE RUNNER. La liaison est décidée à
+        // la COMPILATION. Le SDK du poste liait encore `Enumerable.Contains` ;
+        // celui de la CI, plus récent, choisit la surcharge span. Même source,
+        // même exécution, deux binaires différents — et une suite verte en
+        // local, rouge à chaque exécution en intégration continue.
+        //
+        // `List<T>.Contains` est une méthode d'INSTANCE : la résolution de
+        // surcharge s'arrête sur elle et n'atteint jamais les extensions. EF la
+        // traduit en `IN (...)` comme avant. Ne pas la retransformer en tableau.
+        //
+        // CE QUE ÇA NE COUVRE PAS : le piège vaut pour tout `T[]` passé à
+        // `.Contains` DANS un arbre d'expressions, avec T : IEquatable<T> —
+        // donc aussi `Guid[]`, `int[]`, `string[]`. Ce dépôt n'en avait qu'un
+        // seul ; rien n'empêche le prochain.
+        // ═════════════════════════════════════════════════════════════════════
+        var cles = ids.Distinct().ToList();
 
         return await _dbContext.SellerRoles
             .Where(r => cles.Contains(r.Id))
