@@ -43,6 +43,25 @@
     fichier_env: "{{ lookup('env', 'HBA_ENV_FILE') | default(lookup('env','HOME') + '/secrets-hba-prod/prod.env', true) }}"
     compose: "{{ hba_racine }}/docker-compose.prod.yml"
 
+    # ══════════════════════════════════════════════════════════════════════
+    # `-f` EST OBLIGATOIRE : LE NOM DU FICHIER N'EST PAS DECOUVRABLE.
+    #
+    # `docker compose` ne cherche QUE `compose.yaml`, `compose.yml`,
+    # `docker-compose.yaml` et `docker-compose.yml` dans le repertoire
+    # courant. Le notre s'appelle `docker-compose.prod.yml` — un nom qui ne
+    # figure pas dans cette liste. Avec le seul `chdir`, compose repondait
+    # « no configuration file provided: not found », un message qui ne nomme
+    # ni le repertoire regarde ni les noms attendus.
+    #
+    # Le renommer en `docker-compose.yml` sur le VPS aurait aussi marche, et
+    # aurait fait perdre l'information la plus utile quand on se connecte au
+    # serveur : QUEL compose y tourne.
+    #
+    # Une seule variable pour les six invocations : elles ne peuvent plus
+    # diverger, et la prochaine heritera du `-f` sans que personne y pense.
+    # ══════════════════════════════════════════════════════════════════════
+    dc: "docker compose -p {{ hba_projet }} -f {{ compose }}"
+
   pre_tasks:
     # ══════════════════════════════════════════════════════════════════════
     # LE FICHIER D'ENVIRONNEMENT EST VERIFIE AVANT DE TOUCHER AU VPS.
@@ -267,14 +286,14 @@
         # au demarrage, le meme echec arrive au milieu de vingt-cinq conteneurs.
         - name: Tirer les images publiees
           ansible.builtin.command:
-            cmd: docker compose -p {{ hba_projet }} pull
+            cmd: "{{ dc }} pull"
             chdir: "{{ hba_racine }}"
           register: tirage
           changed_when: "'Pulled' in tirage.stderr or 'Downloaded' in tirage.stderr"
 
         - name: Construire rembg, qui n'est publie nulle part
           ansible.builtin.command:
-            cmd: docker compose -p {{ hba_projet }} build rembg
+            cmd: "{{ dc }} build rembg"
             chdir: "{{ hba_racine }}"
           changed_when: true
 
@@ -308,7 +327,7 @@
         - name: Migrer chaque service, un par un
           ansible.builtin.command:
             cmd: >-
-              docker compose -p {{ hba_projet }} run --rm --no-deps
+              {{ dc }} run --rm --no-deps
               -e DATABASE__MIGRATEONLY=true {{ item }}
             chdir: "{{ hba_racine }}"
           loop: "{{ a_migrer.stdout_lines }}"
@@ -321,7 +340,7 @@
       block:
         - name: Demarrer le courtier seul
           ansible.builtin.command:
-            cmd: docker compose -p {{ hba_projet }} up -d kafka
+            cmd: "{{ dc }} up -d kafka"
             chdir: "{{ hba_racine }}"
           changed_when: true
 
@@ -382,7 +401,7 @@
     - name: Demarrage de la pile
       tags: [demarrage]
       ansible.builtin.command:
-        cmd: docker compose -p {{ hba_projet }} up -d
+        cmd: "{{ dc }} up -d"
         chdir: "{{ hba_racine }}"
       changed_when: true
 
@@ -433,7 +452,7 @@
       block:
         - name: Etat des conteneurs
           ansible.builtin.command:
-            cmd: docker compose -p {{ hba_projet }} ps --format json
+            cmd: "{{ dc }} ps --format json"
             chdir: "{{ hba_racine }}"
           changed_when: false
           register: etat
