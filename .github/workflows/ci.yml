@@ -517,15 +517,81 @@ jobs:
           path: trivy-${{ matrix.service }}.sarif
           if-no-files-found: ignore
 
+      # ═════════════════════════════════════════════════════════════════════
+      # LE JETON OIDC EST VERIFIE AVANT DE SIGNER, PARCE QUE COSIGN NE SAIT
+      #    PAS DIRE CE QUI MANQUE.
+      #
+      # CE QU'ON A LU : « fetching ambient OIDC credentials: invalid character
+      # 'u' looking for beginning of value ». Ce 'u' est la premiere lettre de
+      # « unauthorized » : le point d'acces a rendu du TEXTE la ou cosign
+      # attendait du JSON, et cosign a signale une erreur d'analyse au lieu du
+      # refus qu'il venait de recevoir. Vingt et un travaux tombaient sur un
+      # message qui ne nommait ni la cause ni le service concerne.
+      #
+      # Ce pas pose la meme question, avec curl, et rend le CODE HTTP. Le corps
+      # n'est affiche que sur une erreur — une reponse a 200 contient le jeton
+      # lui-meme, qui ne doit jamais atteindre un journal.
+      #
+      # CE QUE CA NE COUVRE PAS : la cause d'un 403 cote GitHub. Le code et le
+      # corps la designeront ; c'est deja tout ce qui manquait pour la chercher.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Verifier le jeton OIDC avant signature
+        if: github.event_name == 'push'
+        run: |
+          set -uo pipefail
+
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::error title=OIDC::ACTIONS_ID_TOKEN_REQUEST_URL absent."
+            echo "::error::La permission « id-token: write » n'est pas effective sur ce travail."
+            exit 1
+          fi
+
+          code=$(curl -s -o /tmp/oidc.json -w '%{http_code}' \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sigstore")
+
+          if [ "$code" != "200" ]; then
+            echo "::error title=OIDC::le point d'acces a repondu $code"
+            # Un corps d'ERREUR ne contient aucun jeton : on peut le montrer.
+            echo "reponse : $(head -c 300 /tmp/oidc.json)"
+            rm -f /tmp/oidc.json
+            exit 1
+          fi
+
+          echo "jeton OIDC obtenu ($(wc -c < /tmp/oidc.json) octets, non affiche)"
+          rm -f /tmp/oidc.json
+
       - name: "Signer l'image (§19 : registre privé et images signées)"
         if: github.event_name == 'push'
-        env:
-          COSIGN_EXPERIMENTAL: "1"
         run: |
-          curl -sSLo cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          set -euo pipefail
+
+          # VERSION FIGEE, ET TELECHARGEMENT QUI REESSAIE — meme raison que
+          # kustomize : `latest/download` fait dependre une execution
+          # reproductible de ce qu'amont a publie ce matin, et un `curl` unique
+          # transforme une coupure passagere en barriere rouge.
+          version=v3.1.3
+          url="https://github.com/sigstore/cosign/releases/download/${version}/cosign-linux-amd64"
+
+          obtenu=0
+          for essai in 1 2 3; do
+            if curl -sSLf --connect-timeout 10 --max-time 120 -o cosign "$url"; then
+              obtenu=1
+              break
+            fi
+            echo "cosign : tentative $essai echouee, nouvelle tentative dans $((essai * 5))s"
+            sleep $((essai * 5))
+          done
+          [ "$obtenu" -eq 1 ] || { echo "::error title=cosign::telechargement impossible — $url"; exit 1; }
+
           chmod +x cosign
-          # Signature « keyless » : l'identité vient du jeton OIDC du workflow, il
-          # n'y a donc aucune clé privée à stocker ni à faire tourner. C'est ce que
-          # le §12 préfère à un secret de plus.
+
+          # `COSIGN_EXPERIMENTAL` N'EST PLUS POSE : depuis cosign 2, la signature
+          # sans cle est le comportement par defaut et cette variable n'a plus
+          # d'effet. La garder laissait croire qu'elle en avait un.
+          #
+          # Signature « keyless » : l'identite vient du jeton OIDC du workflow,
+          # il n'y a donc aucune cle privee a stocker ni a faire tourner. C'est
+          # ce que le §12 prefere a un secret de plus.
           ./cosign sign --yes \
             ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}@${{ steps.construire.outputs.digest }}
