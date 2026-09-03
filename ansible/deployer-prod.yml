@@ -69,17 +69,53 @@
           le rend lisible par d'autres. Il porte quatorze mots de passe de base,
           les cles de signature et la cle FedaPay. `chmod 600` puis relancer.
 
+    # ══════════════════════════════════════════════════════════════════════
+    # LE VERIFICATEUR EXISTE-T-IL ? LA QUESTION N'EST PAS RHETORIQUE.
+    #
+    # Cette tache appelait `scripts/verifier-env-compose.py`, supprime par le
+    # portage des controles en C#. L'appel, lui, est reste. La commande
+    # echouait donc sur « can't open file » — et `no_log: true` cachait ce
+    # message : le deploiement semblait accuser des variables manquantes alors
+    # que le VERIFICATEUR etait absent. Meme defaut que `check-di.py`, en pire,
+    # parce que muet.
+    # ══════════════════════════════════════════════════════════════════════
+    - name: Le verificateur d'environnement est present
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../scripts/verifier-env-compose.sh"
+      register: verificateur
+
+    - name: Refuser si le verificateur manque
+      ansible.builtin.assert:
+        that: verificateur.stat.exists
+        fail_msg: >-
+          scripts/verifier-env-compose.sh est absent. Sans lui, les quarante-six
+          variables ne sont pas relues avant l'envoi, et compose ne nommerait la
+          premiere manquante qu'apres avoir tout transfere sur le VPS.
+
     - name: Verifier les quarante-six variables obligatoires du compose
       delegate_to: localhost
       become: false
       ansible.builtin.command:
-        cmd: python3 scripts/verifier-env-compose.py docker-compose.prod.yml {{ fichier_env }}
+        cmd: bash scripts/verifier-env-compose.sh docker-compose.prod.yml {{ fichier_env }}
         chdir: "{{ playbook_dir }}/.."
       changed_when: false
-      # Le script n'affiche que des NOMS de variables, jamais de valeurs — c'est
-      # une invariante de son ecriture. `no_log` reste pose par prudence : un
-      # jour quelqu'un ajoutera une ligne de mise au point.
-      no_log: true
+      # ══════════════════════════════════════════════════════════════════════
+      # `no_log: false`, ET C'EST UN CHOIX, PAS UN OUBLI.
+      #
+      # Il valait `true` « par prudence ». Le jour ou la tache a echoue, cette
+      # prudence a cache la cause pendant vingt minutes : Ansible n'a rendu que
+      # « the output has been hidden ».
+      #
+      # Le script n'affiche QUE des noms de variables — c'est l'invariante
+      # ecrite en tete de son fichier, et la seule qui compte la-bas. Tant
+      # qu'elle tient, montrer sa sortie ne divulgue rien ; le jour ou
+      # quelqu'un y ajoute une ligne de mise au point qui imprime une valeur,
+      # c'est CETTE ligne qu'il faut refuser en revue, pas la visibilite de
+      # l'echec.
+      # ══════════════════════════════════════════════════════════════════════
+      no_log: false
 
   tasks:
     # ══════════════════════════════════════════════════════════════════════
