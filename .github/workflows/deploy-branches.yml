@@ -110,9 +110,37 @@ jobs:
           # overlay demandera une fonctionnalite plus recente — le controle
           # `k8s` refuse deja kustomize en version 4, il le dira.
           # ═══════════════════════════════════════════════════════════════════
+          # UN TELECHARGEMENT UNIQUE N'EST PAS UNE DEPENDANCE FIABLE.
+          #
+          # Deuxieme panne du meme pas en une soiree, pour une deuxieme raison
+          # exterieure : d'abord le limiteur de debit de l'API GitHub, puis
+          # « curl: (35) Recv failure: Connection reset by peer ». Aucune des
+          # deux ne dit quoi que ce soit de l'etat du depot, et les deux
+          # rendent la barriere rouge.
+          #
+          # Cinq tentatives avec attente croissante absorbent la coupure
+          # passagere. L'echec DEFINITIF reste un echec : on ne poursuit pas
+          # sans kustomize, sans quoi le controle `k8s` se contenterait de dire
+          # « ignore » et la barriere passerait au vert sans avoir regarde les
+          # overlays.
           version=5.4.3
-          curl -sSLf -o kustomize.tar.gz \
-            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${version}/kustomize_v${version}_linux_amd64.tar.gz"
+          url="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${version}/kustomize_v${version}_linux_amd64.tar.gz"
+
+          obtenu=0
+          for essai in 1 2 3 4 5; do
+            if curl -sSLf --connect-timeout 10 --max-time 180 -o kustomize.tar.gz "$url"; then
+              obtenu=1
+              break
+            fi
+            echo "kustomize : tentative $essai echouee, nouvelle tentative dans $((essai * 5))s"
+            sleep $((essai * 5))
+          done
+
+          if [ "$obtenu" -ne 1 ]; then
+            echo "::error title=kustomize::telechargement impossible apres 5 tentatives — $url"
+            exit 1
+          fi
+
           tar -xzf kustomize.tar.gz kustomize
           sudo mv kustomize /usr/local/bin/
           kustomize version
