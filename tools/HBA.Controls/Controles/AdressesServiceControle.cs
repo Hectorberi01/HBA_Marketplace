@@ -330,7 +330,7 @@ internal static class ComposeDev
 /// C'est arrivé au lot 6.1, le jour où payment-service a gagné un client vers
 /// food-order-service. Sa liste de clés était tenue à la main, au rythme des
 /// besoins, et RIEN ne la reliait à celle des clients qui la réclament. Ce
-/// contrôle vérifiait le compose et le configmap ; il ne regardait pas ce
+/// contrôle vérifiait le compose seul ; il ne regardait pas ce
 /// fichier-là.
 ///
 /// Il exige désormais que la fabrique porte TOUTE clé réclamée par une extension
@@ -377,16 +377,16 @@ internal static class ComposeDev
 ///
 /// KUBERNETES N'EST PAS EXPOSÉ DE LA MÊME FAÇON.
 ///
-/// Là-bas, `k8s/base/common/configmap.yaml` distribue TOUTES les adresses à TOUS
+/// Le compose distribue les adresses service par service : chacun ne reçoit que
 /// les pods : un client oublié y trouve la sienne par accident. Le compose, lui,
 /// énumère les variables service par service — plus sûr en production, plus
 /// facile à oublier en développement. On vérifie donc le compose service par
-/// service, et le configmap seulement sur les clés réellement employées quelque
+/// service, sur les clés réellement employées quelque
 /// part.
 ///
 /// DEUX DIVERGENCES ASSUMÉES AVEC LE CONTRÔLE PYTHON D'ORIGINE.
 ///
-/// Celui-ci sautait EN SILENCE le configmap et la fabrique d'autorisation quand
+/// Celui-ci sautait EN SILENCE la fabrique d'autorisation quand
 /// le fichier n'existait pas, et s'ignorait tout entier quand PyYAML manquait. Un
 /// fichier disparu est pourtant la panne la plus grave que ce contrôle puisse
 /// rencontrer : ici, son absence est une FAUTE. Et le YAML n'est plus analysé —
@@ -492,33 +492,7 @@ public sealed class AdressesServiceControle : IControle
             }
         }
 
-        // ── 2. Le configmap Kubernetes, sur les seules clés employées ────────
-        var configmap = Path.Combine(Depot.Dossier("k8s", "base", "common"), "configmap.yaml");
-
-        if (!File.Exists(configmap))
-        {
-            // DIVERGENCE ASSUMÉE : le Python sautait en silence. Un configmap
-            // disparu prive TOUS les pods de TOUTES leurs adresses.
-            fautes.Add(
-                "k8s/base/common/configmap.yaml est absent : aucune adresse Kubernetes "
-                + "n'a pu être vérifiée, et ce contrôle ne peut pas rendre vert là-dessus.");
-        }
-        else
-        {
-            var texte = File.ReadAllText(configmap);
-            foreach (var clef in employees)
-            {
-                var variable = "SERVICES__" + clef.ToUpperInvariant();
-                if (!texte.Contains(variable + ":", StringComparison.Ordinal))
-                {
-                    fautes.Add(
-                        $"k8s/base/common/configmap.yaml : {variable} absent — un pod qui "
-                        + "emploie ce client ne démarrera pas");
-                }
-            }
-        }
-
-        // ── 3. La fabrique des tests d'autorisation ─────────────────────────
+        // ── 2. La fabrique des tests d'autorisation ─────────────────────────
         //
         // ON EXIGE TOUTES LES CLÉS DU CATALOGUE, PAS SEULEMENT CELLES EMPLOYÉES.
         //

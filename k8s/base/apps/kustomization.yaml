@@ -1,9 +1,0 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-# La passerelle. Les trois BFF (client, vendeur, livreur) sont encore des
-# squelettes — leur `Program.cs` ne sert que les sondes — et ne sont donc pas
-# déployés : un pod qui ne rend rien mais qu'un Ingress référence produit des 502
-# que l'on cherche du mauvais côté.
-resources:
-  - gateway

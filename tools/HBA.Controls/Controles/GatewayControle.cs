@@ -45,7 +45,6 @@ namespace HBA.Controls.Controles;
 ///   c. tout cluster est atteint par au moins une route — un cluster sans route
 ///      est une destination que rien n'emprunte ;
 ///   d. les cinq endroits portent EXACTEMENT le même jeu de clés ;
-///   e. toute clé employée est présente dans le configmap Kubernetes.
 ///
 /// CE QU'IL NE VÉRIFIE PAS : que le service RÉPONDE, ni que le gabarit d'une
 /// route corresponde à un `MapGroup` réel. Un préfixe mal orthographié —
@@ -93,7 +92,6 @@ public sealed class GatewayControle : IControle
 
         var appsettings = Path.Combine(api, "appsettings.json");
         var options = Path.Combine(infrastructure, "Configuration", "ServicesOptions.cs");
-        var configmap = Depot.Chemin("k8s", "base", "common", "configmap.yaml");
 
         var fautes = new List<string>();
 
@@ -112,7 +110,7 @@ public sealed class GatewayControle : IControle
 
         if (fautes.Count > 0)
         {
-            return new Verdict(fautes, [], [NonCouvertConfigmap]);
+            return new Verdict(fautes, [], []);
         }
 
         // LE JSON EST LU EN TOLÉRANT COMMENTAIRES ET VIRGULES TRAÎNANTES.
@@ -232,33 +230,7 @@ public sealed class GatewayControle : IControle
         {
             "que le service RÉPONDE, et que le gabarit d'une route corresponde à un "
             + "`MapGroup` réel — un préfixe mal orthographié passe ici et rend 404",
-            NonCouvertConfigmap,
         };
-
-        // LE CONFIGMAP EST LU EN TEXTE, PAS EN YAML — ET C'EST VOLONTAIRE.
-        // Le seul fait cherché est la présence de la ligne `SERVICES__X:`.
-        // Un analyseur YAML demanderait une dépendance que cet outil refuse
-        // (voir l'encadré du csproj).
-        if (File.Exists(configmap))
-        {
-            var texte = File.ReadAllText(configmap);
-            foreach (var cluster in Triees(clusters))
-            {
-                var variable = "SERVICES__" + cluster.ToUpperInvariant();
-                if (!texte.Contains(variable + ":", StringComparison.Ordinal))
-                {
-                    fautes.Add($"k8s/base/common/configmap.yaml : {variable} absent — "
-                               + "`ServicesOptions` la déclare `[Required]`, la passerelle "
-                               + "ne démarrera pas.");
-                }
-            }
-        }
-        else
-        {
-            // NE PAS TROUVER LE CONFIGMAP N'EST PAS « RIEN À SIGNALER ».
-            nonCouvert.Add($"{Depot.Relatif(configmap)} est absent : la présence des "
-                           + "variables SERVICES__* côté Kubernetes n'a PAS été vérifiée");
-        }
 
         return new Verdict(
             fautes,
@@ -266,9 +238,6 @@ public sealed class GatewayControle : IControle
             nonCouvert);
     }
 
-    private const string NonCouvertConfigmap =
-        "le configmap est lu en TEXTE : une variable SERVICES__* mise en commentaire "
-        + "YAML compte comme présente";
 
     /// <summary>Les noms des propriétés d'un objet fils, ou rien s'il manque.</summary>
     private static IEnumerable<string> Cles(JsonElement parent, string nom)

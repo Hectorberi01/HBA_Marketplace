@@ -46,8 +46,6 @@ IControle[] controles =
     new GrpcRpcControle(),
     new GrpcStubsControle(),
     new ImplementationsControle(),
-    new InfraControle(),
-    new K8sControle(),
     new KafkaTopicsControle(),
     new MigrationsControle(),
     new PermissionsControle(),

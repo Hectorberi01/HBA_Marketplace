@@ -25,10 +25,19 @@ namespace HBA.Controls.Controles;
 ///      publie sur un sujet auquel personne n'est abonné. Le repli de
 ///      `HbaTopics.Domaine` fabrique un nom plausible, ce qui rend le défaut plus
 ///      discret encore : le sujet existe, il est juste seul.
-///   3. `k8s/overlays/*/kafka-topics.yaml` — les sujets provisionnés doivent être
-///      EXACTEMENT ceux que la table engendre. Un sujet en trop coûte du stockage
-///      et ment ; un sujet en moins est auto-créé par le courtier avec UNE
-///      partition et la rétention par défaut, donc sans les garanties du §9.
+///
+/// CE QUI N'EST PLUS VERIFIE, ET IL FAUT LE SAVOIR.
+///
+/// Ce controle comparait aussi les sujets aux manifestes `k8s/overlays/*` : les
+/// sujets provisionnes devaient etre EXACTEMENT ceux que la table engendre. Un
+/// sujet en trop coute du stockage et ment ; un sujet en moins est auto-cree par
+/// le courtier avec UNE partition et la retention par defaut, donc sans les
+/// garanties du §9.
+///
+/// Le chemin Kubernetes ayant ete retire du depot, cette comparaison n'a plus
+/// d'objet ICI — mais le risque, lui, demeure : le provisionnement passe
+/// desormais par `scripts/kafka-topics.sh`, que ce controle NE LIT PAS. Un sujet
+/// oublie la-bas ne sera signale par personne.
 ///
 /// UN `SERVICE_NAME` N'EST PAS UNE PREUVE DE PUBLICATION.
 ///
@@ -116,7 +125,7 @@ public sealed class KafkaTopicsControle : IControle
             + "`KafkaEventBusOptions`. Une surcharge par configuration, en production, "
             + "produirait d'autres noms sans que rien ici ne bouge",
             "les `SERVICE_NAME` de Kubernetes sont trouvés par expression régulière sur "
-            + "deux lignes consécutives : une variable posée par un patch de kustomize, "
+            + "deux lignes consécutives : une variable posée ailleurs dans le compose, "
             + "ou écrite autrement, ne serait pas vue",
         };
 
@@ -221,99 +230,6 @@ public sealed class KafkaTopicsControle : IControle
             constats.AddRange(sansTrace.Select(s => "  " + s));
         }
 
-        // ── 2. Les manifestes Kubernetes ─────────────────────────────────────
-        var overlays = Depot.Dossier("k8s", "overlays");
-        var manifestes = Directory.EnumerateDirectories(overlays)
-            .Select(d => Path.Combine(d, "kafka-topics.yaml"))
-            .Where(File.Exists)
-            .OrderBy(f => f, StringComparer.Ordinal)
-            .ToList();
-
-        if (manifestes.Count == 0)
-        {
-            fautes.Add(
-                "aucun fichier kafka-topics.yaml trouvé sous k8s/overlays/ : aucun sujet "
-                + "n'est provisionné, et le courtier les créera tous avec UNE partition.");
-        }
-
-        foreach (var chemin in manifestes)
-        {
-            var relatif = Depot.Relatif(chemin);
-            var declares = SujetsOverlay(chemin);
-
-            var manquants = attendus.Where(s => !declares.Contains(s)).ToList();
-            var surnumeraires = declares.Where(s => !attendus.Contains(s)).ToList();
-
-            if (manquants.Count == 0 && surnumeraires.Count == 0)
-            {
-                constats.Add($"{relatif} — {declares.Count} sujet(s), conforme au catalogue");
-                continue;
-            }
-
-            foreach (var sujet in manquants)
-            {
-                fautes.Add(
-                    $"{relatif} : {sujet} absent — le courtier le créera avec UNE partition "
-                    + "et la rétention par défaut");
-            }
-
-            foreach (var sujet in surnumeraires)
-            {
-                fautes.Add(
-                    $"{relatif} : {sujet} provisionné — aucun service du catalogue ne l'écrit");
-            }
-        }
-
-        // ── 3. Les `SERVICE_NAME` des déploiements ───────────────────────────
-        //
-        // Le repli de `HbaTopics.Domaine` retire « -service » : tant qu'il
-        // retombe sur un domaine du catalogue, le sujet est le bon et il ne reste
-        // qu'un avertissement au démarrage. S'il retombe AILLEURS, c'est un vrai
-        // orphelin — et là on échoue.
-        var replis = new List<string>();
-
-        foreach (var (valeur, fichier) in NomsDeServiceK8s()
-                     .OrderBy(x => x.Key, StringComparer.Ordinal))
-        {
-            if (catalogue.ContainsKey(valeur))
-            {
-                continue;
-            }
-
-            var derive = valeur.Replace("-service", string.Empty);
-            if (domaines.Contains(derive))
-            {
-                replis.Add($"{valeur} → {prefixe}.{derive}.{version}");
-                continue;
-            }
-
-            // UN MANIFESTE NE DIT PAS SI LE POD PUBLIE. Le nom d'un déploiement ne
-            // dit pas quel processus tourne dedans — la passerelle en est
-            // l'exemple : `api-gateway` porte un `SERVICE_NAME` et ne publie rien.
-            // On ne fait donc échouer que ce qui porte le suffixe « -service »,
-            // seule convention que ce dépôt tienne pour un service métier.
-            if (!valeur.EndsWith("-service", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            fautes.Add(
-                $"{fichier} : SERVICE_NAME « {valeur} » → « {prefixe}.{derive}.{version} », "
-                + "sujet qu'aucun consommateur n'écoute");
-        }
-
-        if (replis.Count > 0)
-        {
-            constats.Add(
-                "SERVICE_NAME Kubernetes qui passent par le repli (le sujet tombe juste ; "
-                + "le publieur journalise « producteur non inscrit » à chaque démarrage) :");
-            constats.AddRange(replis.Select(r => "  " + r));
-        }
-
-        constats.Add(
-            $"{manifestes.Count} overlay(s), {catalogue.Count} service(s) au catalogue, "
-            + $"{fautes.Count} divergence(s).");
-
         return new Verdict(fautes, constats, nonCouvert);
     }
 
@@ -349,107 +265,4 @@ public sealed class KafkaTopicsControle : IControle
         return false;
     }
 
-    /// <summary>
-    /// Les sujets déclarés par un manifeste, lus document par document.
-    /// </summary>
-    /// <remarks>
-    /// LECTURE TEXTUELLE, PAS UN ANALYSEUR YAML. Ces fichiers sont écrits par ce
-    /// dépôt et de forme connue : des documents séparés par une ligne de trois
-    /// tirets, `kind:` en première colonne, `metadata.name` et `spec.topicName` à
-    /// deux espaces. Tout ce qui sort de cette forme est invisible ici — et un
-    /// document mal lu se présenterait comme un sujet MANQUANT, donc comme une
-    /// faute, jamais comme un silence.
-    /// </remarks>
-    private static List<string> SujetsOverlay(string chemin)
-    {
-        var sujets = new List<string>();
-        var kind = string.Empty;
-        var section = string.Empty;
-        string? nom = null;
-        string? topic = null;
-
-        void Fermer()
-        {
-            if (kind == "KafkaTopic")
-            {
-                sujets.Add(topic ?? nom ?? "(document KafkaTopic sans nom)");
-            }
-
-            kind = string.Empty;
-            section = string.Empty;
-            nom = null;
-            topic = null;
-        }
-
-        foreach (var ligne in File.ReadAllText(chemin).Split('\n'))
-        {
-            if (ligne.TrimEnd() == "---")
-            {
-                Fermer();
-                continue;
-            }
-
-            if (ligne.Trim().Length == 0 || ligne.TrimStart().StartsWith('#'))
-            {
-                continue;
-            }
-
-            var premier = ClePremierNiveau.Match(ligne);
-            if (premier.Success)
-            {
-                section = premier.Groups[1].Value;
-                if (section == "kind")
-                {
-                    kind = premier.Groups[2].Value;
-                }
-
-                continue;
-            }
-
-            var imbriquee = CleImbriquee.Match(ligne);
-            if (!imbriquee.Success)
-            {
-                continue;
-            }
-
-            if (section == "metadata" && imbriquee.Groups[1].Value == "name")
-            {
-                nom = imbriquee.Groups[2].Value;
-            }
-            else if (section == "spec" && imbriquee.Groups[1].Value == "topicName")
-            {
-                topic = imbriquee.Groups[2].Value;
-            }
-        }
-
-        Fermer();
-        sujets.Sort(StringComparer.Ordinal);
-        return sujets;
-    }
-
-    /// <summary>Les `SERVICE_NAME` posés par les kustomizations de `k8s/base`.</summary>
-    private static Dictionary<string, string> NomsDeServiceK8s()
-    {
-        var trouves = new Dictionary<string, string>(StringComparer.Ordinal);
-        var racine = Depot.Dossier("k8s", "base");
-
-        foreach (var fichier in Depot.Fichiers(racine, ".yaml", ".yml")
-                     .OrderBy(f => f, StringComparer.Ordinal))
-        {
-            // `_service/` EST UN GABARIT, PAS UN SERVICE — voir l'en-tête.
-            var segments = Path.GetRelativePath(racine, fichier)
-                .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (segments.Contains("_service"))
-            {
-                continue;
-            }
-
-            foreach (Match trouve in NomDeService.Matches(File.ReadAllText(fichier)))
-            {
-                trouves[trouve.Groups[1].Value] = Depot.Relatif(fichier);
-            }
-        }
-
-        return trouves;
-    }
 }
