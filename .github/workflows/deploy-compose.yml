@@ -12,7 +12,7 @@
 #
 # `develop` est la branche de production. Un déclenchement sur `push` mettrait
 # en ligne chaque fusion sans que personne ne l'ait décidé. Le déclenchement est
-# donc manuel, et le job passe par l'environnement GitHub `production` : y
+# donc manuel, et le job passe par l'environnement GitHub `prod` : y
 # poser une règle de révision obligatoire ajoute une approbation humaine devant
 # `docker compose up -d`.
 #
@@ -28,7 +28,7 @@
 #   • Il ne sait pas revenir en arrière. Un `up -d` avec le tag précédent est
 #     le retour arrière, et il faut le lancer soi-même.
 #
-# LES SECRETS ET VARIABLES QU'IL EXIGE (environnement `production`) :
+# LES SECRETS ET VARIABLES QU'IL EXIGE (environnement `prod`) :
 #
 #   secrets.VPS_SSH_KEY      clé privée OpenSSH, sans phrase de passe
 #   secrets.VPS_KNOWN_HOSTS  la ligne known_hosts du VPS — VOIR PLUS BAS
@@ -75,7 +75,18 @@ jobs:
   deployer:
     name: Déployer ${{ inputs.tag }}
     runs-on: ubuntu-latest
-    environment: production
+    # ═════════════════════════════════════════════════════════════════════
+    # `prod`, ET NON `production` — LE NOM QUE LE DEPOT EMPLOIE DEJA.
+    #
+    # Ce fichier disait `production`. Aucun environnement GitHub ne porte ce
+    # nom : `deploy-branches.yml` emet `dev`, `staging`, `prod`, et le choix
+    # de `cd.yml` est `[staging, prod]`. Un nom d'environnement inconnu n'est
+    # PAS une erreur pour GitHub — il le cree a la volee, vide. Le job serait
+    # donc parti avec zero secret, et `PROD_ENV_FILE` aurait ete declare
+    # absent au premier pas, sans que rien ne dise que la cause etait un nom
+    # mal ecrit ici.
+    # ═════════════════════════════════════════════════════════════════════
+    environment: prod
     timeout-minutes: 30
 
     steps:
@@ -99,7 +110,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$PROD_ENV_FILE" || {
-            echo "::error::Secret PROD_ENV_FILE absent dans l'environnement production"
+            echo "::error::Secret PROD_ENV_FILE absent dans l'environnement prod"
             exit 1
           }
 
