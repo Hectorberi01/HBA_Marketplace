@@ -34,6 +34,12 @@ public static class ResumeTests
 
     private const int LignesDePileGardees = 6;
 
+    /// Au-delà, GitHub cesse d'afficher les annotations d'un pas.
+    private const int AnnotationsMaximum = 8;
+
+    /// De quoi porter la première ligne d'exception, pas la pile entière.
+    private const int LignesDAnnotation = 6;
+
     private static readonly XNamespace Trx =
         "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
 
@@ -146,8 +152,70 @@ public static class ResumeTests
         }
 
         EcrireLeResume(echecs);
+        PoserLesAnnotations(echecs);
         return 0;
     }
+
+    /// <summary>
+    /// Pose quelques cas en échec en annotations `::error::` sur le travail.
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// POURQUOI CE CANAL EN PLUS DU RÉSUMÉ.
+    ///
+    /// Le journal du job et l'artefact `.trx` demandent tous deux les droits
+    /// d'ADMINISTRATEUR du dépôt. Les annotations, elles, sont rendues par l'API
+    /// publique des `check-runs` : elles sont donc lisibles par quiconque voit le
+    /// dépôt, et par un outil qui n'a aucun jeton. C'est le seul canal par lequel
+    /// la cause d'un échec sort de la machine sans passer par une personne.
+    ///
+    /// PLAFONNÉ, ET DÉLIBÉRÉMENT BAS. GitHub n'affiche qu'une dizaine
+    /// d'annotations par pas ; en poser vingt-trois les rendrait toutes
+    /// invisibles. Le compte total est dit dans la dernière, pour qu'un lecteur
+    /// sache qu'il n'a pas tout vu — un extrait qui se fait passer pour un
+    /// inventaire est pire qu'un extrait.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    private static void PoserLesAnnotations(IReadOnlyList<Echec> echecs)
+    {
+        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") is not "true")
+        {
+            return;
+        }
+
+        foreach (var echec in echecs.Take(AnnotationsMaximum))
+        {
+            var corps = string.Join(
+                "%0A", Lignes(echec.Message, LignesDAnnotation).Select(Echapper));
+
+            Console.WriteLine(
+                $"::error title={Echapper(echec.Test)}::{corps}");
+        }
+
+        if (echecs.Count > AnnotationsMaximum)
+        {
+            Console.WriteLine(
+                $"::error title=Cas en échec::{echecs.Count} au total ; "
+                + $"les {AnnotationsMaximum} premiers sont annotés, le reste est dans le résumé.");
+        }
+    }
+
+    /// <summary>
+    /// Échappe ce qu'une commande de flux de travail ne supporte pas.
+    /// </summary>
+    /// <remarks>
+    /// Une nouvelle ligne brute couperait la commande en deux et la seconde
+    /// moitié s'afficherait comme une ligne de journal ordinaire ; `::` non
+    /// échappé ouvrirait une commande imbriquée. On perdrait l'annotation sans
+    /// aucun message d'erreur.
+    /// </remarks>
+    private static string Echapper(string texte)
+        => texte
+            .Replace("%", "%25", StringComparison.Ordinal)
+            .Replace("\r", string.Empty, StringComparison.Ordinal)
+            .Replace("\n", "%0A", StringComparison.Ordinal)
+            .Replace(":", "%3A", StringComparison.Ordinal)
+            .Replace(",", "%2C", StringComparison.Ordinal);
 
     /// <summary>
     /// Recopie le détail dans le résumé de l'exécution GitHub, quand il existe.
