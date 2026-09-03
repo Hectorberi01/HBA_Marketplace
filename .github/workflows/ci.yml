@@ -413,6 +413,26 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ github.ref_name }}
+          # ═══════════════════════════════════════════════════════════════
+          # LE LABEL QUI RATTACHE LE PAQUET AU DEPOT.
+          #
+          # Sans `org.opencontainers.image.source`, une image publiee sur GHCR
+          # reste un paquet du COMPTE, sans lien avec le depot. Le
+          # `GITHUB_TOKEN` d'un travail n'y a alors aucun droit d'ecriture,
+          # meme avec `packages: write` declare — la permission porte sur les
+          # paquets DU DEPOT, et celui-la n'en est pas un.
+          #
+          # C'est ce qui a produit « denied: permission_denied: read_package »
+          # sur les vingt et un travaux : les paquets existaient deja, pousses
+          # a la main depuis le poste, et la CI ne pouvait que les LIRE.
+          #
+          # CE QUE CA NE CORRIGE PAS : un paquet DEJA cree sans ce lien ne se
+          # rattache pas retroactivement. Il faut le supprimer pour que la CI
+          # le recree, ou lui donner acces au depot dans ses reglages.
+          # ═══════════════════════════════════════════════════════════════
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           provenance: true
