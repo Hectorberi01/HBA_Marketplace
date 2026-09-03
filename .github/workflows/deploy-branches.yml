@@ -26,14 +26,55 @@ name: Deploy Branches
 # workflow ne se declencherait toujours pas.
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════════════════════
+# KUBERNETES EST EN PAUSE : CE WORKFLOW NE PART PLUS TOUT SEUL.
+#
+# CE QUI SE PASSAIT. Il se declenchait sur `workflow_run` de la CI pour `dev`,
+# `staging` et `develop`. Depuis que `develop` est la branche par defaut, CHAQUE
+# CI verte lancait donc un deploiement Kubernetes — vers un cluster qu'on a
+# volontairement mis en pause, et dont le kubeconfig n'est plus en secret. Il
+# echouait sur « Secret KUBECONFIG_B64 absent », ce qui etait la bonne reponse
+# pour une mauvaise raison : ce n'est pas le secret qui manque, c'est le
+# deploiement qui n'a rien a faire la.
+#
+# Un travail rouge a chaque commit apprend a ignorer le rouge. C'est ainsi
+# qu'une vraie panne finit par passer inapercue.
+#
+# `workflow_dispatch` SEUL, ET LE FICHIER EST CONSERVE. La production passe par
+# `deploy-compose.yml` (Compose + Traefik + Ansible). Ce fichier reste parce
+# qu'il porte le chemin Kubernetes complet — calques, migrations, verification
+# des signatures — et que le reecrire le jour de la reprise couterait plus cher
+# que de le garder lisible.
+#
+# POUR LE RALLUMER : remettre le bloc `workflow_run` ci-dessous, et remettre
+# KUBECONFIG_B64 dans les environnements GitHub.
+#
+#     on:
+#       workflow_run:
+#         workflows: ["CI"]
+#         types: [completed]
+#         branches: [dev, staging, develop]
+# ══════════════════════════════════════════════════════════════════════════════
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [dev, staging, develop]
+  workflow_dispatch:
+    inputs:
+      branche:
+        description: Branche dont on deploie les images (dev, staging ou develop)
+        required: true
+        type: choice
+        options: [dev, staging, develop]
+      sha:
+        # SUR `workflow_run`, LE SHA VENAIT DE L'EVENEMENT. Il faut desormais le
+        # DIRE : lance a la main, ce workflow n'a aucun moyen de deviner quelles
+        # images ont ete publiees, et `github.sha` designerait le sommet de la
+        # branche choisie dans « Use workflow from » — pas forcement celle qu'on
+        # deploie.
+        description: SHA du commit dont on deploie les images (40 caracteres)
+        required: true
+        type: string
 
 concurrency:
-  group: deploy-${{ github.event.workflow_run.head_branch }}
+  group: deploy-${{ inputs.branche }}
   cancel-in-progress: false
 
 permissions:
@@ -44,7 +85,6 @@ jobs:
   cible:
     name: Choisir la cible
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
     outputs:
       environnement: ${{ steps.cible.outputs.environnement }}
       namespace: ${{ steps.cible.outputs.namespace }}
@@ -53,7 +93,7 @@ jobs:
     steps:
       - id: cible
         run: |
-          case "${{ github.event.workflow_run.head_branch }}" in
+          case "${{ inputs.branche }}" in
             dev)
               echo "environnement=dev" >> "$GITHUB_OUTPUT"
               echo "namespace=hba-dev" >> "$GITHUB_OUTPUT"
@@ -86,7 +126,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ inputs.sha }}
 
       - uses: azure/setup-kubectl@v4
 
@@ -164,7 +204,7 @@ jobs:
       - name: Poser le SHA sur l'overlay
         env:
           OVERLAY: ${{ needs.cible.outputs.overlay }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
+          SHA: ${{ inputs.sha }}
           PROPRIETAIRE: hectorberi01
         run: |
           python3 - <<'PY'
@@ -193,7 +233,7 @@ jobs:
       - name: Poser le SHA sur les migrations prod
         if: needs.cible.outputs.migrations == 'true'
         env:
-          SHA: ${{ github.event.workflow_run.head_sha }}
+          SHA: ${{ inputs.sha }}
           PROPRIETAIRE: hectorberi01
         run: |
           python3 - <<'PY'
@@ -223,7 +263,7 @@ jobs:
         if: needs.cible.outputs.environnement == 'prod'
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
+          SHA: ${{ inputs.sha }}
           PROPRIETAIRE: hectorberi01
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
