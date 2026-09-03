@@ -87,6 +87,18 @@ jobs:
     # mal ecrit ici.
     # ═════════════════════════════════════════════════════════════════════
     environment: prod
+
+    # ═════════════════════════════════════════════════════════════════════
+    # `packages: read` — LES PAQUETS SONT PRIVES DEPUIS QU'ILS SONT RECREES.
+    #
+    # Les images ont ete republiees par la CI apres la suppression des paquets
+    # du compte : elles heritent desormais de la visibilite du depot. Sans ce
+    # droit, `cosign verify` ne peut meme pas LIRE le manifeste — et son refus
+    # ressemble mot pour mot a une signature invalide.
+    # ═════════════════════════════════════════════════════════════════════
+    permissions:
+      contents: read
+      packages: read
     timeout-minutes: 30
 
     steps:
@@ -313,6 +325,16 @@ jobs:
       #     kafka…) : elles ne sont pas signees par nous et ne sont pas
       #     verifiees ici.
       # ═════════════════════════════════════════════════════════════════════
+      # cosign lit `~/.docker/config.json`. Sans cette connexion, il interroge
+      # ghcr.io en anonyme, recoit un 401 sur un paquet prive, et rend le meme
+      # message que pour une image non signee.
+      - name: Se connecter au registre pour lire les manifestes
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Verifier les signatures des images (§19)
         env:
           DEPOT: ${{ github.repository }}
@@ -346,16 +368,29 @@ jobs:
 
           echo "${#images[@]} image(s) a verifier, tag ${{ inputs.tag }}"
 
+          # LA SORTIE DE COSIGN N'EST PLUS JETEE.
+          #
+          # Premiere version : `> /dev/null 2>&1`. Les vingt images ont echoue,
+          # et le message disait « non signee » alors que la cause etait un 401
+          # sur un paquet prive. Un refus d'ACCES et une signature INVALIDE
+          # rendaient exactement le meme texte — le defaut qu'on corrige partout
+          # ailleurs, reproduit ici.
+          #
+          # La sortie du PREMIER echec est montree en entier : elle nomme la
+          # cause. Les suivantes sont tues, sinon vingt piles identiques
+          # noieraient la seule qui compte.
           rates=()
+          premier_detail=""
           for depot in "${images[@]}"; do
-            if ./cosign verify \
+            if sortie=$(./cosign verify \
                  --certificate-identity-regexp "^https://github.com/${DEPOT}/\.github/workflows/ci\.yml@refs/heads/.+$" \
                  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-                 "${depot}:${{ inputs.tag }}" > /dev/null 2>&1; then
+                 "${depot}:${{ inputs.tag }}" 2>&1); then
               echo "  ✓ ${depot}"
             else
               echo "  ✗ ${depot}"
               rates+=("$depot")
+              [ -n "$premier_detail" ] || premier_detail="$sortie"
             fi
           done
 
@@ -364,8 +399,14 @@ jobs:
             for d in "${rates[@]}"; do
               echo "::error::  ${d}:${{ inputs.tag }}"
             done
-            echo "Une image non verifiee n'est pas deployee. Verifier que la CI a bien"
-            echo "publie ET signe ce tag : etape « Signer l'image » du travail Image <service>."
+            echo
+            echo "Ce que cosign a repondu sur la premiere :"
+            echo "$premier_detail" | sed 's/^/    /'
+            echo
+            echo "Une image non verifiee n'est pas deployee. Deux causes possibles :"
+            echo "  . la CI n'a pas publie NI signe ce tag — voir l'etape « Signer l'image »"
+            echo "    du travail Image <service> de l'execution correspondante ;"
+            echo "  . le registre refuse la lecture — le message ci-dessus dira 401 ou 403."
             exit 1
           fi
 
