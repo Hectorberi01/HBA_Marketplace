@@ -186,6 +186,12 @@ internal static class Parcours
             : "(aucun en-tête WWW-Authenticate — le refus ne vient pas du gestionnaire de jeton)";
 
         var corps = await reponse.Content.ReadAsStringAsync();
+
+        // LU AVANT LA TRONCATURE : sur un corps long, l'identifiant tomberait
+        // dans les caractères jetés et l'on ne saurait plus relier la réponse à
+        // l'exception qui l'a produite.
+        var correlation = LireCorrelation(corps);
+
         if (corps.Length > 2000)
         {
             corps = corps[..2000] + " […]";
@@ -195,7 +201,53 @@ internal static class Parcours
             $"{(int)reponse.StatusCode} {reponse.StatusCode} sur "
             + $"{reponse.RequestMessage?.Method} {reponse.RequestMessage?.RequestUri}"
             + $"\n  WWW-Authenticate : {defi}"
-            + $"\n  corps            : {corps}");
+            + $"\n  corps            : {corps}"
+            + JournalHote.Pour(correlation));
+    }
+
+    /// <summary>
+    /// L'identifiant de corrélation d'une réponse d'erreur, s'il s'y trouve.
+    /// </summary>
+    /// <remarks>
+    /// Deux formes coexistent et c'est voulu : le gestionnaire global rend
+    /// `correlationId` à la racine, l'enveloppe du §25 le porte dans
+    /// `meta.requestId`. On lit les deux plutôt que d'en supposer une.
+    ///
+    /// Un corps illisible rend `null` : cette méthode sert à ENRICHIR un message
+    /// d'échec, elle ne doit jamais en produire un second.
+    /// </remarks>
+    private static string? LireCorrelation(string corps)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(corps);
+            var racine = document.RootElement;
+
+            if (racine.ValueKind is not JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            if (racine.TryGetProperty("correlationId", out var direct)
+                && direct.ValueKind is JsonValueKind.String)
+            {
+                return direct.GetString();
+            }
+
+            if (racine.TryGetProperty("meta", out var meta)
+                && meta.ValueKind is JsonValueKind.Object
+                && meta.TryGetProperty("requestId", out var demande)
+                && demande.ValueKind is JsonValueKind.String)
+            {
+                return demande.GetString();
+            }
+
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Un client d'administration : la gouvernance du §22 exige le rôle.</summary>

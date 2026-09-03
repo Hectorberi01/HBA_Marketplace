@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using Testcontainers.Kafka;
 using Testcontainers.PostgreSql;
@@ -313,6 +314,21 @@ public sealed class MerchantsIntegrationFixture : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+
+        // ═════════════════════════════════════════════════════════════════════
+        // LES ERREURS DE L'HÔTE SONT RETENUES, POUR QU'UN 500 PUISSE DIRE
+        //    POURQUOI.
+        //
+        // La réponse ne porte qu'un `correlationId` ; l'exception part dans les
+        // journaux, qui ne vivaient que dans la sortie du job. Voir
+        // `JournalHote` : c'est ce trou qui a coûté deux jours le 2 septembre.
+        //
+        // `AddProvider` et non `ClearProviders` : la console reste branchée. Le
+        // journal du pas garde donc tout ce qu'il avait, on ne fait qu'AJOUTER
+        // un exemplaire des erreurs là où le message d'échec pourra le lire.
+        // ═════════════════════════════════════════════════════════════════════
+        builder.ConfigureLogging(journalisation =>
+            journalisation.AddProvider(new JournalHoteProvider()));
 
         builder.ConfigureTestServices(services =>
         {
