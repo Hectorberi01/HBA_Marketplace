@@ -4,7 +4,6 @@ import RouteProtegee from './routes/RouteProtegee'
 import ConnexionPage from './pages/ConnexionPage'
 import InterditPage from './pages/InterditPage'
 import IntrouvablePage from './pages/IntrouvablePage'
-import EnConstruction from './pages/EnConstruction'
 import HomePage from './pages/HomePage'
 import CommandesPage from './features/commandes/CommandesPage'
 import CataloguePage from './features/catalogue/CataloguePage'
@@ -18,6 +17,8 @@ import CommissionsPage from './features/finance/CommissionsPage'
 import FacturesPage from './features/finance/FacturesPage'
 import LivreursPage from './features/livraison/LivreursPage'
 import TarificationPage from './features/livraison/TarificationPage'
+import EtablissementsPage from './features/restauration/EtablissementsPage'
+import CommandesRepasPage from './features/restauration/CommandesRepasPage'
 import './App.css'
 
 /**
@@ -47,16 +48,8 @@ export default function App() {
                     <Route path="vendeurs" element={<VendeursPage />} />
                     <Route path="retours" element={<RetoursPage />} />
 
-                    <Route
-                        path="restauration/etablissements"
-                        element={<EnConstruction titre="Établissements" api="/api/food/admin" />}
-                    />
-                    <Route
-                        path="restauration/commandes"
-                        element={
-                            <EnConstruction titre="Commandes repas" api="/api/admin/food/orders" />
-                        }
-                    />
+                    <Route path="restauration/etablissements" element={<EtablissementsPage />} />
+                    <Route path="restauration/commandes" element={<CommandesRepasPage />} />
 
                     <Route path="livraison/livreurs" element={<LivreursPage />} />
                     <Route path="livraison/tarification" element={<TarificationPage />} />
