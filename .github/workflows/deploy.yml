@@ -737,6 +737,42 @@ jobs:
           echo "── Construire rembg, qui n'est publie nulle part"
           $dc build rembg
 
+          # ─────────────────────────────────────────────────────────────────
+          # RECONCILIER LE RESEAU. ETAPE DE TRANSITION, A USAGE UNIQUE.
+          #
+          # Le compose declare maintenant `name: hba-backend`. Avant, compose
+          # derivait le nom lui-meme et creait `hba_hba-backend`. Le premier
+          # deploiement apres ce changement voit donc une definition de
+          # reseau differente et veut recreer le reseau — mais l'ancien porte
+          # encore vingt-quatre extremites actives :
+          #
+          #   error while removing network: network hba_hba-backend has
+          #   active endpoints (name:"hba-catalog-service" ...)
+          #
+          # Docker ne detache pas des conteneurs en marche pour renommer un
+          # reseau, et il a raison. Tant que l'ancien reseau existe, CHAQUE
+          # `compose run` echoue — les migrations comprises.
+          #
+          # CE BLOC COUPE LE SERVICE, LE TEMPS DU BASCULEMENT. C'est le prix
+          # du renommage, il est paye une seule fois : des que
+          # `${PROJET}_hba-backend` a disparu, la condition est fausse pour
+          # toujours et l'etape ne fait plus rien.
+          # ─────────────────────────────────────────────────────────────────
+          ancien_reseau="${PROJET}_hba-backend"
+          if docker network inspect "$ancien_reseau" >/dev/null 2>&1; then
+            echo "── Reseau : $ancien_reseau existe encore, bascule vers hba-backend"
+            echo "   INTERRUPTION DE SERVICE le temps de detacher les conteneurs."
+            $dc down --remove-orphans
+            docker network rm "$ancien_reseau" >/dev/null 2>&1 || true
+            if docker network inspect "$ancien_reseau" >/dev/null 2>&1; then
+              echo "::error title=Reseau::$ancien_reseau survit au down"
+              docker network inspect "$ancien_reseau" \
+                --format '{{range .Containers}}{{.Name}} {{end}}'
+              exit 1
+            fi
+            echo "   bascule faite"
+          fi
+
           echo "── Migrations, une par service"
           # `--no-deps` : sans lui, `compose run` demarre toute la cascade de
           # `depends_on` — Kafka, Redis, MinIO — pour un processus qui n'en a
