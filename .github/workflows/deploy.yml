@@ -1,0 +1,751 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# UN SEUL FICHIER : CONTROLER, CONSTRUIRE, PUBLIER, DEPLOYER.
+#
+# Il remplace `ci.yml` et `deploy-compose.yml`, eux-memes successeurs de `cd.yml`
+# et `deploy-branches.yml`. La chaine tenait sur quatre fichiers qui se
+# declenchaient l'un l'autre par `workflow_run` ; chaque maillon avait sa propre
+# facon de decider quoi construire et ou l'envoyer, et c'est un de ces maillons
+# qui a lance un deploiement Kubernetes a chaque commit pendant une soiree.
+#
+# CE QUE COUTE LE FICHIER UNIQUE : il est long, et il faut le lire en entier
+# pour savoir ce qui se passe. C'est le prix assume — le chemin est LISIBLE
+# de bout en bout, et il n'y a plus qu'un endroit ou se tromper.
+#
+# LE DEPLOIEMENT EST DESORMAIS AUTOMATIQUE. Pousser sur `develop` met en
+# production. C'est un changement de posture : avant, il fallait le declencher a
+# la main. `workflow_dispatch` reste pour rejouer un SHA deja publie sans
+# repousser du code.
+# ══════════════════════════════════════════════════════════════════════════════
+name: Deploiement
+
+on:
+  push:
+    branches: [dev, staging, develop]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: SHA deja publie a redeployer (vide = le sommet de la branche)
+        required: false
+        type: string
+
+# JAMAIS D'ANNULATION EN COURS DE DEPLOIEMENT.
+#
+# `cancel-in-progress: true` couperait un `compose up` a mi-chemin : la moitie
+# des conteneurs sur la nouvelle image, l'autre sur l'ancienne, et une migration
+# peut-etre appliquee a moitie. Deux poussees rapprochees font deux
+# deploiements ; le second gagne, proprement.
+concurrency:
+  group: deploiement-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  REGISTRY: ghcr.io
+  # Le proprietaire EN MINUSCULES. `github.repository_owner` rend « Hectorberi01 »,
+  # et la grammaire OCI impose des composants de chemin en minuscules : un
+  # `docker build -t ghcr.io/Hectorberi01/...` echoue sur « repository name must
+  # be lowercase ». Le defaut ne se voit qu'a la premiere publication.
+  PROPRIETAIRE: hectorberi01
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. LA BARRIERE, LA COMPILATION, LES TESTS, ET CE QU'IL FAUDRA CONSTRUIRE.
+  # ═══════════════════════════════════════════════════════════════════════════
+  build-test:
+    name: Controles et tests
+    runs-on: ubuntu-latest
+    outputs:
+      matrice: ${{ steps.calcul.outputs.matrice }}
+      environnement: ${{ steps.cible.outputs.environnement }}
+      tag: ${{ steps.cible.outputs.tag }}
+    steps:
+      # L'HISTORIQUE COMPLET : `images-affectees` compare deux points de
+      # l'histoire. En profondeur 1, le diff echoue et l'outil, prudemment,
+      # reconstruirait tout — correct, mais quinze fois trop long.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-
+
+      - run: dotnet restore HBA.sln
+
+      # `/m:1` : la compilation parallele de trente projets fait tomber le
+      # runner sur « cannot allocate memory », et le symptome est un code 137
+      # sans message utile.
+      - run: dotnet build HBA.sln --configuration Release --no-restore /m:1
+
+      # LES CONTROLES PASSENT APRES LA COMPILATION PARCE QU'ILS EN DEPENDENT :
+      # `check-all.sh` lance `tools/HBA.Controls`, qui est un projet de la
+      # solution. Ils restent avant les tests — chacun attrape une classe
+      # d'erreurs que ni le compilateur ni les tests ne voient.
+      #
+      # `dotnet` absent fait ECHOUER ce pas. Rendre 0 « pour ne pas bloquer »
+      # transformerait la barriere en decoration : « les 0 controles passent ».
+      - name: Controles du depot
+        run: ./scripts/check-all.sh
+
+      - name: Analyse de vulnerabilite des dependances (§13)
+        # NE FAIT PAS ECHOUER, ET C'EST DELIBERE : une CVE publiee dans une
+        # dependance transitive bloquerait toutes les poussees d'un coup, y
+        # compris celle qui la corrige.
+        continue-on-error: true
+        run: dotnet list HBA.sln package --vulnerable --include-transitive
+
+      # ═════════════════════════════════════════════════════════════════════
+      # UN PROCESSUS PAR PROJET DE TEST — CORRECTION DE DEFAUT, PAS CONFORT.
+      #
+      # `dotnet test HBA.sln` remet plusieurs assemblies au MEME hote quand
+      # elles ciblent le meme cadre. Or quatre harnais posent leur
+      # configuration en variables d'ENVIRONNEMENT, au niveau du PROCESSUS, et
+      # aucun ne les remet a leur valeur d'origine. Le dernier ecrivain gagne :
+      # un hote deja demarre lit la base d'une autre suite, souvent deja
+      # detruite. D'ou 23 echecs identiques, une suite verte SEULE et rouge en
+      # solution complete, et un ordre qui change d'une execution a l'autre.
+      #
+      # CE QUE CA NE CORRIGE PAS : deux harnais dans une MEME assembly se
+      # marcheraient toujours dessus, et un `dotnet test HBA.sln` lance a la
+      # main retombe dans le piege. La vraie reponse est que ces harnais
+      # cessent de configurer par variables de processus.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Tests, un processus par projet
+        run: |
+          set -uo pipefail
+          rates=""
+          passes=0
+          for projet in $(dotnet sln HBA.sln list | grep -E 'tests[/\\].*\.csproj$'); do
+            nom=$(basename "$projet" .csproj)
+            echo "::group::$nom"
+            if dotnet test "$projet" --configuration Release --no-build \
+                 --logger "trx;LogFileName=$nom.trx" \
+                 --logger "console;verbosity=detailed"; then
+              passes=$((passes + 1))
+            else
+              rates="${rates}${nom} "
+              echo "::error title=Tests en echec::$nom"
+            fi
+            echo "::endgroup::"
+          done
+
+          echo
+          echo "── Bilan : $passes projet(s) au vert"
+          if [ -n "$rates" ]; then
+            echo "❌ En echec :"
+            for nom in $rates; do echo "     $nom"; done
+            {
+              echo "## Tests en echec"
+              echo
+              for nom in $rates; do echo "- \`$nom\`"; done
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "✓ Les $passes projets de test passent."
+
+      # Nommer le PROJET ne suffit pas : il faut nommer le CAS. Ce verbe relit
+      # les .trx et ecrit l'assertion, l'exception du serveur et le haut de la
+      # pile dans le resume de l'execution — lisible sans dérouler le journal,
+      # qui demande les droits d'administrateur du depot.
+      - name: Detail des cas en echec
+        if: failure()
+        run: |
+          dotnet run --project tools/HBA.Controls -c Release --no-build \
+            --verbosity quiet -- resume-tests
+
+      - name: Conserver les resultats de test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultats-tests
+          path: "**/*.trx"
+          if-no-files-found: ignore
+
+      # ═════════════════════════════════════════════════════════════════════
+      # LA BRANCHE DECIDE DE L'ENVIRONNEMENT — ET RIEN D'AUTRE NE LE DECIDE.
+      #
+      #     dev      -> environnement GitHub `dev`
+      #     staging  -> `staging`
+      #     develop  -> `prod`
+      #
+      # `main` NE DEPLOIE RIEN et n'est meme pas dans les declencheurs : une
+      # poussee sur `main` ne lance pas ce workflow du tout. C'est
+      # contre-intuitif — `main` est la branche que tout nouvel arrivant croira
+      # etre la production — d'ou cet encadre.
+      #
+      # UN NOM D'ENVIRONNEMENT INCONNU N'EST PAS UNE ERREUR POUR GITHUB : il le
+      # cree a la volee, VIDE. Le job partirait alors sans un seul secret et
+      # echouerait sur « PROD_ENV_FILE absent », sans que rien ne designe la
+      # vraie cause. Le pas `deploy` verifie donc que l'hote est renseigne.
+      # ═════════════════════════════════════════════════════════════════════
+      - id: cible
+        name: Environnement et tag
+        run: |
+          set -euo pipefail
+          case "${{ github.ref_name }}" in
+            dev)     env_cible=dev ;;
+            staging) env_cible=staging ;;
+            develop) env_cible=prod ;;
+            *)
+              echo "::error title=Branche::${{ github.ref_name }} ne correspond a aucun environnement"
+              exit 1
+              ;;
+          esac
+
+          tag="${{ inputs.tag }}"
+          [ -n "$tag" ] || tag="$(git rev-parse --short HEAD)"
+
+          echo "environnement=$env_cible" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Branche ${{ github.ref_name }} -> environnement $env_cible, tag $tag"
+
+      # SUR UNE BRANCHE QUI DEPLOIE, ON CONSTRUIT TOUT.
+      #
+      # L'overlay porte le meme tag sur toutes les images : chacune doit exister
+      # avec ce SHA, y compris celles qu'aucun diff n'a touchees. Le calcul
+      # incremental sert aux autres branches — il n'y en a pas ici, mais il
+      # servira le jour ou ce workflow tournera aussi sur les PR.
+      - name: Construire l'outil de controles
+        run: dotnet build tools/HBA.Controls -c Release --verbosity quiet
+
+      - id: calcul
+        name: Images a construire
+        run: |
+          set -euo pipefail
+          matrice=$(dotnet run --project tools/HBA.Controls -c Release --no-build \
+                      --verbosity quiet -- images-affectees --tous)
+
+          # UNE MATRICE QUI N'EST PAS DU JSON DOIT ARRETER LE TRAVAIL.
+          # `dotnet run` ecrit ses diagnostics sur la sortie standard : un seul
+          # avertissement de compilation, et `strategy.matrix` recoit du texte
+          # qu'il refuse — sans que rien ne dise que la cause est un
+          # avertissement.
+          echo "$matrice" | jq -e 'type == "array" and length > 0' > /dev/null || {
+            echo "::error title=Matrice::la sortie n'est pas un tableau JSON non vide"
+            echo "$matrice" | head -20
+            exit 1
+          }
+
+          echo "matrice=$matrice" >> "$GITHUB_OUTPUT"
+          echo "$(echo "$matrice" | jq 'length') image(s) a construire."
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. LES IMAGES : CONSTRUIRE, SCANNER, SIGNER, PUBLIER.
+  # ═══════════════════════════════════════════════════════════════════════════
+  images:
+    name: Image ${{ matrix.service }}
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # cosign sans cle : l'identite vient du jeton OIDC
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include: ${{ fromJson(needs.build-test.outputs.matrice) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Se connecter au registre
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construire
+        id: construire
+        uses: docker/build-push-action@v6
+        with:
+          # Contexte = racine du depot : les Dockerfiles copient `shared/`, qui
+          # vit hors du dossier du service.
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          # LE SHA, JAMAIS `latest` (§13) : le tag de branche existe pour la
+          # lisibilite humaine, c'est le SHA qui est deploye.
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ needs.build-test.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ github.ref_name }}
+          # LE LABEL QUI RATTACHE LE PAQUET AU DEPOT. Sans lui, l'image reste un
+          # paquet du COMPTE : `packages: write` ne s'y applique pas — la
+          # permission porte sur les paquets DU DEPOT — et la poussee est
+          # refusee par « denied: permission_denied: read_package ».
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          provenance: true
+          sbom: true
+
+      # EPINGLEE PAR EMPREINTE. `@0.28.0` a cesse de se resoudre — amont publie
+      # sous `v0.28.0` — et les vingt et un travaux sont tombes en trois
+      # secondes. Epingler v0.28.0 n'a pas suffi : elle appelait
+      # `setup-trivy@v0.2.1` PAR ETIQUETTE, disparue aussi. v0.36.0 reference
+      # ses dependances par empreinte. Epingler une action ne fige pas ce
+      # qu'elle appelle.
+      - name: Scan de vulnerabilite
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}:${{ needs.build-test.outputs.tag }}
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          exit-code: "0"
+          severity: HIGH,CRITICAL
+
+      - name: Conserver le rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ matrix.service }}
+          path: trivy-${{ matrix.service }}.sarif
+
+      # LE JETON OIDC EST VERIFIE AVANT DE SIGNER, PARCE QUE COSIGN NE SAIT PAS
+      # DIRE CE QUI MANQUE. Il rendait « invalid character 'u' looking for
+      # beginning of value » : ce 'u' est la premiere lettre de « unauthorized ».
+      # Le corps n'est affiche que sur une ERREUR — une reponse a 200 contient
+      # le jeton, qui n'a rien a faire dans un journal.
+      - name: Verifier le jeton OIDC
+        run: |
+          set -uo pipefail
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::error title=OIDC::ACTIONS_ID_TOKEN_REQUEST_URL absent — « id-token: write » sans effet"
+            exit 1
+          fi
+          code=$(curl -s -o /tmp/oidc.json -w '%{http_code}' \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sigstore")
+          if [ "$code" != "200" ]; then
+            echo "::error title=OIDC::le point d'acces a repondu $code"
+            echo "reponse : $(head -c 300 /tmp/oidc.json)"
+            rm -f /tmp/oidc.json
+            exit 1
+          fi
+          echo "jeton OIDC obtenu ($(wc -c < /tmp/oidc.json) octets, non affiche)"
+          rm -f /tmp/oidc.json
+
+      - name: Signer l'image (§19)
+        run: |
+          set -euo pipefail
+          version=v3.1.3
+          url="https://github.com/sigstore/cosign/releases/download/${version}/cosign-linux-amd64"
+          obtenu=0
+          for essai in 1 2 3; do
+            curl -sSLf --connect-timeout 10 --max-time 120 -o cosign "$url" && { obtenu=1; break; }
+            echo "cosign : tentative $essai echouee, nouvelle tentative dans $((essai * 5))s"
+            sleep $((essai * 5))
+          done
+          [ "$obtenu" -eq 1 ] || { echo "::error title=cosign::telechargement impossible — $url"; exit 1; }
+          chmod +x cosign
+
+          # Signature sans cle : l'identite est le WORKFLOW, attestee par
+          # Sigstore. Aucune cle privee a stocker ni a faire tourner.
+          # `COSIGN_EXPERIMENTAL` n'est plus pose : depuis cosign 2 le mode sans
+          # cle est le defaut, et garder la variable laissait croire le contraire.
+          ./cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.PROPRIETAIRE }}/${{ matrix.service }}@${{ steps.construire.outputs.digest }}
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. LE DEPLOIEMENT : SSH + DOCKER COMPOSE, SANS ANSIBLE.
+  #
+  # Les huit blocs du playbook supprime sont portes ici en shell. Ce qu'on perd :
+  # l'idempotence declarative d'Ansible. Ce qu'on gagne : une dependance de
+  # moins, et un journal qui se lit dans l'ordre des commandes reellement
+  # passees au serveur.
+  # ═══════════════════════════════════════════════════════════════════════════
+  deploy:
+    name: Deployer ${{ needs.build-test.outputs.environnement }}
+    needs: [build-test, images]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.build-test.outputs.environnement }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Les paquets sont PRIVES : ils heritent de la visibilite du depot. Sans
+      # ce droit, `cosign verify` ne peut pas lire le manifeste, et son refus
+      # ressemble mot pour mot a une signature invalide.
+      packages: read
+    env:
+      TAG: ${{ needs.build-test.outputs.tag }}
+      RACINE: /opt/hba
+      PROJET: hba
+    steps:
+      - uses: actions/checkout@v4
+
+      # ═════════════════════════════════════════════════════════════════════
+      # L'HOTE DOIT ETRE RENSEIGNE — SINON ON S'ARRETE ICI, EN LE DISANT.
+      #
+      # Un environnement GitHub inexistant est cree a la volee, VIDE. Sans ce
+      # controle, le job irait jusqu'au ssh et echouerait sur un nom d'hote vide
+      # — message qui ne dit ni quel environnement ni ce qui manque.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: L'environnement est configure
+        run: |
+          set -uo pipefail
+          manquants=""
+          [ -n "${{ vars.VPS_HOST }}" ] || manquants="$manquants vars.VPS_HOST"
+          [ -n "${{ vars.VPS_PORT }}" ] || manquants="$manquants vars.VPS_PORT"
+          [ -n "${{ vars.VPS_USER }}" ] || manquants="$manquants vars.VPS_USER"
+          [ -n "${{ secrets.VPS_SSH_KEY }}" ] || manquants="$manquants secrets.VPS_SSH_KEY"
+          [ -n "${{ secrets.VPS_KNOWN_HOSTS }}" ] || manquants="$manquants secrets.VPS_KNOWN_HOSTS"
+          [ -n "${{ secrets.GHCR_TOKEN }}" ] || manquants="$manquants secrets.GHCR_TOKEN"
+          if [ -n "$manquants" ]; then
+            echo "::error title=Environnement::${{ needs.build-test.outputs.environnement }} — absent :$manquants"
+            echo "Un environnement GitHub inconnu est cree a la volee, VIDE."
+            echo "Settings -> Environments -> ${{ needs.build-test.outputs.environnement }}"
+            exit 1
+          fi
+          echo "Environnement ${{ needs.build-test.outputs.environnement }} : complet."
+
+      # ═════════════════════════════════════════════════════════════════════
+      # LE FICHIER D'ENVIRONNEMENT, VERIFIE AVANT DE PARTIR.
+      #
+      # `${VAR:?...}` arrete l'interpolation a la PREMIERE variable manquante.
+      # Sur un fichier auquel il manque neuf cles, cela fait neuf deploiements
+      # rates, chacun decouvrant une cle de plus. Le verificateur les liste
+      # toutes en une passe, et n'affiche QUE des noms.
+      #
+      # `ENV_FILE` d'abord, `PROD_ENV_FILE` ensuite : le second est le nom
+      # historique, garde pour ne pas casser l'environnement `prod` deja rempli.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Ecrire et controler le fichier d'environnement
+        env:
+          CONTENU: ${{ secrets.ENV_FILE || secrets.PROD_ENV_FILE }}
+        run: |
+          set -euo pipefail
+          test -n "$CONTENU" || {
+            echo "::error title=Secret::ni ENV_FILE ni PROD_ENV_FILE dans l'environnement ${{ needs.build-test.outputs.environnement }}"
+            exit 1
+          }
+          umask 077
+          printf '%s\n' "$CONTENU" | tr -d '\r' > /tmp/hba.env
+          # Le tag part dans le meme fichier : le compose le lit comme les
+          # autres, et le serveur garde ainsi la trace de ce qui y tourne.
+          printf 'HBA_TAG=%s\n' "$TAG" >> /tmp/hba.env
+          chmod 600 /tmp/hba.env
+          bash scripts/verifier-env-compose.sh docker-compose.prod.yml /tmp/hba.env
+
+      # ═════════════════════════════════════════════════════════════════════
+      # L'EMPREINTE DOIT DESIGNER L'HOTE **ET** LE PORT.
+      #
+      # Un serveur sur un port non standard s'ecrit entre crochets :
+      # `[79.137.35.129]:8022 ssh-ed25519 AAAA...`. Une ligne produite par
+      # `ssh-keyscan <hote>` sans `-p` donne la forme du port 22 et ne
+      # correspond a RIEN — ssh rend « Host key verification failed », qui ne
+      # nomme ni l'hote ni la cause. `ssh-keygen -F` pose la question
+      # exactement comme ssh se la pose, entrees hachees comprises.
+      #
+      # `tr -d '\r'` : un secret colle depuis un editeur Windows porte des
+      # CRLF. ssh ne signale pas l'entree malformee, il ne la reconnait pas —
+      # et rend le meme message que pour une empreinte absente.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Preparer SSH
+        env:
+          CLE: ${{ secrets.VPS_SSH_KEY }}
+          EMPREINTES: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CLE" > ~/.ssh/id_deploiement
+          printf '%s\n' "$EMPREINTES" | tr -d '\r' > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_deploiement ~/.ssh/known_hosts
+
+          cible="[${{ vars.VPS_HOST }}]:${{ vars.VPS_PORT }}"
+          if ! ssh-keygen -F "$cible" -f ~/.ssh/known_hosts >/dev/null 2>&1; then
+            echo "::error title=VPS_KNOWN_HOSTS::aucune entree pour $cible"
+            echo "::error::Regenerer avec :  ssh-keyscan -p ${{ vars.VPS_PORT }} ${{ vars.VPS_HOST }}"
+            echo "::error::et coller TOUTES les lignes rendues (pas la commande)."
+            echo "Entrees presentes (hotes seulement) :"
+            awk '{print "  " $1 " " $2}' ~/.ssh/known_hosts
+            exit 1
+          fi
+          echo "known_hosts : entree trouvee pour $cible"
+
+      # cosign lit `~/.docker/config.json`. Sans cette connexion il interroge
+      # ghcr.io en anonyme, recoit un 401 sur un paquet prive, et rend le meme
+      # message que pour une image non signee.
+      - name: Se connecter au registre
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ═════════════════════════════════════════════════════════════════════
+      # LES SIGNATURES SONT VERIFIEES AVANT TOUT TRANSFERT — §19.
+      #
+      # Sans cette garde, la CI signerait des images que plus rien ne verifie :
+      # le registre pourrait servir une image poussee par n'importe quel jeton
+      # ayant le droit d'ecrire, et le serveur la demarrerait.
+      #
+      # LA LISTE VIENT DU COMPOSE, pas d'une liste tenue a la main : c'est
+      # exactement ce qui va tourner. Une image ajoutee au compose et oubliee
+      # ailleurs serait deployee sans verification, et personne ne le verrait.
+      #
+      # CE QUE CA NE COUVRE PAS : la porte du §23 sur les vulnerabilites. Le
+      # rescan des vingt images au registre coute plusieurs minutes, et le faire
+      # sur un sous-ensemble ou en ignorant le code de sortie serait pire que de
+      # l'annoncer absente. Les images tierces — Traefik, Kafka, MinIO, Redis —
+      # ne sont pas signees par nous et ne sont pas verifiees.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Verifier les signatures (§19)
+        env:
+          DEPOT: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version=v3.1.3
+          url="https://github.com/sigstore/cosign/releases/download/${version}/cosign-linux-amd64"
+          obtenu=0
+          for essai in 1 2 3; do
+            curl -sSLf --connect-timeout 10 --max-time 120 -o cosign "$url" && { obtenu=1; break; }
+            sleep $((essai * 5))
+          done
+          [ "$obtenu" -eq 1 ] || { echo "::error title=cosign::telechargement impossible"; exit 1; }
+          chmod +x cosign
+
+          mapfile -t images < <(
+            grep -oE 'image: ghcr\.io/[a-z0-9._/-]+:' docker-compose.prod.yml \
+              | sed -e 's/^image: //' -e 's/:$//' | sort -u
+          )
+          [ "${#images[@]}" -gt 0 ] || {
+            echo "::error title=Signatures::aucune image ghcr.io dans docker-compose.prod.yml"
+            exit 1
+          }
+          echo "${#images[@]} image(s) a verifier, tag ${TAG}"
+
+          # LA SORTIE DE COSIGN N'EST PAS JETEE. Premiere version :
+          # `> /dev/null 2>&1` — les vingt images ont echoue sur « non signee »
+          # alors que la cause etait un 401. Un refus d'ACCES et une signature
+          # INVALIDE rendaient le meme texte. Le premier echec est montre en
+          # entier ; les suivants sont tus, vingt piles identiques noieraient
+          # la seule qui compte.
+          rates=(); detail=""
+          for depot in "${images[@]}"; do
+            if sortie=$(./cosign verify \
+                 --certificate-identity-regexp "^https://github.com/${DEPOT}/\.github/workflows/deploy\.yml@refs/heads/.+$" \
+                 --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                 "${depot}:${TAG}" 2>&1); then
+              echo "  ✓ ${depot}"
+            else
+              echo "  ✗ ${depot}"
+              rates+=("$depot"); [ -n "$detail" ] || detail="$sortie"
+            fi
+          done
+
+          if [ "${#rates[@]}" -gt 0 ]; then
+            echo "::error title=Signatures::${#rates[@]} image(s) non verifiee(s)"
+            for d in "${rates[@]}"; do echo "::error::  ${d}:${TAG}"; done
+            echo
+            echo "Ce que cosign a repondu sur la premiere :"
+            echo "$detail" | sed 's/^/    /'
+            exit 1
+          fi
+          echo "Les ${#images[@]} images sont signees par deploy.yml de ${DEPOT}."
+
+      # ═════════════════════════════════════════════════════════════════════
+      # LES DEUX LISTES SONT DERIVEES DU DEPOT, JAMAIS ECRITES ICI.
+      #
+      # 1. LES SERVICES A MIGRER : ceux dont le code appelle
+      #    `MigrateHbaDatabaseAsync`. identity-service passe EN TETE — c'est lui
+      #    qui amorce le compte administrateur, et le voir passer en premier dit
+      #    tout de suite si la base repond.
+      #
+      # 2. LES SUJETS KAFKA : les domaines de `HbaTopics.DomaineParService`,
+      #    dedoublonnes, au format `{prefixe}.{domaine}.{version}` — exactement
+      #    ce que rend `HbaTopics.Tous`. Recopier les vingt noms ici en ferait
+      #    une seconde source, qui divergerait : c'est le defaut d'ISSUE-001.
+      #
+      # POURQUOI CREER LES SUJETS PLUTOT QUE LES LAISSER NAITRE.
+      # `auto.create.topics.enable` vaut vrai : le premier producteur fait
+      # naitre son sujet avec UNE partition et la retention par defaut. Rien ne
+      # casse, tout parait marcher, et le parallelisme des consommateurs est
+      # plafonne a un sans que rien ne le dise.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Deriver les migrations et les sujets
+        run: |
+          set -euo pipefail
+
+          grep -rl "MigrateHbaDatabaseAsync" --include=*.cs services/ \
+            | sed -E 's|^(services/[^/]+/[^/]+)/.*|\1|' \
+            | xargs -n1 basename \
+            | sort -u > /tmp/migrations.txt
+
+          # identity-service en tete, le reste derriere.
+          {
+            grep -x "identity-service" /tmp/migrations.txt || true
+            grep -vx "identity-service" /tmp/migrations.txt
+          } > /tmp/migrations.ordre
+
+          sed -n '/DomaineParService/,/};/p' \
+            shared/common/HBA.Shared.Infrastructure/Kafka/HbaTopics.cs \
+            | sed -nE 's/^[[:space:]]*\["[^"]+"\] = "([^"]+)".*/service.\1.v1/p' \
+            | sort -u > /tmp/sujets.txt
+
+          n_mig=$(wc -l < /tmp/migrations.ordre)
+          n_suj=$(wc -l < /tmp/sujets.txt)
+          [ "$n_mig" -gt 0 ] || { echo "::error title=Migrations::aucun service porteur trouve"; exit 1; }
+          [ "$n_suj" -gt 0 ] || { echo "::error title=Sujets::catalogue vide — HbaTopics illisible"; exit 1; }
+
+          echo "$n_mig service(s) a migrer : $(tr '\n' ' ' < /tmp/migrations.ordre)"
+          echo "$n_suj sujet(s) : $(tr '\n' ' ' < /tmp/sujets.txt)"
+
+      - name: Transferer le compose, l'environnement et rembg
+        run: |
+          set -euo pipefail
+          SSH="ssh -i $HOME/.ssh/id_deploiement -p ${{ vars.VPS_PORT }} -o StrictHostKeyChecking=yes"
+          CIBLE="${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}"
+
+          $SSH "$CIBLE" "sudo mkdir -p ${RACINE}/infra/rembg && sudo chown -R \$(id -u):\$(id -g) ${RACINE}"
+
+          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
+            docker-compose.prod.yml "$CIBLE:${RACINE}/docker-compose.prod.yml"
+          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
+            /tmp/hba.env "$CIBLE:${RACINE}/.env"
+          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} -r \
+            infra/rembg/. "$CIBLE:${RACINE}/infra/rembg/"
+          scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
+            /tmp/migrations.ordre /tmp/sujets.txt "$CIBLE:${RACINE}/"
+
+          $SSH "$CIBLE" "chmod 600 ${RACINE}/.env"
+
+      # ═════════════════════════════════════════════════════════════════════
+      # LE DEPLOIEMENT PROPREMENT DIT, EN UNE SEULE SESSION.
+      #
+      # `-f` EST OBLIGATOIRE : `docker compose` ne decouvre que `compose.yaml`,
+      # `compose.yml`, `docker-compose.yaml` et `docker-compose.yml`. Le notre
+      # s'appelle `docker-compose.prod.yml` — avec le seul `cd`, compose repond
+      # « no configuration file provided: not found », sans dire ni quel
+      # repertoire il a regarde ni quels noms il attendait. On garde ce nom : il
+      # dit QUEL compose tourne quand on se connecte au serveur.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Deployer
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
+              -o StrictHostKeyChecking=yes \
+              "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
+              "GHCR_TOKEN='${GHCR_TOKEN}' PROPRIETAIRE='${PROPRIETAIRE}' RACINE='${RACINE}' PROJET='${PROJET}' bash -s" <<'DISTANT'
+          set -euo pipefail
+          dc="docker compose -p ${PROJET} -f ${RACINE}/docker-compose.prod.yml"
+          cd "${RACINE}"
+
+          echo "── Docker et le greffon compose"
+          command -v docker >/dev/null || {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq docker.io docker-compose-plugin
+          }
+          sudo systemctl enable --now docker
+
+          echo "── 80 et 443"
+          # `ss` NE DIT JAMAIS « traefik » POUR UN PORT PUBLIE PAR DOCKER : le
+          # processus qui detient la socket s'appelle toujours `docker-proxy`,
+          # quel que soit le conteneur derriere. On demande donc a Docker.
+          occupants=$(sudo ss -tulpn | grep -E ':(80|443)\s' || true)
+          if [ -n "$occupants" ]; then
+            conteneurs=$(docker ps --filter publish=80 --filter publish=443 --format '{{.Names}}' || true)
+            intrus=$(echo "$conteneurs" | grep -v traefik || true)
+            if [ -z "$conteneurs" ] || [ -n "$intrus" ]; then
+              echo "80 ou 443 sont pris par autre chose que Traefik."
+              echo "Conteneurs : ${conteneurs:-aucun}"
+              echo "Intrus    : ${intrus:-aucun conteneur — un processus hote tient le port}"
+              echo "$occupants"
+              exit 1
+            fi
+          fi
+
+          echo "── Connexion au registre"
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$PROPRIETAIRE" --password-stdin
+
+          echo "── Tirer les images"
+          $dc pull
+
+          echo "── Construire rembg, qui n'est publie nulle part"
+          $dc build rembg
+
+          echo "── Migrations, une par service"
+          # `--no-deps` : sans lui, `compose run` demarre toute la cascade de
+          # `depends_on` — Kafka, Redis, MinIO — pour un processus qui n'en a
+          # pas besoin. `DATABASE__MIGRATEONLY` fait sortir l'hote AVANT
+          # `app.Run()` : aucun port ouvert, aucun courtier a joindre.
+          while read -r service; do
+            [ -n "$service" ] || continue
+            echo "   $service"
+            $dc run --rm --no-deps -e DATABASE__MIGRATEONLY=true "$service"
+          done < "${RACINE}/migrations.ordre"
+
+          echo "── Le courtier, puis les sujets"
+          $dc up -d kafka
+          pret=0
+          for essai in $(seq 1 30); do
+            if docker exec hba-kafka kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1; then
+              pret=1; break
+            fi
+            sleep 5
+          done
+          [ "$pret" -eq 1 ] || { echo "le courtier ne repond pas apres 150 s"; exit 1; }
+
+          # UN SEUL COURTIER : replication 1. Trois repliques sur un noeud unique
+          # vivraient sur le meme disque — la garantie serait ecrite et jamais
+          # obtenue, et Kafka refuserait meme la creation faute de courtiers.
+          while read -r sujet; do
+            [ -n "$sujet" ] || continue
+            docker exec hba-kafka kafka-topics --bootstrap-server localhost:9092 \
+              --create --if-not-exists --topic "$sujet" \
+              --partitions 3 --replication-factor 1 >/dev/null
+          done < "${RACINE}/sujets.txt"
+          echo "   $(wc -l < "${RACINE}/sujets.txt") sujet(s) en place"
+
+          echo "── Demarrage de la pile"
+          $dc up -d --remove-orphans
+
+          echo "── Etat"
+          $dc ps
+          DISTANT
+
+      # ═════════════════════════════════════════════════════════════════════
+      # LA VERIFICATION EST UN PAS A PART, ET ELLE PEUT ECHOUER.
+      #
+      # Un `up -d` qui rend 0 ne dit rien de l'etat des conteneurs : compose a
+      # LANCE, il n'a pas constate. Un service qui redemarre en boucle passe
+      # inapercu jusqu'au premier client.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Verifier
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
+              -o StrictHostKeyChecking=yes \
+              "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
+              "PROJET='${PROJET}' bash -s" <<'DISTANT'
+          set -uo pipefail
+          echo "── Conteneurs qui ne sont pas « Up »"
+          mauvais=$(docker ps -a --filter "label=com.docker.compose.project=${PROJET}" \
+                      --format '{{.Names}}\t{{.Status}}' | grep -v ' Up ' || true)
+          if [ -n "$mauvais" ]; then
+            echo "$mauvais"
+            echo
+            echo "Journaux des vingt dernieres lignes de chacun :"
+            echo "$mauvais" | awk '{print $1}' | while read -r nom; do
+              echo "── $nom"
+              docker logs --tail 20 "$nom" 2>&1 | sed 's/^/    /'
+            done
+            exit 1
+          fi
+          echo "Tous les conteneurs du projet sont Up."
+          DISTANT
