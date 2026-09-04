@@ -4,22 +4,20 @@ import RouteProtegee from './routes/RouteProtegee'
 import ConnexionPage from './pages/ConnexionPage'
 import InterditPage from './pages/InterditPage'
 import IntrouvablePage from './pages/IntrouvablePage'
+import EnConstruction from './pages/EnConstruction'
 import HomePage from './pages/HomePage'
 import './App.css'
 
 /**
  * TABLE DES ROUTES.
  *
- * Deux zones : ce qui est accessible sans session — la connexion et l'écran
- * 403 — et tout le reste, derrière `RouteProtegee`.
+ * ELLE SUIT `layout/navigation.tsx`, ENTRÉE POUR ENTRÉE. Un chemin qui figure
+ * dans la barre latérale sans route correspondante donne une page « introuvable »
+ * atteinte par un clic dans le menu — le pire des deux mondes.
  *
  * `/interdit` est PUBLIQUE À DESSEIN. La placer derrière la garde créerait une
  * boucle : la garde renvoie vers /interdit, qui déclenche la garde, qui renvoie
  * vers /interdit.
- *
- * Les trois écrans métier sont des espaces réservés. Ils existent pour que la
- * navigation soit complète et que rien ne mène à un écran blanc ; ils ne
- * lisent aucune donnée.
  */
 export default function App() {
     return (
@@ -30,26 +28,88 @@ export default function App() {
             <Route element={<RouteProtegee />}>
                 <Route element={<Coquille />}>
                     <Route index element={<HomePage />} />
-                    <Route path="commandes" element={<EnConstruction titre="Commandes" />} />
-                    <Route path="utilisateurs" element={<EnConstruction titre="Utilisateurs" />} />
-                    <Route path="parametres" element={<EnConstruction titre="Paramètres" />} />
+
+                    <Route
+                        path="commandes"
+                        element={<EnConstruction titre="Commandes" api="/api/admin/orders" />}
+                    />
+                    <Route
+                        path="catalogue"
+                        element={<EnConstruction titre="Catalogue" api="/api/v1/catalog/admin" />}
+                    />
+                    <Route
+                        path="stock"
+                        element={<EnConstruction titre="Stock" api="/api/inventory" />}
+                    />
+                    <Route
+                        path="vendeurs"
+                        element={<EnConstruction titre="Vendeurs" api="/api/v1/merchants" />}
+                    />
+                    <Route
+                        path="retours"
+                        element={<EnConstruction titre="Retours" api="/api/v1/admin/returns" />}
+                    />
+
+                    <Route
+                        path="restauration/etablissements"
+                        element={<EnConstruction titre="Établissements" api="/api/food/admin" />}
+                    />
+                    <Route
+                        path="restauration/commandes"
+                        element={
+                            <EnConstruction titre="Commandes repas" api="/api/admin/food/orders" />
+                        }
+                    />
+
+                    <Route
+                        path="livraison/livreurs"
+                        element={<EnConstruction titre="Livreurs" api="/api/v1/admin/drivers" />}
+                    />
+                    <Route
+                        path="livraison/tarification"
+                        element={
+                            <EnConstruction
+                                titre="Tarification"
+                                api="/api/v1/admin/delivery-pricing"
+                            />
+                        }
+                    />
+
+                    <Route
+                        path="finance/reglements"
+                        element={
+                            <EnConstruction
+                                titre="Règlements"
+                                api="/api/financial/settlements"
+                                note="LECTURE SEULE : la route de la passerelle n'accepte que GET, HEAD et OPTIONS. Les gestes d'administration montés par payment-service rendront 404 tant que la passerelle n'ouvrira pas les autres méthodes."
+                            />
+                        }
+                    />
+                    <Route
+                        path="finance/commissions"
+                        element={
+                            <EnConstruction titre="Commissions" api="/api/financial/commissions" />
+                        }
+                    />
+                    <Route
+                        path="finance/factures"
+                        element={<EnConstruction titre="Factures" api="/api/financial/invoices" />}
+                    />
+
+                    <Route
+                        path="administration/utilisateurs"
+                        element={
+                            <EnConstruction titre="Utilisateurs" api="/api/identity/users" />
+                        }
+                    />
+                    <Route
+                        path="administration/roles"
+                        element={<EnConstruction titre="Rôles" api="/api/identity/roles" />}
+                    />
                 </Route>
             </Route>
 
             <Route path="*" element={<IntrouvablePage />} />
         </Routes>
-    )
-}
-
-function EnConstruction({ titre }: { titre: string }) {
-    return (
-        <section>
-            <h1>{titre}</h1>
-            <p className="indice">
-                Cet écran n'est pas encore branché sur l'API. La coquille et
-                l'authentification sont en place ; la lecture des données vient
-                ensuite.
-            </p>
-        </section>
     )
 }

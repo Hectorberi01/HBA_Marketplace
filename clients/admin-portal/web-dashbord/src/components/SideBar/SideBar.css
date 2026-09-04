@@ -7,11 +7,25 @@
     --sb-muted: #7a7f88;
     --sb-accent: #1b5e4a;
     --sb-accent-soft: #e6f0ec;
+    --sb-hover: #f0efeb;
 
     display: flex;
     flex-direction: column;
     width: var(--sb-width);
-    height: 100vh;
+    /*
+     * `svh` ET NON `vh`. Sur mobile, `100vh` compte la hauteur SANS les barres
+     * du navigateur : la barre latérale déborde sous l'écran et son pied — donc
+     * le bouton de déconnexion — devient inatteignable.
+     */
+    height: 100svh;
+    /*
+     * Collante : sans cela, une page de contenu longue fait défiler la barre
+     * hors de l'écran, et la navigation disparaît au moment précis où on
+     * descend dans un tableau pour aller ailleurs.
+     */
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
     padding: 12px 10px;
     box-sizing: border-box;
     background: var(--sb-bg);
@@ -19,6 +33,37 @@
     color: var(--sb-text);
     font-size: 14px;
     transition: width 180ms ease;
+}
+
+/*
+ * LA BARRE SUIT LE THÈME DU RESTE DE LA PAGE.
+ *
+ * Elle définissait sa propre palette, en clair uniquement, alors qu'index.css
+ * porte les deux thèmes. Sur un système réglé en sombre, le contenu passait au
+ * sombre et la barre restait blanche : une bande lumineuse collée à une page
+ * noire, et un texte gris clair sur fond gris clair dans le pied.
+ *
+ * Le défaut ne se voyait que chez les gens réglés en sombre — c'est-à-dire
+ * rarement chez celui qui écrit le CSS.
+ *
+ * La transition de largeur est retirée pour qui a demandé moins de mouvement.
+ */
+@media (prefers-color-scheme: dark) {
+    .sidebar {
+        --sb-bg: #1b1c22;
+        --sb-border: #2e303a;
+        --sb-text: #e5e7eb;
+        --sb-muted: #9ca3af;
+        --sb-accent: #6ee7b7;
+        --sb-accent-soft: rgba(110, 231, 183, 0.14);
+        --sb-hover: rgba(255, 255, 255, 0.06);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar {
+        transition: none;
+    }
 }
 
 .sidebar--collapsed {
@@ -70,12 +115,25 @@
 
 /* --- Éléments de navigation --- */
 
+/*
+ * `.sidebar__item` EST UN LIEN, PLUS UN BOUTON.
+ *
+ * Deux propriétés que `<button>` offrait gratuitement et que `<a>` n'a pas :
+ *
+ *   `box-sizing: border-box` — les boutons l'ont par défaut, pas les liens.
+ *   Sans lui, `width: 100%` PLUS `padding: 8px` fait seize pixels de trop, et
+ *   chaque entrée déborde de la barre.
+ *
+ *   `text-decoration: none` — sinon toute la navigation est soulignée.
+ */
 .sidebar__item,
 .sidebar__toggle {
     display: flex;
     align-items: center;
     gap: 10px;
     width: 100%;
+    box-sizing: border-box;
+    text-decoration: none;
     padding: 8px;
     border: 0;
     border-radius: 7px;
@@ -89,7 +147,7 @@
 
 .sidebar__item:hover,
 .sidebar__toggle:hover {
-    background: #f0efeb;
+    background: var(--sb-hover);
 }
 
 .sidebar__item:focus-visible,
