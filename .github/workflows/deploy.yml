@@ -1058,22 +1058,25 @@ jobs:
             echo "── 3. Une reponse COURTE, en clair, sur le port 80"
             # DISCRIMINANT DE TAILLE.
             # Le port 80 rend une redirection : quelques centaines d'octets,
-            # un seul paquet. La reponse TLS, elle, transporte le certificat
-            # et sa chaine — plusieurs kilo-octets, donc plusieurs paquets de
-            # taille maximale. Si la courte passe et que la longue reste
-            # muette, le probleme n'est pas « le serveur ne repond pas » mais
-            # « les gros paquets n'arrivent pas » : MTU du chemin, ICMP
-            # filtre, MSS non ajuste.
-            court=$(curl -sS -o /dev/null -w '%{http_code}' \
-                      --connect-timeout 5 --max-time 15 \
-                      "http://${domaine}/health" 2>&1 || echo "echec")
-            echo "    http:// rend ${court}"
+            # un seul paquet. La reponse TLS transporte le certificat et sa
+            # chaine — plusieurs kilo-octets. Si la COURTE passe et que la
+            # longue reste muette, ce sont les gros paquets qui n'arrivent
+            # pas : MTU du chemin, ICMP filtre, MSS non ajuste.
+            #
+            # Si les DEUX restent muettes, la taille n'y est pour rien : la
+            # connexion s'etablit puis plus rien ne circule, dans aucun sens.
+            #
+            # La sortie et le code sont separes. Melanges — `court=$(curl -w
+            # '%{http_code}' 2>&1 || echo echec)` — le journal rendait
+            # « 000echec » colle au message d'erreur, illisible.
+            curl -sS -o /dev/null -w '%{http_code}' \
+                 --connect-timeout 5 --max-time 15 \
+                 "http://${domaine}/health" > /tmp/c80.txt 2>/tmp/e80.txt || true
+            echo "    code   : $(cat /tmp/c80.txt 2>/dev/null || echo vide)"
+            [ -s /tmp/e80.txt ] && sed 's/^/    curl   : /' /tmp/e80.txt
 
             echo "── 4. Poignee de main TLS, depuis ce runner"
             # LA SORTIE D'OPENSSL N'EST PAS JETEE, MEME QUAND IL EXPIRE.
-            # Ecrite dans un fichier puis imprimee : sous `pipefail`, un
-            # `openssl | sed` qui expire perdait TOUT, y compris les lignes
-            # deja produites, et l'etape ne rendait qu'une phrase.
             timeout 25 openssl s_client -connect "${{ vars.VPS_HOST }}:443" \
               -servername "$domaine" -brief </dev/null > /tmp/tls.txt 2>&1 || true
             if [ -s /tmp/tls.txt ]; then
@@ -1082,35 +1085,52 @@ jobs:
               echo "    AUCUNE reponse : le serveur n'a rien renvoye en 25 s"
             fi
 
-            echo "── 5. La meme poignee de main, depuis le serveur lui-meme"
-            # DISCRIMINANT DE CHEMIN.
-            # Si le serveur se joint lui-meme par son nom public alors que ce
-            # runner n'y arrive pas, la plateforme SERT — c'est le trajet
-            # entre GitHub et l'hebergeur qui est en cause. Le trajet fait un
-            # aller-retour par l'IP publique, il ne prouve donc pas la
-            # joignabilite depuis l'exterieur ; il tranche seulement entre
-            # « Traefik est muet » et « ce chemin-ci ne passe pas ».
+            echo "── 5. Traefik, teste EN BOUCLE LOCALE sur le serveur"
+            # CE TEST NE PASSE PAS PAR L'INTERNET, ET C'EST TOUT L'INTERET.
+            #
+            # Version precedente : `openssl s_client -connect <nom public>`
+            # execute sur le VPS. Elle ne prouvait rien. Une machine qui se
+            # joint par sa PROPRE adresse publique depuis l'interieur depend
+            # du « hairpin NAT », que la plupart des hebergeurs ne font pas :
+            # le silence obtenu etait celui du routage, pas celui de Traefik.
+            #
+            # `--resolve` force la connexion vers 127.0.0.1 tout en gardant le
+            # nom dans le SNI et dans l'entete Host. Traefik voit exactement
+            # la requete qu'il verrait d'un vrai client, sans qu'un seul
+            # paquet quitte la machine. Si CECI rend 200, Traefik sert : ce
+            # qui manque est entre GitHub et l'hebergeur.
             ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
                 -o StrictHostKeyChecking=yes \
                 "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
-                "timeout 25 openssl s_client -connect ${domaine}:443 -servername ${domaine} -brief </dev/null 2>&1 | head -8" \
+                "curl -sS -k -o /dev/null -w 'code %{http_code}\n' --max-time 15 \
+                   --resolve ${domaine}:443:127.0.0.1 https://${domaine}/health 2>&1; \
+                 echo '-- etat du conteneur'; \
+                 docker ps --filter name=hba-traefik --format '{{.State}} {{.Status}}'; \
+                 echo '-- vingt dernieres lignes de Traefik'; \
+                 docker logs --tail 20 hba-traefik 2>&1" \
               | sed 's/^/    /' || echo "    la commande distante a echoue"
+
+            echo "── 6. Adresse publique de ce runner"
+            # A comparer avec les bannissements du serveur : fail2ban et les
+            # regles nftables portent des adresses, et personne ne sait de
+            # tete celle qu'un runner GitHub utilise.
+            echo "    $(curl -sS --max-time 10 https://api.ipify.org 2>/dev/null || echo inconnue)"
 
             echo
             echo "COMMENT LIRE CE QUI PRECEDE :"
             echo "  nom qui ne pointe pas vers le serveur -> DNS."
-            echo "  port filtre -> pare-feu de l'hebergeur ou nftables."
-            echo "  port ouvert, http:// repond, TLS muet -> les gros paquets"
-            echo "  n'arrivent pas : MTU du chemin. Les memes clients reels"
-            echo "  derriere un lien a MTU reduit — mobile, VPN, PPPoE —"
-            echo "  subiraient exactement cela."
-            echo "  TLS muet ici mais correct depuis le serveur -> la"
-            echo "  plateforme sert, le trajet depuis GitHub est en cause."
-            echo "  TLS muet des deux cotes -> Traefik n'ecoute pas, ou son"
-            echo "  certificat n'est pas emis."
-            echo "  TLS correct mais /health muet -> la regle Traefik ou la"
-            echo "  passerelle."
+            echo "  port qui REFUSE -> pare-feu en amont de l'hote."
+            echo "  port qui accepte mais ZERO octet, en clair comme en TLS,"
+            echo "  alors que Traefik rend 200 en boucle locale -> la"
+            echo "  connexion est acceptee par docker-proxy puis les paquets"
+            echo "  suivants sont jetes. Chercher du cote d'une regle qui"
+            echo "  filtre par source APRES l'etablissement : fail2ban, une"
+            echo "  regle dans DOCKER-USER, la mitigation de l'hebergeur."
+            echo "  la COURTE passe et la longue non -> MTU du chemin."
+            echo "  Traefik muet AUSSI en boucle locale -> il n'ecoute pas,"
+            echo "  ou son certificat n'est pas emis ; ses journaux le disent."
             exit 1
+
           fi
           echo "    /health rend 200"
           echo "── Aptitude de la passerelle"
