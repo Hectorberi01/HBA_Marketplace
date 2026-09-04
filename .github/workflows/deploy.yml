@@ -992,23 +992,81 @@ jobs:
           echo "Cible : https://${domaine}"
 
           # 1. LE CERTIFICAT ET LA PASSERELLE.
-          # `curl` sans `-k` : un certificat expire, mal emis ou absent fait
-          # echouer l'appel ici, avec le message d'OpenSSL, plutot que de
-          # devenir un « site inaccessible » decouvert par un client.
+          #
+          # ON ATTEND, ON NE MESURE PAS UNE FOIS.
+          #
+          # Premiere version : un seul appel, vingt secondes, echec. Or cette
+          # etape s'execute quelques secondes apres `up -d`. Traefik vient de
+          # demarrer, il decouvre ses routes et, au premier deploiement d'un
+          # domaine, negocie son certificat. Pendant ce temps la connexion est
+          # acceptee — c'est `docker-proxy` qui tient le port, il repond
+          # toujours — mais rien ne parle derriere. curl rend (28), « timed
+          # out », qui se lit comme « le serveur est injoignable » alors qu'il
+          # signifie « pas encore pret ».
+          #
+          # Le 04/09 l'etape a echoue ainsi, et le meme domaine repondait
+          # normalement quelques minutes plus tard : le controle courait apres
+          # ce qu'il mesurait.
+          #
+          # `--connect-timeout` est distinct de `--max-time` : le premier borne
+          # l'etablissement de la connexion, le second la reponse complete.
+          # Separes, ils disent lequel des deux a manque.
           echo "── Sante de la passerelle"
-          if ! sortie=$(curl -sS --max-time 20 -w '\n%{http_code}' \
-                          "https://${domaine}/health" 2>&1); then
-            echo "::error title=Fumee externe::https://${domaine}/health injoignable"
-            printf '%s\n' "$sortie" | sed 's/^/    /'
+          code=""
+          for essai in $(seq 1 18); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+                     --connect-timeout 5 --max-time 15 \
+                     "https://${domaine}/health" 2>/dev/null || echo 000)
+            [ "$code" = "200" ] && break
+            echo "    essai ${essai}/18 : ${code}"
+            sleep 10
+          done
+
+          if [ "$code" != "200" ]; then
+            echo "::error title=Fumee externe::/health rend ${code} apres trois minutes"
+            echo
+            echo "OU LA CHAINE S'EST ROMPUE :"
+
+            echo "── 1. Resolution du nom"
+            adresses=$(getent ahosts "$domaine" | awk '{print $1}' | sort -u | tr '\n' ' ')
+            echo "    ${domaine} -> ${adresses:-AUCUNE}"
+            echo "    attendu     -> ${{ vars.VPS_HOST }}"
+            case " $adresses " in
+              *" ${{ vars.VPS_HOST }} "*) echo "    le nom pointe bien vers le serveur deploye" ;;
+              *) echo "    LE NOM NE POINTE PAS VERS LE SERVEUR DEPLOYE" ;;
+            esac
+
+            echo "── 2. Ports, sur l'adresse du serveur"
+            # ATTENTION A LA LECTURE DE CE RESULTAT : sur un port publie par
+            # Docker, c'est `docker-proxy` qui accepte la connexion. « ouvert »
+            # prouve que le port est joignable, PAS que Traefik ecoute derriere.
+            for port in 80 443; do
+              if timeout 8 bash -c "cat < /dev/null > /dev/tcp/${{ vars.VPS_HOST }}/${port}" 2>/dev/null; then
+                echo "    ${port} accepte la connexion"
+              else
+                echo "    ${port} REFUSE ou FILTRE"
+              fi
+            done
+
+            echo "── 3. Poignee de main TLS"
+            if timeout 20 openssl s_client -connect "${{ vars.VPS_HOST }}:443" \
+                 -servername "$domaine" -brief </dev/null 2>&1 | sed 's/^/    /'; then
+              :
+            else
+              echo "    la poignee de main n'aboutit pas"
+            fi
+
+            echo
+            echo "COMMENT LIRE CE QUI PRECEDE :"
+            echo "  nom qui ne pointe pas vers le serveur -> DNS."
+            echo "  port filtre -> pare-feu de l'hebergeur ou nftables."
+            echo "  port ouvert mais TLS muet -> Traefik n'ecoute pas, ou son"
+            echo "  certificat n'est pas encore emis."
+            echo "  TLS correct mais /health muet -> la regle Traefik ou la"
+            echo "  passerelle elle-meme."
             exit 1
           fi
-          code=$(printf '%s\n' "$sortie" | tail -1)
-          echo "    /health rend ${code}"
-          [ "$code" = "200" ] || {
-            echo "::error title=Fumee externe::/health rend ${code}, attendu 200"
-            exit 1
-          }
-
+          echo "    /health rend 200"
           echo "── Aptitude de la passerelle"
           code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
                    "https://${domaine}/health/ready" || echo 000)
