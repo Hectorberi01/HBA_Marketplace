@@ -618,7 +618,27 @@ jobs:
           grep -rl "MigrateHbaDatabaseAsync" --include=*.cs services/ \
             | sed -E 's|^(services/[^/]+/[^/]+)/.*|\1|' \
             | xargs -n1 basename \
-            | sort -u > /tmp/migrations.txt
+            | sort -u > /tmp/porteurs.txt
+
+          # PORTER UNE MIGRATION N'EST PAS ETRE DEPLOYE.
+          # `notification-service` et `return-refund-service` appellent bien
+          # MigrateHbaDatabaseAsync, mais ils n'ont pas de service dans le
+          # compose : `docker compose run notification-service` repond
+          # « no such service » et, sous `set -e`, arrete le deploiement au
+          # dixieme nom sans que la liste ait jamais dit qu'il etait faux.
+          # La liste retenue est donc l'INTERSECTION avec le compose, et ce
+          # qui en sort est nomme.
+          python3 -c "
+          import yaml, sys
+          composes = set(yaml.safe_load(open('docker-compose.prod.yml'))['services'])
+          porteurs = [l.strip() for l in open('/tmp/porteurs.txt') if l.strip()]
+          retenus = [p for p in porteurs if p in composes]
+          exclus  = [p for p in porteurs if p not in composes]
+          open('/tmp/migrations.txt', 'w').write('\n'.join(retenus) + '\n')
+          if exclus:
+              print('Porteurs de migration absents du compose, non migres : '
+                    + ', '.join(exclus))
+          "
 
           # identity-service en tete, le reste derriere.
           {
@@ -722,11 +742,38 @@ jobs:
           # `depends_on` — Kafka, Redis, MinIO — pour un processus qui n'en a
           # pas besoin. `DATABASE__MIGRATEONLY` fait sortir l'hote AVANT
           # `app.Run()` : aucun port ouvert, aucun courtier a joindre.
+          # UN ECHEC DE MIGRATION DOIT SE NOMMER.
+          # Sous `set -e`, la premiere migration en echec tuait la session SSH
+          # et le journal s'arretait sur la sortie brute de compose, sans dire
+          # QUEL service venait d'echouer ni lesquels restaient. Ici chaque
+          # migration est jugee separement, la sortie du premier echec est
+          # conservee en entier, et le bilan tombe a la fin.
+          rates_mig=()
+          premier_mig=""
           while read -r service; do
             [ -n "$service" ] || continue
-            echo "   $service"
-            $dc run --rm --no-deps -e DATABASE__MIGRATEONLY=true "$service"
+            if sortie=$($dc run --rm --no-deps -e DATABASE__MIGRATEONLY=true \
+                          "$service" 2>&1); then
+              echo "   ok   $service"
+            else
+              echo "   ECHEC $service"
+              rates_mig+=("$service")
+              [ -n "$premier_mig" ] || premier_mig="$sortie"
+            fi
           done < "${RACINE}/migrations.ordre"
+
+          if [ "${#rates_mig[@]}" -gt 0 ]; then
+            echo
+            echo "${#rates_mig[@]} migration(s) en echec : ${rates_mig[*]}"
+            echo "Ce que compose a repondu sur la premiere :"
+            printf '%s\n' "$premier_mig" | sed 's/^/    /'
+            echo
+            echo "AUCUN up -d N'EST LANCE. Demarrer des services sur un"
+            echo "schema incomplet donne des conteneurs « Up » qui echouent"
+            echo "en boucle sur des tables absentes — c'est exactement ce"
+            echo "qu'a produit delivery-pricing-service le 04/09."
+            exit 1
+          fi
 
           echo "── Le courtier, puis les sujets"
           $dc up -d kafka
@@ -773,17 +820,35 @@ jobs:
               "PROJET='${PROJET}' bash -s" <<'DISTANT'
           set -uo pipefail
           echo "── Conteneurs qui ne sont pas « Up »"
+          # ON NE FILTRE PLUS SUR LE TEXTE DE `Status`.
+          # Premiere version : `--format '{{.Names}}\t{{.Status}}' | grep -v ' Up '`.
+          # Le separateur imprime est une TABULATION, pas une espace : la ligne
+          # vaut `hba-cart-service<TAB>Up 5 seconds`, et le motif ' Up ' exige une
+          # espace AVANT « Up ». Aucune ligne ne correspondait, donc aucune n'etait
+          # retiree — les vingt-quatre conteneurs, tous sains, ont ete declares en
+          # echec et vingt-quatre journaux ont ete deverses. Le seul conteneur
+          # reellement casse etait noye dedans.
+          #
+          # `{{.State}}` rend un mot d'un vocabulaire ferme — running, restarting,
+          # exited, created, paused, dead — et ne depend ni de la duree affichee,
+          # ni de la presence d'un bloc « (healthy) », ni de la locale.
           mauvais=$(docker ps -a --filter "label=com.docker.compose.project=${PROJET}" \
-                      --format '{{.Names}}\t{{.Status}}' | grep -v ' Up ' || true)
+                      --format '{{.State}} {{.Names}}' \
+                    | awk '$1 != "running" {print}' || true)
+
           if [ -n "$mauvais" ]; then
-            echo "$mauvais"
+            n=$(printf '%s\n' "$mauvais" | wc -l | tr -d ' ')
+            echo "${n} conteneur(s) ne sont pas en marche :"
+            printf '%s\n' "$mauvais" | sed 's/^/    /'
             echo
             echo "Journaux des vingt dernieres lignes de chacun :"
-            echo "$mauvais" | awk '{print $1}' | while read -r nom; do
+            printf '%s\n' "$mauvais" | awk '{print $2}' | while read -r nom; do
               echo "── $nom"
               docker logs --tail 20 "$nom" 2>&1 | sed 's/^/    /'
             done
             exit 1
           fi
-          echo "Tous les conteneurs du projet sont Up."
+
+          total=$(docker ps -a --filter "label=com.docker.compose.project=${PROJET}" -q | wc -l | tr -d ' ')
+          echo "Les ${total} conteneurs du projet sont en marche."
           DISTANT
