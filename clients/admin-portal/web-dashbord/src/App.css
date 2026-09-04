@@ -728,3 +728,74 @@
         color: #f2b8b5;
     }
 }
+
+/* ── Champ d'identifiant ────────────────────────────────────────────────── */
+
+.champ-guid {
+    font: inherit;
+    font-family: var(--mono);
+    font-size: 13px;
+    width: 20rem;
+    max-width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+}
+
+/*
+ * Saisie refusée : la bordure change ET le message sous le champ dit pourquoi.
+ * `aria-invalid` porte l'information pour qui n'en voit aucune.
+ */
+.champ-guid[aria-invalid='true'] {
+    border-color: #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+    .champ-guid[aria-invalid='true'] {
+        border-color: #f2b8b5;
+    }
+}
+
+.filtres input[type='checkbox'] {
+    margin-right: 4px;
+}
+
+/*
+ * Ligne éteinte : une règle de commission désactivée. Elle reste LISIBLE —
+ * elle explique pourquoi un taux a changé le mois dernier — mais elle ne doit
+ * pas se lire comme la règle en vigueur.
+ */
+.tableau tbody tr.ligne-eteinte {
+    opacity: 0.6;
+}
+
+/* Statuts finance. */
+.pastille--completed,
+.pastille--paid,
+.pastille--issued {
+    border-color: #1b5e4a;
+    color: #1b5e4a;
+}
+
+.pastille--partiallyfailed,
+.pastille--processing {
+    border-color: #b8860b;
+    color: #8a6508;
+}
+
+@media (prefers-color-scheme: dark) {
+    .pastille--completed,
+    .pastille--paid,
+    .pastille--issued {
+        border-color: #6ee7b7;
+        color: #6ee7b7;
+    }
+
+    .pastille--partiallyfailed,
+    .pastille--processing {
+        border-color: #d4a72c;
+        color: #e8c56a;
+    }
+}

@@ -13,6 +13,9 @@ import VendeursPage from './features/vendeurs/VendeursPage'
 import RetoursPage from './features/retours/RetoursPage'
 import UtilisateursPage from './features/identite/UtilisateursPage'
 import RolesPage from './features/identite/RolesPage'
+import ReglementsPage from './features/finance/ReglementsPage'
+import CommissionsPage from './features/finance/CommissionsPage'
+import FacturesPage from './features/finance/FacturesPage'
 import './App.css'
 
 /**
@@ -67,26 +70,9 @@ export default function App() {
                         }
                     />
 
-                    <Route
-                        path="finance/reglements"
-                        element={
-                            <EnConstruction
-                                titre="Règlements"
-                                api="/api/financial/settlements"
-                                note="LECTURE SEULE : la route de la passerelle n'accepte que GET, HEAD et OPTIONS. Les gestes d'administration montés par payment-service rendront 404 tant que la passerelle n'ouvrira pas les autres méthodes."
-                            />
-                        }
-                    />
-                    <Route
-                        path="finance/commissions"
-                        element={
-                            <EnConstruction titre="Commissions" api="/api/financial/commissions" />
-                        }
-                    />
-                    <Route
-                        path="finance/factures"
-                        element={<EnConstruction titre="Factures" api="/api/financial/invoices" />}
-                    />
+                    <Route path="finance/reglements" element={<ReglementsPage />} />
+                    <Route path="finance/commissions" element={<CommissionsPage />} />
+                    <Route path="finance/factures" element={<FacturesPage />} />
 
                     <Route path="administration/utilisateurs" element={<UtilisateursPage />} />
                     <Route path="administration/roles" element={<RolesPage />} />

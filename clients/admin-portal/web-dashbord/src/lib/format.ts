@@ -49,3 +49,33 @@ export function formaterDate(iso: string): string {
 export function abreger(id: string): string {
     return id.length > 8 ? id.slice(0, 8) : id
 }
+
+/**
+ * Taux de commission.
+ *
+ * LE TAUX EST UNE FRACTION DANS LE DOMAINE, PAS UN POURCENTAGE.
+ *
+ * `RegisterSellerCommand` retombe sur `0.10m` : dix pour cent s'écrit `0.1`.
+ * Afficher la valeur telle quelle donnerait « 0,1 % » là où le vendeur paie dix
+ * fois plus — une erreur d'un facteur cent sur le chiffre le plus sensible de la
+ * plateforme, et qui a l'air d'un chiffre plausible.
+ */
+export function formaterTaux(fraction: number): string {
+    return new Intl.NumberFormat('fr-FR', {
+        style: 'percent',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format(fraction)
+}
+
+/** Période fermée, en dates courtes : « 01/09 → 30/09/2026 ». */
+export function formaterPeriode(debutIso: string, finIso: string): string {
+    const debut = new Date(debutIso)
+    const fin = new Date(finIso)
+    if (Number.isNaN(debut.getTime()) || Number.isNaN(fin.getTime())) {
+        return `${debutIso} → ${finIso}`
+    }
+    const jour = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' })
+    const complet = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' })
+    return `${jour.format(debut)} → ${complet.format(fin)}`
+}
