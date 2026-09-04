@@ -518,15 +518,50 @@ jobs:
           [ "$obtenu" -eq 1 ] || { echo "::error title=cosign::telechargement impossible"; exit 1; }
           chmod +x cosign
 
-          mapfile -t images < <(
-            grep -oE 'image: ghcr\.io/[a-z0-9._/-]+:' docker-compose.prod.yml \
-              | sed -e 's/^image: //' -e 's/:$//' | sort -u
-          )
+          # LA LISTE NE PEUT PAS VENIR D'UN grep SUR LE COMPOSE.
+          # Premiere version : `grep -oE 'image: ghcr\.io/...'`. Elle a
+          # ramene vingt noms, dont `rembg`. Or rembg porte a la fois un
+          # `image:` et un `build:` — il est construit SUR LE VPS a partir
+          # de infra/rembg, il n'est jamais pousse, donc jamais signe. Le
+          # job a echoue sur « MANIFEST_UNKNOWN » pour une image qui n'a
+          # aucune raison d'exister dans le registre. Le grep voyait le
+          # nom ; il ne pouvait pas voir d'ou l'image vient.
+          #
+          # La question a poser au compose n'est pas « quelles images
+          # portent ghcr.io » mais « lesquelles seront TIREES ». Un
+          # service qui possede une cle `build` est construit localement :
+          # il sort du perimetre de la signature, et le dire tout haut
+          # vaut mieux que de l'exclure en silence.
+          python3 - <<'PY' > /tmp/images.txt
+          import yaml
+          d = yaml.safe_load(open('docker-compose.prod.yml'))
+          tirees, construites = [], []
+          for nom, svc in (d.get('services') or {}).items():
+              image = str(svc.get('image') or '')
+              if not image.startswith('ghcr.io/'):
+                  continue
+              # Le tag est `${HBA_TAG:?...}` : il contient lui-meme des
+              # deux-points, donc rsplit(':') couperait au mauvais endroit.
+              prefixe, dernier = image.rsplit('/', 1)
+              depot = prefixe + '/' + dernier.split(':', 1)[0]
+              (construites if svc.get('build') else tirees).append((nom, depot))
+          for nom, depot in sorted(construites):
+              print('CONSTRUITE', nom, depot)
+          for nom, depot in sorted(set(tirees)):
+              print('TIREE', nom, depot)
+          PY
+
+          mapfile -t images < <(awk '$1=="TIREE" {print $3}' /tmp/images.txt | sort -u)
+          mapfile -t locales < <(awk '$1=="CONSTRUITE" {print $2}' /tmp/images.txt | sort -u)
+
           [ "${#images[@]}" -gt 0 ] || {
-            echo "::error title=Signatures::aucune image ghcr.io dans docker-compose.prod.yml"
+            echo "::error title=Signatures::aucune image ghcr.io tiree dans docker-compose.prod.yml"
             exit 1
           }
           echo "${#images[@]} image(s) a verifier, tag ${TAG}"
+          if [ "${#locales[@]}" -gt 0 ]; then
+            echo "Hors perimetre, construites sur l'hote : ${locales[*]}"
+          fi
 
           # LA SORTIE DE COSIGN N'EST PAS JETEE. Premiere version :
           # `> /dev/null 2>&1` — les vingt images ont echoue sur « non signee »
@@ -674,7 +709,10 @@ jobs:
           echo "$GHCR_TOKEN" | docker login ghcr.io -u "$PROPRIETAIRE" --password-stdin
 
           echo "── Tirer les images"
-          $dc pull
+          # `--ignore-buildable` : sans lui, `pull` essaie aussi rembg, qui
+          # n'existe dans aucun registre, et le deploiement s'arrete sur un
+          # MANIFEST_UNKNOWN a mi-parcours.
+          $dc pull --ignore-buildable
 
           echo "── Construire rembg, qui n'est publie nulle part"
           $dc build rembg
