@@ -651,6 +651,21 @@ jobs:
             | sed -nE 's/^[[:space:]]*\["[^"]+"\] = "([^"]+)".*/service.\1.v1/p' \
             | sort -u > /tmp/sujets.txt
 
+          # LA LISTE DES SONDES N'EST PAS CELLE DES MIGRATIONS.
+          # Un service sans base — route-service — n'a pas de migration mais
+          # doit repondre. La passerelle non plus n'en a pas. La sonde couvre
+          # donc TOUS les services .NET du compose, c'est-a-dire ceux qui
+          # portent une image ghcr.io sans cle `build`.
+          python3 -c "
+          import yaml
+          d = yaml.safe_load(open('docker-compose.prod.yml'))
+          noms = [n for n, s in d['services'].items()
+                  if str(s.get('image') or '').startswith('ghcr.io/')
+                  and not s.get('build')]
+          open('/tmp/sante.txt', 'w').write('\n'.join(sorted(noms)) + '\n')
+          print(len(noms), 'service(s) a sonder')
+          "
+
           n_mig=$(wc -l < /tmp/migrations.ordre)
           n_suj=$(wc -l < /tmp/sujets.txt)
           [ "$n_mig" -gt 0 ] || { echo "::error title=Migrations::aucun service porteur trouve"; exit 1; }
@@ -674,7 +689,7 @@ jobs:
           scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} -r \
             infra/rembg/. "$CIBLE:${RACINE}/infra/rembg/"
           scp -i "$HOME/.ssh/id_deploiement" -P ${{ vars.VPS_PORT }} \
-            /tmp/migrations.ordre /tmp/sujets.txt "$CIBLE:${RACINE}/"
+            /tmp/migrations.ordre /tmp/sujets.txt /tmp/sante.txt "$CIBLE:${RACINE}/"
 
           $SSH "$CIBLE" "chmod 600 ${RACINE}/.env"
 
@@ -888,3 +903,169 @@ jobs:
           total=$(docker ps -a --filter "label=com.docker.compose.project=${PROJET}" -q | wc -l | tr -d ' ')
           echo "Les ${total} conteneurs du projet sont en marche."
           DISTANT
+
+      # ═════════════════════════════════════════════════════════════════════
+      # FUMEE — LE DEPLOIEMENT A REUSSI, MAIS EST-CE QUE CA REPOND.
+      #
+      # « Tous les conteneurs sont en marche » ne dit rien de la chaine que
+      # traverse une vraie requete : DNS, certificat, Traefik, passerelle,
+      # service, base. Chacun de ces maillons peut etre casse avec vingt-cinq
+      # conteneurs verts — un certificat expire, une regle Traefik qui ne
+      # correspond a rien, un cluster YARP qui pointe vers un nom d'hote mort.
+      #
+      # DEUX POINTS DE VUE, PARCE QU'ILS NE VOIENT PAS LES MEMES PANNES.
+      #
+      # DE L'INTERIEUR (par SSH, sur le reseau du projet) : chaque service
+      # repond-il sur /health/ready. C'est la seule facon d'atteindre les
+      # services, qui ne publient aucun port — seule la passerelle est exposee.
+      # La sonde tourne dans un conteneur curl jetable attache au reseau : les
+      # images .NET n'embarquent ni curl ni wget, et `docker exec` n'aurait
+      # rien a appeler.
+      #
+      # DE L'EXTERIEUR (depuis le runner, en HTTPS) : le nom public repond-il,
+      # avec un certificat valide, et les routes atteignent-elles leur service.
+      #
+      # AUCUNE ECRITURE. Rien ici ne cree, ne modifie ni ne supprime de donnee
+      # de production : uniquement des GET sur des routes de lecture ou de
+      # sante.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Fumee — depuis le serveur
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
+              -o StrictHostKeyChecking=yes \
+              "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
+              "RACINE='${RACINE}' bash -s" <<'DISTANT'
+          set -uo pipefail
+
+          # Un seul conteneur, une seule passe. Image epinglee : `latest`
+          # changerait sous nos pieds sans qu'aucun commit ne le dise.
+          sortie=$(docker run --rm --network hba-backend \
+            -v "${RACINE}/sante.txt:/sante.txt:ro" \
+            curlimages/curl:8.11.1 sh -c '
+              while read -r s; do
+                [ -n "$s" ] || continue
+                code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 \
+                         "http://${s}:8080/health/ready" 2>/dev/null || echo 000)
+                echo "${code} ${s}"
+              done < /sante.txt
+            ')
+
+          echo "$sortie" | sed 's/^/    /'
+
+          # 000 = aucune reponse du tout : le nom ne resout pas, ou le port est
+          # ferme. A distinguer d'un 503, qui prouve que le service repond et
+          # se declare inapte — sa base, le plus souvent.
+          mauvais=$(printf '%s\n' "$sortie" | awk '$1 != "200" {print}')
+          if [ -n "$mauvais" ]; then
+            n=$(printf '%s\n' "$mauvais" | wc -l | tr -d ' ')
+            echo
+            echo "::error title=Fumee interne::${n} service(s) ne sont pas aptes"
+            printf '%s\n' "$mauvais" | while read -r code nom; do
+              echo "::error::  ${nom} rend ${code}"
+            done
+            echo
+            echo "Journaux des services concernes :"
+            printf '%s\n' "$mauvais" | awk '{print $2}' | while read -r nom; do
+              echo "── $nom"
+              docker logs --tail 30 "hba-${nom}" 2>&1 | sed 's/^/    /'
+            done
+            exit 1
+          fi
+
+          n_ok=$(printf '%s\n' "$sortie" | wc -l | tr -d ' ')
+          echo "Les ${n_ok} services se declarent aptes."
+          DISTANT
+
+      - name: Fumee — depuis l'exterieur
+        run: |
+          set -euo pipefail
+
+          # Le domaine vient du fichier d'environnement deja construit. Ce
+          # n'est pas un secret : il est public par definition, c'est le nom
+          # que resout n'importe qui.
+          domaine=$(grep -E '^HBA_DOMAINE=' /tmp/hba.env | head -1 | cut -d= -f2-)
+          [ -n "$domaine" ] || {
+            echo "::error title=Fumee::HBA_DOMAINE absent du fichier d'environnement"
+            exit 1
+          }
+          echo "Cible : https://${domaine}"
+
+          # 1. LE CERTIFICAT ET LA PASSERELLE.
+          # `curl` sans `-k` : un certificat expire, mal emis ou absent fait
+          # echouer l'appel ici, avec le message d'OpenSSL, plutot que de
+          # devenir un « site inaccessible » decouvert par un client.
+          echo "── Sante de la passerelle"
+          if ! sortie=$(curl -sS --max-time 20 -w '\n%{http_code}' \
+                          "https://${domaine}/health" 2>&1); then
+            echo "::error title=Fumee externe::https://${domaine}/health injoignable"
+            printf '%s\n' "$sortie" | sed 's/^/    /'
+            exit 1
+          fi
+          code=$(printf '%s\n' "$sortie" | tail -1)
+          echo "    /health rend ${code}"
+          [ "$code" = "200" ] || {
+            echo "::error title=Fumee externe::/health rend ${code}, attendu 200"
+            exit 1
+          }
+
+          echo "── Aptitude de la passerelle"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
+                   "https://${domaine}/health/ready" || echo 000)
+          echo "    /health/ready rend ${code}"
+          [ "$code" = "200" ] || {
+            echo "::error title=Fumee externe::/health/ready rend ${code}, attendu 200"
+            exit 1
+          }
+
+          # 2. LE ROUTAGE.
+          # ON NE TESTE PAS LE CODE METIER, ON TESTE QUE LA ROUTE ARRIVE.
+          # Un 401 ou un 404 sont des reponses PARFAITEMENT valides ici : ils
+          # viennent du service, donc Traefik a route, YARP a route, et le
+          # conteneur amont repond. Ce qui condamne, c'est 502 / 503 / 504 —
+          # personne au bout — et 000, pas de reponse du tout.
+          #
+          # Les routes choisies sont des lectures, sur quatre clusters
+          # differents, pour que la panne d'un seul service ne se cache pas
+          # derriere la sante d'un autre.
+          #
+          # LIMITE ASSUMEE : un 404 passe, y compris s'il vient de la
+          # passerelle parce qu'AUCUNE route YARP ne correspond. Ce controle
+          # prouve qu'un amont repond, pas que la table de routage est juste.
+          # Les quatre chemins ci-dessous existent dans la configuration au
+          # moment ou ces lignes sont ecrites ; rien ne le verifie ensuite.
+          echo "── Routage"
+          routes="
+          /api/v1/catalog/products
+          /api/v1/merchants
+          /api/v1/delivery-pricing/quote
+          /api/orders
+          "
+          rates=""
+          for route in $routes; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
+                     "https://${domaine}${route}" || echo 000)
+            case "$code" in
+              000|502|503|504)
+                echo "    ECHEC ${code}  ${route}"
+                rates="${rates}${route} (${code})
+          " ;;
+              *)
+                echo "    ok    ${code}  ${route}" ;;
+            esac
+          done
+
+          if [ -n "$rates" ]; then
+            echo
+            echo "::error title=Fumee externe::des routes n'atteignent aucun service"
+            printf '%s' "$rates" | while read -r ligne; do
+              [ -n "$ligne" ] && echo "::error::  ${ligne}"
+            done
+            echo
+            echo "502/503/504 : Traefik ou YARP a route vers un amont qui ne"
+            echo "repond pas. 000 : rien n'a repondu du tout — le nom, le"
+            echo "certificat ou l'entrypoint."
+            exit 1
+          fi
+
+          echo "La plateforme repond depuis l'exterieur."
