@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../config/env'
-import { ApiError, type ProblemeApi } from './errors'
+import { ApiError, lireErreur } from './errors'
 import {
     accesBientotExpire,
     effacerJetons,
@@ -39,24 +39,21 @@ export function brancherDeconnexion(rappel: () => void): void {
     surDeconnexion = rappel
 }
 
-async function lireProbleme(reponse: Response): Promise<{
-    probleme: ProblemeApi | null
-    brut: string | null
-}> {
+async function lireCorps(reponse: Response): Promise<{ corps: unknown; brut: string | null }> {
     let texte: string | null = null
     try {
         texte = await reponse.text()
     } catch {
-        return { probleme: null, brut: null }
+        return { corps: null, brut: null }
     }
-    if (!texte) return { probleme: null, brut: null }
+    if (!texte) return { corps: null, brut: null }
     try {
-        return { probleme: JSON.parse(texte) as ProblemeApi, brut: texte }
+        return { corps: JSON.parse(texte), brut: texte }
     } catch {
         // Une passerelle en erreur rend du HTML, pas du JSON. On garde le texte
         // : « <html><body>502 Bad Gateway » est une information, « erreur de
         // parsing » n'en est pas une.
-        return { probleme: null, brut: texte }
+        return { corps: null, brut: texte }
     }
 }
 
@@ -173,11 +170,14 @@ async function executer<T>(
     }
 
     if (!reponse.ok) {
-        const { probleme, brut } = await lireProbleme(reponse)
+        const { corps, brut } = await lireCorps(reponse)
+        const lu = lireErreur(corps, reponse.status)
         throw new ApiError({
-            message: probleme?.title ?? `HTTP ${reponse.status}`,
+            message: lu.message,
             statut: reponse.status,
-            probleme,
+            code: lu.code,
+            requestId: lu.requestId,
+            details: lu.details,
             corpsBrut: brut,
         })
     }

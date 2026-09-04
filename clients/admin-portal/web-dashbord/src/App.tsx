@@ -6,6 +6,8 @@ import InterditPage from './pages/InterditPage'
 import IntrouvablePage from './pages/IntrouvablePage'
 import EnConstruction from './pages/EnConstruction'
 import HomePage from './pages/HomePage'
+import CommandesPage from './features/commandes/CommandesPage'
+import CataloguePage from './features/catalogue/CataloguePage'
 import './App.css'
 
 /**
@@ -29,14 +31,8 @@ export default function App() {
                 <Route element={<Coquille />}>
                     <Route index element={<HomePage />} />
 
-                    <Route
-                        path="commandes"
-                        element={<EnConstruction titre="Commandes" api="/api/admin/orders" />}
-                    />
-                    <Route
-                        path="catalogue"
-                        element={<EnConstruction titre="Catalogue" api="/api/v1/catalog/admin" />}
-                    />
+                    <Route path="commandes" element={<CommandesPage />} />
+                    <Route path="catalogue" element={<CataloguePage />} />
                     <Route
                         path="stock"
                         element={<EnConstruction titre="Stock" api="/api/inventory" />}

@@ -220,3 +220,347 @@
     white-space: nowrap;
     border: 0;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * ÉCRANS DE LISTE
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+.ecran-liste {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ecran-liste__tete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ecran-liste__tete h1 {
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+
+/* ── Recherche ──────────────────────────────────────────────────────────── */
+
+.barre-recherche {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.barre-recherche input {
+    font: inherit;
+    font-size: 15px;
+    width: 280px;
+    max-width: 100%;
+    padding: 8px 32px 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+}
+
+.barre-recherche button {
+    position: absolute;
+    right: 4px;
+    /* 32px de côté : en dessous, la cible est trop petite au doigt. */
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--text);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* ── Facettes ───────────────────────────────────────────────────────────── */
+
+.facettes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.facette {
+    font: inherit;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--text-h);
+    cursor: pointer;
+}
+
+.facette:hover {
+    border-color: var(--accent-border);
+}
+
+/*
+ * L'ÉTAT ACTIF NE REPOSE PAS SUR LA SEULE COULEUR : la bordure change
+ * d'épaisseur apparente et le fond aussi. `aria-pressed` porte l'information
+ * pour qui n'en voit aucune.
+ */
+.facette.is-active {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+    color: var(--text-h);
+    font-weight: 500;
+}
+
+.facette__compte {
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+}
+
+.facette.is-active .facette__compte {
+    color: inherit;
+}
+
+/* ── Tableau ────────────────────────────────────────────────────────────── */
+
+.tableau-enveloppe {
+    position: relative;
+    /*
+     * Le défilement horizontal est CONFINÉ ICI. Sans cette enveloppe, un
+     * tableau large fait défiler la PAGE entière de côté, et la barre latérale
+     * part avec.
+     */
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.tableau {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.tableau th,
+.tableau td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+.tableau thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 1;
+}
+
+.tableau tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.tableau tbody tr:hover {
+    background: var(--social-bg);
+}
+
+/* Les montants s'alignent à droite, en chiffres de largeur fixe : sans cela
+ * les colonnes de nombres ne se comparent pas d'un coup d'œil. */
+.au-bout {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.cellule-titre {
+    color: var(--text-h);
+    font-weight: 500;
+}
+
+/*
+ * LIGNE QUI APPELLE UNE ACTION.
+ *
+ * Repère à gauche plutôt que fond coloré : un fond teinté sur une ligne sur
+ * trois rend le tableau illisible, et la couleur seule ne dirait rien à qui ne
+ * la distingue pas. Le statut reste écrit en toutes lettres dans sa colonne.
+ */
+.tableau tbody tr.a-traiter td:first-child {
+    box-shadow: inset 3px 0 0 0 var(--accent);
+}
+
+.tableau.est-en-attente {
+    opacity: 0.55;
+}
+
+.voile-chargement {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg);
+    font-size: 13px;
+    box-shadow: var(--shadow);
+}
+
+.voile-chargement .rond-attente {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+}
+
+/* ── Pastilles de statut ────────────────────────────────────────────────── */
+
+.pastille {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/*
+ * SEULS LES STATUTS QUI CHANGENT LA CONDUITE SONT TEINTÉS.
+ *
+ * Colorer les huit donnerait un arc-en-ciel où plus rien ne ressort. Trois
+ * familles suffisent : ce qui attend un geste, ce qui a échoué, ce qui est
+ * abouti. Le reste garde la bordure neutre — et le libellé, lui, est toujours
+ * écrit.
+ */
+.pastille--underreview,
+.pastille--pendingreview {
+    border-color: #b8860b;
+    color: #8a6508;
+}
+
+.pastille--failed,
+.pastille--cancelled,
+.pastille--rejected,
+.pastille--suspended {
+    border-color: #b3261e;
+    color: #b3261e;
+}
+
+.pastille--delivered,
+.pastille--published,
+.pastille--approved {
+    border-color: #1b5e4a;
+    color: #1b5e4a;
+}
+
+@media (prefers-color-scheme: dark) {
+    .pastille--underreview,
+    .pastille--pendingreview {
+        border-color: #d4a72c;
+        color: #e8c56a;
+    }
+
+    .pastille--failed,
+    .pastille--cancelled,
+    .pastille--rejected,
+    .pastille--suspended {
+        border-color: #f2b8b5;
+        color: #f2b8b5;
+    }
+
+    .pastille--delivered,
+    .pastille--published,
+    .pastille--approved {
+        border-color: #6ee7b7;
+        color: #6ee7b7;
+    }
+}
+
+/* ── États hors du cas normal ───────────────────────────────────────────── */
+
+.etat-liste {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 40px 24px;
+}
+
+.etat-liste button {
+    font: inherit;
+    font-size: 15px;
+    padding: 8px 14px;
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    background: var(--accent-bg);
+    color: var(--text-h);
+    cursor: pointer;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+}
+
+.pagination__compte {
+    font-variant-numeric: tabular-nums;
+}
+
+.pagination__taille {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pagination__taille select {
+    font: inherit;
+    font-size: 14px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text-h);
+}
+
+.pagination__boutons {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pagination__boutons button {
+    font: inherit;
+    font-size: 14px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+    cursor: pointer;
+}
+
+.pagination__boutons button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.pagination__position {
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+}
