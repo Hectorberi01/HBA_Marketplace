@@ -1103,3 +1103,17 @@ volumes:
 
 networks:
   hba-backend:
+    # LE NOM EST FIXE ICI, SINON COMPOSE LE PREFIXE.
+    #
+    # Sans cette ligne, le reseau reel s'appelle `hba_hba-backend` (projet +
+    # cle), alors que l'etiquette `traefik.docker.network` des services
+    # annonce `hba-backend`. Traefik ne trouve pas le reseau nomme et bascule
+    # sur « le premier disponible » :
+    #
+    #   WRN Could not find network named "hba-backend" for container
+    #   WRN Defaulting to first available network (hba_hba-backend)
+    #
+    # Le repli tombe juste tant qu'il n'y a qu'un reseau. Le jour ou un
+    # service en rejoint deux, Traefik route vers celui qu'il a trouve en
+    # premier, et le symptome est un 502 intermittent qui ne pointe vers rien.
+    name: hba-backend
