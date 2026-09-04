@@ -12,6 +12,7 @@ import VendeursPage from './features/vendeurs/VendeursPage'
 import RetoursPage from './features/retours/RetoursPage'
 import UtilisateursPage from './features/identite/UtilisateursPage'
 import RolesPage from './features/identite/RolesPage'
+import NouvelUtilisateurPage from './features/identite/NouvelUtilisateurPage'
 import ReglementsPage from './features/finance/ReglementsPage'
 import CommissionsPage from './features/finance/CommissionsPage'
 import FacturesPage from './features/finance/FacturesPage'
@@ -59,6 +60,10 @@ export default function App() {
                     <Route path="finance/factures" element={<FacturesPage />} />
 
                     <Route path="administration/utilisateurs" element={<UtilisateursPage />} />
+                    <Route
+                        path="administration/utilisateurs/nouveau"
+                        element={<NouvelUtilisateurPage />}
+                    />
                     <Route path="administration/roles" element={<RolesPage />} />
                 </Route>
             </Route>

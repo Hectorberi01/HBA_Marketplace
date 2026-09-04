@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import BarreRecherche from '../../components/tableau/BarreRecherche'
 import Facettes from '../../components/tableau/Facettes'
@@ -59,12 +60,30 @@ export default function UtilisateursPage() {
         <section className="ecran-liste">
             <header className="ecran-liste__tete">
                 <h1>Utilisateurs</h1>
-                <BarreRecherche
-                    valeur={etat.recherche}
-                    onChange={q => modifier({ recherche: q })}
-                    placeholder="Rechercher un compte"
-                />
+                <div className="filtres">
+                    <BarreRecherche
+                        valeur={etat.recherche}
+                        onChange={q => modifier({ recherche: q })}
+                        placeholder="Rechercher un compte"
+                    />
+                    <Link className="bouton-lien" to="/administration/utilisateurs/nouveau">
+                        Nouveau compte
+                    </Link>
+                </div>
             </header>
+
+            {/*
+              * LA RECHERCHE NE PORTE QUE SUR LE PRENOM ET LE NOM, et le service
+              * explique pourquoi : « ILike uniquement sur des colonnes string
+              * simples : Email/PhoneNumber sont des value objects convertis, non
+              * traduisibles ». C'est exactement la facon dont on cherche un compte
+              * en support — par son adresse. Le dire vaut mieux que de laisser
+              * conclure que le compte n'existe pas.
+              */}
+            <p className="indice">
+                La recherche porte sur le prénom et le nom uniquement : l'adresse et le
+                téléphone ne sont pas interrogeables côté service.
+            </p>
 
             <Facettes
                 facettes={page?.facettes ?? null}

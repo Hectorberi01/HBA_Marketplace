@@ -91,3 +91,98 @@ export function libelleStatutUtilisateur(statut: string): string {
 }
 
 export const STATUTS_A_TRAITER = new Set(['PendingVerification'])
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * CRÉER UN COMPTE — ET LE CHEMIN QUE L'API IMPOSE.
+ *
+ * IL N'Y A AUCUNE ROUTE D'ADMINISTRATION POUR CRÉER UN UTILISATEUR.
+ *
+ * `MapAdminGroup("/api/identity/users")` monte six routes : lister, lire,
+ * suspendre, réactiver, attribuer un rôle, retirer un rôle. Pas de POST « / ».
+ * La seule création possible est `POST /api/v1/auth/register`, c'est-à-dire
+ * l'inscription publique, `AllowAnonymous`.
+ *
+ * TROIS CONSÉQUENCES, TOUTES VISIBLES À L'ÉCRAN.
+ *
+ * 1. Le compte naît exactement comme si la personne s'était inscrite : statut
+ *    `PendingVerification`, courriel de vérification envoyé. L'administrateur ne
+ *    crée pas un compte « déjà validé ».
+ *
+ * 2. IL FAUT FOURNIR UN MOT DE PASSE POUR QUELQU'UN D'AUTRE. Le contrat l'exige
+ *    et il n'existe pas de variante sans. Le portail en engendre donc un au
+ *    hasard plutôt que de laisser l'administrateur en choisir un — voir
+ *    `engendrerMotDePasse` — et propose aussitôt d'envoyer un lien de
+ *    réinitialisation pour que la personne pose le sien.
+ *
+ * 3. LE RÔLE SE POSE EN UN SECOND APPEL. `register` n'en accepte aucun ; il faut
+ *    ensuite `POST /api/identity/users/{id}/roles`. Deux appels, donc un échec
+ *    partiel possible : compte créé, rôle absent. L'écran le dit précisément au
+ *    lieu de rendre une erreur générale sur une opération à moitié faite.
+ *
+ * La route d'inscription porte `RequireRateLimiting(AuthRateLimiter.PolicyName)`
+ * : créer plusieurs comptes d'affilée peut se heurter à la limite de débit, et
+ * ce n'est pas un défaut du formulaire.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+export type NouveauCompte = {
+    firstName: string
+    lastName: string
+    email: string
+    phoneNumber: string
+    password: string
+}
+
+export function creerCompte(compte: NouveauCompte): Promise<{ id: string }> {
+    return requete<{ id: string }>('/api/v1/auth/register', {
+        methode: 'POST',
+        corps: compte,
+    })
+}
+
+export function attribuerRole(userId: string, roleId: string): Promise<void> {
+    return requete<void>(`/api/identity/users/${userId}/roles`, {
+        methode: 'POST',
+        corps: { roleId },
+    })
+}
+
+/**
+ * Envoie un lien de réinitialisation à l'adresse indiquée.
+ *
+ * C'EST CE QUI RATTRAPE LE MOT DE PASSE IMPOSÉ. Tant que la personne n'a pas
+ * posé le sien, celui que le portail a engendré reste valide et a été affiché à
+ * l'écran de quelqu'un d'autre.
+ */
+export function envoyerReinitialisation(email: string): Promise<void> {
+    return requete<void>('/api/v1/auth/password/forgot', {
+        methode: 'POST',
+        anonyme: true,
+        corps: { email },
+    })
+}
+
+/**
+ * MOT DE PASSE ENGENDRÉ AU HASARD, PAR `crypto.getRandomValues`.
+ *
+ * `Math.random` N'EST PAS UN GÉNÉRATEUR CRYPTOGRAPHIQUE : sa suite est
+ * prédictible à partir de quelques tirages. Pour un mot de passe d'ouverture de
+ * compte — même destiné à être remplacé — cela suffirait à le deviner.
+ *
+ * L'alphabet exclut les caractères qui se confondent à l'oral et à la lecture —
+ * O et 0, l et 1, I — parce que ce mot de passe sera lu à voix haute ou recopié
+ * à la main au moins une fois. La longueur (16) compense largement l'alphabet
+ * réduit.
+ *
+ * Le service exige au minimum huit caractères (`RegisterUserCommandValidator`).
+ */
+const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+
+export function engendrerMotDePasse(longueur = 16): string {
+    const octets = new Uint32Array(longueur)
+    crypto.getRandomValues(octets)
+    let sortie = ''
+    for (const n of octets) sortie += ALPHABET[n % ALPHABET.length]
+    return sortie
+}

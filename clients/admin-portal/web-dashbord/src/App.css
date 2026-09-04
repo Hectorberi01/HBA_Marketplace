@@ -868,3 +868,109 @@
         color: #e8c56a;
     }
 }
+
+/* ── Formulaires ────────────────────────────────────────────────────────── */
+
+.formulaire {
+    max-width: 46rem;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+}
+
+.formulaire label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+    color: var(--text-h);
+}
+
+.formulaire input,
+.formulaire select {
+    font: inherit;
+    /* 16px : en dessous, iOS zoome au focus et casse la mise en page. */
+    font-size: 16px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+}
+
+.formulaire input:focus-visible,
+.formulaire select:focus-visible {
+    outline: 2px solid var(--accent-border);
+    outline-offset: 1px;
+    border-color: var(--accent);
+}
+
+.formulaire__paire {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+@media (max-width: 640px) {
+    .formulaire__paire {
+        grid-template-columns: 1fr;
+    }
+}
+
+.formulaire__actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 6px;
+}
+
+.formulaire__actions button[type='submit'],
+.carte-explication button {
+    font: inherit;
+    font-size: 15px;
+    padding: 9px 16px;
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    background: var(--accent-bg);
+    color: var(--text-h);
+    cursor: pointer;
+}
+
+.formulaire__actions button:disabled,
+.carte-explication button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.formulaire .erreur ul {
+    margin: 8px 0 0;
+    padding-left: 20px;
+}
+
+/*
+ * Le mot de passe engendré. Grand, en chasse fixe, sélectionnable d'un coup :
+ * il va être recopié à la main ou lu à voix haute au moins une fois.
+ */
+.mot-de-passe {
+    font-family: var(--mono);
+    font-size: 18px;
+    letter-spacing: 1px;
+    padding: 8px 12px;
+    user-select: all;
+}
+
+/* Lien qui se présente comme un bouton d'action. */
+.bouton-lien {
+    font-size: 14px;
+    padding: 8px 14px;
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    background: var(--accent-bg);
+    color: var(--text-h);
+    text-decoration: none;
+    white-space: nowrap;
+}
