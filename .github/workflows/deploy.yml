@@ -723,10 +723,81 @@ jobs:
           }
           sudo systemctl enable --now docker
 
+          echo "── Regles netfilter heritees de k3s"
+          # ARRETER k3s NE RETIRE PAS SES REGLES. C'EST TOUTE L'AFFAIRE.
+          #
+          # Le 04/09, la plateforme etait deployee, les vingt-cinq conteneurs
+          # en marche, les dix-neuf services aptes sur /health/ready — et
+          # personne, ni les runners GitHub, ni Let's Encrypt, ni le serveur
+          # lui-meme en boucle locale, n'obtenait une seule reponse sur 80 ou
+          # 443. Traefik tournait depuis quatre heures sans avoir vu passer
+          # une requete.
+          #
+          # La cause etait dans l'ordre des chaines :
+          #
+          #   table ip nat / chain PREROUTING
+          #     jump KUBE-SERVICES          <- 4 881 180 paquets
+          #     jump CNI-HOSTPORT-DNAT      <-   319 229 paquets
+          #     jump DOCKER                 <-    64 024 paquets
+          #
+          # KUBE-SERVICES passe AVANT DOCKER. Les paquets destines a 80 et 443
+          # etaient rediriges vers des services Kubernetes qui n'existent plus,
+          # et n'atteignaient jamais `docker-proxy`. La chaine OUTPUT portait
+          # le meme saut, ce qui explique que meme 127.0.0.1 restait muet.
+          #
+          # POURQUOI LE GARDE-FOU 80/443 NE VOYAIT RIEN : il demande QUI TIENT
+          # LA SOCKET, et la reponse etait juste — `docker-proxy`, pour
+          # Traefik. Le detournement a lieu en amont, dans le NAT, la ou
+          # personne ne regardait.
+          #
+          # `systemctl stop k3s` laisse les regles, les interfaces CNI et les
+          # conteneurs de la couche reseau en place. Seuls les scripts de
+          # desinstallation les retirent.
+          residus=$(sudo nft list ruleset 2>/dev/null \
+                      | grep -cE 'KUBE-SERVICES|KUBE-SVC|CNI-HOSTPORT' || true)
+          if [ "${residus:-0}" -gt 0 ]; then
+            echo "   ${residus} regle(s) k3s/CNI encore installees — purge"
+            echo "   INTERRUPTION DE SERVICE : docker sera redemarre."
+            for script in /usr/local/bin/k3s-killall.sh \
+                          /usr/local/bin/k3s-uninstall.sh \
+                          /usr/local/bin/k3s-agent-uninstall.sh; do
+              if [ -x "$script" ]; then
+                echo "   $script"
+                sudo "$script" || echo "   (echec, on poursuit)"
+              fi
+            done
+
+            # Docker reinstalle ses propres regles de NAT au demarrage. Sans
+            # ce redemarrage, la chaine DOCKER peut rester incomplete apres le
+            # menage.
+            sudo systemctl restart docker
+            sleep 5
+
+            reste=$(sudo nft list ruleset 2>/dev/null \
+                      | grep -cE 'KUBE-SERVICES|KUBE-SVC|CNI-HOSTPORT' || true)
+            if [ "${reste:-0}" -gt 0 ]; then
+              echo "::error title=k3s::${reste} regle(s) survivent a la purge"
+              sudo nft list ruleset 2>/dev/null \
+                | grep -E 'KUBE-SERVICES|KUBE-SVC|CNI-HOSTPORT' | head -20
+              echo
+              echo "Les scripts de desinstallation de k3s sont absents ou"
+              echo "n'ont pas suffi. A faire a la main sur le serveur, puis"
+              echo "relancer : sudo nft flush table ip nat && sudo systemctl restart docker"
+              exit 1
+            fi
+            echo "   purge faite, plus aucune regle k3s"
+          fi
+
           echo "── 80 et 443"
           # `ss` NE DIT JAMAIS « traefik » POUR UN PORT PUBLIE PAR DOCKER : le
           # processus qui detient la socket s'appelle toujours `docker-proxy`,
           # quel que soit le conteneur derriere. On demande donc a Docker.
+          #
+          # CE GARDE-FOU NE VOIT QUE LA SOCKET. Il repond « qui ecoute », pas
+          # « qui recoit ». Une regle de NAT placee avant la chaine DOCKER
+          # detourne les paquets sans toucher a la socket : le controle passe
+          # au vert et rien n'arrive. C'est ce qui est arrive le 04/09 avec
+          # les regles k3s, d'ou l'etape qui precede.
           occupants=$(sudo ss -tulpn | grep -E ':(80|443)\s' || true)
           if [ -n "$occupants" ]; then
             conteneurs=$(docker ps --filter publish=80 --filter publish=443 --format '{{.Names}}' || true)
