@@ -142,7 +142,7 @@ jobs:
           echo
           echo "── Bilan : $passes projet(s) au vert"
           if [ -n "$rates" ]; then
-            echo "❌ En echec :"
+            echo "En echec :"
             for nom in $rates; do echo "     $nom"; done
             {
               echo "## Tests en echec"
