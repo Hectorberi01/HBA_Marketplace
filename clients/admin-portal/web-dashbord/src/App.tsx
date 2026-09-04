@@ -5,6 +5,7 @@ import ConnexionPage from './pages/ConnexionPage'
 import InterditPage from './pages/InterditPage'
 import IntrouvablePage from './pages/IntrouvablePage'
 import HomePage from './pages/HomePage'
+import MonitoringPage from './features/monitoring/MonitoringPage'
 import CommandesPage from './features/commandes/CommandesPage'
 import CataloguePage from './features/catalogue/CataloguePage'
 import StockPage from './features/stock/StockPage'
@@ -42,6 +43,7 @@ export default function App() {
             <Route element={<RouteProtegee />}>
                 <Route element={<Coquille />}>
                     <Route index element={<HomePage />} />
+                    <Route path="supervision" element={<MonitoringPage />} />
 
                     <Route path="commandes" element={<CommandesPage />} />
                     <Route path="catalogue" element={<CataloguePage />} />

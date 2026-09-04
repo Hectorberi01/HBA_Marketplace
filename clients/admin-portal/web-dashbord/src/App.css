@@ -974,3 +974,60 @@
     text-decoration: none;
     white-space: nowrap;
 }
+
+/* ── Tuiles de supervision ──────────────────────────────────────────────── */
+
+.tuiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.tuile {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+}
+
+/*
+ * L'ALERTE NE REPOSE PAS SUR LA SEULE COULEUR : la bordure gauche s'épaissit,
+ * et le code affiché dit lui-même ce qui ne va pas.
+ */
+.tuile--alerte {
+    border-color: #b3261e;
+    box-shadow: inset 3px 0 0 0 #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+    .tuile--alerte {
+        border-color: #f2b8b5;
+        box-shadow: inset 3px 0 0 0 #f2b8b5;
+    }
+}
+
+.tuile__titre {
+    font-size: 13px;
+    color: var(--text);
+}
+
+.tuile__valeur {
+    font-size: 28px;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-h);
+}
+
+.compteur {
+    font-size: 17px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-h);
+}
+
+.lien-file {
+    font-size: 14px;
+    color: var(--accent);
+}

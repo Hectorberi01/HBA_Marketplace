@@ -12,6 +12,7 @@ import {
     IconeRetours,
     IconeRoles,
     IconeStock,
+    IconeSupervision,
     IconeTarification,
     IconeUtilisateurs,
     IconeVendeurs,
@@ -55,6 +56,8 @@ export const NAVIGATION: SidebarSection[] = [
         items: [
             // Pas d'API dédiée : l'accueil agrège, il n'a pas de groupe à lui.
             { to: '/', label: 'Accueil', icon: <IconeAccueil />, exact: true },
+            // Agrège les facettes des autres domaines — aucun endpoint propre.
+            { to: '/supervision', label: 'Supervision', icon: <IconeSupervision /> },
         ],
     },
     {

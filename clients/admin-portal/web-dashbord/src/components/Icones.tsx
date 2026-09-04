@@ -156,6 +156,14 @@ export function IconeRoles() {
     )
 }
 
+export function IconeSupervision() {
+    return (
+        <svg viewBox="0 0 24 24" {...t}>
+            <path d="M3 12h4l2.5-6 4 12 2.5-6h5" />
+        </svg>
+    )
+}
+
 export function Logo() {
     return (
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
