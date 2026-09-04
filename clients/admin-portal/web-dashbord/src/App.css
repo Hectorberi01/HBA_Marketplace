@@ -659,3 +659,72 @@
         color: #6ee7b7;
     }
 }
+
+/* ── Jetons : rôles, permissions, indicateurs de sécurité ───────────────── */
+
+.jetons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.jeton {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+}
+
+.jeton code {
+    font-size: 12px;
+    padding: 0;
+    background: none;
+}
+
+/*
+ * Jeton qui appelle un regard : courriel non vérifié, vérifié « sur parole »,
+ * rôle inconnu. Le MOT porte l'information — la teinte ne fait que la répéter.
+ */
+.jeton--attention {
+    border-color: #b8860b;
+    color: #8a6508;
+}
+
+.jeton--inconnu {
+    border-style: dashed;
+    color: var(--text);
+}
+
+@media (prefers-color-scheme: dark) {
+    .jeton--attention {
+        border-color: #d4a72c;
+        color: #e8c56a;
+    }
+}
+
+/* Statuts de compte. */
+.pastille--pendingverification {
+    border-color: #b8860b;
+    color: #8a6508;
+}
+
+.pastille--deleted {
+    border-color: #b3261e;
+    color: #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+    .pastille--pendingverification {
+        border-color: #d4a72c;
+        color: #e8c56a;
+    }
+
+    .pastille--deleted {
+        border-color: #f2b8b5;
+        color: #f2b8b5;
+    }
+}

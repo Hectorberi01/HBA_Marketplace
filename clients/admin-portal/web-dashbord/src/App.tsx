@@ -11,6 +11,8 @@ import CataloguePage from './features/catalogue/CataloguePage'
 import StockPage from './features/stock/StockPage'
 import VendeursPage from './features/vendeurs/VendeursPage'
 import RetoursPage from './features/retours/RetoursPage'
+import UtilisateursPage from './features/identite/UtilisateursPage'
+import RolesPage from './features/identite/RolesPage'
 import './App.css'
 
 /**
@@ -86,16 +88,8 @@ export default function App() {
                         element={<EnConstruction titre="Factures" api="/api/financial/invoices" />}
                     />
 
-                    <Route
-                        path="administration/utilisateurs"
-                        element={
-                            <EnConstruction titre="Utilisateurs" api="/api/identity/users" />
-                        }
-                    />
-                    <Route
-                        path="administration/roles"
-                        element={<EnConstruction titre="Rôles" api="/api/identity/roles" />}
-                    />
+                    <Route path="administration/utilisateurs" element={<UtilisateursPage />} />
+                    <Route path="administration/roles" element={<RolesPage />} />
                 </Route>
             </Route>
 
