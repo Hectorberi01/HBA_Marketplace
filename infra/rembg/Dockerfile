@@ -38,9 +38,26 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# `[cli]` apporte le sous-commande `s` (serve) et son serveur HTTP. Sans cet
+# DEUX EXTRAS, ET NON UN SEUL.
+#
+# `[cli]` apporte la sous-commande `s` (serve) et son serveur HTTP. Sans cet
 # extra, `rembg` s'installe en bibliothèque seule et `rembg s` reste inconnu.
-RUN pip install --no-cache-dir "rembg[cli]"
+#
+# `[cpu]` apporte `onnxruntime`, le moteur qui exécute u2net. Depuis rembg 2.0
+# aucun moteur n'est tiré par défaut : le paquet s'installe, la commande `s`
+# existe, le serveur démarre — puis meurt sur
+#
+#     No onnxruntime backend found.
+#     Please install rembg with CPU or GPU support
+#
+# en boucle. Le conteneur reste en « Restarting », ce qui se lit comme un
+# problème de démarrage alors qu'il manque une dépendance d'exécution. Le
+# 04/09 il a été le seul conteneur réellement cassé d'un déploiement par
+# ailleurs sain.
+#
+# `[cpu]` et non `[gpu]` : le VPS n'a pas de carte NVIDIA, et `[gpu]` tire
+# `onnxruntime-gpu`, qui exige CUDA au chargement.
+RUN pip install --no-cache-dir "rembg[cli,cpu]"
 
 # LE MODÈLE N'EST PAS EMBARQUÉ DANS L'IMAGE, À DESSEIN.
 #
