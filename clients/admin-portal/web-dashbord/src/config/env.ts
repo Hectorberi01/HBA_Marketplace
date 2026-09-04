@@ -25,8 +25,22 @@ if (typeof brute !== 'string' || brute.trim() === '') {
     )
 }
 
-/** Adresse de l'API, sans barre oblique finale. */
-export const API_BASE_URL = brute.trim().replace(/\/+$/, '')
+/**
+ * Adresse de l'API, sans barre oblique finale.
+ *
+ * LA VALEUR `same-origin` EST EXPLICITE, ET NON UNE CHAÎNE VIDE.
+ *
+ * En développement, les appels doivent partir en relatif — `/api/...` — pour
+ * que le mandataire de Vite les relaie et que la politique d'origine du
+ * navigateur ne s'applique pas. La base est donc vide.
+ *
+ * Mais « vide » et « absente » se ressemblent trop : une variable oubliée
+ * donnerait exactement le même comportement qu'un choix délibéré, et le
+ * portail taperait sur sa propre origine sans que rien ne le signale. Un mot
+ * écrit à la main lève l'ambiguïté — on ne tape pas `same-origin` par accident.
+ */
+export const API_BASE_URL =
+    brute.trim() === 'same-origin' ? '' : brute.trim().replace(/\/+$/, '')
 
 /**
  * Rôle exigé pour entrer dans le portail.
