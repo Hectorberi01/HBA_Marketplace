@@ -8,6 +8,9 @@ import EnConstruction from './pages/EnConstruction'
 import HomePage from './pages/HomePage'
 import CommandesPage from './features/commandes/CommandesPage'
 import CataloguePage from './features/catalogue/CataloguePage'
+import StockPage from './features/stock/StockPage'
+import VendeursPage from './features/vendeurs/VendeursPage'
+import RetoursPage from './features/retours/RetoursPage'
 import './App.css'
 
 /**
@@ -33,18 +36,9 @@ export default function App() {
 
                     <Route path="commandes" element={<CommandesPage />} />
                     <Route path="catalogue" element={<CataloguePage />} />
-                    <Route
-                        path="stock"
-                        element={<EnConstruction titre="Stock" api="/api/inventory" />}
-                    />
-                    <Route
-                        path="vendeurs"
-                        element={<EnConstruction titre="Vendeurs" api="/api/v1/merchants" />}
-                    />
-                    <Route
-                        path="retours"
-                        element={<EnConstruction titre="Retours" api="/api/v1/admin/returns" />}
-                    />
+                    <Route path="stock" element={<StockPage />} />
+                    <Route path="vendeurs" element={<VendeursPage />} />
+                    <Route path="retours" element={<RetoursPage />} />
 
                     <Route
                         path="restauration/etablissements"

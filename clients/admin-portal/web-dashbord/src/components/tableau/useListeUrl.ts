@@ -24,6 +24,16 @@ import { useSearchParams } from 'react-router-dom'
 export type EtatListe = {
     recherche: string
     statut: string | null
+    /**
+     * Filtres supplémentaires, déclarés par l'écran.
+     *
+     * Les vendeurs en ont DEUX indépendants — `status` (Pending, Active,
+     * Suspended, Closed) et `kybStatus` (NotStarted, InReview, Verified,
+     * Rejected) — et le service les traite séparément. Les fondre en un seul
+     * champ obligerait à inventer une syntaxe pour les distinguer, qu'il
+     * faudrait ensuite défaire à l'envoi.
+     */
+    extra: Record<string, string | null>
     tri: string | null
     sens: 'asc' | 'desc'
     page: number
@@ -32,15 +42,25 @@ export type EtatListe = {
 
 const TAILLE_DEFAUT = 20
 
-export function useListeUrl(triDefaut: string) {
+export function useListeUrl(triDefaut: string, clesExtra: readonly string[] = []) {
     const [params, setParams] = useSearchParams()
+
+    // `clesExtra` vient d'un littéral défini au module : sa référence est stable.
+    // Le sérialiser garantit que `useMemo` ne se redéclenche pas si un écran
+    // reconstruit le tableau à chaque rendu.
+    const signatureExtra = clesExtra.join(',')
 
     const etat: EtatListe = useMemo(() => {
         const page = Number(params.get('page') ?? '1')
         const taille = Number(params.get('taille') ?? String(TAILLE_DEFAUT))
+        const extra: Record<string, string | null> = {}
+        for (const cle of signatureExtra ? signatureExtra.split(',') : []) {
+            extra[cle] = params.get(cle)
+        }
         return {
             recherche: params.get('q') ?? '',
             statut: params.get('statut'),
+            extra,
             tri: params.get('tri') ?? triDefaut,
             sens: params.get('sens') === 'asc' ? 'asc' : 'desc',
             // Une URL bricolée à la main peut porter `page=0` ou `page=abc`.
@@ -50,7 +70,7 @@ export function useListeUrl(triDefaut: string) {
             page: Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1,
             taille: [20, 50, 100].includes(taille) ? taille : TAILLE_DEFAUT,
         }
-    }, [params, triDefaut])
+    }, [params, triDefaut, signatureExtra])
 
     const modifier = useCallback(
         (bribe: Partial<EtatListe>, options?: { remplacer?: boolean }) => {
@@ -63,6 +83,9 @@ export function useListeUrl(triDefaut: string) {
 
             if ('recherche' in bribe) poser('q', bribe.recherche)
             if ('statut' in bribe) poser('statut', bribe.statut)
+            if (bribe.extra) {
+                for (const [cle, valeur] of Object.entries(bribe.extra)) poser(cle, valeur)
+            }
             if ('tri' in bribe) poser('tri', bribe.tri)
             if ('sens' in bribe) poser('sens', bribe.sens)
             if ('taille' in bribe) poser('taille', bribe.taille ? String(bribe.taille) : null)
@@ -72,8 +95,8 @@ export function useListeUrl(triDefaut: string) {
             // deux pages rend un tableau vide, et l'écran dit « aucun résultat »
             // alors qu'il y en a — le filtre est accusé à tort.
             const filtreChange =
-                'recherche' in bribe || 'statut' in bribe || 'tri' in bribe ||
-                'sens' in bribe || 'taille' in bribe
+                'recherche' in bribe || 'statut' in bribe || 'extra' in bribe ||
+                'tri' in bribe || 'sens' in bribe || 'taille' in bribe
             if ('page' in bribe) poser('page', bribe.page ? String(bribe.page) : null)
             else if (filtreChange) suivant.delete('page')
 

@@ -564,3 +564,98 @@
     font-variant-numeric: tabular-nums;
     color: var(--text);
 }
+
+/* ── Filtres en liste déroulante ────────────────────────────────────────── */
+
+.filtres {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+}
+
+.filtres label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text);
+}
+
+.filtres select {
+    font: inherit;
+    font-size: 14px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+}
+
+/*
+ * Signal en ligne dans une cellule — rupture de stock, échéance dépassée.
+ * Il complète un chiffre déjà présent ; la couleur n'est jamais la seule
+ * porteuse de l'information, le MOT est écrit.
+ */
+.erreur-en-ligne {
+    color: #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+    .erreur-en-ligne {
+        color: #f2b8b5;
+    }
+}
+
+.ecran-liste h2 {
+    margin-top: 12px;
+}
+
+/* Statuts vendeur, KYB et retours qui appellent un geste ou signalent un refus. */
+.pastille--inreview,
+.pastille--manualreview,
+.pastille--inspectionpending,
+.pastille--refundpending,
+.pastille--awaitingapproval {
+    border-color: #b8860b;
+    color: #8a6508;
+}
+
+.pastille--closed,
+.pastille--expired,
+.pastille--rejectedafterinspection {
+    border-color: #b3261e;
+    color: #b3261e;
+}
+
+.pastille--active,
+.pastille--verified,
+.pastille--refunded {
+    border-color: #1b5e4a;
+    color: #1b5e4a;
+}
+
+@media (prefers-color-scheme: dark) {
+    .pastille--inreview,
+    .pastille--manualreview,
+    .pastille--inspectionpending,
+    .pastille--refundpending,
+    .pastille--awaitingapproval {
+        border-color: #d4a72c;
+        color: #e8c56a;
+    }
+
+    .pastille--closed,
+    .pastille--expired,
+    .pastille--rejectedafterinspection {
+        border-color: #f2b8b5;
+        color: #f2b8b5;
+    }
+
+    .pastille--active,
+    .pastille--verified,
+    .pastille--refunded {
+        border-color: #6ee7b7;
+        color: #6ee7b7;
+    }
+}
