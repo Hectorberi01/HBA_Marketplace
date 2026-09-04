@@ -16,6 +16,8 @@ import RolesPage from './features/identite/RolesPage'
 import ReglementsPage from './features/finance/ReglementsPage'
 import CommissionsPage from './features/finance/CommissionsPage'
 import FacturesPage from './features/finance/FacturesPage'
+import LivreursPage from './features/livraison/LivreursPage'
+import TarificationPage from './features/livraison/TarificationPage'
 import './App.css'
 
 /**
@@ -56,19 +58,8 @@ export default function App() {
                         }
                     />
 
-                    <Route
-                        path="livraison/livreurs"
-                        element={<EnConstruction titre="Livreurs" api="/api/v1/admin/drivers" />}
-                    />
-                    <Route
-                        path="livraison/tarification"
-                        element={
-                            <EnConstruction
-                                titre="Tarification"
-                                api="/api/v1/admin/delivery-pricing"
-                            />
-                        }
-                    />
+                    <Route path="livraison/livreurs" element={<LivreursPage />} />
+                    <Route path="livraison/tarification" element={<TarificationPage />} />
 
                     <Route path="finance/reglements" element={<ReglementsPage />} />
                     <Route path="finance/commissions" element={<CommissionsPage />} />

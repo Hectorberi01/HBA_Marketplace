@@ -799,3 +799,28 @@
         color: #e8c56a;
     }
 }
+
+/* Statuts de dossier livreur. */
+.pastille--pendingdocuments,
+.pastille--underreview {
+    border-color: #b8860b;
+    color: #8a6508;
+}
+
+.pastille--verified {
+    border-color: #1b5e4a;
+    color: #1b5e4a;
+}
+
+@media (prefers-color-scheme: dark) {
+    .pastille--pendingdocuments,
+    .pastille--underreview {
+        border-color: #d4a72c;
+        color: #e8c56a;
+    }
+
+    .pastille--verified {
+        border-color: #6ee7b7;
+        color: #6ee7b7;
+    }
+}

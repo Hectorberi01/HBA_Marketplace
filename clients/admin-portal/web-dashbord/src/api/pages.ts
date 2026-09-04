@@ -104,3 +104,28 @@ export function versQuery(params: Record<string, string | number | undefined | n
     const s = q.toString()
     return s ? `?${s}` : ''
 }
+
+/**
+ * ENVELOPPE DE SUCCÈS SANS PAGINATION.
+ *
+ * `delivery-pricing-service` rend ses règles par
+ * `Results.Ok(ApiEnvelope.Ok(rules))` : la forme du paragraphe 5 — donc une clé
+ * `data` — mais AUCUNE méta de page, parce que ce n'est pas une page. Passer par
+ * `lirePage` marcherait et inventerait un `total` égal au nombre d'éléments
+ * reçus, présenté comme un total de plateforme. Autant lire ce qui est là.
+ *
+ * Une liste NUE est acceptée aussi : c'est ce que rendent les endpoints qui
+ * n'ont pas migré vers l'enveloppe, et le portail en rencontre des deux sortes
+ * dans le même service.
+ */
+export function lireListe<T>(corps: unknown): T[] {
+    if (Array.isArray(corps)) return corps as T[]
+    if (corps && typeof corps === 'object') {
+        const donnees = (corps as { data?: unknown }).data
+        if (Array.isArray(donnees)) return donnees as T[]
+    }
+    throw new Error(
+        "Réponse de liste non reconnue : ni tableau nu, ni enveloppe `data` — le " +
+        "contrat de l'endpoint a changé.",
+    )
+}
