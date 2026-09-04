@@ -1014,9 +1014,16 @@ jobs:
           echo "── Sante de la passerelle"
           code=""
           for essai in $(seq 1 18); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' \
-                     --connect-timeout 5 --max-time 15 \
-                     "https://${domaine}/health" 2>/dev/null || echo 000)
+            # LE CODE EST LU DANS UN FICHIER, PAS CONCATENE.
+            # Premiere version : `code=$(curl -w '%{http_code}' ... || echo 000)`.
+            # Quand curl echoue il imprime DEJA 000, puis `|| echo 000` en
+            # ajoute un second : le journal affichait « 000000 », un code HTTP
+            # qui n'existe pas et qui fait douter de la mesure elle-meme.
+            curl -sS -o /dev/null -w '%{http_code}' \
+                 --connect-timeout 5 --max-time 15 \
+                 "https://${domaine}/health" > /tmp/code.txt 2>/dev/null || true
+            code=$(cat /tmp/code.txt 2>/dev/null)
+            code=${code:-000}
             [ "$code" = "200" ] && break
             echo "    essai ${essai}/18 : ${code}"
             sleep 10
@@ -1037,9 +1044,9 @@ jobs:
             esac
 
             echo "── 2. Ports, sur l'adresse du serveur"
-            # ATTENTION A LA LECTURE DE CE RESULTAT : sur un port publie par
-            # Docker, c'est `docker-proxy` qui accepte la connexion. « ouvert »
-            # prouve que le port est joignable, PAS que Traefik ecoute derriere.
+            # ATTENTION A LA LECTURE : sur un port publie par Docker, c'est
+            # `docker-proxy` qui accepte la connexion. « accepte » prouve que
+            # le port est joignable, PAS que Traefik ecoute derriere.
             for port in 80 443; do
               if timeout 8 bash -c "cat < /dev/null > /dev/tcp/${{ vars.VPS_HOST }}/${port}" 2>/dev/null; then
                 echo "    ${port} accepte la connexion"
@@ -1048,22 +1055,61 @@ jobs:
               fi
             done
 
-            echo "── 3. Poignee de main TLS"
-            if timeout 20 openssl s_client -connect "${{ vars.VPS_HOST }}:443" \
-                 -servername "$domaine" -brief </dev/null 2>&1 | sed 's/^/    /'; then
-              :
+            echo "── 3. Une reponse COURTE, en clair, sur le port 80"
+            # DISCRIMINANT DE TAILLE.
+            # Le port 80 rend une redirection : quelques centaines d'octets,
+            # un seul paquet. La reponse TLS, elle, transporte le certificat
+            # et sa chaine — plusieurs kilo-octets, donc plusieurs paquets de
+            # taille maximale. Si la courte passe et que la longue reste
+            # muette, le probleme n'est pas « le serveur ne repond pas » mais
+            # « les gros paquets n'arrivent pas » : MTU du chemin, ICMP
+            # filtre, MSS non ajuste.
+            court=$(curl -sS -o /dev/null -w '%{http_code}' \
+                      --connect-timeout 5 --max-time 15 \
+                      "http://${domaine}/health" 2>&1 || echo "echec")
+            echo "    http:// rend ${court}"
+
+            echo "── 4. Poignee de main TLS, depuis ce runner"
+            # LA SORTIE D'OPENSSL N'EST PAS JETEE, MEME QUAND IL EXPIRE.
+            # Ecrite dans un fichier puis imprimee : sous `pipefail`, un
+            # `openssl | sed` qui expire perdait TOUT, y compris les lignes
+            # deja produites, et l'etape ne rendait qu'une phrase.
+            timeout 25 openssl s_client -connect "${{ vars.VPS_HOST }}:443" \
+              -servername "$domaine" -brief </dev/null > /tmp/tls.txt 2>&1 || true
+            if [ -s /tmp/tls.txt ]; then
+              sed 's/^/    /' /tmp/tls.txt
             else
-              echo "    la poignee de main n'aboutit pas"
+              echo "    AUCUNE reponse : le serveur n'a rien renvoye en 25 s"
             fi
+
+            echo "── 5. La meme poignee de main, depuis le serveur lui-meme"
+            # DISCRIMINANT DE CHEMIN.
+            # Si le serveur se joint lui-meme par son nom public alors que ce
+            # runner n'y arrive pas, la plateforme SERT — c'est le trajet
+            # entre GitHub et l'hebergeur qui est en cause. Le trajet fait un
+            # aller-retour par l'IP publique, il ne prouve donc pas la
+            # joignabilite depuis l'exterieur ; il tranche seulement entre
+            # « Traefik est muet » et « ce chemin-ci ne passe pas ».
+            ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
+                -o StrictHostKeyChecking=yes \
+                "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
+                "timeout 25 openssl s_client -connect ${domaine}:443 -servername ${domaine} -brief </dev/null 2>&1 | head -8" \
+              | sed 's/^/    /' || echo "    la commande distante a echoue"
 
             echo
             echo "COMMENT LIRE CE QUI PRECEDE :"
             echo "  nom qui ne pointe pas vers le serveur -> DNS."
             echo "  port filtre -> pare-feu de l'hebergeur ou nftables."
-            echo "  port ouvert mais TLS muet -> Traefik n'ecoute pas, ou son"
-            echo "  certificat n'est pas encore emis."
+            echo "  port ouvert, http:// repond, TLS muet -> les gros paquets"
+            echo "  n'arrivent pas : MTU du chemin. Les memes clients reels"
+            echo "  derriere un lien a MTU reduit — mobile, VPN, PPPoE —"
+            echo "  subiraient exactement cela."
+            echo "  TLS muet ici mais correct depuis le serveur -> la"
+            echo "  plateforme sert, le trajet depuis GitHub est en cause."
+            echo "  TLS muet des deux cotes -> Traefik n'ecoute pas, ou son"
+            echo "  certificat n'est pas emis."
             echo "  TLS correct mais /health muet -> la regle Traefik ou la"
-            echo "  passerelle elle-meme."
+            echo "  passerelle."
             exit 1
           fi
           echo "    /health rend 200"
