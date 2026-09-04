@@ -1,0 +1,198 @@
+/*
+ * MISE EN PAGE DE LA COQUILLE ET DES ÉCRANS D'AUTHENTIFICATION.
+ *
+ * Ce fichier remplace les styles de démonstration de Vite (`.hero`,
+ * `#next-steps`, `#docs`…), qui n'étaient plus référencés par aucun composant
+ * mais définissaient assez de règles pour qu'on croie le contraire.
+ *
+ * Les couleurs viennent TOUTES des variables d'index.css, qui portent déjà les
+ * deux thèmes. Écrire une couleur en dur ici la figerait en clair : elle
+ * deviendrait illisible sur fond sombre, et seulement pour les gens dont le
+ * système est réglé ainsi — c'est-à-dire jamais chez celui qui l'a écrite.
+ */
+
+.App {
+    display: flex;
+    min-height: 100svh;
+}
+
+.app-main {
+    flex: 1;
+    min-width: 0; /* sans quoi un tableau large pousse la barre latérale hors écran */
+    padding: 32px 40px;
+    box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+    .app-main {
+        padding: 20px;
+    }
+}
+
+/* ── Écrans centrés : connexion, 403, 404, attente ──────────────────────── */
+
+.ecran-centre {
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.carte-connexion,
+.carte-message {
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 32px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    box-shadow: var(--shadow);
+    box-sizing: border-box;
+}
+
+.carte-connexion h1,
+.carte-message h1 {
+    font-size: 24px;
+    letter-spacing: -0.24px;
+    margin: 0;
+}
+
+.sous-titre {
+    color: var(--text);
+    margin: 0 0 16px;
+    font-size: 15px;
+}
+
+.carte-connexion label {
+    margin-top: 12px;
+    font-size: 14px;
+    color: var(--text-h);
+}
+
+.carte-connexion input {
+    font: inherit;
+    font-size: 16px; /* sous 16px, iOS zoome au focus et casse la mise en page */
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+}
+
+.carte-connexion input:focus-visible {
+    outline: 2px solid var(--accent-border);
+    outline-offset: 1px;
+    border-color: var(--accent);
+}
+
+.carte-connexion button,
+.carte-message button {
+    margin-top: 20px;
+    font: inherit;
+    font-size: 16px;
+    padding: 10px 16px;
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    background: var(--accent-bg);
+    color: var(--text-h);
+    cursor: pointer;
+}
+
+.carte-connexion button:disabled {
+    cursor: progress;
+    opacity: 0.6;
+}
+
+/*
+ * L'ERREUR NE REPOSE PAS SUR LA SEULE COULEUR.
+ *
+ * Un texte rouge est invisible pour une partie des lecteurs, et totalement
+ * absent pour qui écoute la page. Le rôle `alert` porté par l'élément la fait
+ * annoncer, et la bordure la distingue visuellement sans dépendre de la teinte.
+ */
+.erreur {
+    margin-top: 16px;
+    padding: 10px 12px;
+    border: 1px solid currentColor;
+    border-radius: 8px;
+    color: #b3261e;
+    font-size: 15px;
+    line-height: 135%;
+}
+
+@media (prefers-color-scheme: dark) {
+    .erreur {
+        color: #f2b8b5;
+    }
+}
+
+.indice {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 140%;
+    color: var(--text);
+}
+
+/* ── Attente ────────────────────────────────────────────────────────────── */
+
+.rond-attente {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: rotation 0.9s linear infinite;
+}
+
+@keyframes rotation {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/*
+ * Le mouvement est retiré pour qui l'a demandé au système. Une animation
+ * perpétuelle peut déclencher des troubles vestibulaires ; l'élément reste
+ * visible, il cesse simplement de tourner.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .rond-attente {
+        animation: none;
+        border-top-color: var(--border);
+    }
+}
+
+/* ── Pied de la barre latérale ──────────────────────────────────────────── */
+
+.pied-lateral {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    font-size: 14px;
+}
+
+.pied-lateral > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lien-deconnexion {
+    font: inherit;
+    font-size: 14px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    text-align: left;
+    cursor: pointer;
+    text-decoration: underline;
+}
