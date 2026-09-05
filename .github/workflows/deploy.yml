@@ -425,12 +425,32 @@ jobs:
       - name: Ecrire et controler le fichier d'environnement
         env:
           CONTENU: ${{ secrets.ENV_FILE || secrets.PROD_ENV_FILE }}
+          # LE JOURNAL DIT LEQUEL DES DEUX A ETE LU — DES NOMS, PAS DES VALEURS.
+          #
+          # CE QUI ETAIT CASSE : le `||` ci-dessus choisit en silence. Corriger
+          # `PROD_ENV_FILE` pendant qu'un `ENV_FILE` existe ailleurs (au niveau
+          # du depot, il l'emporte sur un secret d'environnement) ne change rien,
+          # et le journal rend EXACTEMENT le meme message qu'avant la correction.
+          # On croit alors que la correction n'a pas pris, et on la refait.
+          #
+          # Deux booleens suffisent : `!= ''` ne rend que true/false, aucune
+          # valeur ne traverse.
+          A_ENV_FILE: ${{ secrets.ENV_FILE != '' }}
+          A_PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE != '' }}
         run: |
           set -euo pipefail
           test -n "$CONTENU" || {
             echo "::error title=Secret::ni ENV_FILE ni PROD_ENV_FILE dans l'environnement ${{ needs.build-test.outputs.environnement }}"
             exit 1
           }
+
+          if [ "$A_ENV_FILE" = "true" ]; then
+            echo "Source du fichier d'environnement : ENV_FILE."
+            [ "$A_PROD_ENV_FILE" = "true" ] && echo \
+              "   PROD_ENV_FILE existe AUSSI et n'est PAS lu — le modifier n'a aucun effet."
+          else
+            echo "Source du fichier d'environnement : PROD_ENV_FILE (ENV_FILE absent)."
+          fi
           umask 077
           printf '%s\n' "$CONTENU" | tr -d '\r' > /tmp/hba.env
           # Le tag part dans le meme fichier : le compose le lit comme les
