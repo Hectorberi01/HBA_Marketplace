@@ -1031,3 +1031,100 @@
     font-size: 14px;
     color: var(--accent);
 }
+
+/* ── Accueil : tuiles de volume et raccourcis ───────────────────────────── */
+
+/*
+ * `position: relative` PARCE QUE `VoileChargement` EST EN `absolute`.
+ *
+ * Sans cela le voile se positionne par rapport au premier ancêtre positionné —
+ * ici la fenêtre — et l'indicateur de rechargement va se coller en haut à
+ * droite de l'écran, loin des tuiles qu'il décrit. Le défaut ne se voit qu'au
+ * second chargement, quand les données sont déjà là.
+ */
+.tuiles {
+    position: relative;
+}
+
+.tuiles.est-en-attente {
+    opacity: 0.55;
+}
+
+/*
+ * UNE TUILE CLIQUABLE EST UN `<a>`, ET UN `<a>` N'HÉRITE NI DE `box-sizing`
+ * NI DE LA COULEUR.
+ *
+ * Le même piège que sur la barre latérale au passage aux `NavLink` : la tuile
+ * gardait son `padding` HORS de sa largeur, donc dépassait la grille d'un côté,
+ * et le texte repassait en bleu souligné. Les trois lignes ci-dessous sont
+ * exactement ce que le `<div>` donnait gratuitement.
+ */
+.tuile--lien {
+    box-sizing: border-box;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 120ms ease;
+}
+
+.tuile--lien:hover {
+    border-color: var(--accent-border);
+}
+
+.tuile--lien:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.raccourcis {
+    margin-top: 18px;
+}
+
+.raccourcis__titre {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+
+.raccourcis__liens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.raccourci {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--text-h);
+    font-size: 14px;
+    text-decoration: none;
+    transition: border-color 120ms ease;
+}
+
+.raccourci:hover {
+    border-color: var(--accent-border);
+}
+
+.raccourci:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/*
+ * LES ICÔNES N'ONT PAS DE DIMENSION PROPRE : elles n'écrivent ni `width` ni
+ * `height`, seulement un `viewBox`, pour que chaque contexte les dimensionne.
+ * Sans cette règle, un SVG sans taille occupe 300 x 150 px par défaut.
+ */
+.raccourci svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+}
