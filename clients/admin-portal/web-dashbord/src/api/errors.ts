@@ -109,6 +109,43 @@ export class ApiError extends Error {
         if (this.reseau) {
             return "Le serveur n'a pas répondu. Vérifiez votre connexion."
         }
+
+        /*
+         * ═══════════════════════════════════════════════════════════════════
+         * LE 500 EST TRAITÉ AVANT LE MESSAGE DU SERVEUR, ET C'EST TOUT LE
+         *     CORRECTIF.
+         *
+         * CE QUI ÉTAIT CASSÉ — ET LE DÉFAUT ÉTAIT DANS LA CORRECTION.
+         *
+         * La branche 500 ci-dessous a été écrite pour rendre un 500 traçable :
+         * le message du serveur est volontairement muet, seul le
+         * `correlationId` mène quelque part. Elle a été posée APRÈS le retour
+         * anticipé « on préfère toujours le message du serveur » — qui, sur un
+         * 500, gagne TOUJOURS, puisque le serveur en envoie justement un.
+         *
+         * Elle n'a donc jamais pu s'exécuter. L'écran affichait « Une erreur
+         * inattendue est survenue lors du traitement de la requête. » — la
+         * phrase close sur elle-même que cette branche existait pour remplacer,
+         * et la corrélation restait dans un objet que personne ne lisait.
+         *
+         * On préfère le message du serveur PARTOUT AILLEURS : sur un 4xx il
+         * nomme ce qui ne va pas. Sur un 500, il est fixe par construction —
+         * `ServiceMiddlewares` interdit d'y interpoler l'exception, « une
+         * NpgsqlException la contient dans son message ». Le préférer, c'est
+         * préférer la seule phrase qui n'apprend rien.
+         * ═══════════════════════════════════════════════════════════════════
+         */
+        if (this.statut === 500) {
+            const trace = this.requestId
+                ? ` Journal du service, corrélation ${this.requestId}.`
+                : " Aucune corrélation dans la réponse : le service n'a pas posé" +
+                  ' `correlationId`, il faut chercher par horodatage.'
+            return (
+                `Le service a rencontré une erreur qu'il ne détaille pas — son ` +
+                `message est volontairement muet pour ne rien divulguer.${trace}`
+            )
+        }
+
         if (this.message && this.message !== `HTTP ${this.statut}`) {
             return this.message
         }
@@ -136,25 +173,6 @@ export class ApiError extends Error {
             return (
                 `La passerelle a été jointe, mais le service qui sert cette route ` +
                 `${detail}${ou}. Vérifiez qu'il est déployé et démarré.`
-            )
-        }
-
-        /*
-         * UN 500 DIT OÙ CHERCHER.
-         *
-         * Le message du serveur est volontairement fixe — il ne peut pas nommer
-         * la cause sans risquer de divulguer la chaîne de connexion. Le seul
-         * geste utile est donc d'aller lire les journaux du service, et le
-         * `correlationId` est ce qui y mène. On le dit, plutôt que de laisser
-         * une phrase close sur elle-même.
-         */
-        if (this.statut === 500) {
-            const trace = this.requestId
-                ? ` Journal du service, corrélation ${this.requestId}.`
-                : ''
-            return (
-                `Le service a rencontré une erreur qu'il ne détaille pas — son ` +
-                `message est volontairement muet pour ne rien divulguer.${trace}`
             )
         }
 
