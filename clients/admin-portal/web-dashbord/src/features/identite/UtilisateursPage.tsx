@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import BarreRecherche from '../../components/tableau/BarreRecherche'
 import Facettes from '../../components/tableau/Facettes'
 import Pagination from '../../components/tableau/Pagination'
@@ -9,11 +9,13 @@ import { useListeUrl } from '../../components/tableau/useListeUrl'
 import { abreger } from '../../lib/format'
 import {
     STATUTS_A_TRAITER,
+    approuverUtilisateur,
     libelleStatutUtilisateur,
     listerUtilisateurs,
     type Role,
     type Utilisateur,
 } from './api'
+import { Geste } from '../../components/Geste'
 import { indexerRoles, useRoles } from './useRoles'
 
 /**
@@ -35,6 +37,12 @@ export default function UtilisateursPage() {
     const { etat, modifier } = useListeUrl('createdOnUtc')
     const roles = useRoles()
     const parId = useMemo(() => indexerRoles(roles.data), [roles.data])
+
+    const client = useQueryClient()
+
+    function recharger() {
+        void client.invalidateQueries({ queryKey: ['utilisateurs'] })
+    }
 
     const requete = useQuery({
         queryKey: ['utilisateurs', etat.page, etat.taille, etat.recherche, etat.statut, etat.tri, etat.sens],
@@ -114,11 +122,17 @@ export default function UtilisateursPage() {
                                     <th scope="col">Statut</th>
                                     <th scope="col">Rôles</th>
                                     <th scope="col">Sécurité</th>
+                                    <th scope="col">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {(page?.items ?? []).map(u => (
-                                    <Ligne key={u.id} compte={u} parId={parId} />
+                                    <Ligne
+                                        key={u.id}
+                                        compte={u}
+                                        parId={parId}
+                                        apres={recharger}
+                                    />
                                 ))}
                             </tbody>
                         </table>
@@ -140,7 +154,15 @@ export default function UtilisateursPage() {
     )
 }
 
-function Ligne({ compte, parId }: { compte: Utilisateur; parId: Map<string, Role> }) {
+function Ligne({
+    compte,
+    parId,
+    apres,
+}: {
+    compte: Utilisateur
+    parId: Map<string, Role>
+    apres: () => void
+}) {
     const aTraiter = STATUTS_A_TRAITER.has(compte.status)
     const nom = `${compte.firstName} ${compte.lastName}`.trim()
 
@@ -178,6 +200,30 @@ function Ligne({ compte, parId }: { compte: Utilisateur; parId: Map<string, Role
             </td>
             <td>
                 <Securite compte={compte} />
+            </td>
+            <td>
+                {/*
+                  * LE SEUL GESTE OFFERT ICI, ET SEULEMENT QUAND IL S'APPLIQUE.
+                  *
+                  * Suspendre, réactiver, attribuer un rôle sont adressés par
+                  * identifiant et se décident sur un dossier, pas sur une ligne.
+                  * L'approbation, elle, est le geste qui DÉBLOQUE : sans elle le
+                  * compte ne peut pas se connecter, et rien d'autre ne le peut.
+                  *
+                  * `Reactivate` n'est PAS proposé sur un compte en attente : il
+                  * rend 409 `identity.user.not_suspended`. Offrir un bouton qui
+                  * échoue toujours vaut moins que pas de bouton.
+                  */}
+                {compte.status === 'PendingVerification' ? (
+                    <Geste
+                        libelle="Approuver"
+                        confirmation="Le compte devient actif et peut se connecter. L'adresse reste non vérifiée : approuver n'est pas vérifier."
+                        executer={() => approuverUtilisateur(compte.id)}
+                        apres={apres}
+                    />
+                ) : (
+                    <span className="indice">—</span>
+                )}
             </td>
         </tr>
     )

@@ -21,6 +21,7 @@ using HBA.Identity.Application.Users.Commands.PasswordReset;
 using HBA.Identity.Application.Users.Commands.Reauthenticate;
 using HBA.Identity.Application.Users.Commands.ReactivateUser;
 using HBA.Identity.Application.Users.Commands.RefreshToken;
+using HBA.Identity.Application.Users.Commands.ApproveUser;
 using HBA.Identity.Application.Users.Commands.RegisterUser;
 using HBA.Identity.Application.Users.Commands.RequestEmailVerification;
 using HBA.Identity.Application.Users.Commands.RemoveRole;
@@ -495,6 +496,46 @@ public static class IdentityEndpoints
         group.MapGet("/", ListUsersAsync).WithName("ListUsers");
 
         group.MapGet("/{id:guid}", GetUserAsync).WithName("GetUser");
+
+        // ═════════════════════════════════════════════════════════════════════
+        // L'APPROBATION — LA ROUTE QUE LE MESSAGE DE CONNEXION PROMETTAIT DÉJÀ.
+        //
+        // `ApproveUserCommand`, son gestionnaire et `User.Approve()` existaient,
+        // testés, appelés par AUCUNE route. C'est le même défaut que les six
+        // routes de validation du catalogue : un geste écrit et injoignable.
+        //
+        // CE QUE SON ABSENCE COÛTAIT — UN CUL-DE-SAC COMPLET.
+        //
+        // `LoginCommandHandler` refuse un compte `PendingVerification` en
+        // annonçant qu'il « sera activé » : « Désormais un compte naît
+        // PendingVerification et n'en sort QUE PAR L'APPROBATION D'UN
+        // ADMINISTRATEUR ». Or aucun administrateur ne pouvait approuver.
+        //
+        // Les trois sorties supposées étaient toutes fermées :
+        //   . `/reactivate` rend 409 `identity.user.not_suspended` — il lève une
+        //     SUSPENSION, il n'approuve pas une inscription ;
+        //   . `/auth/email/verify` attend le code à six chiffres, envoyé par
+        //     courriel — notification-service n'est pas déployé, aucun ne part ;
+        //   . `/auth/confirm-email` attend le même jeton.
+        //
+        // Tout compte créé depuis la mise en production était donc DÉFINITIVEMENT
+        // bloqué : il ne pouvait pas se connecter, et rien ne pouvait le
+        // débloquer. La console affichait « À vérifier » sans aucun geste en face.
+        //
+        // ELLE N'EST PAS `MarkEmailVerified`, ET LA DISTINCTION EST DÉLIBÉRÉE.
+        //
+        // Approuver, c'est AUTORISER L'ACCÈS. Marquer une adresse vérifiée, c'est
+        // CONSTATER qu'elle appartient bien à la personne. Le domaine sépare les
+        // deux — `Approve()` ne touche pas `EmailVerified`, qui « redevient ce
+        // qu'il prétend être : le constat qu'une adresse a été confirmée —
+        // aujourd'hui faux pour tout le monde, et honnêtement faux ». Les fondre
+        // ferait affirmer une vérification que personne n'a faite.
+        //
+        // IDEMPOTENTE : `Approve()` rend un succès sur un compte déjà actif. Un
+        // double-clic ne produit pas d'erreur à expliquer.
+        // ═════════════════════════════════════════════════════════════════════
+        group.MapPost("/{id:guid}/approve", ApproveUserAsync).WithName("ApproveUser");
+
         group.MapPost("/{id:guid}/suspend", SuspendUserAsync).WithName("SuspendUser");
         group.MapPost("/{id:guid}/reactivate", ReactivateUserAsync).WithName("ReactivateUser");
         group.MapPost("/{id:guid}/roles", AssignRoleAsync).WithName("AssignRole");
@@ -562,6 +603,19 @@ public static class IdentityEndpoints
     private static async Task<IResult> SuspendUserAsync(Guid id, ISender sender, CancellationToken ct)
     {
         var result = await sender.Send(new SuspendUserCommand(id), ct);
+        return result.Match(() => Results.NoContent());
+    }
+
+    /// <summary>
+    /// Active un compte en attente (Admin).
+    ///
+    /// N'AGIT PAS SUR `EmailVerified` : approuver autorise l'accès, vérifier
+    /// constate qu'une adresse appartient bien à quelqu'un. Voir l'encadré de la
+    /// route.
+    /// </summary>
+    private static async Task<IResult> ApproveUserAsync(Guid id, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new ApproveUserCommand(id), ct);
         return result.Match(() => Results.NoContent());
     }
 

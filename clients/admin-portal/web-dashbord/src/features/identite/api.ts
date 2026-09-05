@@ -186,3 +186,36 @@ export function engendrerMotDePasse(longueur = 16): string {
     for (const n of octets) sortie += ALPHABET[n % ALPHABET.length]
     return sortie
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * APPROUVER UN COMPTE — `POST /api/identity/users/{id}/approve`.
+ *
+ * LA ROUTE ÉTAIT PROMISE PAR UN MESSAGE D'ERREUR ET N'EXISTAIT PAS.
+ *
+ * `LoginCommandHandler` refuse un compte `PendingVerification` en annonçant
+ * qu'il « sera activé », et son commentaire précise : « un compte naît
+ * PendingVerification et n'en sort QUE PAR L'APPROBATION D'UN ADMINISTRATEUR ».
+ * `ApproveUserCommand` et `User.Approve()` existaient, testés — aucune route ne
+ * les montait. Tout compte créé depuis la mise en production était donc
+ * DÉFINITIVEMENT bloqué.
+ *
+ * LES TROIS AUTRES SORTIES SONT FERMÉES, ET IL FAUT LE SAVOIR AVANT DE
+ *     CHERCHER AILLEURS :
+ *
+ *   . `/reactivate` rend 409 `identity.user.not_suspended` — `User.Reactivate`
+ *     refuse tout ce qui n'est pas suspendu. Il lève une sanction, il n'approuve
+ *     pas une inscription. Les deux gestes se ressemblent et ne font pas la
+ *     même chose.
+ *   . `/auth/email/verify` attend le code à six chiffres, envoyé par courriel.
+ *     notification-service n'est pas déployé : aucun ne part.
+ *   . `/auth/confirm-email` attend le même jeton.
+ *
+ * APPROUVER N'EST PAS VÉRIFIER. `Approve()` ne touche pas `EmailVerified` :
+ * autoriser l'accès et constater qu'une adresse appartient à quelqu'un sont deux
+ * faits distincts. La colonne « Sécurité » continuera donc d'afficher
+ * « Courriel non vérifié » après approbation, et c'est exact.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export const approuverUtilisateur = (id: string) =>
+    requete<void>(`/api/identity/users/${id}/approve`, { methode: 'POST' })
