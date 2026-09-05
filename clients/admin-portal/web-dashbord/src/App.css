@@ -1352,3 +1352,121 @@ a.bouton {
     text-decoration: none;
     line-height: 1.4;
 }
+
+/* ── Graphes ────────────────────────────────────────────────────────────── */
+
+/*
+ * LES JETONS DE VISUALISATION SONT SEPARES DE CEUX DE L'INTERFACE.
+ *
+ * `--accent` (violet) marque ce qui est CLIQUABLE dans ce portail. Peindre des
+ * barres avec lui promettrait une interaction a des rectangles qui n'en offrent
+ * aucune. `--viz-serie` est donc une teinte a part, validee contre les deux
+ * surfaces reelles : 4,42:1 sur blanc, 4,91:1 sur le fond sombre.
+ *
+ * LES QUATRE TONS DE STATUT NE CHANGENT PAS AVEC LE THEME, et c'est la regle de
+ * la palette : un etat « echoue » ne doit pas se relire differemment selon le
+ * reglage du systeme. Ils degagent tous 3:1 sur fond sombre ; en clair,
+ * attention et serieux passent dessous — d'ou l'etiquette ecrite a cote de
+ * chaque segment et le tableau de valeurs sous chaque graphe.
+ */
+:root {
+    --viz-serie: #2a78d6;
+    --viz-bon: #0ca30c;
+    --viz-attention: #fab219;
+    --viz-critique: #d03b3b;
+    --viz-serieux: #ec835a;
+    --viz-neutre: #898781;
+    --viz-base: #c3c2b7;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --viz-serie: #3987e5;
+        --viz-base: #383835;
+    }
+}
+
+.viz {
+    margin: 0 0 28px;
+    padding: 0;
+}
+
+.viz__titre {
+    margin-bottom: 10px;
+    font-size: 15px;
+    color: var(--text-h);
+}
+
+.viz__toile {
+    display: block;
+    width: 100%;
+    max-width: 680px;
+    height: auto;
+    overflow: visible;
+}
+
+/*
+ * LE TEXTE NE PORTE JAMAIS LA COULEUR DE LA DONNEE.
+ *
+ * Les barres portent la teinte ; les libelles et les valeurs restent en encre.
+ * Un `--viz-attention` de 1,8:1 sur blanc est illisible en texte, alors qu'il
+ * fonctionne comme surface de plusieurs pixels de haut.
+ */
+.viz__etiquette {
+    font-size: 13px;
+    fill: var(--text);
+}
+
+.viz__valeur {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    fill: var(--text-h);
+}
+
+.viz__base {
+    stroke: var(--viz-base);
+    stroke-width: 1;
+}
+
+.viz__legende {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 14px;
+}
+
+.viz__legende li {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.viz__legende strong {
+    color: var(--text-h);
+    font-variant-numeric: tabular-nums;
+}
+
+.viz__pastille {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex: none;
+}
+
+.viz__tableau {
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.viz__tableau summary {
+    cursor: pointer;
+    color: var(--accent);
+}
+
+.viz__tableau .tableau {
+    margin-top: 8px;
+    max-width: 520px;
+}

@@ -142,3 +142,75 @@ export async function lireVolumes(signal?: AbortSignal): Promise<{
 
     return { volumes, echecs }
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * CE QUI ALIMENTE LES GRAPHES DE L'ACCUEIL.
+ *
+ * TROIS SOURCES, ET AUCUNE N'A DEMANDÉ DE CHANGEMENT CÔTÉ SERVEUR.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+/**
+ * LES FACETTES DE COMMANDES — répartition exacte, une requête.
+ *
+ * Calculées par le serveur sur la table entière, AVANT le filtre de statut :
+ * elles ne dépendent ni de la page demandée ni de sa taille. `pageSize=1` parce
+ * qu'on ne lit que la méta.
+ */
+export async function lireFacettesCommandes(
+    signal?: AbortSignal,
+): Promise<Record<string, number>> {
+    const corps = await requete<unknown>(
+        `/api/admin/orders${versQuery({ page: 1, pageSize: 1 })}`,
+        { signal },
+    )
+    return lirePage<unknown>(corps, 1, 1).facettes ?? {}
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * STATISTIQUES DE PAIEMENT — ET UNE ERREUR QUE J'AI RÉPÉTÉE TROIS FOIS.
+ *
+ * CE QUI ÉTAIT ÉCRIT ICI, ET DANS `monitoring/api.ts`, ÉTAIT FAUX :
+ * « la passerelle ne route rien sous /api/financial/payments, la route rend 404,
+ * on ne l'appelle pas ». La conclusion était juste sur la prémisse et la
+ * prémisse était fausse.
+ *
+ * La passerelle expose bien ces routes — sous un AUTRE PRÉFIXE. L'entrée
+ * `payments` fait correspondre `/api/payments/{**catch-all}` et le RÉÉCRIT en
+ * `/api/financial/payments/{**catch-all}`, qui est exactement le groupe monté
+ * par `financial-service`. `GET /api/payments/stats` arrive donc sur
+ * `GetPaymentStatsAsync`, gardé par `.RequireAdmin()`.
+ *
+ * CE QUE COÛTE CETTE ERREUR, ET CE QU'ELLE APPREND. J'ai cherché le chemin de
+ * SORTIE (`/api/financial/payments`) dans la table de la passerelle, qui indexe
+ * les chemins d'ENTRÉE. Six routes du fichier portent une réécriture, et son
+ * propre commentaire prévient : « PRÉFIXE PUBLIC ≠ PRÉFIXE DU SERVICE […] sans
+ * aucune erreur de configuration pour l'expliquer, puisque le cluster et la
+ * destination sont corrects. » Une absence dans une table ne prouve rien tant
+ * qu'on n'a pas lu les transformations.
+ *
+ * LE MONTANT N'A PAS DE DEVISE, ET C'EST UN DÉFAUT DU CONTRAT.
+ *
+ * `PaymentSummary` porte `Currency` par paiement ; `PaymentStatsSummary` rend
+ * `CapturedAmount` et `RefundedAmount` NUS. Le serveur additionne donc des
+ * montants de devises potentiellement différentes et n'en nomme aucune. Tant que
+ * la plateforme n'encaisse qu'en francs CFA le total est juste ; il deviendra
+ * faux, silencieusement, au premier paiement en euro. L'écran affiche donc les
+ * NOMBRES en premier — non ambigus — et le montant avec sa réserve écrite.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export type StatsPaiements = {
+    total: number
+    capturedCount: number
+    capturedAmount: number
+    pendingCount: number
+    failedCount: number
+    refundedCount: number
+    refundedAmount: number
+}
+
+export function lireStatsPaiements(signal?: AbortSignal): Promise<StatsPaiements> {
+    return requete<StatsPaiements>('/api/payments/stats', { signal })
+}

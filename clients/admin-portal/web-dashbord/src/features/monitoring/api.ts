@@ -80,21 +80,31 @@ export function sonderPasserelle(signal?: AbortSignal): Promise<Sonde[]> {
 }
 
 /*
- * LES STATISTIQUES DE PAIEMENT NE SONT PAS ATTEIGNABLES. TROISIÈME TROU DE
- * ROUTAGE TROUVÉ EN CONSTRUISANT CE PORTAIL.
+ * ═══════════════════════════════════════════════════════════════════════════
+ * CE PARAGRAPHE AFFIRMAIT QUE LES STATISTIQUES DE PAIEMENT ÉTAIENT
+ *     INJOIGNABLES. C'ÉTAIT FAUX, ET L'ERREUR MÉRITE DE RESTER ÉCRITE.
  *
- * `payment-service` monte `GET /stats` sur le groupe
- * `/api/financial/payments` — total, montant capturé, en attente, échoués,
- * remboursés. C'est exactement le contenu d'un tableau de bord.
+ * Il concluait : « la passerelle ne route, sous /api/financial, que commissions,
+ * invoices et settlements […] la route rend donc 404 ». Le raisonnement était
+ * juste ; la prémisse ne l'était pas.
  *
- * La passerelle ne route, sous `/api/financial`, que `commissions`, `invoices`
- * et `settlements`. Rien ne correspond à `/api/financial/payments/...`, et
- * `/api/payments/{**}` pointe vers un AUTRE préfixe côté service. La route rend
- * donc 404, et la tuile qui l'afficherait serait vide en permanence.
+ * L'entrée `payments` de la passerelle fait correspondre
+ * `/api/payments/{**catch-all}` et le RÉÉCRIT en
+ * `/api/financial/payments/{**catch-all}` — le groupe que monte réellement le
+ * service. `GET /api/payments/stats` arrive donc sur `GetPaymentStatsAsync`,
+ * gardé par `.RequireAdmin()`.
  *
- * On ne l'appelle pas. Une tuile en erreur perpétuelle apprend à ignorer les
- * erreurs, ce qui est exactement l'inverse de ce qu'une page de supervision
- * doit produire.
+ * L'ERREUR ÉTAIT DE CHERCHER LE CHEMIN DE SORTIE DANS UNE TABLE QUI INDEXE LES
+ * CHEMINS D'ENTRÉE. Six routes du fichier portent une réécriture, et son propre
+ * commentaire prévient : « PRÉFIXE PUBLIC ≠ PRÉFIXE DU SERVICE […] sans aucune
+ * erreur de configuration pour l'expliquer, puisque le cluster et la destination
+ * sont corrects ». Une absence dans une table de routage ne prouve rien tant
+ * qu'on n'a pas lu les transformations.
+ *
+ * LA SUPERVISION NE L'APPELLE TOUJOURS PAS, MAIS POUR UNE AUTRE RAISON. Cette
+ * page compte ce qui ATTEND UN GESTE ; `/stats` rend des volumes. Le graphe
+ * qu'ils alimentent est sur l'accueil — voir `features/accueil/api.ts`.
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 
 /**
