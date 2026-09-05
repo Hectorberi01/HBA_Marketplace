@@ -319,6 +319,86 @@ public static class IdentiteInterne
         }
     }
 
+    /// <summary>
+    /// Refuse une clé privée que <see cref="Signer"/> ne saura pas lire.
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// AU DÉMARRAGE, ET C'EST TOUT L'OBJET DE CETTE MÉTHODE.
+    ///
+    /// CE QUI ÉTAIT CASSÉ. `Signer` fait `ImportPkcs8PrivateKey` DANS un
+    /// `GetOrAdd` : la clé n'est décodée qu'au PREMIER APPEL gRPC de l'hôte.
+    /// Une valeur mal formée laissait donc le service démarrer, passer ses
+    /// sondes et servir tout son trafic HTTP — puis rendre un 500 opaque sur la
+    /// première route qui appelle un autre service, des semaines plus tard.
+    ///
+    /// C'ÉTAIT ARRIVÉ, ET LA CAUSE ÉTAIT UNE COMMANDE MANQUANTE.
+    ///
+    /// `scripts/generer-identites-internes.sh` — cité par les deux runbooks et
+    /// par les dix-neuf messages d'erreur du compose — n'existait pas dans le
+    /// dépôt. Les clés avaient donc été produites avec la seule commande que les
+    /// runbooks montrent ailleurs, `openssl rand -base64 32` : trente-deux octets
+    /// aléatoires, que `ImportPkcs8PrivateKey` rejette par
+    /// « ASN1 corrupted data », le premier octet n'étant pas le `0x30` d'une
+    /// SEQUENCE DER.
+    ///
+    /// LE MESSAGE NOMME LE FORMAT ATTENDU ET LA COMMANDE QUI LE PRODUIT, parce
+    /// que « ASN1 corrupted data » ne dit à personne qu'il manque un script.
+    ///
+    /// AUCUNE VALEUR N'EST INTERPOLÉE. Le nombre d'octets décodés suffit à
+    /// distinguer les trois cas — 32 pour un aléa, une centaine pour une vraie
+    /// clé — et ne révèle rien.
+    ///
+    /// CE QU'ELLE NE COUVRE PAS. Une clé PKCS#8 PARFAITEMENT VALIDE mais absente
+    /// du registre `Internal:PublicKeys` des autres hôtes : la signature se fera,
+    /// et c'est en face qu'elle sera refusée, en `Unauthenticated`. Vérifier cela
+    /// ici supposerait que chaque hôte connaisse sa propre entrée du registre —
+    /// ce que rien ne garantit aujourd'hui.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    public static void RefuserUneClePriveeIllisible(string? clePriveeBase64)
+    {
+        // Vide est un état légitime : l'hôte n'émet alors aucun appel signé, et
+        // `InternalCallClientInterceptor` lève un `FailedPrecondition` explicite
+        // au moment où il en aurait eu besoin. Ce contrôle-ci porte sur une
+        // valeur PRÉSENTE et fausse, qui est le cas silencieux.
+        if (string.IsNullOrWhiteSpace(clePriveeBase64))
+        {
+            return;
+        }
+
+        byte[] octets;
+
+        try
+        {
+            octets = Convert.FromBase64String(clePriveeBase64);
+        }
+        catch (FormatException)
+        {
+            throw new InvalidOperationException(
+                $"{InternalCallOptions.SectionName}:PrivateKey n'est pas du base64 valide. "
+                + "Attendu : une clé EC P-256 au format PKCS#8 DER, encodée en base64 sur une "
+                + "seule ligne. La produire avec scripts/generer-identites-internes.sh.");
+        }
+
+        try
+        {
+            using var ecdsa = ECDsa.Create();
+            ecdsa.ImportPkcs8PrivateKey(octets, out _);
+        }
+        catch (CryptographicException exception)
+        {
+            throw new InvalidOperationException(
+                $"{InternalCallOptions.SectionName}:PrivateKey n'est pas une clé PKCS#8 lisible "
+                + $"({octets.Length} octets une fois décodée). Une valeur produite par "
+                + "`openssl rand -base64 32` en fait 32 et donne exactement cette erreur : c'est "
+                + "de l'aléa, pas une clé. Attendu : une clé EC P-256 en PKCS#8 DER, encodée en "
+                + "base64 — voir scripts/generer-identites-internes.sh, qui engendre aussi le "
+                + "registre Internal:PublicKeys correspondant.",
+                exception);
+        }
+    }
+
     // BASE64URL À LA MAIN : `Base64Url` EST .NET 9, CE PROJET EST net8.0.
     //
     // Le base64 ordinaire contient `+`, `/` et `=`. Une métadonnée gRPC dont la

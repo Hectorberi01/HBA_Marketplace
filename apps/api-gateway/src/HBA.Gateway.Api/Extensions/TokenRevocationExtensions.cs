@@ -28,6 +28,15 @@ public static class TokenRevocationExtensions
                 $"{InternalCallOptions.SectionName}:{nameof(InternalCallOptions.IdentitesNonSignees)}"),
             estDeveloppement);
 
+        // LA CLÉ PRIVÉE EST LUE ICI, ET NON AU PREMIER APPEL gRPC.
+        //
+        // `Signer` la décode dans un `GetOrAdd` : mal formée, elle laissait
+        // l'hôte démarrer et n'échouait qu'au premier appel sortant, en 500
+        // opaque sur la route appelante. Voir
+        // `IdentiteInterne.RefuserUneClePriveeIllisible`.
+        IdentiteInterne.RefuserUneClePriveeIllisible(
+            configuration[$"{InternalCallOptions.SectionName}:{nameof(InternalCallOptions.PrivateKey)}"]);
+
         services.Configure<TokenRevocationOptions>(
             configuration.GetSection(TokenRevocationOptions.SectionName));
 

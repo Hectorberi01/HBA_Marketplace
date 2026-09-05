@@ -58,6 +58,15 @@ public static class GrpcHostExtensions
                 $"{InternalCallOptions.SectionName}:{nameof(InternalCallOptions.IdentitesNonSignees)}"),
             builder.Environment.IsDevelopment());
 
+        // LA CLÉ PRIVÉE EST LUE ICI, ET NON AU PREMIER APPEL gRPC.
+        //
+        // `Signer` la décode dans un `GetOrAdd` : mal formée, elle laissait
+        // l'hôte démarrer et n'échouait qu'au premier appel sortant, en 500
+        // opaque sur la route appelante. Voir
+        // `IdentiteInterne.RefuserUneClePriveeIllisible`.
+        IdentiteInterne.RefuserUneClePriveeIllisible(
+            builder.Configuration[$"{InternalCallOptions.SectionName}:{nameof(InternalCallOptions.PrivateKey)}"]);
+
         var hosting = builder.Configuration
             .GetSection(HostingOptions.SectionName)
             .Get<HostingOptions>() ?? new HostingOptions();

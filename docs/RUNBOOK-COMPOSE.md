@@ -296,6 +296,14 @@ le service refuse de démarrer plutôt que de servir à moitié.
 `SECURITY__SECRETPROTECTION__KEY` **ne se régénère pas** : ce qu'elle a chiffré ne
 se déchiffre pas avec la suivante. Une fois posée, elle est définitive.
 
+**`openssl rand` ne produit PAS une identité gRPC.** Ces dix-neuf clés sont des
+clés EC P-256 au format PKCS#8, encodées en base64 — pas de l'aléa. Trente-deux
+octets aléatoires passent le compose (la variable est présente et non vide),
+laissent le service démarrer, et échouent au **premier appel gRPC sortant** sur
+`ASN1 corrupted data`, remonté en 500 opaque sur la route appelante. Le service
+refuse désormais de démarrer avec une clé illisible, et
+`scripts/verifier-env-compose.sh` refuse le fichier avant l'envoi.
+
 **Les identités gRPC ne sont pas encore dans ce fichier.** `INTERNAL__PRIVATEKEY`
 diffère par service — c'est ce que `scripts/generer-identites-internes.sh`
 produit. Sous Compose, il faut une variable par service, et le compose engendré

@@ -29,8 +29,9 @@
 # CE QU'IL NE VERIFIE PAS :
 #
 #   . que les valeurs soient les BONNES. Un mot de passe present mais faux
-#     passe ce controle et echoue a la connexion. SEULE EXCEPTION : la cle de
-#     protection des secrets, dont la TAILLE est verifiee — voir plus bas.
+#     passe ce controle et echoue a la connexion. DEUX EXCEPTIONS : la cle de
+#     protection des secrets, dont la TAILLE est verifiee, et les identites
+#     gRPC, dont le FORMAT l'est — voir plus bas.
 #   . les variables a valeur par defaut (`${VAR:-...}`) : leur absence est
 #     prevue.
 #   . que le compose lui-meme soit coherent : on lit ses references, pas sa
@@ -171,7 +172,80 @@ for nom in "${BASE64_32[@]}"; do
   fi
 done
 
+# -----------------------------------------------------------------------------
+# LES IDENTITES gRPC DOIVENT ETRE DES CLES, PAS DE L'ALEA.
+#
+# CE QUI ETAIT CASSE. `scripts/generer-identites-internes.sh` — cite par les
+# deux runbooks et par les dix-neuf messages d'erreur du compose — n'existait
+# pas. Les cles ont donc ete produites avec la seule commande que les runbooks
+# montrent ailleurs : `openssl rand -base64 32`. Cela rend 32 octets
+# ALEATOIRES ; `ImportPkcs8PrivateKey` attend une SEQUENCE DER.
+#
+# Le compose etait satisfait — variable presente et non vide — et le service
+# demarrait. `IdentiteInterne.Signer` ne decode la cle qu'au PREMIER appel gRPC
+# de l'hote : le defaut se manifestait donc par un 500 opaque sur une route
+# appelante, des semaines apres la mise en production, avec
+# « ASN1 corrupted data » pour tout indice.
+#
+# CE QUE CE CONTROLE VERIFIE : que chaque cle privee se decode en base64 ET se
+# lise comme une cle PKCS#8, et que chaque entree du registre public se lise
+# comme un SubjectPublicKeyInfo. C'est openssl qui tranche, pas une heuristique
+# de longueur.
+#
+# CE QU'IL NE COUVRE PAS : que les cles publiques du registre CORRESPONDENT aux
+# privees distribuees. Une paire depareillee passe ici et rend Unauthenticated
+# en face. Le seul moyen sur est de les engendrer ensemble, ce que le script
+# fait.
+#
+# AUCUNE VALEUR N'EST AFFICHEE — des noms, et le motif du refus.
+# -----------------------------------------------------------------------------
+cles_illisibles=()
+
+if command -v openssl >/dev/null 2>&1; then
+  for nom in "${!valeurs[@]}"; do
+    case "$nom" in INTERNAL_KEY_*) ;; *) continue ;; esac
+    valeur="${valeurs[$nom]}"
+    [ -z "${valeur//[[:space:]]/}" ] && continue
+
+    if ! printf '%s' "$valeur" | openssl base64 -d -A 2>/dev/null \
+         | openssl pkey -inform DER -noout >/dev/null 2>&1; then
+      cles_illisibles+=("$nom : ni base64 ni PKCS#8 lisible (scripts/generer-identites-internes.sh)")
+    fi
+  done
+
+  registre="${valeurs[INTERNAL_PUBLIC_KEYS]:-}"
+  if [ -n "${registre//[[:space:]]/}" ]; then
+    entrees=0
+    mauvaises=0
+    ancien_ifs="$IFS"
+    IFS=';'
+    for entree in $registre; do
+      [ -z "$entree" ] && continue
+      entrees=$((entrees + 1))
+      corps="${entree#*=}"
+      if [ "$corps" = "$entree" ] || ! printf '%s' "$corps" | openssl base64 -d -A 2>/dev/null \
+           | openssl pkey -pubin -inform DER -noout >/dev/null 2>&1; then
+        mauvaises=$((mauvaises + 1))
+      fi
+    done
+    IFS="$ancien_ifs"
+    if [ "$mauvaises" -gt 0 ]; then
+      cles_illisibles+=("INTERNAL_PUBLIC_KEYS : $mauvaises entree(s) sur $entrees illisibles (format attendu : nom=base64;nom=base64)")
+    fi
+  fi
+else
+  echo "openssl absent : le format des identites gRPC n'a PAS ete verifie." >&2
+fi
+
 probleme=0
+
+if [ "${#cles_illisibles[@]}" -gt 0 ]; then
+  echo "${#cles_illisibles[@]} identite(s) gRPC au mauvais format — les services demarreront et" >&2
+  echo "echoueront a leur premier appel interne, en 500 opaque :" >&2
+  printf '    %s\n' "${cles_illisibles[@]}" >&2
+  echo >&2
+  probleme=1
+fi
 
 if [ "${#tailles[@]}" -gt 0 ]; then
   echo "${#tailles[@]} cle(s) au mauvais format — le service demarrera et echouera a la premiere inscription :" >&2
