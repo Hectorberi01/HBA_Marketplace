@@ -269,7 +269,7 @@ HBA_FOOD_PASSWORD=...
 AUTHENTICATION__SIGNINGKEY=$(openssl rand -base64 48)
 JWT__SIGNINGKEY=<la même valeur que ci-dessus>
 INTERNAL__APIKEY=$(openssl rand -hex 32)
-SECURITY__SECRETPROTECTION__KEY=$(openssl rand -hex 32)
+SECURITY__SECRETPROTECTION__KEY=$(openssl rand -base64 32)   # base64, PAS -hex
 
 # Le compte administrateur — le seul moyen d'entrer.
 ADMIN__PASSWORD=$(openssl rand -base64 24)
@@ -283,6 +283,15 @@ MEDIA__STORAGE__SECRETACCESSKEY=<même valeur que MINIO_ROOT_PASSWORD>
 
 Les treize mots de passe de base sont ceux de
 `./motsdepasse-<horodatage>.txt`, produit par `scripts/db/creer-bases.sh`.
+
+**`openssl rand -base64 32`, jamais `-hex 32`.** Ces deux lignes portaient
+`-hex 32`, qui rend 64 caractères hexadécimaux. L'hexadécimal étant un
+sous-ensemble de l'alphabet base64 et 64 un multiple de 4, le décodage
+**réussit** et donne 48 octets là où AES-256 en exige 32. Le symptôme n'était
+pas un refus au démarrage : les services partaient, `/login` fonctionnait, et
+`POST /api/v1/auth/register` rendait un 500 muet — la seule route qui construit
+le protecteur. `scripts/verifier-env-compose.sh` refuse maintenant ce format, et
+le service refuse de démarrer plutôt que de servir à moitié.
 
 `SECURITY__SECRETPROTECTION__KEY` **ne se régénère pas** : ce qu'elle a chiffré ne
 se déchiffre pas avec la suivante. Une fois posée, elle est définitive.

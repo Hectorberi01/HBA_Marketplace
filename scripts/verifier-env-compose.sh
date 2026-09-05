@@ -29,7 +29,8 @@
 # CE QU'IL NE VERIFIE PAS :
 #
 #   . que les valeurs soient les BONNES. Un mot de passe present mais faux
-#     passe ce controle et echoue a la connexion.
+#     passe ce controle et echoue a la connexion. SEULE EXCEPTION : la cle de
+#     protection des secrets, dont la TAILLE est verifiee — voir plus bas.
 #   . les variables a valeur par defaut (`${VAR:-...}`) : leur absence est
 #     prevue.
 #   . que le compose lui-meme soit coherent : on lit ses references, pas sa
@@ -131,7 +132,53 @@ for nom in "${!valeurs[@]}"; do
   case "$reste" in *'$'*) dollars+=("$nom") ;; esac
 done
 
+# -----------------------------------------------------------------------------
+# LA CLE DE PROTECTION DES SECRETS DOIT FAIRE 32 OCTETS UNE FOIS DECODEE.
+#
+# CE QUI ETAIT CASSE. `docs/RUNBOOK-PROD.md` et `docs/RUNBOOK-COMPOSE.md` la
+# faisaient generer par `openssl rand -hex 32`, qui rend 64 caracteres
+# HEXADECIMAUX. L'hexadecimal est un sous-ensemble de l'alphabet base64 et 64
+# est un multiple de 4 : le decodage REUSSIT et donne 48 octets. AES-256 en
+# exige 32.
+#
+# Consequence observee en production : les quatorze services demarraient, la
+# connexion fonctionnait, et `POST /api/v1/auth/register` rendait un 500 opaque
+# — la seule route qui construisait le protecteur. Une variable presente et non
+# vide passait ce controle-ci sans un mot.
+#
+# CE QUE CE CONTROLE NE COUVRE PAS : que ce soit la BONNE cle. Une valeur de 32
+# octets differente de celle de notification-service passe ici, et les codes
+# partent chiffres avec une cle que le destinataire ne connait pas.
+#
+# AUCUNE VALEUR N'EST AFFICHEE — seulement un nombre d'octets, ce qui est la
+# seule chose a corriger et ne revele rien.
+# -----------------------------------------------------------------------------
+BASE64_32=("SECURITY__SECRETPROTECTION__KEY")
+
+tailles=()
+for nom in "${BASE64_32[@]}"; do
+  [ -n "${valeurs[$nom]+x}" ] || continue
+  valeur="${valeurs[$nom]}"
+  [ -z "${valeur//[[:space:]]/}" ] && continue
+
+  octets=$(printf '%s' "$valeur" | base64 -d 2>/dev/null | wc -c | tr -d ' ')
+  [ "${octets:-0}" -eq 32 ] && continue
+
+  if printf '%s' "$valeur" | grep -qiE '^[0-9a-f]{64}$'; then
+    tailles+=("$nom : 64 caracteres hexadecimaux, soit ${octets:-0} octets une fois relus en base64 (openssl rand -hex 32 ; il faut openssl rand -base64 32)")
+  else
+    tailles+=("$nom : ${octets:-0} octet(s) une fois decodee, 32 attendus (openssl rand -base64 32)")
+  fi
+done
+
 probleme=0
+
+if [ "${#tailles[@]}" -gt 0 ]; then
+  echo "${#tailles[@]} cle(s) au mauvais format — le service demarrera et echouera a la premiere inscription :" >&2
+  printf '    %s\n' "${tailles[@]}" >&2
+  echo >&2
+  probleme=1
+fi
 
 if [ "${#dollars[@]}" -gt 0 ]; then
   echo "ATTENTION : ${#dollars[@]} valeur(s) contiennent un \$ non echappe —" >&2

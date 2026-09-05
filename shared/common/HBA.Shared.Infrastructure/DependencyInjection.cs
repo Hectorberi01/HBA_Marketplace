@@ -69,6 +69,15 @@ public static class DependencyInjection
         // ═════════════════════════════════════════════════════════════════════
         services.AddSingleton<ISecretProtector>(_ =>
             AesGcmSecretProtector.Depuis(configuration, EstProduction(configuration)));
+
+        // LA PARESSE DECRITE JUSTE AU-DESSUS EST DESORMAIS CORRIGEE ICI.
+        //
+        // Ce service hebergé resout `ISecretProtector` au demarrage, donc force la
+        // fabrique a s'executer avant que l'hote ne serve. Une cle absente, mal
+        // encodee ou de mauvaise taille arrete le conteneur au lieu de rendre un
+        // 500 muet a la premiere inscription. Voir
+        // `VerificationDesSecretsAuDemarrage` — y compris ce qu'il ne couvre pas.
+        services.AddHostedService<VerificationDesSecretsAuDemarrage>();
         services.AddSingleton<IOptions<KafkaEventBusOptions>>(sp =>
         {
             var configuration = sp.GetRequiredService<IConfiguration>();

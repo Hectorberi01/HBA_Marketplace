@@ -179,12 +179,21 @@ signature, la clé d'API interne, la clé de protection des données.
 export REDIS__CONNECTIONSTRING='redis:6379'
 export AUTHENTICATION__SIGNINGKEY="$(openssl rand -base64 48)"
 export INTERNAL__APIKEY="$(openssl rand -hex 32)"
-export SECURITY__SECRETPROTECTION__KEY="$(openssl rand -hex 32)"
+export SECURITY__SECRETPROTECTION__KEY="$(openssl rand -base64 32)"   # base64, PAS -hex : voir ci-dessous
 
 # commande supprimee le 2026-09-02 avec l'outillage local — le deploiement passe par la CI
 kubectl -n hba-prod apply -f ~/secrets-hba-prod/secret-hba-platform.yaml
 ./scripts/check-secrets-cluster.sh prod
 ```
+
+**`openssl rand -base64 32`, jamais `-hex 32`.** Cette ligne portait `-hex 32`,
+qui rend 64 caractères hexadécimaux. L'hexadécimal étant un sous-ensemble de
+l'alphabet base64 et 64 un multiple de 4, le décodage **réussit** et donne 48
+octets là où AES-256 en exige 32. Le symptôme n'était pas un refus au démarrage :
+les services partaient, `/login` fonctionnait, et `POST /api/v1/auth/register`
+rendait un 500 muet — la seule route qui construit le protecteur.
+`scripts/verifier-env-compose.sh` refuse maintenant ce format, et le service
+refuse de démarrer plutôt que de servir à moitié.
 
 Le script n'affiche **aucune valeur** : sa sortie ne donne que des noms de clés et
 des longueurs. Il refuse un fichier source qui ne serait pas en 0600, refuse un

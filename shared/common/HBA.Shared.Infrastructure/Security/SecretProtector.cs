@@ -57,14 +57,17 @@ public sealed class AesGcmSecretProtector : ISecretProtector
     private const int TailleNonce = 12;
     private const int TailleEtiquette = 16;
 
+    /// <summary>AES-256 : 32 octets, pas un de plus.</summary>
+    private const int TailleCle = 32;
+
     private readonly byte[] _cle;
 
     public AesGcmSecretProtector(byte[] cle)
     {
-        if (cle.Length != 32)
+        if (cle.Length != TailleCle)
         {
             throw new ArgumentException(
-                $"La clé de protection des secrets doit faire 32 octets (AES-256), reçue : {cle.Length}.",
+                $"La clé de protection des secrets doit faire {TailleCle} octets (AES-256), reçue : {cle.Length}.",
                 nameof(cle));
         }
 
@@ -161,6 +164,45 @@ public sealed class AesGcmSecretProtector : ISecretProtector
         {
             throw new InvalidOperationException(
                 $"{SectionName}:Key n'est pas du base64 valide. Attendu : 32 octets encodés en base64.");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // LA TAILLE EST VERIFIEE ICI, ET LE MESSAGE NOMME LA CAUSE LA PLUS
+        //     PROBABLE — PARCE QUE LES RUNBOOKS L'ONT DICTEE.
+        //
+        // CE QUI ETAIT CASSE. `docs/RUNBOOK-PROD.md` et `docs/RUNBOOK-COMPOSE.md`
+        // faisaient generer cette cle par `openssl rand -hex 32`. Cela rend 64
+        // caracteres hexadecimaux. Or l'hexadecimal n'est qu'un sous-ensemble de
+        // l'alphabet base64, et 64 est un multiple de 4 : `Convert.FromBase64String`
+        // ACCEPTE la chaine sans broncher et rend 48 octets. AES-256 en veut 32.
+        //
+        // Le constructeur levait donc une `ArgumentException` parlant d'octets,
+        // remontee en 500 opaque a la premiere inscription — sans jamais dire que
+        // la cle avait ete produite avec la mauvaise commande.
+        //
+        // CE QUE CE CONTROLE NE COUVRE PAS. Il ne dit rien d'une cle de 32 octets
+        // QUI N'EST PAS LA BONNE : une cle valide mais differente de celle de
+        // notification-service passe ici, et les codes partent chiffres avec une
+        // cle que le destinataire ne connait pas. Ce cas se voit a l'autre bout,
+        // en lettre morte, pas ici.
+        //
+        // AUCUNE VALEUR N'EST INTERPOLEE. Ni la cle, ni un prefixe, ni une
+        // empreinte : la longueur et la forme suffisent a corriger.
+        // ═════════════════════════════════════════════════════════════════════
+        if (cle.Length != TailleCle)
+        {
+            var ressembleAHexadecimal =
+                brut.Length == 64 && brut.All(Uri.IsHexDigit);
+
+            var indice = ressembleAHexadecimal
+                ? " La valeur fournie fait 64 caracteres hexadecimaux : elle vient tres "
+                  + "probablement d'un `openssl rand -hex 32`, qui rend 48 octets une fois "
+                  + "relu en base64. La commande juste est `openssl rand -base64 32`."
+                : string.Empty;
+
+            throw new InvalidOperationException(
+                $"{SectionName}:Key fait {cle.Length} octets une fois decodee ; AES-256 en exige "
+                + $"{TailleCle}." + indice);
         }
 
         return new AesGcmSecretProtector(cle);
