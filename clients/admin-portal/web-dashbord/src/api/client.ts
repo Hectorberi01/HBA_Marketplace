@@ -150,6 +150,7 @@ async function executer<T>(
         throw new ApiError({
             message: 'requête non aboutie',
             statut: 0,
+            chemin,
             reseau: true,
         })
     }
@@ -175,6 +176,7 @@ async function executer<T>(
         throw new ApiError({
             message: lu.message,
             statut: reponse.status,
+            chemin,
             code: lu.code,
             requestId: lu.requestId,
             details: lu.details,

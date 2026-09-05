@@ -49,6 +49,8 @@ export type ProblemeRfc = {
 
 export class ApiError extends Error {
     readonly statut: number
+    /** Chemin appelé — sans lui, un 502 ne dit pas QUELLE route est morte. */
+    readonly chemin: string | null
     /** Code métier stable, du genre `identity.auth.suspended`. */
     readonly code: string | null
     /** Identifiant de requête, à citer dans un rapport de bogue. */
@@ -61,6 +63,7 @@ export class ApiError extends Error {
     constructor(args: {
         message: string
         statut: number
+        chemin?: string | null
         code?: string | null
         requestId?: string | null
         details?: DetailErreur[]
@@ -70,6 +73,7 @@ export class ApiError extends Error {
         super(args.message)
         this.name = 'ApiError'
         this.statut = args.statut
+        this.chemin = args.chemin ?? null
         this.code = args.code ?? null
         this.requestId = args.requestId ?? null
         this.details = args.details ?? []
@@ -89,6 +93,33 @@ export class ApiError extends Error {
         if (this.message && this.message !== `HTTP ${this.statut}`) {
             return this.message
         }
+
+        /*
+         * UN 502 N'EST PAS « LE SERVEUR A REPONDU 502 ».
+         *
+         * Ces trois codes viennent de la PASSERELLE, pas du service : elle a
+         * bien reçu la requête et n'a trouvé personne au bout de la route. Le
+         * corps est vide — YARP n'enveloppe rien — donc `lireErreur` ne rend
+         * qu'un `HTTP 502`, et le message générique laissait croire à une panne
+         * du serveur qu'on vient justement de joindre.
+         *
+         * La distinction change ce qu'on va regarder : un 4xx envoie vers la
+         * requête, un 502 envoie vers le service amont — est-il déployé, est-il
+         * démarré, l'adresse configurée dans la passerelle existe-t-elle dans
+         * le compose. Nommer la route donne le point de départ.
+         */
+        if (this.statut === 502 || this.statut === 503 || this.statut === 504) {
+            const ou = this.chemin ? ` (${this.chemin})` : ''
+            const detail =
+                this.statut === 504
+                    ? "a mis trop de temps à répondre"
+                    : "n'a pas répondu"
+            return (
+                `La passerelle a été jointe, mais le service qui sert cette route ` +
+                `${detail}${ou}. Vérifiez qu'il est déployé et démarré.`
+            )
+        }
+
         if (this.corpsBrut && this.corpsBrut.length < 300) return this.corpsBrut
         return `Le serveur a répondu ${this.statut}.`
     }
