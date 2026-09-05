@@ -39,12 +39,31 @@ export type EnveloppeErreur = {
     }
 }
 
-/** Forme RFC 7807, rendue par les endpoints non encore migrés. */
+/**
+ * Forme RFC 7807.
+ *
+ * ELLE N'EST PAS SEULEMENT « LES ENDPOINTS NON MIGRÉS ». C'est aussi ce que rend
+ * le middleware d'exception de `HBA.Shared.Hosting` sur TOUTE erreur non gérée —
+ * donc sur chaque 500 de chaque service.
+ *
+ * Ce middleware refuse délibérément d'interpoler `exception.Message`, et il a
+ * raison : une `NpgsqlException` porte la chaîne de connexion, mot de passe
+ * PostgreSQL compris, et elle traverserait la passerelle jusqu'au navigateur.
+ * Le message est donc fixe et n'apprend rien.
+ *
+ * CE QUI APPREND QUELQUE CHOSE, C'EST `correlationId`. Le middleware le pose en
+ * extension à côté de `traceId`, et c'est la seule chose qui relie l'écran à la
+ * ligne d'exception dans les journaux du service. Ne pas l'afficher revient à
+ * demander à l'utilisateur de décrire ce qu'il a vu.
+ */
 export type ProblemeRfc = {
     type?: string
     title?: string
     status?: number
     detail?: string
+    /** Extensions posées par le middleware d'exception. */
+    correlationId?: string
+    traceId?: string
 }
 
 export class ApiError extends Error {
@@ -120,6 +139,25 @@ export class ApiError extends Error {
             )
         }
 
+        /*
+         * UN 500 DIT OÙ CHERCHER.
+         *
+         * Le message du serveur est volontairement fixe — il ne peut pas nommer
+         * la cause sans risquer de divulguer la chaîne de connexion. Le seul
+         * geste utile est donc d'aller lire les journaux du service, et le
+         * `correlationId` est ce qui y mène. On le dit, plutôt que de laisser
+         * une phrase close sur elle-même.
+         */
+        if (this.statut === 500) {
+            const trace = this.requestId
+                ? ` Journal du service, corrélation ${this.requestId}.`
+                : ''
+            return (
+                `Le service a rencontré une erreur qu'il ne détaille pas — son ` +
+                `message est volontairement muet pour ne rien divulguer.${trace}`
+            )
+        }
+
         if (this.corpsBrut && this.corpsBrut.length < 300) return this.corpsBrut
         return `Le serveur a répondu ${this.statut}.`
     }
@@ -147,7 +185,9 @@ export function lireErreur(corps: unknown, statut: number): {
             return {
                 message: rfc.detail ?? rfc.title ?? `HTTP ${statut}`,
                 code: rfc.type ?? null,
-                requestId: null,
+                // `correlationId` d'abord : c'est celui que le service écrit
+                // dans sa ligne de journal. `traceId` ne sert qu'à défaut.
+                requestId: rfc.correlationId ?? rfc.traceId ?? null,
                 details: [],
             }
         }
