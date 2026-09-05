@@ -122,12 +122,7 @@ public static class IdentiteInterne
         var charge = $"{Version}{Separateur}{appelant}{Separateur}{methode}{Separateur}{expiration}{Separateur}{jti}";
         var octets = Encoding.UTF8.GetBytes(charge);
 
-        var cle = _clesPrivees.GetOrAdd(clePriveeBase64, valeur =>
-        {
-            var ecdsa = ECDsa.Create();
-            ecdsa.ImportPkcs8PrivateKey(Convert.FromBase64String(valeur), out _);
-            return ecdsa;
-        });
+        var cle = _clesPrivees.GetOrAdd(clePriveeBase64, ImporterClePrivee);
 
         var signature = cle.SignData(octets, HashAlgorithmName.SHA256);
 
@@ -367,6 +362,49 @@ public static class IdentiteInterne
             return;
         }
 
+        ImporterClePrivee(clePriveeBase64).Dispose();
+    }
+
+    /// <summary>
+    /// Décode une clé privée, quel que soit son encodage DER.
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// DEUX ENCODAGES EXISTENT POUR LA MÊME CLÉ, ET C'EST OPENSSL QUI CHOISIT —
+    ///     PAS L'OPÉRATEUR.
+    ///
+    ///     openssl genpkey -algorithm EC … -outform DER   ->  SEC1   (121 octets)
+    ///     openssl ecparam -genkey …       -outform DER   ->  SEC1   (121 octets)
+    ///     openssl pkcs8 -topk8 -nocrypt   -outform DER   ->  PKCS#8 (138 octets)
+    ///
+    /// Sur OpenSSL 3, `-outform DER` écrit la forme TRADITIONNELLE pour une clé
+    /// EC, alors que la même commande en PEM écrit `BEGIN PRIVATE KEY`,
+    /// c'est-à-dire du PKCS#8. La forme obtenue ne se lit donc ni dans la
+    /// commande employée, ni dans la taille du fichier.
+    ///
+    /// N'ACCEPTER QUE LE PKCS#8 ÉTAIT UN PIÈGE À OPÉRATEUR.
+    ///
+    /// La commande évidente donne du SEC1. La clé est parfaitement valide : même
+    /// courbe, même secret, même clé publique, signature identique. Refuser sur
+    /// l'encodage, c'est refuser une bonne clé pour la façon dont elle a été
+    /// écrite sur le disque.
+    ///
+    /// `scripts/generer-identites-internes.sh` est tombé DANS LE PIÈGE QU'IL
+    /// DEVAIT FERMER : il émettait du SEC1, et ce contrôle a refusé sa propre
+    /// production au démarrage d'identity-service. Deux vérifications l'avaient
+    /// laissé passer — `openssl pkey -inform DER` et un test du premier octet —
+    /// parce que TOUTES DEUX ACCEPTENT LES DEUX FORMES. Un contrôle qui ne
+    /// distingue pas ce que le consommateur distingue ne contrôle rien.
+    ///
+    /// LE PKCS#8 RESTE LA FORME CANONIQUE — c'est ce que le script produit
+    /// désormais — mais le SEC1 est accepté, parce qu'il désigne la même clé.
+    ///
+    /// CE QUI EST TOUJOURS REFUSÉ : ce qui n'est ni l'un ni l'autre. Le message
+    /// nomme alors ce qui a été essayé, au lieu de deviner une commande.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    private static ECDsa ImporterClePrivee(string clePriveeBase64)
+    {
         byte[] octets;
 
         try
@@ -377,27 +415,43 @@ public static class IdentiteInterne
         {
             throw new InvalidOperationException(
                 $"{InternalCallOptions.SectionName}:PrivateKey n'est pas du base64 valide. "
-                + "Attendu : une clé EC P-256 au format PKCS#8 DER, encodée en base64 sur une "
-                + "seule ligne. La produire avec scripts/generer-identites-internes.sh.");
+                + "Attendu : une clé EC P-256, en DER, encodée en base64 sur une seule ligne. "
+                + "La produire avec scripts/generer-identites-internes.sh.");
+        }
+
+        var ecdsa = ECDsa.Create();
+
+        try
+        {
+            ecdsa.ImportPkcs8PrivateKey(octets, out _);
+            return ecdsa;
+        }
+        catch (CryptographicException)
+        {
+            // Pas du PKCS#8. Reste la forme traditionnelle, que produit
+            // `openssl genpkey -outform DER` — donc la plus probable des deux.
         }
 
         try
         {
-            using var ecdsa = ECDsa.Create();
-            ecdsa.ImportPkcs8PrivateKey(octets, out _);
+            ecdsa.ImportECPrivateKey(octets, out _);
+            return ecdsa;
         }
         catch (CryptographicException exception)
         {
+            ecdsa.Dispose();
+
             throw new InvalidOperationException(
-                $"{InternalCallOptions.SectionName}:PrivateKey n'est pas une clé PKCS#8 lisible "
-                + $"({octets.Length} octets une fois décodée). Une valeur produite par "
-                + "`openssl rand -base64 32` en fait 32 et donne exactement cette erreur : c'est "
-                + "de l'aléa, pas une clé. Attendu : une clé EC P-256 en PKCS#8 DER, encodée en "
-                + "base64 — voir scripts/generer-identites-internes.sh, qui engendre aussi le "
-                + "registre Internal:PublicKeys correspondant.",
+                $"{InternalCallOptions.SectionName}:PrivateKey ne se lit ni comme une clé PKCS#8 "
+                + $"ni comme une clé EC traditionnelle ({octets.Length} octets une fois décodée). "
+                + "Les DEUX encodages DER d'une clé EC P-256 sont acceptés ; ce n'est aucun des "
+                + "deux. Une valeur produite par `openssl rand -base64 32` en fait 32 et donne "
+                + "cette erreur : c'est de l'aléa, pas une clé. Engendrer la bonne valeur avec "
+                + "scripts/generer-identites-internes.sh.",
                 exception);
         }
     }
+
 
     // BASE64URL À LA MAIN : `Base64Url` EST .NET 9, CE PROJET EST net8.0.
     //

@@ -92,10 +92,12 @@ HOTES=(
 
 sortie="${1:-identites-internes-$(date +%Y%m%d%H%M%S).env}"
 
-command -v openssl >/dev/null 2>&1 || {
-  echo "openssl est introuvable." >&2
-  exit 1
-}
+for outil in openssl python3; do
+  command -v "$outil" >/dev/null 2>&1 || {
+    echo "$outil est introuvable." >&2
+    exit 1
+  }
+done
 
 [ -e "$sortie" ] && {
   echo "ATTENTION : $sortie existe deja. Ce script n'ecrase rien." >&2
@@ -107,6 +109,29 @@ command -v openssl >/dev/null 2>&1 || {
 
 # `openssl base64 -A` et non `base64 -w0` : BSD (macOS) ne connait pas `-w`.
 encoder() { openssl base64 -A; }
+
+# Le fichier DER est-il du PKCS#8 ? Lit la structure, pas la taille : les deux
+# formes font 121 et 138 octets, et la difference ne se voit qu'en ASN.1.
+format_pkcs8() {
+  python3 - "$1" <<'PY'
+import sys
+def tlv(b, i):
+    t = b[i]; i += 1
+    l = b[i]; i += 1
+    if l & 0x80:
+        n = l & 0x7f; l = int.from_bytes(b[i:i + n], 'big'); i += n
+    return t, l, i
+b = open(sys.argv[1], 'rb').read()
+try:
+    if b[0] != 0x30: raise ValueError
+    _, _, i = tlv(b, 0)          # SEQUENCE externe
+    t, l, i = tlv(b, i)          # version, INTEGER
+    if t != 0x02: raise ValueError
+    sys.exit(0 if b[i + l] == 0x30 else 1)   # 0x30 = PKCS#8, 0x04 = SEC1
+except Exception:
+    sys.exit(1)
+PY
+}
 
 travail="$(mktemp -d)"
 trap 'rm -rf "$travail"' EXIT
@@ -132,13 +157,46 @@ for entree in "${HOTES[@]}"; do
   privee="$travail/$hote.pkcs8.der"
   publique="$travail/$hote.spki.der"
 
-  # PKCS#8 DER directement : pas de PEM intermediaire, donc pas d'en-tetes a
-  # retirer ni de retours a la ligne a recoller.
+  # ═══════════════════════════════════════════════════════════════════════
+  # DEUX ETAPES, ET LA SECONDE N'EST PAS COSMETIQUE.
+  #
+  # `openssl genpkey ... -outform DER` N'ECRIT PAS DU PKCS#8 pour une cle EC.
+  # Sur OpenSSL 3, `-outform DER` rend la forme TRADITIONNELLE (SEC1,
+  # 121 octets) alors que la MEME commande en PEM rend `BEGIN PRIVATE KEY`,
+  # c'est-a-dire du PKCS#8. Rien dans la commande ne le laisse deviner.
+  #
+  # La premiere version de ce script s'arretait donc a `genpkey` et produisait
+  # du SEC1 — que le controle de demarrage refusait. Le script ecrit pour
+  # eviter le piege tombait dedans.
+  #
+  # `pkcs8 -topk8 -nocrypt` est la SEULE commande qui rende du PKCS#8 DER
+  # (138 octets). Le PEM intermediaire est le prix a payer : `genpkey` ne sait
+  # pas ecrire du PKCS#8 DER directement.
+  #
+  # La cle est la MEME dans les deux formes — meme secret, meme courbe, meme
+  # cle publique. Le service accepte desormais les deux ; ce script emet la
+  # forme canonique.
+  # ═══════════════════════════════════════════════════════════════════════
   openssl genpkey -algorithm EC \
     -pkeyopt ec_paramgen_curve:P-256 \
-    -outform DER -out "$privee" 2>/dev/null
+    -out "$travail/$hote.pem" 2>/dev/null
+
+  openssl pkcs8 -topk8 -nocrypt \
+    -in "$travail/$hote.pem" -outform DER -out "$privee" 2>/dev/null
 
   openssl pkey -inform DER -in "$privee" -pubout -outform DER -out "$publique" 2>/dev/null
+
+  # ON VERIFIE CE QU'ON VIENT D'ECRIRE, PAS CE QU'ON CROIT AVOIR ECRIT.
+  #
+  # `openssl pkey -inform DER` accepte les DEUX formes : s'en servir comme
+  # controle ne prouve rien. On regarde donc la STRUCTURE — dans un PKCS#8, le
+  # champ qui suit la version est une SEQUENCE (0x30) ; dans un SEC1, c'est une
+  # OCTET STRING (0x04). C'est exactement la distinction que fait .NET.
+  if ! format_pkcs8 "$privee"; then
+    echo "  ECHEC $hote : la cle produite n'est pas du PKCS#8." >&2
+    echo "    openssl $(openssl version | cut -d' ' -f2) se comporte autrement qu'attendu." >&2
+    exit 1
+  fi
 
   b64privee="$(encoder < "$privee")"
   b64publique="$(encoder < "$publique")"

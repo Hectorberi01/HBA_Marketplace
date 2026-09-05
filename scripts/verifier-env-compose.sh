@@ -188,9 +188,22 @@ done
 # « ASN1 corrupted data » pour tout indice.
 #
 # CE QUE CE CONTROLE VERIFIE : que chaque cle privee se decode en base64 ET se
-# lise comme une cle PKCS#8, et que chaque entree du registre public se lise
-# comme un SubjectPublicKeyInfo. C'est openssl qui tranche, pas une heuristique
-# de longueur.
+# lise comme une cle EC, et que chaque entree du registre public se lise comme un
+# SubjectPublicKeyInfo. C'est openssl qui tranche, pas une heuristique de
+# longueur.
+#
+# IL ACCEPTE LES DEUX ENCODAGES DER, ET C'EST DELIBERE — parce que le service
+# accepte les deux. `openssl genpkey -outform DER` rend du SEC1 (121 octets),
+# `openssl pkcs8 -topk8 -outform DER` du PKCS#8 (138 octets) ; c'est la meme cle,
+# meme secret, meme cle publique.
+#
+# LES DEUX CONTROLES DOIVENT ACCEPTER EXACTEMENT LA MEME CHOSE, ET ILS ONT DEJA
+# DIVERGE. Ce controle-ci utilisait `openssl pkey -inform DER`, qui lit les deux
+# formes ; le controle de demarrage du service n'acceptait que le PKCS#8. La CI
+# disait donc « toutes renseignees » sur un fichier que le premier conteneur
+# refusait au demarrage — un feu vert suivi d'un echec, ce qui est pire qu'un
+# feu rouge. Un controle qui ne distingue pas ce que le consommateur distingue
+# ne controle rien : c'est le consommateur qui a ete aligne, pas ce script.
 #
 # CE QU'IL NE COUVRE PAS : que les cles publiques du registre CORRESPONDENT aux
 # privees distribuees. Une paire depareillee passe ici et rend Unauthenticated
@@ -209,7 +222,7 @@ if command -v openssl >/dev/null 2>&1; then
 
     if ! printf '%s' "$valeur" | openssl base64 -d -A 2>/dev/null \
          | openssl pkey -inform DER -noout >/dev/null 2>&1; then
-      cles_illisibles+=("$nom : ni base64 ni PKCS#8 lisible (scripts/generer-identites-internes.sh)")
+      cles_illisibles+=("$nom : ni base64 ni cle EC lisible, dans aucun des deux encodages DER (scripts/generer-identites-internes.sh)")
     fi
   done
 
@@ -240,8 +253,8 @@ fi
 probleme=0
 
 if [ "${#cles_illisibles[@]}" -gt 0 ]; then
-  echo "${#cles_illisibles[@]} identite(s) gRPC au mauvais format — les services demarreront et" >&2
-  echo "echoueront a leur premier appel interne, en 500 opaque :" >&2
+  echo "${#cles_illisibles[@]} identite(s) gRPC au mauvais format — les services refuseront de" >&2
+  echo "demarrer (RefuserUneClePriveeIllisible, avant l ouverture des ports) :" >&2
   printf '    %s\n' "${cles_illisibles[@]}" >&2
   echo >&2
   probleme=1
