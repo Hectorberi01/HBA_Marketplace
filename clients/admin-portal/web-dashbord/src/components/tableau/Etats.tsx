@@ -8,15 +8,35 @@ import { ApiError } from '../../api/errors'
  * quatorze suivants.
  */
 
-/** Aucun résultat — et la raison n'est pas la même selon qu'un filtre est posé. */
-export function EtatVide({ filtre }: { filtre: boolean }) {
+/**
+ * Aucun résultat — et la raison n'est pas la même selon qu'un filtre est posé.
+ *
+ * `explication` : CE QUE « VIDE » VEUT DIRE SUR CET ÉCRAN-LÀ.
+ *
+ * « Rien à afficher pour le moment » est vrai partout et n'apprend rien nulle
+ * part. Sur la liste des vendeurs, il a fait chercher une panne pendant que la
+ * réponse — aucun vendeur n'est inscrit, et le rôle « Seller » n'en crée pas un
+ * — était une propriété connue du domaine. Un écran qui sait pourquoi il est
+ * vide doit le dire ; c'est le seul moment où l'utilisateur se pose la question.
+ *
+ * Elle n'est montrée que HORS filtre : sous filtre, la cause est le filtre.
+ */
+export function EtatVide({
+    filtre,
+    explication,
+}: {
+    filtre: boolean
+    explication?: React.ReactNode
+}) {
     return (
         <div className="etat-liste">
             <p>{filtre ? 'Aucun résultat pour ces critères.' : 'Rien à afficher pour le moment.'}</p>
-            {filtre && (
+            {filtre ? (
                 <p className="indice">
                     Élargissez la recherche ou retirez le filtre de statut.
                 </p>
+            ) : (
+                explication && <div className="indice">{explication}</div>
             )}
         </div>
     )

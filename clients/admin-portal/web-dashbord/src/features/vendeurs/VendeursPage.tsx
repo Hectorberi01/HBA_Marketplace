@@ -125,7 +125,30 @@ export default function VendeursPage() {
                     {requete.isFetching && <VoileChargement />}
 
                     {page && page.items.length === 0 ? (
-                        <EtatVide filtre={filtre} />
+                        <EtatVide
+                            filtre={filtre}
+                            explication={
+                                <>
+                                    <p>
+                                        Un compte portant le rôle <code>Seller</code> n'est PAS un
+                                        vendeur. Le rôle ouvre l'application vendeur ; la fiche
+                                        vendeur, elle, naît d'une inscription —{' '}
+                                        <code>POST /api/v1/merchants</code>, faite par la personne
+                                        elle-même depuis son propre compte.
+                                    </p>
+                                    <p>
+                                        Le lien va d'ailleurs dans l'autre sens : merchant-service
+                                        publie l'inscription, et identity-service attribue alors le
+                                        rôle. Poser le rôle à la main ne remonte pas la chaîne.
+                                    </p>
+                                    <p>
+                                        Cette console ne peut pas inscrire un vendeur à la place
+                                        d'un autre : la route lit l'identifiant dans le JETON, et
+                                        aucune route d'administration n'existe pour le faire.
+                                    </p>
+                                </>
+                            }
+                        />
                     ) : (
                         <table className={`tableau ${requete.isFetching ? 'est-en-attente' : ''}`}>
                             <caption className="visuellement-cache">
