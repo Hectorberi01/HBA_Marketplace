@@ -219,3 +219,21 @@ export function engendrerMotDePasse(longueur = 16): string {
  */
 export const approuverUtilisateur = (id: string) =>
     requete<void>(`/api/identity/users/${id}/approve`, { methode: 'POST' })
+
+/**
+ * ATTESTER UNE ADRESSE — `POST /api/identity/users/{id}/email-verified`.
+ *
+ * CE N'EST PAS UNE VÉRIFICATION, ET LE DOMAINE REFUSE DE FAIRE SEMBLANT.
+ * « Personne n'a cliqué de lien, personne n'a prouvé qu'il relevait cette
+ * boîte. C'est une attestation humaine, tracée comme telle » — dans une colonne
+ * distincte, `EmailVerifiedByAdminOnUtc`, que cet écran affiche déjà.
+ *
+ * C'EST LE VERROU DE L'ONBOARDING VENDEUR.
+ * `RegisterSellerCommandHandler` refuse net tant que l'adresse n'est pas
+ * vérifiée : `sellers.seller.email_unverified`. Or elle est fausse pour TOUS
+ * les comptes, faute de service d'e-mailing déployé — et l'approbation du
+ * compte ne la pose pas, délibérément. Sans ce geste, aucun vendeur ne peut
+ * exister sur la plateforme.
+ */
+export const attesterCourriel = (id: string) =>
+    requete<void>(`/api/identity/users/${id}/email-verified`, { methode: 'POST' })

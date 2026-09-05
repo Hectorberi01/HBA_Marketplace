@@ -260,3 +260,47 @@ export const suspendreBoutique = (sellerId: string, storeId: string, motif: stri
 
 export const leverSuspensionBoutique = (sellerId: string, storeId: string) =>
     poster(`/api/v1/merchants/${sellerId}/stores/${storeId}/lift-suspension`)
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * INSCRIRE UN VENDEUR POUR UN AUTRE COMPTE — `POST /api/v1/merchants/inscriptions`.
+ *
+ * ROUTE D'ADMINISTRATION, DISTINCTE DE L'AUTO-INSCRIPTION.
+ *
+ * `POST /api/v1/merchants` lit l'identifiant dans le JETON : elle inscrit
+ * l'appelant, jamais un tiers. Celle-ci le prend dans le corps, et ne vit que
+ * dans le groupe `MapAdminGroup` — c'est ce qui rend l'entorse à la règle
+ * « jamais d'identifiant depuis le corps » tenable.
+ *
+ * Chemin distinct et non un second `POST "/"` : deux routes POST sur le même
+ * chemin ne lèvent pas au démarrage, elles lèvent une `AmbiguousMatchException`
+ * à la première requête, en production.
+ *
+ * QUATRE REFUS POSSIBLES, ET AUCUN N'EST UN BOGUE :
+ *
+ *   `sellers.seller.user_not_found`    le compte n'existe pas côté identity ;
+ *   `sellers.seller.email_unverified`  l'adresse n'est pas attestée — le geste
+ *                                      est sur l'écran Utilisateurs, et
+ *                                      APPROUVER LE COMPTE NE SUFFIT PAS ;
+ *   `sellers.seller.already_seller`    ce compte a déjà une boutique ;
+ *   `sellers.seller.shop_name_taken`   le nom est pris (index unique).
+ *
+ * LE TAUX EST UNE FRACTION. 0,10 vaut dix pour cent. Envoyer 10 poserait mille
+ * pour cent et passerait toutes les validations de type.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export function inscrireVendeur(entree: {
+    userId: string
+    shopName: string
+    commissionRate?: number
+}): Promise<{ id: string }> {
+    return requete<unknown>('/api/v1/merchants/inscriptions', {
+        methode: 'POST',
+        corps: {
+            userId: entree.userId,
+            shopName: entree.shopName,
+            commissionRate: entree.commissionRate ?? null,
+            metadata: null,
+        },
+    }).then(corps => lireDonnee<{ id: string }>(corps))
+}

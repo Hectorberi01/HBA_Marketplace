@@ -22,6 +22,7 @@ using HBA.Identity.Application.Users.Commands.Reauthenticate;
 using HBA.Identity.Application.Users.Commands.ReactivateUser;
 using HBA.Identity.Application.Users.Commands.RefreshToken;
 using HBA.Identity.Application.Users.Commands.ApproveUser;
+using HBA.Identity.Application.Users.Commands.MarkEmailVerified;
 using HBA.Identity.Application.Users.Commands.RegisterUser;
 using HBA.Identity.Application.Users.Commands.RequestEmailVerification;
 using HBA.Identity.Application.Users.Commands.RemoveRole;
@@ -536,6 +537,41 @@ public static class IdentityEndpoints
         // ═════════════════════════════════════════════════════════════════════
         group.MapPost("/{id:guid}/approve", ApproveUserAsync).WithName("ApproveUser");
 
+        // ═════════════════════════════════════════════════════════════════════
+        // L'ATTESTATION D'ADRESSE — LE SECOND MAILLON, ET IL EST BLOQUANT
+        //     AILLEURS.
+        //
+        // `MarkEmailVerifiedCommand` et `User.MarkEmailVerifiedByAdmin` étaient
+        // eux aussi écrits et montés par aucune route. `ListUsersQuery` expose
+        // pourtant déjà `EmailVerifiedByAdminOnUtc`, et son contrat dit que « la
+        // console doit pouvoir le montrer — Oui et Oui, sur parole ne valent pas
+        // la même chose ». La colonne existait, le geste non.
+        //
+        // CE QUE SON ABSENCE FERMAIT : L'ONBOARDING VENDEUR, ENTIÈREMENT.
+        //
+        // `RegisterSellerCommandHandler` lit le compte par gRPC et refuse net :
+        // `sellers.seller.email_unverified` — « L'e-mail du compte doit être
+        // vérifié avant l'onboarding vendeur ». Or `EmailVerified` est faux pour
+        // TOUS les comptes de la plateforme, faute de service d'e-mailing
+        // déployé, et l'approbation ne le pose pas.
+        //
+        // Aucun vendeur ne pouvait donc être inscrit, quel que soit le chemin.
+        //
+        // CE N'EST PAS UNE VÉRIFICATION, ET LE DOMAINE REFUSE DE FAIRE SEMBLANT.
+        //
+        // « Personne n'a cliqué de lien, personne n'a prouvé qu'il relevait cette
+        // boîte. C'est une attestation humaine, tracée comme telle. » D'où une
+        // colonne distincte — `EmailVerifiedByAdminOnUtc` — et non un simple
+        // passage de `EmailVerified` à vrai : le jour où l'e-mailing existera, on
+        // saura lesquelles ont été prouvées et lesquelles ont été attestées.
+        //
+        // ELLE RESTE SÉPARÉE DE L'APPROBATION. Fondre les deux gestes en un seul
+        // bouton ferait attester une adresse à chaque activation de compte, y
+        // compris quand l'administrateur n'a rien vérifié du tout.
+        // ═════════════════════════════════════════════════════════════════════
+        group.MapPost("/{id:guid}/email-verified", MarkEmailVerifiedAsync)
+            .WithName("MarkEmailVerified");
+
         group.MapPost("/{id:guid}/suspend", SuspendUserAsync).WithName("SuspendUser");
         group.MapPost("/{id:guid}/reactivate", ReactivateUserAsync).WithName("ReactivateUser");
         group.MapPost("/{id:guid}/roles", AssignRoleAsync).WithName("AssignRole");
@@ -616,6 +652,19 @@ public static class IdentityEndpoints
     private static async Task<IResult> ApproveUserAsync(Guid id, ISender sender, CancellationToken ct)
     {
         var result = await sender.Send(new ApproveUserCommand(id), ct);
+        return result.Match(() => Results.NoContent());
+    }
+
+    /// <summary>
+    /// Atteste que l'adresse appartient au titulaire (Admin).
+    ///
+    /// N'ACTIVE PAS LE COMPTE : voir <c>ApproveUserAsync</c>. Les deux gestes
+    /// sont distincts et le resteront.
+    /// </summary>
+    private static async Task<IResult> MarkEmailVerifiedAsync(
+        Guid id, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new MarkEmailVerifiedCommand(id), ct);
         return result.Match(() => Results.NoContent());
     }
 

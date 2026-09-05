@@ -10,6 +10,7 @@ import { abreger } from '../../lib/format'
 import {
     STATUTS_A_TRAITER,
     approuverUtilisateur,
+    attesterCourriel,
     libelleStatutUtilisateur,
     listerUtilisateurs,
     type Role,
@@ -214,14 +215,33 @@ function Ligne({
                   * rend 409 `identity.user.not_suspended`. Offrir un bouton qui
                   * échoue toujours vaut moins que pas de bouton.
                   */}
-                {compte.status === 'PendingVerification' ? (
+                {compte.status === 'PendingVerification' && (
                     <Geste
                         libelle="Approuver"
                         confirmation="Le compte devient actif et peut se connecter. L'adresse reste non vérifiée : approuver n'est pas vérifier."
                         executer={() => approuverUtilisateur(compte.id)}
                         apres={apres}
                     />
-                ) : (
+                )}
+                {/*
+                  * L'ATTESTATION EST LE VERROU DE L'ONBOARDING VENDEUR.
+                  *
+                  * `RegisterSellerCommandHandler` refuse net tant que l'adresse
+                  * n'est pas vérifiée. Elle l'est pour personne, faute
+                  * d'e-mailing déployé. Ce bouton est donc le seul chemin vers
+                  * un vendeur — d'où l'aide qui le dit, sinon il ressemble à un
+                  * détail cosmétique qu'on n'ose pas cliquer.
+                  */}
+                {!compte.emailVerified && (
+                    <Geste
+                        libelle="Attester le courriel"
+                        aide="Débloque l'inscription vendeur."
+                        confirmation="Vous attestez que cette adresse appartient bien au titulaire. Ce n'est PAS une vérification — personne n'a cliqué de lien — et c'est tracé comme tel."
+                        executer={() => attesterCourriel(compte.id)}
+                        apres={apres}
+                    />
+                )}
+                {compte.status !== 'PendingVerification' && compte.emailVerified && (
                     <span className="indice">—</span>
                 )}
             </td>

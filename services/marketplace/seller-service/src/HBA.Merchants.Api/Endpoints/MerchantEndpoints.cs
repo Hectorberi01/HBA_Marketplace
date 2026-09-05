@@ -163,6 +163,54 @@ public static class MerchantEndpoints
         // réveil.
         var governance = app.MapAdminGroup("/api/v1/merchants").WithTags("Merchant · Gouvernance");
         governance.MapGet("/", ListSellersAsync);
+
+        // ═════════════════════════════════════════════════════════════════════
+        // L'ONBOARDING PAR UN ADMINISTRATEUR — ANNONCÉ PAR LE CONTRAT, JAMAIS
+        //     MONTÉ.
+        //
+        // `RegisterSellerCommand` le documente noir sur blanc depuis le début :
+        // « l'onboarding admin ne la fournit pas [la métadonnée société],
+        // l'auto-inscription oui ». Deux appelants étaient donc prévus. Un seul
+        // existait.
+        //
+        // CE QUE SON ABSENCE COÛTAIT. `RegisterSellerAsync` lit l'identifiant
+        // dans le JETON (`CurrentUserId`) : elle inscrit l'appelant, jamais un
+        // tiers. Une console d'administration ne pouvait donc créer aucun
+        // vendeur, et la liste de gouvernance restait vide tant que personne ne
+        // s'inscrivait depuis l'application vendeur — laquelle n'est pas
+        // déployée. Le tableau de bord d'une plateforme sans vendeurs.
+        //
+        // `/inscriptions` ET NON `POST "/"`. Le groupe d'inscription monte déjà
+        // `POST /api/v1/merchants`. Une seconde route POST sur le MÊME chemin ne
+        // lèverait pas au démarrage : elle lèverait une `AmbiguousMatchException`
+        // à la première requête, en production, sur un chemin qui marchait la
+        // veille. Un segment distinct l'évite par construction.
+        //
+        // LE `UserId` VIENT DU CORPS, ET C'EST UNE ENTORSE ASSUMÉE.
+        //
+        // La règle du dépôt est « ne jamais accepter un identifiant librement
+        // depuis le corps » — c'est ce que répètent le §22 et la validation
+        // catalogue. Elle vise les routes où l'appelant pourrait se faire passer
+        // pour un autre. Ici l'appelant EST l'administration, le groupe est
+        // `MapAdminGroup`, et désigner quelqu'un d'autre est exactement l'objet
+        // du geste. C'est le même arbitrage qu'`order-service`, dont la garde
+        // d'appartenance commence par `IsInRole(AdminRole)`.
+        //
+        // LES TROIS REFUS DU GESTIONNAIRE RESTENT EN PLACE, ET IL FAUT LES
+        //     CONNAÎTRE :
+        //
+        //   . `sellers.seller.user_not_found` — le compte n'existe pas côté
+        //     identity (lecture gRPC, pas une table locale) ;
+        //   . `sellers.seller.email_unverified` — l'adresse n'est pas vérifiée.
+        //     Elle l'est par `POST /api/identity/users/{id}/email-verified`, et
+        //     l'APPROBATION du compte ne suffit pas : les deux gestes sont
+        //     distincts côté identity ;
+        //   . `sellers.seller.already_seller` et `shop_name_taken`.
+        //
+        // Cette route n'affaiblit aucun de ces contrôles : elle ne fait que
+        // donner un second appelant à la commande qui les porte.
+        // ═════════════════════════════════════════════════════════════════════
+        governance.MapPost("/inscriptions", RegisterSellerForUserAsync).AllowIdempotency();
         governance.MapPost("/{sellerId:guid}/kyb/approve", ApproveKybAsync);
         governance.MapPost("/{sellerId:guid}/kyb/reject", RejectKybAsync);
         governance.MapPost("/{sellerId:guid}/activate", ActivateSellerAsync);
@@ -546,6 +594,18 @@ public static class MerchantEndpoints
             : (await sender.Send(new RegisterSellerCommand(
                 userId, request.ShopName, request.CommissionRate ?? 0.10m, request.Metadata), ct))
                 .Match(id => ApiResults.Created(new { id }, $"/api/v1/merchants/{id}"));
+
+    /// <summary>
+    /// Inscrit un vendeur POUR UN AUTRE COMPTE (Admin).
+    ///
+    /// Même commande, mêmes refus, que l'auto-inscription : seule l'origine de
+    /// l'identifiant change. Voir l'encadré de la route.
+    /// </summary>
+    private static async Task<IResult> RegisterSellerForUserAsync(
+        RegisterSellerForUserRequest request, ISender sender, CancellationToken ct)
+        => (await sender.Send(new RegisterSellerCommand(
+            request.UserId, request.ShopName, request.CommissionRate ?? 0.10m, request.Metadata), ct))
+            .Match(id => ApiResults.Created(new { id }, $"/api/v1/merchants/{id}"));
 
     /// <remarks>
     /// CE RÉSUMÉ N'EST PAS UNE FICHE PUBLIQUE. Il porte le compte de retrait,
@@ -1015,6 +1075,20 @@ public static class MerchantEndpoints
     }
 
     public sealed record RegisterSellerRequest(string ShopName, decimal? CommissionRate, SellerCompanyInfo? Metadata);
+
+    /// <summary>
+    /// Corps de `POST /api/v1/merchants/inscriptions` (Admin).
+    ///
+    /// LE `UserId` EST ICI CE QUE LE JETON EST AILLEURS. C'est la seule
+    /// différence avec `RegisterSellerRequest`, et elle n'est acceptable que
+    /// parce que la route vit dans le groupe d'administration.
+    ///
+    /// `CommissionRate` EST UNE FRACTION : 0.10 vaut dix pour cent. Envoyer 10
+    /// poserait mille pour cent de commission, et la valeur passerait toutes les
+    /// validations de type.
+    /// </summary>
+    public sealed record RegisterSellerForUserRequest(
+        Guid UserId, string ShopName, decimal? CommissionRate, SellerCompanyInfo? Metadata);
 
     public sealed record UpdateProfileRequest(string ShopName, string? LogoUrl, string? Description);
 

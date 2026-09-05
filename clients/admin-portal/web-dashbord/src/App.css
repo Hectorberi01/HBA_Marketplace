@@ -1313,3 +1313,42 @@
     padding: 8px 0;
     border-bottom: 1px solid var(--border);
 }
+
+.formulaire {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    max-width: 640px;
+    margin-bottom: 8px;
+}
+
+.formulaire label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+}
+
+.formulaire input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+    font: inherit;
+    font-size: 15px;
+}
+
+.formulaire input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* Un `<a>` deguise en bouton n'herite ni de box-sizing ni de la couleur. */
+a.bouton {
+    display: inline-block;
+    text-decoration: none;
+    line-height: 1.4;
+}

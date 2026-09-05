@@ -65,11 +65,16 @@ export default function VendeursPage() {
         <section className="ecran-liste">
             <header className="ecran-liste__tete">
                 <h1>Vendeurs</h1>
-                <BarreRecherche
-                    valeur={etat.recherche}
-                    onChange={q => modifier({ recherche: q })}
-                    placeholder="Rechercher une boutique"
-                />
+                <div className="filtres">
+                    <BarreRecherche
+                        valeur={etat.recherche}
+                        onChange={q => modifier({ recherche: q })}
+                        placeholder="Rechercher une boutique"
+                    />
+                    <Link to="/vendeurs/nouveau" className="bouton">
+                        Inscrire un vendeur
+                    </Link>
+                </div>
             </header>
 
             <div className="filtres">

@@ -12,6 +12,7 @@ import ValidationPage from './features/catalogue/ValidationPage'
 import StockPage from './features/stock/StockPage'
 import VendeursPage from './features/vendeurs/VendeursPage'
 import VendeurPage from './features/vendeurs/VendeurPage'
+import NouveauVendeurPage from './features/vendeurs/NouveauVendeurPage'
 import BoutiquePage from './features/vendeurs/BoutiquePage'
 import RetoursPage from './features/retours/RetoursPage'
 import UtilisateursPage from './features/identite/UtilisateursPage'
@@ -53,6 +54,7 @@ export default function App() {
                     <Route path="catalogue/validation" element={<ValidationPage />} />
                     <Route path="stock" element={<StockPage />} />
                     <Route path="vendeurs" element={<VendeursPage />} />
+                    <Route path="vendeurs/nouveau" element={<NouveauVendeurPage />} />
                     <Route path="vendeurs/:sellerId" element={<VendeurPage />} />
                     <Route
                         path="vendeurs/:sellerId/boutiques/:storeId"
