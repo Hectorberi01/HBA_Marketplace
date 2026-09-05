@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import BarreRecherche from '../../components/tableau/BarreRecherche'
 import Pagination from '../../components/tableau/Pagination'
@@ -30,11 +31,12 @@ const CLES_EXTRA = ['kyb'] as const
  * chiffrées comme sur les autres écrans. Inventer des compteurs à partir de la
  * page affichée donnerait des nombres faux.
  *
- * ÉCRAN DE LECTURE. Le service expose sept gestes de gouvernance : approuver ou
- * refuser un KYB, activer, suspendre, lever une suspension, approuver une
- * réactivation, supprimer. Trois d'entre eux exigent un motif, et la
- * suppression est définitive. Ils appartiennent à une fiche vendeur, pas à une
- * ligne de tableau.
+ * ÉCRAN DE LECTURE, ET LES GESTES VIVENT UN CRAN PLUS LOIN. Le service expose
+ * sept gestes de gouvernance : approuver ou refuser un KYB, activer, suspendre,
+ * lever une suspension, approuver une réactivation, supprimer. Trois exigent un
+ * motif, et la suppression est définitive. Ils appartiennent à la FICHE d'un
+ * vendeur — `/vendeurs/{id}` — pas à une ligne de tableau : décider depuis un
+ * listing, c'est décider sans avoir lu le dossier.
  */
 export default function VendeursPage() {
     const { etat, modifier } = useListeUrl('createdOnUtc', CLES_EXTRA)
@@ -168,7 +170,17 @@ function Ligne({ vendeur }: { vendeur: Vendeur }) {
     return (
         <tr className={aTraiter ? 'a-traiter' : undefined}>
             <td>
-                <div className="cellule-titre">{vendeur.shopName}</div>
+                {/*
+                  * LE LIEN PORTE SUR LE NOM, PAS SUR LA LIGNE ENTIERE.
+                  *
+                  * Un `onClick` sur le `<tr>` ne s'ouvre pas dans un onglet, ne
+                  * repond pas au clavier et n'annonce rien aux outils
+                  * d'assistance. Un vrai lien donne les trois gratuitement — la
+                  * meme lecon que sur la barre laterale au passage aux NavLink.
+                  */}
+                <Link to={`/vendeurs/${vendeur.id}`} className="cellule-titre lien-fiche">
+                    {vendeur.shopName}
+                </Link>
                 <div className="indice">
                     <code title={vendeur.id}>{abreger(vendeur.id)}</code>
                 </div>

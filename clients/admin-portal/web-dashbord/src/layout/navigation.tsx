@@ -15,6 +15,7 @@ import {
     IconeSupervision,
     IconeTarification,
     IconeUtilisateurs,
+    IconeValidation,
     IconeVendeurs,
 } from '../components/Icones'
 
@@ -67,6 +68,15 @@ export const NAVIGATION: SidebarSection[] = [
             { to: '/commandes', label: 'Commandes', icon: <IconeCommandes /> },
             // catalog-service        /api/v1/catalog/admin
             { to: '/catalogue', label: 'Catalogue', icon: <IconeCatalogue /> },
+            /*
+             * catalog-service /api/v1/catalog/admin/products/reviews
+             *
+             * ENTRÉE À PART, ET NON UN FILTRE DU CATALOGUE. Le service sert une
+             * file dédiée — `ListPendingReviewsQuery` — et les quatre gestes de
+             * décision n'existent que là. Les cacher derrière un filtre de la
+             * liste générale rendrait invisible le seul écran où l'on TRANCHE.
+             */
+            { to: '/catalogue/validation', label: 'Validation', icon: <IconeValidation /> },
             // inventory-service      /api/inventory
             { to: '/stock', label: 'Stock', icon: <IconeStock /> },
             // seller-service         /api/v1/merchants  (gouvernance)

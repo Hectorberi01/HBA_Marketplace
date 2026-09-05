@@ -1128,3 +1128,188 @@
     height: 16px;
     flex: none;
 }
+
+/* ── Fiches vendeur et boutique, validation ─────────────────────────────── */
+
+.lien-fiche {
+    color: var(--text-h);
+    text-decoration: none;
+}
+
+.lien-fiche:hover {
+    text-decoration: underline;
+}
+
+.fiche {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2px 24px;
+    margin-bottom: 8px;
+}
+
+.fiche__ligne {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.fiche__nom {
+    font-size: 14px;
+}
+
+.fiche__valeur {
+    color: var(--text-h);
+    font-size: 15px;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.gestes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.geste {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 380px;
+}
+
+.geste__saisie {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--accent-border);
+    border-radius: 10px;
+}
+
+.geste__saisie input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+    font: inherit;
+    font-size: 15px;
+}
+
+.geste__boutons {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bouton {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.bouton:hover:not(:disabled) {
+    border-color: var(--accent-border);
+}
+
+.bouton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/*
+ * LE DANGER NE TIENT PAS QU'À LA COULEUR. Le libellé d'un geste destructeur dit
+ * lui-même ce qu'il fait (« Refuser le dossier », « Suspendre la boutique »), et
+ * la confirmation le répète. Le rouge est un rappel, pas l'information.
+ */
+.bouton--danger {
+    border-color: #b3261e;
+    color: #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+    .bouton--danger {
+        border-color: #f2b8b5;
+        color: #f2b8b5;
+    }
+}
+
+.examen {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+    padding: 16px 4px;
+}
+
+.examen h3,
+.examen h4 {
+    margin: 0 0 8px;
+    color: var(--text-h);
+}
+
+.examen__decision {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.motifs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.motifs legend {
+    padding: 0 6px;
+    font-size: 13px;
+}
+
+.motif {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.commentaire {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+}
+
+.commentaire textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-h);
+    font: inherit;
+    font-size: 15px;
+    resize: vertical;
+}
+
+.decision {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}

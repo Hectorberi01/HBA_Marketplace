@@ -172,3 +172,13 @@ export function Logo() {
         </svg>
     )
 }
+
+/** Validation : une coche dans un cadre — la décision, pas le catalogue. */
+export function IconeValidation() {
+    return (
+        <svg viewBox="0 0 24 24" {...t}>
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="m8 12 3 3 5-6" />
+        </svg>
+    )
+}

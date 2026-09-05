@@ -8,8 +8,11 @@ import HomePage from './pages/HomePage'
 import MonitoringPage from './features/monitoring/MonitoringPage'
 import CommandesPage from './features/commandes/CommandesPage'
 import CataloguePage from './features/catalogue/CataloguePage'
+import ValidationPage from './features/catalogue/ValidationPage'
 import StockPage from './features/stock/StockPage'
 import VendeursPage from './features/vendeurs/VendeursPage'
+import VendeurPage from './features/vendeurs/VendeurPage'
+import BoutiquePage from './features/vendeurs/BoutiquePage'
 import RetoursPage from './features/retours/RetoursPage'
 import UtilisateursPage from './features/identite/UtilisateursPage'
 import RolesPage from './features/identite/RolesPage'
@@ -47,8 +50,14 @@ export default function App() {
 
                     <Route path="commandes" element={<CommandesPage />} />
                     <Route path="catalogue" element={<CataloguePage />} />
+                    <Route path="catalogue/validation" element={<ValidationPage />} />
                     <Route path="stock" element={<StockPage />} />
                     <Route path="vendeurs" element={<VendeursPage />} />
+                    <Route path="vendeurs/:sellerId" element={<VendeurPage />} />
+                    <Route
+                        path="vendeurs/:sellerId/boutiques/:storeId"
+                        element={<BoutiquePage />}
+                    />
                     <Route path="retours" element={<RetoursPage />} />
 
                     <Route path="restauration/etablissements" element={<EtablissementsPage />} />

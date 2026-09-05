@@ -1,5 +1,5 @@
 import { requete } from '../../api/client'
-import { lirePage, versQuery, type Page } from '../../api/pages'
+import { lireDonnee, lireListe, lirePage, versQuery, type Page } from '../../api/pages'
 
 /**
  * VENDEURS — `/api/v1/merchants` (seller-service, groupe de gouvernance).
@@ -81,3 +81,182 @@ export const STATUTS_KYB = Object.keys(KYB)
 
 /** Ce qui appelle un geste : un dossier en revue, un compte suspendu. */
 export const A_TRAITER_KYB = new Set(['InReview'])
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * LA FICHE D'UN VENDEUR, SES BOUTIQUES, ET LES GESTES DE GOUVERNANCE.
+ *
+ * L'ADMINISTRATEUR PASSE LES GARDES DE PROPRIÉTÉ, ET CE N'EST PAS UN
+ *     CONTOURNEMENT.
+ *
+ * `GET /api/v1/merchants/{sellerId}` et le groupe `/stores` sont montés par
+ * `MapSellerGroup` — « admet Seller, Admin et Moderator ». La garde interne
+ * `DenyUnlessOwnSellerAsync` rend `null` d'emblée sur `IsInRole(AdminRole)` :
+ * la console lit donc la fiche de n'importe quel vendeur sans se faire passer
+ * pour lui. C'est écrit dans le service, pas déduit de son nom.
+ *
+ * LA FICHE PORTE CE QUE LA LISTE REFUSE DE PORTER.
+ *
+ * `SellerListItem` omet délibérément le compte de retrait, le RCCM, l'IFU et le
+ * téléphone du gérant — « une console a le droit d'afficher ces données sur la
+ * fiche qu'un humain ouvre, pas dans un listing qu'un écran charge au réveil ».
+ * `SellerDetail` les porte. L'écran de fiche est donc exactement l'endroit
+ * prévu pour eux, et le listing reste sobre.
+ *
+ * LES BOUTIQUES ARRIVENT DEUX FOIS, ET ON NE LIT QUE L'UNE.
+ *
+ * `SellerDetail.stores` porte déjà la liste, et `GET .../stores` la rend aussi.
+ * On se contente de la première : un second appel donnerait deux vérités à
+ * afficher, qui divergeraient le temps d'un rafraîchissement.
+ *
+ * AUCUNE DE CES DEUX LECTURES N'EST PAGINÉE. `ListSellerStoresQuery(sellerId)`
+ * ne prend ni page ni borne : la liste est complète, et un vendeur en a
+ * quelques-unes. Rien à compter « au moins ».
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+/** Une plage d'ouverture, telle que la rend `StoreOpeningHourSummary`. */
+export type PlageOuverture = {
+    dayOfWeek: number | string
+    opensAt?: string | null
+    closesAt?: string | null
+    isClosed?: boolean
+}
+
+export type Boutique = {
+    id: string
+    sellerId: string
+    name: string
+    logoUrl?: string | null
+    description?: string | null
+    contactPhone: string
+    contactEmail?: string | null
+    status: string
+    /** La boutique vend-elle en ce moment — ouverte ET non suspendue. */
+    isSelling: boolean
+    fulfillmentLocationId?: string | null
+    statusReason?: string | null
+    openingHours: PlageOuverture[]
+    createdOnUtc: string
+}
+
+/** Un document de dossier KYB. Le contenu n'est pas exposé, seulement sa nature. */
+export type DocumentKyb = {
+    id: string
+    type?: string | null
+    fileName?: string | null
+    url?: string | null
+    uploadedOnUtc?: string | null
+}
+
+/** `PayoutAccountSummary` — le compte de reversement. */
+export type CompteReversement = {
+    provider?: string | null
+    accountNumber?: string | null
+    accountName?: string | null
+    bankName?: string | null
+    currency?: string | null
+}
+
+/** `SellerCompanyInfoSummary` — les mentions légales de l'entreprise. */
+export type InfosEntreprise = {
+    legalName?: string | null
+    rccm?: string | null
+    ifu?: string | null
+    taxId?: string | null
+    managerPhone?: string | null
+    addressLine?: string | null
+    city?: string | null
+}
+
+/** `SellerDetail` : les huit champs du résumé, à plat, plus la vue riche. */
+export type VendeurDetail = Vendeur & {
+    description?: string | null
+    /** FRACTION, pas pourcentage — voir `formaterTaux`. */
+    commissionRate: number
+    rating: number
+    salesCount: number
+    payout?: CompteReversement | null
+    kybDocuments: DocumentKyb[]
+    metadata?: InfosEntreprise | null
+    stores: Boutique[]
+}
+
+export function lireVendeur(sellerId: string, signal?: AbortSignal): Promise<VendeurDetail> {
+    return requete<unknown>(`/api/v1/merchants/${sellerId}`, { signal }).then(corps =>
+        lireDonnee<VendeurDetail>(corps),
+    )
+}
+
+export function listerBoutiques(sellerId: string, signal?: AbortSignal): Promise<Boutique[]> {
+    return requete<unknown>(`/api/v1/merchants/${sellerId}/stores`, { signal }).then(corps =>
+        lireListe<Boutique>(corps),
+    )
+}
+
+export function lireBoutique(
+    sellerId: string,
+    storeId: string,
+    signal?: AbortSignal,
+): Promise<Boutique> {
+    return requete<unknown>(`/api/v1/merchants/${sellerId}/stores/${storeId}`, { signal }).then(
+        corps => lireDonnee<Boutique>(corps),
+    )
+}
+
+/** `StoreStatus` — état de la vitrine, distinct de l'état du compte vendeur. */
+const STATUTS_BOUTIQUE: Record<string, string> = {
+    Draft: 'Brouillon',
+    Open: 'Ouverte',
+    Closed: 'Fermée',
+    Suspended: 'Suspendue',
+}
+
+export function libelleStatutBoutique(statut: string): string {
+    return STATUTS_BOUTIQUE[statut] ?? statut
+}
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LES GESTES. TOUS RENDENT 204, AUCUN NE REND L'ÉTAT D'APRÈS.
+ *
+ * L'écran doit donc réinvalider la fiche après chaque geste plutôt que de
+ * deviner le nouvel état. Deviner marcherait onze fois sur douze et afficherait
+ * un état faux la douzième — quand le domaine refuse une transition, ou en
+ * impose une autre que celle qu'on croyait déclencher.
+ *
+ * LE MOTIF EST OBLIGATOIRE SUR LES REFUS ET LES SUSPENSIONS. `ReasonRequest`
+ * l'accepte nullable pour rendre une erreur lisible plutôt qu'un 400 sur corps
+ * mal formé ; les agrégats, eux, refusent le vide. L'écran l'exige donc avant
+ * d'envoyer : faire découvrir la contrainte par un 422 serait un aller-retour
+ * pour rien.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+function poster(chemin: string, corps?: unknown): Promise<void> {
+    return requete<void>(chemin, { methode: 'POST', corps })
+}
+
+export const approuverKyb = (sellerId: string) =>
+    poster(`/api/v1/merchants/${sellerId}/kyb/approve`)
+
+export const refuserKyb = (sellerId: string, motif: string) =>
+    poster(`/api/v1/merchants/${sellerId}/kyb/reject`, { reason: motif })
+
+export const activerVendeur = (sellerId: string) =>
+    poster(`/api/v1/merchants/${sellerId}/activate`)
+
+export const suspendreVendeur = (sellerId: string, motif: string) =>
+    poster(`/api/v1/merchants/${sellerId}/suspend`, { reason: motif })
+
+export const leverSuspensionVendeur = (sellerId: string) =>
+    poster(`/api/v1/merchants/${sellerId}/lift-suspension`)
+
+export const approuverReactivation = (sellerId: string) =>
+    poster(`/api/v1/merchants/${sellerId}/reactivation/approve`)
+
+export const suspendreBoutique = (sellerId: string, storeId: string, motif: string) =>
+    poster(`/api/v1/merchants/${sellerId}/stores/${storeId}/suspend`, { reason: motif })
+
+export const leverSuspensionBoutique = (sellerId: string, storeId: string) =>
+    poster(`/api/v1/merchants/${sellerId}/stores/${storeId}/lift-suspension`)

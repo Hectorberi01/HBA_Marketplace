@@ -129,3 +129,27 @@ export function lireListe<T>(corps: unknown): T[] {
         "contrat de l'endpoint a changé.",
     )
 }
+
+/**
+ * OBJET UNIQUE, ENVELOPPÉ OU NU.
+ *
+ * `GET /api/v1/merchants/{id}` rend `ApiResults.Ok(seller)` — donc
+ * `{ success, data, meta }` avec un OBJET dans `data`, pas un tableau.
+ * `lireListe` refuserait, `lirePage` inventerait une page d'un élément.
+ *
+ * On accepte aussi la forme nue : les endpoints non migrés rendent
+ * `Results.Ok(dto)`, et le portail rencontre les deux dans le même service.
+ *
+ * LE TEST PORTE SUR LA PRÉSENCE DE `data`, PAS SUR `success`. Un objet métier
+ * qui porterait lui-même un champ `success` est concevable ; un qui porte un
+ * champ `data` ET une méta de requête ne l'est pas.
+ */
+export function lireDonnee<T>(corps: unknown): T {
+    if (corps && typeof corps === 'object' && !Array.isArray(corps)) {
+        const enveloppe = corps as { data?: unknown; meta?: unknown }
+        if (enveloppe.data !== undefined && enveloppe.meta !== undefined) {
+            return enveloppe.data as T
+        }
+    }
+    return corps as T
+}
