@@ -44,6 +44,7 @@ TROIS DECISIONS QUI MERITENT D'ETRE LUES.
    emprunte, c'est verifier autre chose.
 """
 import os, re, io, sys, shutil
+import re
 
 RACINE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SKIP = {"obj", "bin", ".git", "build", "node_modules"}
@@ -335,16 +336,25 @@ internal sealed class SondeDesDestinationsGrpc : IHealthCheck
 """)
 
         # ── le module
+        # LE NOM DE SONDE PORTE LE MODULE. Trois hotes montent plusieurs
+        # modules dans un seul processus ; `DefaultHealthCheckService` refuse
+        # deux sondes de meme nom, et il le fait a la RESOLUTION, donc au
+        # premier `MapHealthChecks`. Voir observabilite_noms.py.
+        slug = re.sub(r"(?<!^)(?=[A-Z])", "-", court).lower()
+
         grpc_enr = ("""
         // LA SONDE gRPC N'EST PAS DANS `ready` — voir son encadre. Une sonde de
         // disponibilite qui tombe avec un voisin transforme une panne en N pannes.
         services.AddHealthChecks().AddCheck<SondeDesDestinationsGrpc>(
-            "grpc", tags: ["dependencies"]);
-""" if a_du_grpc else "")
+            "grpc-{slug}", tags: ["dependencies"]);
+""".replace("{slug}", slug) if a_du_grpc else "")
 
         ecrire(os.path.join(infra, "Observability", "DependencyInjection.cs"), f"""using {racine_ns}.Observability.HealthChecks;
+using {racine_ns}.Observability.Metrics;
+using HBA.Shared.Application.Observability;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace {racine_ns}.Observability;
 
@@ -372,9 +382,26 @@ public static class DependencyInjection
     public static IServiceCollection AjouterObservabilite{court}(
         this IServiceCollection services, IConfiguration configuration)
     {{
+        // LES METRIQUES NEUTRES DE CE SERVICE.
+        //
+        // `TryAdd` : un service qui compte vraiment quelque chose enregistre SON
+        // implementation avant d'appeler ce module, et elle gagne.
+        services.TryAddSingleton<IPaymentMetrics, NoOpPaymentMetrics>();
+        services.TryAddSingleton<IHbaBusinessMetrics, NoOpBusinessMetrics>();
+        services.TryAddSingleton<ISecurityMetrics, NoOpSecurityMetrics>();
+        services.TryAddSingleton<IOutboxMetrics, NoOpOutboxMetrics>();
+
+        // SINGLETON : `AddCheck<T>` resout par `GetServiceOrCreateInstance`, donc
+        // sans lui une NOUVELLE sonde — et une connexion au courtier — serait
+        // construite a chaque appel de l'orchestrateur.
+        services.AddSingleton<SondeDeKafka>();
+
+        // LE NOM PORTE LE MODULE : dans un hote compose, chaque module a SON cache
+        // et SON courtier. Le verdict de l'orchestrateur ne change pas, il agrege
+        // sur le TAG `ready`, jamais sur le nom.
         services.AddHealthChecks()
-            .AddCheck<SondeDuCache>("cache", tags: ["ready"])
-            .AddCheck<SondeDeKafka>("kafka", tags: ["ready"]);
+            .AddCheck<SondeDuCache>("cache-{slug}", tags: ["ready"])
+            .AddCheck<SondeDeKafka>("kafka-{slug}", tags: ["ready"]);
 {grpc_enr}
         return services;
     }}

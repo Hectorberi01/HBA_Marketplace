@@ -51,9 +51,27 @@ public static class DependencyInjection
         // qu'elle mesure.
         services.AddSingleton<SondeDeKafka>();
 
+        // LES NOMS PORTENT LE MODULE, ET CE N'EST PAS DECORATIF.
+        //
+        // Trois hotes montent plusieurs modules dans un seul processus
+        // (`HBA.Financial.Api` en monte trois). Deux sondes nommees `cache` dans
+        // le meme conteneur, et `DefaultHealthCheckService` refuse de se
+        // construire — au premier `MapHealthChecks`, pas a l'enregistrement.
+        //
+        // Le suffixe n'est pas qu'un evitement de collision : dans un hote
+        // compose, chaque module a SON cache et SON courtier. Un nom partage
+        // cacherait la panne d'un module derriere la sante d'un autre.
+        //
+        // Le verdict de l'orchestrateur ne change pas : `/health/ready` agrege
+        // sur le TAG `ready`, jamais sur le nom.
         services.AddHealthChecks()
-            .AddCheck<SondeDuCache>("cache", tags: ["ready"])
-            .AddCheck<SondeDeKafka>("kafka", tags: ["ready"]);
+            .AddCheck<SondeDuCache>("cache-users", tags: ["ready"])
+            .AddCheck<SondeDeKafka>("kafka-users", tags: ["ready"]);
+
+        // LA SONDE gRPC N'EST PAS DANS `ready` — voir son encadre. Une sonde de
+        // disponibilite qui tombe avec un voisin transforme une panne en N pannes.
+        services.AddHealthChecks().AddCheck<SondeDesDestinationsGrpc>(
+            "grpc-users", tags: ["dependencies"]);
 
         return services;
     }
