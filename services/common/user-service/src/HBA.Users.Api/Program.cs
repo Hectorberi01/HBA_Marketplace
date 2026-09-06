@@ -1,6 +1,6 @@
 using HBA.Identity.Contracts.Grpc;
 using HBA.Users.Api.Endpoints;
-using HBA.Users.Api.Messaging.Kafka.Configuration;
+using HBA.Users.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Shared.Hosting;
 using HBA.Users.Contracts.Grpc;
 using HBA.Users.Infrastructure;
@@ -32,9 +32,9 @@ builder.Services.AddIdentityGrpcClient(builder.Configuration);
 //
 // Les trois enregistrements vivaient ici, et la liste des sujets nulle part —
 // le service s'abonnait donc aux vingt sujets de la plateforme pour en traiter
-// trois. `Messaging/Kafka/Configuration/MessagerieUsers.cs` porte désormais les
-// deux, côte à côte : un gestionnaire dont le sujet n'est pas déclaré ne serait
-// jamais appelé, en silence, et rien d'autre ne relie les deux.
+// trois. `HBA.Users.Infrastructure/Messaging/Kafka/` porte désormais les deux,
+// côte à côte : un gestionnaire dont le sujet n'est pas déclaré ne serait jamais
+// appelé, en silence, et rien d'autre ne relie les deux.
 // ═════════════════════════════════════════════════════════════════════════
 builder.Services.AjouterMessagerieUsers();
 

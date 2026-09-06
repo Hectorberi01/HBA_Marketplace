@@ -4,6 +4,27 @@
     <ProjectReference Include="..\HBA.Users.Domain\HBA.Users.Domain.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Users.Contracts\HBA.Users.Contracts.csproj" />
     <ProjectReference Include="..\HBA.Users.Application\HBA.Users.Application.csproj" />
+    <!--
+      LA FRONTIERE User -> Identity EST OUVERTE ICI, ET C'EST UNE DECISION.
+
+      Les trois consommateurs Kafka de ce service consomment des contrats
+      d'Identity, et l'un d'eux relit le compte par gRPC. Les ranger dans
+      `Messaging/Kafka/Consumers` — la convention du depot — oblige ce projet
+      a connaître Identity.
+
+      CE QU'ON PERD. Les commentaires du service citent `UsersBoundaryTests`,
+      qui interdisait au module User de dependre d'Identity : « un appel a
+      IIdentityModuleApi pour verifier que l'utilisateur existe paraîtrait
+      raisonnable et recreerait pourtant le couplage que ce deplacement vient
+      de defaire ». Ce test N'EXISTE PAS dans le depot — la garde etait un
+      commentaire, pas un controle. Elle l'est restee.
+
+      CE QUI TIENT ENCORE. Le couplage est confine a `Messaging/Kafka/` : rien
+      d'autre dans ce projet ne reference Identity, et le supprimer se fait en
+      supprimant ce dossier. Si la frontiere doit redevenir opposable, c'est un
+      test d'architecture qu'il faut ecrire — pas un commentaire.
+    -->
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
   </ItemGroup>
 

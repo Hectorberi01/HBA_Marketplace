@@ -7,7 +7,7 @@ using HBA.Users.Application.Abstractions;
 using HBA.Users.Application.Profiles;
 using MediatR;
 
-namespace HBA.Users.Api.Messaging.Kafka.Consumers;
+namespace HBA.Users.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// ═════════════════════════════════════════════════════════════════════════════
