@@ -8,7 +8,6 @@ using HBA.Pricing.Contracts;
 using HBA.Pricing.Promotion;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
 using HBA.Shared.IntegrationEvents;
 using HBA.Commerce.Application.Abstractions;
@@ -24,6 +23,8 @@ using HBA.Orders.Contracts.IntegrationEvents;
 
 using HBA.Commerce.Infrastructure.Caching.Redis;
 using HBA.Commerce.Infrastructure.Observability;
+using HBA.Commerce.Infrastructure.Persistence.Outbox;
+using HBA.Commerce.Infrastructure.Persistence.Inbox;
 namespace HBA.Commerce.Infrastructure;
 
 /// <summary>Enregistre le module Cart : DbContext, repository, API publique, handlers, validators, outbox.</summary>

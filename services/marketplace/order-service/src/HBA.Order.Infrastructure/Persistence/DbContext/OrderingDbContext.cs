@@ -1,18 +1,44 @@
 using Microsoft.EntityFrameworkCore;
 using HBA.Shared.Application.Abstractions;
-using HBA.Shared.Infrastructure.Inbox;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Orders.Application.Abstractions;
 using HBA.Orders.Domain.Orders;
 using HBA.Orders.Domain.Orders.SellerOrders;
 
 using HBA.Orders.Infrastructure.Auditing;
+using HBA.Orders.Infrastructure.Persistence.Outbox;
+using HBA.Orders.Infrastructure.Persistence.Inbox;
 namespace HBA.Orders.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Ordering (schéma « ordering »).</summary>
-public sealed class OrderingDbContext : ModuleDbContext, IOrderingUnitOfWork
+public sealed class OrderingDbContext : ModuleDbContext, IOutboxDbContext, IOrderingUnitOfWork
 {
+    // ═════════════════════════════════════════════════════════════════════════
+    // L'OUTBOX ET L'INBOX DE CE SERVICE — LEURS TABLES LUI APPARTIENNENT.
+    //
+    // Le socle draine la file d'evenements et exclut ces deux tables du journal
+    // d'audit ; il ne connait plus ni l'une ni l'autre. Ces trois membres sont ce
+    // qu'il appelle, et ils repondent avec les entites de `Persistence/`.
+    // ═════════════════════════════════════════════════════════════════════════
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfiguration(new OutboxConfiguration());
+        modelBuilder.ApplyConfiguration(new ConsumerInboxConfiguration());
+    }
+
+    protected override void AjouterAuOutbox(
+        string type, string contenu, DateTime survenuLeUtc, string? traceParent, string? correlation)
+        => OutboxMessages.Add(new OutboxMessage
+        {
+            Type = type,
+            Content = contenu,
+            OccurredOnUtc = survenuLeUtc,
+            TraceParent = traceParent,
+            CorrelationId = correlation
+        });
+
     public const string SchemaName = "ordering";
 
     public OrderingDbContext(

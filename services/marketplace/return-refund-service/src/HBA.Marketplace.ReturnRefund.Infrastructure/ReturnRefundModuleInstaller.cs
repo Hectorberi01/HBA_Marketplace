@@ -18,13 +18,14 @@ using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Repositories;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Redis;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Marketplace.ReturnRefund.Infrastructure.Caching.Redis;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Observability;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Outbox;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Inbox;
 namespace HBA.Marketplace.ReturnRefund.Infrastructure;
 
 public sealed class ReturnRefundModuleInstaller : IModuleInstaller

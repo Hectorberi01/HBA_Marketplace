@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using HBA.Shared.Application.Context;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.IntegrationEvents;
 using HBA.Catalog.Application.Abstractions;
 using HBA.Catalog.Domain.Products;
@@ -13,6 +12,8 @@ using HBA.Merchants.Contracts.IntegrationEvents;
 // ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Catalog.Infrastructure;
 
+using HBA.Catalog.Infrastructure.Persistence.Outbox;
+using HBA.Catalog.Infrastructure.Persistence.Inbox;
 // ═════════════════════════════════════════════════════════════════════════════
 // CE FICHIER A DÉMÉNAGÉ DE `Application` VERS `Infrastructure/Messaging/Kafka/Consumers`.
 //

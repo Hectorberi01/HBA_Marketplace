@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using HBA.Shared.Application.Context;
-using HBA.Shared.Infrastructure.Inbox;
+using HBA.Shared.Infrastructure.Events;
 using System.Reflection;
 using HBA.Shared.IntegrationEvents;
 

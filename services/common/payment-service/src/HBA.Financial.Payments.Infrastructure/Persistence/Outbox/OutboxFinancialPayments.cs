@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Financial.Payments.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Financial.Payments.Infrastructure.Persistence.Outbox;
+using HBA.Financial.Payments.Infrastructure.Persistence.Inbox;
 namespace HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxFinancialPayments
 {
     internal static IServiceCollection AjouterOutboxFinancialPayments(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<PaymentsDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

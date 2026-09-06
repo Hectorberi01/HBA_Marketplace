@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Users.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Users.Infrastructure.Persistence.Outbox;
+using HBA.Users.Infrastructure.Persistence.Inbox;
 namespace HBA.Users.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -43,7 +44,7 @@ public static class OutboxUsers
     {
         // `AddOutboxProcessor` enregistre le processeur ET le purgeur, et ne fait
         // rien si `Outbox:Enabled` est à faux — voir `OutboxRegistration`.
-        services.AddOutboxProcessor<UsersDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

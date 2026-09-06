@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Media.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Media.Infrastructure.Persistence.Outbox;
+using HBA.Media.Infrastructure.Persistence.Inbox;
 namespace HBA.Media.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
@@ -24,7 +25,7 @@ public static class InboxMedia
 {
     internal static IServiceCollection AjouterInboxMedia(this IServiceCollection services)
     {
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<MediaDbContext>>();
+        services.AddScoped<IConsumerInbox, EfConsumerInbox>();
         return services;
     }
 }

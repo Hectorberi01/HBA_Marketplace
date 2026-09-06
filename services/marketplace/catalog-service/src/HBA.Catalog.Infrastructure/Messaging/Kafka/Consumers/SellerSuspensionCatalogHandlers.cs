@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using HBA.Shared.Application.Context;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.IntegrationEvents;
 using HBA.Catalog.Application.Abstractions;
 using HBA.Catalog.Application.Offers;
@@ -14,6 +13,8 @@ using HBA.Merchants.Contracts.IntegrationEvents;
 // ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Catalog.Infrastructure;
 
+using HBA.Catalog.Infrastructure.Persistence.Outbox;
+using HBA.Catalog.Infrastructure.Persistence.Inbox;
 // ═════════════════════════════════════════════════════════════════════════════
 // SUSPENDRE UN VENDEUR NE RETIRAIT RIEN DE LA VENTE (ISSUE-025).
 //

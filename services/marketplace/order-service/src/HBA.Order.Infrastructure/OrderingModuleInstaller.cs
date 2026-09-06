@@ -6,7 +6,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
 using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Application.Abstractions;
@@ -27,6 +26,8 @@ using HBA.Returns.Contracts.IntegrationEvents;
 
 using HBA.Orders.Infrastructure.Caching.Redis;
 using HBA.Orders.Infrastructure.Observability;
+using HBA.Orders.Infrastructure.Persistence.Outbox;
+using HBA.Orders.Infrastructure.Persistence.Inbox;
 namespace HBA.Orders.Infrastructure;
 
 /// <summary>Enregistre le module Ordering : DbContext, repository, API publique, Saga handlers, validators, outbox.</summary>

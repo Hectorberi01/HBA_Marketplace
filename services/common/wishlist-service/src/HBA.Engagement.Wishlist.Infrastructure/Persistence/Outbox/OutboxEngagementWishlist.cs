@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Engagement.Wishlist.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Engagement.Wishlist.Infrastructure.Persistence.Outbox;
+using HBA.Engagement.Wishlist.Infrastructure.Persistence.Inbox;
 namespace HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxEngagementWishlist
 {
     internal static IServiceCollection AjouterOutboxEngagementWishlist(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<WishlistDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

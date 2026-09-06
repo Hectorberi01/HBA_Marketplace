@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Food.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Food.Infrastructure.Persistence.Outbox;
+using HBA.Food.Infrastructure.Persistence.Inbox;
 namespace HBA.Food.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxFoodRestaurant
 {
     internal static IServiceCollection AjouterOutboxFoodRestaurant(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<FoodDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

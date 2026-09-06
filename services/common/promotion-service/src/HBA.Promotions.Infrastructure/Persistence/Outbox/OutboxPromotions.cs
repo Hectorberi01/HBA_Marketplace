@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Promotions.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Promotions.Infrastructure.Persistence.Outbox;
+using HBA.Promotions.Infrastructure.Persistence.Inbox;
 namespace HBA.Promotions.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxPromotions
 {
     internal static IServiceCollection AjouterOutboxPromotions(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<PromotionsDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

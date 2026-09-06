@@ -2,8 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Outbox;
-
+using HBA.Financial.Billing.Infrastructure.Persistence.Outbox;
+using HBA.Financial.Billing.Infrastructure.Persistence.Inbox;
 namespace HBA.Financial.Billing.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF.</summary>

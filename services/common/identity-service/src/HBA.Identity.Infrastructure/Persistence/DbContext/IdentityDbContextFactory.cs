@@ -2,8 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Outbox;
-
+using HBA.Identity.Infrastructure.Persistence.Outbox;
+using HBA.Identity.Infrastructure.Persistence.Inbox;
 namespace HBA.Identity.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF (migrations add / database update).</summary>

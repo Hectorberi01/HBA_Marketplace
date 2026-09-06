@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Engagement.Recommendations.Infrastructure.Persistence.Outbox;
+using HBA.Engagement.Recommendations.Infrastructure.Persistence.Inbox;
 namespace HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxEngagementRecommendations
 {
     internal static IServiceCollection AjouterOutboxEngagementRecommendations(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<RecommendationsDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

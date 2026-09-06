@@ -2,9 +2,10 @@ using HBA.Shared.Infrastructure.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Routes.Infrastructure.Messaging.Kafka.Producers;
 
+using HBA.Routes.Infrastructure.Persistence.Outbox;
+using HBA.Routes.Infrastructure.Persistence.Inbox;
 namespace HBA.Routes.Infrastructure.Messaging.Kafka.Configuration;
 
 /// <summary>

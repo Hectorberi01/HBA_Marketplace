@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Media.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Media.Infrastructure.Persistence.Outbox;
+using HBA.Media.Infrastructure.Persistence.Inbox;
 namespace HBA.Media.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxMedia
 {
     internal static IServiceCollection AjouterOutboxMedia(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<MediaDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

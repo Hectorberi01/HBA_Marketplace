@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Outbox;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Inbox;
 namespace HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxMarketplaceReturnRefund
 {
     internal static IServiceCollection AjouterOutboxMarketplaceReturnRefund(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<ReturnRefundDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

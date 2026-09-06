@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Identity.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Identity.Infrastructure.Persistence.Outbox;
+using HBA.Identity.Infrastructure.Persistence.Inbox;
 namespace HBA.Identity.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxIdentity
 {
     internal static IServiceCollection AjouterOutboxIdentity(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<IdentityDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

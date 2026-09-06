@@ -1,8 +1,7 @@
 using HBA.Catalog.Application.Abstractions;
 using HBA.Catalog.Domain.Offers;
 using HBA.Catalog.Domain.Products;
-using HBA.Shared.Infrastructure.Inbox;
-
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Catalog.UnitTests;
 
 /// <summary>

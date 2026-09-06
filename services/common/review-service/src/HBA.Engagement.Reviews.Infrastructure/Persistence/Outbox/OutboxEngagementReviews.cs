@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Engagement.Reviews.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Engagement.Reviews.Infrastructure.Persistence.Outbox;
+using HBA.Engagement.Reviews.Infrastructure.Persistence.Inbox;
 namespace HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxEngagementReviews
 {
     internal static IServiceCollection AjouterOutboxEngagementReviews(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<ReviewsDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

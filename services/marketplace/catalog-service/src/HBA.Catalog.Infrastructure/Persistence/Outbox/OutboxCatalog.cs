@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Catalog.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Catalog.Infrastructure.Persistence.Outbox;
+using HBA.Catalog.Infrastructure.Persistence.Inbox;
 namespace HBA.Catalog.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxCatalog
 {
     internal static IServiceCollection AjouterOutboxCatalog(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<CatalogDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

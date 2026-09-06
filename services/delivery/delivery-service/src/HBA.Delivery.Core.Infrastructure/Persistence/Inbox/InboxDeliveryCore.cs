@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Deliveries.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Deliveries.Infrastructure.Persistence.Outbox;
+using HBA.Deliveries.Infrastructure.Persistence.Inbox;
 namespace HBA.Deliveries.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
@@ -24,7 +25,7 @@ public static class InboxDeliveryCore
 {
     internal static IServiceCollection AjouterInboxDeliveryCore(this IServiceCollection services)
     {
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<DeliveriesDbContext>>();
+        services.AddScoped<IConsumerInbox, EfConsumerInbox>();
         return services;
     }
 }

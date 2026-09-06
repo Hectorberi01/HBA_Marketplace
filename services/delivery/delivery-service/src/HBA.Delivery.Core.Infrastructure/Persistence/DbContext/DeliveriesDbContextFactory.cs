@@ -1,9 +1,10 @@
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
+using HBA.Deliveries.Infrastructure.Persistence.Outbox;
+using HBA.Deliveries.Infrastructure.Persistence.Inbox;
 namespace HBA.Deliveries.Infrastructure.Persistence;
 
 /// <summary>

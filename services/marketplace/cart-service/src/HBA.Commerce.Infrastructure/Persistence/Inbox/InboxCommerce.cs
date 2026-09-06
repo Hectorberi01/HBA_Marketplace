@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Commerce.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Commerce.Infrastructure.Persistence.Outbox;
+using HBA.Commerce.Infrastructure.Persistence.Inbox;
 namespace HBA.Commerce.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
@@ -24,7 +25,7 @@ public static class InboxCommerce
 {
     internal static IServiceCollection AjouterInboxCommerce(this IServiceCollection services)
     {
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<CartDbContext>>();
+        services.AddScoped<IConsumerInbox, EfConsumerInbox>();
         return services;
     }
 }

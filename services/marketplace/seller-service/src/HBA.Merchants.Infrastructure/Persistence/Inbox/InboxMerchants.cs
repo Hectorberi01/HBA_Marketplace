@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Merchants.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Merchants.Infrastructure.Persistence.Outbox;
+using HBA.Merchants.Infrastructure.Persistence.Inbox;
 namespace HBA.Merchants.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
@@ -24,7 +25,7 @@ public static class InboxMerchants
 {
     internal static IServiceCollection AjouterInboxMerchants(this IServiceCollection services)
     {
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<SellersDbContext>>();
+        services.AddScoped<IConsumerInbox, EfConsumerInbox>();
         return services;
     }
 }

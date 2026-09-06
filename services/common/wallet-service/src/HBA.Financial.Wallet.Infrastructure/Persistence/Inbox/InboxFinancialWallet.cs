@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Financial.Wallet.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Financial.Wallet.Infrastructure.Persistence.Outbox;
+using HBA.Financial.Wallet.Infrastructure.Persistence.Inbox;
 namespace HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
@@ -24,7 +25,7 @@ public static class InboxFinancialWallet
 {
     internal static IServiceCollection AjouterInboxFinancialWallet(this IServiceCollection services)
     {
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<WalletDbContext>>();
+        services.AddScoped<IConsumerInbox, EfConsumerInbox>();
         return services;
     }
 }

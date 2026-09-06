@@ -1,5 +1,6 @@
-using HBA.Shared.Infrastructure.Outbox;
-
+using HBA.Deliveries.Infrastructure.Persistence.Outbox;
+using HBA.Deliveries.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Deliveries.Infrastructure.Dispatch;
 
 /// <summary>
@@ -29,7 +30,7 @@ public static class DispatchToggle
             var flag = Environment.GetEnvironmentVariable("DISPATCH_ENABLED");
 
             return string.IsNullOrWhiteSpace(flag)
-                ? OutboxRegistration.Enabled
+                ? DrainageDOutbox.Actif
                 : !string.Equals(flag, "false", StringComparison.OrdinalIgnoreCase);
         }
     }

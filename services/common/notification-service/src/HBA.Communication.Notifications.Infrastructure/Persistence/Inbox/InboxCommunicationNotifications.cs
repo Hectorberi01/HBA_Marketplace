@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Communication.Notifications.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Communication.Notifications.Infrastructure.Persistence.Outbox;
+using HBA.Communication.Notifications.Infrastructure.Persistence.Inbox;
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
@@ -24,7 +25,7 @@ public static class InboxCommunicationNotifications
 {
     internal static IServiceCollection AjouterInboxCommunicationNotifications(this IServiceCollection services)
     {
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<NotificationsDbContext>>();
+        services.AddScoped<IConsumerInbox, EfConsumerInbox>();
         return services;
     }
 }

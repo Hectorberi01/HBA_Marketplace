@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Merchants.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Merchants.Infrastructure.Persistence.Outbox;
+using HBA.Merchants.Infrastructure.Persistence.Inbox;
 namespace HBA.Merchants.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxMerchants
 {
     internal static IServiceCollection AjouterOutboxMerchants(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<SellersDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

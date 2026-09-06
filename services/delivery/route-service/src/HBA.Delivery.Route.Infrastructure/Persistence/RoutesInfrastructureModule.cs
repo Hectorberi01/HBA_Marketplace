@@ -1,12 +1,13 @@
 using HBA.Routes.Application;
 using HBA.Routes.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Routes.Infrastructure.Caching.Redis;
 using Microsoft.Extensions.Configuration;
 using HBA.Routes.Infrastructure.Observability;
+using HBA.Routes.Infrastructure.Persistence.Outbox;
+using HBA.Routes.Infrastructure.Persistence.Inbox;
 namespace HBA.Routes.Infrastructure;
 
 public static class RoutesInfrastructureModule

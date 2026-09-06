@@ -1,7 +1,8 @@
 using HBA.Communication.Infrastructure.Persistence;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Communication.Infrastructure.Persistence.Outbox;
+using HBA.Communication.Infrastructure.Persistence.Inbox;
 namespace HBA.Communication.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -21,7 +22,7 @@ public static class OutboxCommunication
 {
     internal static IServiceCollection AjouterOutboxCommunication(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<MessagingDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

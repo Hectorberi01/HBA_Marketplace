@@ -4,8 +4,6 @@ using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Application.Context;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Idempotency;
-using HBA.Shared.Infrastructure.Inbox;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.Infrastructure.Serialization;
 
 namespace HBA.Shared.Infrastructure.Persistence;
@@ -20,7 +18,7 @@ namespace HBA.Shared.Infrastructure.Persistence;
 /// Règle d'or : un module ne lit/écrit que dans son propre schéma. Pas de JOIN
 /// ni de foreign key cross-schéma — c'est ce qui rend l'extraction mécanique.
 /// </summary>
-public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
+public abstract class ModuleDbContext : DbContext, IUnitOfWork
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -96,12 +94,37 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
     {
     }
 
-    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    // ═════════════════════════════════════════════════════════════════════════
+    // LA TABLE D'OUTBOX A QUITTE CETTE CLASSE.
+    //
+    // Elle est declaree par le contexte de chaque service, avec SON entite : c'est
+    // lui qui la cree dans ses migrations. Ce qui reste ici, c'est le DRAIN — la
+    // regle qui veut que tout evenement mis en file par le metier parte dans la
+    // MEME transaction que le fait qui l'a produit. Cette regle-la ne se duplique
+    // pas : elle est ce qui garantit qu'aucun evenement n'est perdu.
+    // ═════════════════════════════════════════════════════════════════════════
+    protected virtual void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
+    {
+    }
+
+    /// <summary>
+    /// Ajoute une ligne a l'outbox DU SERVICE. Vide par defaut.
+    /// </summary>
+    /// <remarks>
+    /// LES PARAMETRES SONT DES PRIMITIFS, comme pour le journal d'audit : passer
+    /// une entite partagee remettrait dans le socle le type qu'on vient d'en sortir.
+    /// Un service qui ne surcharge pas ceci enfile des evenements qui ne partiront
+    /// jamais — c'est visible au premier evenement publie, et invisible avant.
+    /// </remarks>
+    protected virtual void AjouterAuOutbox(
+        string type, string contenu, DateTime survenuLeUtc, string? traceParent, string? correlation)
+    {
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
-        modelBuilder.ApplyConfiguration(new OutboxConfiguration());
+        ConfigurerLesTablesTechniques(modelBuilder);
 
         if (KeepsAuditTrail)
         {
@@ -216,32 +239,26 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
     {
         foreach (var integrationEvent in _integrationEventQueue.DequeueAll())
         {
-            OutboxMessages.Add(new OutboxMessage
-            {
-                Type = EventTypeName.Of(integrationEvent.GetType()),
-                Content = JsonSerializer.Serialize(integrationEvent, integrationEvent.GetType(), SerializerOptions),
-                OccurredOnUtc = integrationEvent.OccurredOnUtc,
+            AjouterAuOutbox(
+                EventTypeName.Of(integrationEvent.GetType()),
+                JsonSerializer.Serialize(integrationEvent, integrationEvent.GetType(), SerializerOptions),
+                integrationEvent.OccurredOnUtc,
 
                 // LES DEUX CHEMINS D'ENFILEMENT DOIVENT LE FAIRE.
                 //
-                // `OutboxIntegrationEventPublisher` et ce drain écrivent tous deux
-                // dans `outbox_messages`. N'instrumenter que l'un rendrait la moitié
-                // des événements traçable et l'autre non, selon un détail
-                // d'implémentation invisible depuis le métier — le pire cas pour un
-                // diagnostic, puisque le symptôme paraîtrait intermittent.
-                TraceParent = System.Diagnostics.Activity.Current?.Id,
+                // `OutboxIntegrationEventPublisher` et ce drain ecrivent tous deux
+                // dans `outbox_messages`. N'instrumenter que l'un rendrait la moitie
+                // des evenements tracable et l'autre non, selon un detail
+                // d'implementation invisible depuis le metier.
+                System.Diagnostics.Activity.Current?.Id,
 
-                // CAPTURÉE ICI, PARCE QU'APRÈS IL EST TROP TARD.
-                //
-                // L'outbox est une frontière asynchrone : le message part plusieurs
-                // secondes plus tard, dans un service d'arrière-plan qui n'a plus
-                // rien de la requête d'origine. Tout ce qui n'est pas écrit en base
-                // à cet instant est perdu — c'est déjà la raison d'être de
-                // `TraceParent` juste au-dessus.
-                CorrelationId = string.IsNullOrWhiteSpace(HbaRequestContext.Current.CorrelationId)
+                // CAPTUREE ICI, PARCE QU'APRES IL EST TROP TARD. L'outbox est une
+                // frontiere asynchrone : le message part plusieurs secondes plus
+                // tard, dans un service d'arriere-plan qui n'a plus rien de la
+                // requete d'origine.
+                string.IsNullOrWhiteSpace(HbaRequestContext.Current.CorrelationId)
                     ? null
-                    : HbaRequestContext.Current.CorrelationId
-            });
+                    : HbaRequestContext.Current.CorrelationId);
         }
     }
 
@@ -297,8 +314,8 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
             // sienne retrouver la boucle infinie, en silence. Voir le marqueur.
             .Where(entry => entry.Entity
                 is not IEntreeDeJournal
-                and not OutboxMessage
-                and not ConsumerInboxEntry
+                and not IMessageDOutbox
+                and not IEntreeDInbox
                 and not IdempotencyRecord)
 
             // LES TYPES POSSÉDÉS SONT REPORTÉS SUR LEUR PROPRIÉTAIRE, PAS FILTRÉS.

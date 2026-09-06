@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Delivery.Pricing.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Delivery.Pricing.Infrastructure.Persistence.Outbox;
+using HBA.Delivery.Pricing.Infrastructure.Persistence.Inbox;
 namespace HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxDeliveryPricing
 {
     internal static IServiceCollection AjouterOutboxDeliveryPricing(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<DeliveryPricingDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

@@ -4,7 +4,7 @@ using HBA.Catalog.Domain.Offers;
 using HBA.Catalog.Domain.Products;
 using HBA.Catalog.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Merchants.Contracts.IntegrationEvents;
-using HBA.Shared.Infrastructure.Inbox;
+using HBA.Shared.Infrastructure.Events;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HBA.Catalog.UnitTests;

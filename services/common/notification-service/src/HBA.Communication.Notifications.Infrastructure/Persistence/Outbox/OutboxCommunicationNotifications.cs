@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Communication.Notifications.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Communication.Notifications.Infrastructure.Persistence.Outbox;
+using HBA.Communication.Notifications.Infrastructure.Persistence.Inbox;
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxCommunicationNotifications
 {
     internal static IServiceCollection AjouterOutboxCommunicationNotifications(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<NotificationsDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

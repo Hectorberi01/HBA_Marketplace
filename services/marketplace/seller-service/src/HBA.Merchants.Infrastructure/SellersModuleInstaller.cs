@@ -8,7 +8,6 @@ using HBA.Shared.Infrastructure.Configuration;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Idempotency;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
 using HBA.Shared.IntegrationEvents;
 using HBA.Identity.Contracts.IntegrationEvents;
@@ -32,6 +31,8 @@ using HBA.Merchants.Infrastructure.Public;
 
 using HBA.Merchants.Infrastructure.Caching.Redis;
 using HBA.Merchants.Infrastructure.Observability;
+using HBA.Merchants.Infrastructure.Persistence.Outbox;
+using HBA.Merchants.Infrastructure.Persistence.Inbox;
 namespace HBA.Merchants.Infrastructure;
 
 /// <summary>

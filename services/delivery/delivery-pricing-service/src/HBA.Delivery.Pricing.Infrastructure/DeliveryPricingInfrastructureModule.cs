@@ -3,7 +3,6 @@ using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Delivery.Pricing.Application.Abstractions;
 using HBA.Delivery.Pricing.Domain.Policies;
 using HBA.Delivery.Pricing.Infrastructure.Persistence;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +10,8 @@ using Microsoft.Extensions.Options;
 
 using HBA.Delivery.Pricing.Infrastructure.Caching.Redis;
 using HBA.Delivery.Pricing.Infrastructure.Observability;
+using HBA.Delivery.Pricing.Infrastructure.Persistence.Outbox;
+using HBA.Delivery.Pricing.Infrastructure.Persistence.Inbox;
 namespace HBA.Delivery.Pricing.Infrastructure;
 
 public static class DeliveryPricingInfrastructureModule

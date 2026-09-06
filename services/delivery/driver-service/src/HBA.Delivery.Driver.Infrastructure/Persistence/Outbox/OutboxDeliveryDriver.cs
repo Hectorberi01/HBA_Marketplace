@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Drivers.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Drivers.Infrastructure.Persistence.Outbox;
+using HBA.Drivers.Infrastructure.Persistence.Inbox;
 namespace HBA.Drivers.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
@@ -26,7 +27,7 @@ public static class OutboxDeliveryDriver
 {
     internal static IServiceCollection AjouterOutboxDeliveryDriver(this IServiceCollection services)
     {
-        services.AddOutboxProcessor<DriverDbContext>();
+        services.AjouterLOutboxLocale();
         return services;
     }
 }

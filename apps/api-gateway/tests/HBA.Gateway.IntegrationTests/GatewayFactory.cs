@@ -46,7 +46,7 @@ public class GatewayFactory : WebApplicationFactory<Program>
     /// c'est un diagnostic a refaire.
     ///
     /// `OUTBOX_ENABLED` EST LU DANS L'ENVIRONNEMENT, PAS DANS LA CONFIGURATION.
-    /// `OutboxRegistration.Enabled` appelle `Environment.GetEnvironmentVariable`
+    /// `DrainageDOutbox.Actif` appelle `Environment.GetEnvironmentVariable`
     /// directement : le poser dans `AddInMemoryCollection` n'aurait aucun effet,
     /// et l'echec serait identique et inexplicable.
     ///

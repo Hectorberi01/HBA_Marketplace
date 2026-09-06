@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Idempotency;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
 using HBA.Inventory.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
@@ -35,6 +34,8 @@ using HBA.Catalog.Infrastructure.Public;
 
 using HBA.Catalog.Infrastructure.Caching.Redis;
 using HBA.Catalog.Infrastructure.Observability;
+using HBA.Catalog.Infrastructure.Persistence.Outbox;
+using HBA.Catalog.Infrastructure.Persistence.Inbox;
 namespace HBA.Catalog.Infrastructure;
 
 /// <summary>

@@ -12,7 +12,6 @@ using HBA.Shared.Infrastructure.Events;
 using HBA.Shared.Infrastructure.Kafka;
 using HBA.Shared.Infrastructure.Observability;
 using HBA.Shared.IntegrationEvents;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.Infrastructure.Security;
 
 namespace HBA.Shared.Infrastructure;
@@ -192,7 +191,7 @@ public static class DependencyInjection
             var producteurIndisponible = !options.Enabled
                                          || string.IsNullOrWhiteSpace(options.BootstrapServers);
 
-            if (producteurIndisponible && OutboxRegistration.Enabled)
+            if (producteurIndisponible && DrainageDOutbox.Actif)
             {
                 throw new InvalidOperationException(
                     "Kafka : le producteur est indisponible ("

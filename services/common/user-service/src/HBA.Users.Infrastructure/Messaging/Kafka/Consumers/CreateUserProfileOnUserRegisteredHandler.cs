@@ -1,12 +1,13 @@
 using HBA.Identity.Contracts.IntegrationEvents;
 using HBA.Shared.Application.Context;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.IntegrationEvents;
 using HBA.Users.Application.Abstractions;
 using HBA.Users.Application.Profiles;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
+using HBA.Users.Infrastructure.Persistence.Outbox;
+using HBA.Users.Infrastructure.Persistence.Inbox;
 namespace HBA.Users.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>

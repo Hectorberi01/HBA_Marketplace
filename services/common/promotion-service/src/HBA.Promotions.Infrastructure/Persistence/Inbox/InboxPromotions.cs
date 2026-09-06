@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Promotions.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Promotions.Infrastructure.Persistence.Outbox;
+using HBA.Promotions.Infrastructure.Persistence.Inbox;
 namespace HBA.Promotions.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
@@ -24,7 +25,7 @@ public static class InboxPromotions
 {
     internal static IServiceCollection AjouterInboxPromotions(this IServiceCollection services)
     {
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<PromotionsDbContext>>();
+        services.AddScoped<IConsumerInbox, EfConsumerInbox>();
         return services;
     }
 }

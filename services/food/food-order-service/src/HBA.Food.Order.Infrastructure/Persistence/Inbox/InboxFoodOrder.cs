@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.FoodOrders.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.FoodOrders.Infrastructure.Persistence.Outbox;
+using HBA.FoodOrders.Infrastructure.Persistence.Inbox;
 namespace HBA.FoodOrders.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
@@ -24,7 +25,7 @@ public static class InboxFoodOrder
 {
     internal static IServiceCollection AjouterInboxFoodOrder(this IServiceCollection services)
     {
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<MealOrderingDbContext>>();
+        services.AddScoped<IConsumerInbox, EfConsumerInbox>();
         return services;
     }
 }

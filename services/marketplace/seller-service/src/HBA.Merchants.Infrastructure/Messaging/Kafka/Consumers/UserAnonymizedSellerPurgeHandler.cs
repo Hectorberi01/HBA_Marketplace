@@ -2,7 +2,6 @@ using HBA.Identity.Contracts.IntegrationEvents;
 using HBA.Merchants.Application.Abstractions;
 using HBA.Merchants.Domain.Sellers;
 using HBA.Shared.Application.Context;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.Logging;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
@@ -13,6 +12,8 @@ using Microsoft.Extensions.Logging;
 // ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Merchants.Infrastructure;
 
+using HBA.Merchants.Infrastructure.Persistence.Outbox;
+using HBA.Merchants.Infrastructure.Persistence.Inbox;
 // ═════════════════════════════════════════════════════════════════════════════
 // CE FICHIER VIT DANS `Infrastructure/Messaging/Kafka/Consumers`, ET NON DANS `Application`.
 //

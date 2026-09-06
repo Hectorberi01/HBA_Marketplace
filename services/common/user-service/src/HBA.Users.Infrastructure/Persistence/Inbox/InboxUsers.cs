@@ -1,7 +1,8 @@
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Users.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Users.Infrastructure.Persistence.Outbox;
+using HBA.Users.Infrastructure.Persistence.Inbox;
 namespace HBA.Users.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
@@ -32,7 +33,7 @@ public static class InboxUsers
 {
     internal static IServiceCollection AjouterInboxUsers(this IServiceCollection services)
     {
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<UsersDbContext>>();
+        services.AddScoped<IConsumerInbox, EfConsumerInbox>();
         return services;
     }
 }

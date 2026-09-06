@@ -1,9 +1,10 @@
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
+using HBA.FoodOrders.Infrastructure.Persistence.Outbox;
+using HBA.FoodOrders.Infrastructure.Persistence.Inbox;
 namespace HBA.FoodOrders.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF.</summary>
