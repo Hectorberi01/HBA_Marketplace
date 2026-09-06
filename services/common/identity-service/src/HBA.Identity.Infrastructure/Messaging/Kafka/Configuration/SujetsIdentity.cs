@@ -22,6 +22,21 @@ public static class SujetsIdentity
     private static readonly string[] Sujets =
     [
         "service.delivery.v1",
+
+        // DEUX SERVICES PUBLIENT `DriverVerified`, ET IL FAUT LES DEUX.
+        //
+        // driver-service le publie depuis `DriverAccountDomainEventHandlers`,
+        // delivery-service depuis `DeliveryDomainEventHandlers` : le meme
+        // evenement part sur DEUX sujets, celui de chaque producteur. N'en
+        // declarer qu'un — ce que la migration avait fait — laisse
+        // `GrantDriverRoleHandler` muet une fois sur deux, sans erreur.
+        //
+        // CE QUE CA NE REGLE PAS. Un fait metier publie par deux services reste
+        // une anomalie de contrat : le role serait accorde DEUX FOIS si les deux
+        // producteurs emettent pour le meme livreur. L'inbox l'absorbe (les deux
+        // messages ont des identifiants differents, donc non), il faut trancher
+        // qui est proprietaire de ce fait.
+        "service.driver.v1",
         "service.food.v1",
         "service.merchant.v1"
     ];

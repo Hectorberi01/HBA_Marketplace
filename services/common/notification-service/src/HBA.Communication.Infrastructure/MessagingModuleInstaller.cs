@@ -14,6 +14,7 @@ using HBA.Communication.Domain.Conversations.Events;
 using HBA.Communication.Contracts;
 using HBA.Communication.Infrastructure.Public;
 using HBA.Communication.Infrastructure.Persistence;
+using HBA.Shared.Infrastructure.Outbox;
 
 namespace HBA.Communication.Infrastructure;
 

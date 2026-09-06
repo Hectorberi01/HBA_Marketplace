@@ -4,7 +4,21 @@ using HBA.Shared.Infrastructure.Kafka;
 namespace HBA.Routes.Infrastructure.Messaging.Kafka.Producers;
 
 /// <summary>
-/// CE QUE CE SERVICE PUBLIE — LA MOITIE MANQUANTE DU MODULE.
+/// CE QUE CE SERVICE PUBLIE — ET QUI NE PART NULLE PART AUJOURD'HUI.
+///
+/// ═════════════════════════════════════════════════════════════════════════════
+/// AVERTISSEMENT : CES TROIS EVENEMENTS N'ATTEIGNENT AUCUN CONSOMMATEUR.
+///
+/// route-service n'a pas de `ModuleDbContext` — il garde ses routes en memoire —
+/// donc pas d'outbox, donc rien ne draine `IntegrationEventQueue`.
+/// `PublishAsync` rend `Task.CompletedTask` et le message est perdu, sans trace.
+/// Voir `RoutesInfrastructureModule`, qui le dit deja a l'endroit ou le publieur
+/// est enregistre.
+///
+/// Cette liste les DECLARE quand meme : le jour ou ce service aura une base, le
+/// cablage sera fait et la liste sera juste. La declarer sans cet encadre aurait
+/// laisse croire que le chemin existe.
+/// ═════════════════════════════════════════════════════════════════════════════
 ///
 /// `Consumers/` repond a « qu'est-ce que ce service ecoute ». Sans ce fichier,
 /// « qu'est-ce qu'il emet » n'avait aucune reponse : il fallait chercher les

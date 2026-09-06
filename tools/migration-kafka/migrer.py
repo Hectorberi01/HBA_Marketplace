@@ -118,10 +118,19 @@ def inventaire():
 
 
 def carte_evenement_service(inv):
-    carte = dict(HORS_SERVICES)
+    """Evenement -> l'ENSEMBLE des services qui le publient.
+
+    UN EVENEMENT PEUT AVOIR DEUX PRODUCTEURS, DONC DEUX SUJETS.
+
+    `DriverVerifiedIntegrationEvent` est publie par driver-service ET par
+    delivery-service. Ne retenir que le premier trouve — ce que faisait
+    `setdefault` — a fait declarer a identity-service un seul des deux sujets :
+    son gestionnaire de role restait muet une fois sur deux, sans erreur.
+    """
+    carte = {e: {s} for e, s in HORS_SERVICES.items()}
     for nom, d in inv.items():
         for e in d["publie"]:
-            carte.setdefault(e, nom)
+            carte.setdefault(e, set()).add(nom)
     return carte
 
 
@@ -129,11 +138,12 @@ def sujets_pour(evenements, carte):
     """Les sujets a ecouter, et les evenements dont on ne sait pas d'ou ils viennent."""
     sujets, inconnus = set(), []
     for e in evenements:
-        producteur = carte.get(e)
-        if producteur is None:
+        producteurs = carte.get(e)
+        if not producteurs:
             inconnus.append(e)
             continue
-        sujets.add(f"service.{DOMAINE.get(producteur, producteur.replace('-service', ''))}.v1")
+        for p in producteurs:
+            sujets.add(f"service.{DOMAINE.get(p, p.replace('-service', ''))}.v1")
     return sorted(sujets), sorted(inconnus)
 
 
