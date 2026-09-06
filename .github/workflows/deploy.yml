@@ -27,6 +27,14 @@ on:
         description: SHA deja publie a redeployer (vide = le sommet de la branche)
         required: false
         type: string
+      service:
+        description: >-
+          Un seul service a redeployer (vide = toute la pile). Le nom est celui
+          du conteneur dans le compose : user-service, gateway, catalog-service…
+          Les migrations et les sujets sont traites comme d'habitude ; seul le
+          demarrage est restreint.
+        required: false
+        type: string
 
 # JAMAIS D'ANNULATION EN COURS DE DEPLOIEMENT.
 #
@@ -669,7 +677,24 @@ jobs:
           sed -n '/DomaineParService/,/};/p' \
             shared/common/HBA.Shared.Infrastructure/Kafka/HbaTopics.cs \
             | sed -nE 's/^[[:space:]]*\["[^"]+"\] = "([^"]+)".*/service.\1.v1/p' \
-            | sort -u > /tmp/sujets.txt
+            | sort -u > /tmp/sujets.vivants
+
+          # ═══════════════════════════════════════════════════════════════════
+          # UN SUJET DE LETTRES MORTES POUR CHAQUE SUJET.
+          #
+          # Le consommateur recopie sur `{sujet}.dlq` un evenement abandonne
+          # apres trois tentatives. Il pose `AllowAutoCreateTopics = false` — un
+          # consommateur ne cree pas de sujet — et un courtier de production
+          # refuse en general la creation implicite. Sans provisionnement, la
+          # mise en lettre morte echouerait et l'evenement serait perdu comme
+          # avant, avec une ligne de journal de plus.
+          #
+          # LE COUT EST REEL ET IL EST ACCEPTE : on double le nombre de sujets.
+          # Trois partitions chacun, comme les vivants — un rejeu depuis la file
+          # morte doit pouvoir se paralleliser autant que le flux d'origine.
+          # ═══════════════════════════════════════════════════════════════════
+          sed 's/$/.dlq/' /tmp/sujets.vivants > /tmp/sujets.morts
+          cat /tmp/sujets.vivants /tmp/sujets.morts | sort -u > /tmp/sujets.txt
 
           # LA LISTE DES SONDES N'EST PAS CELLE DES MIGRATIONS.
           # Un service sans base — route-service — n'a pas de migration mais
@@ -726,12 +751,21 @@ jobs:
       - name: Deployer
         env:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
+          # LE HEREDOC EST EN QUOTES, DONC RIEN NE S'Y SUBSTITUE.
+          #
+          # `<<'DISTANT'` empeche toute expansion cote runner : c'est voulu, le
+          # script doit partir tel quel. Les valeurs passent donc par la ligne de
+          # commande ssh, comme les quatre autres. Une expression `${{ }}` ecrite
+          # dans le corps du heredoc serait, elle, remplacee par GitHub AVANT le
+          # shell — et un nom de service arbitraire s'y retrouverait injecte.
+          SERVICE_CIBLE: ${{ inputs.service }}
         run: |
           set -euo pipefail
           ssh -i "$HOME/.ssh/id_deploiement" -p ${{ vars.VPS_PORT }} \
               -o StrictHostKeyChecking=yes \
               "${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}" \
-              "GHCR_TOKEN='${GHCR_TOKEN}' PROPRIETAIRE='${PROPRIETAIRE}' RACINE='${RACINE}' PROJET='${PROJET}' bash -s" <<'DISTANT'
+              "GHCR_TOKEN='${GHCR_TOKEN}' PROPRIETAIRE='${PROPRIETAIRE}' RACINE='${RACINE}' PROJET='${PROJET}' SERVICE_CIBLE='${SERVICE_CIBLE:-}' bash -s" <<'DISTANT'
           set -euo pipefail
           dc="docker compose -p ${PROJET} -f ${RACINE}/docker-compose.prod.yml"
           cd "${RACINE}"
@@ -939,11 +973,49 @@ jobs:
           done < "${RACINE}/sujets.txt"
           echo "   $(wc -l < "${RACINE}/sujets.txt") sujet(s) en place"
 
-          echo "── Demarrage de la pile"
-          $dc up -d --remove-orphans
+          # ═══════════════════════════════════════════════════════════════════
+          # DEMARRAGE : TOUTE LA PILE, OU UN SEUL SERVICE.
+          #
+          # POURQUOI CE CHEMIN EXISTE. `up -d --remove-orphans` recree tout ce
+          # dont l'image ou la configuration a change. C'est ce qu'on veut apres
+          # un changement de socle ; c'est disproportionne pour corriger un
+          # service, et cela remet en jeu les vingt-trois autres.
+          #
+          # `--no-deps` EST LE POINT IMPORTANT. Sans lui, compose demarre aussi
+          # toute la cascade de dependances du service vise — donc Kafka, Redis,
+          # et par ricochet ce qu'on cherchait justement a ne pas toucher.
+          #
+          # PAS DE `--remove-orphans` DANS CE CHEMIN : il supprimerait les
+          # conteneurs absents du compose, ce qui n'a rien a voir avec le service
+          # demande et se ferait sans qu'on l'ait demande.
+          #
+          # CE QUE ÇA NE COUVRE PAS. Les migrations et les sujets sont traites
+          # au-dessus comme d'habitude, pour TOUS les services : un deploiement
+          # individuel ne dispense pas d'un schema a jour ailleurs.
+          # ═══════════════════════════════════════════════════════════════════
+          SERVICE_CIBLE="${SERVICE_CIBLE:-}"
 
-          echo "── Etat"
-          $dc ps
+          if [ -n "$SERVICE_CIBLE" ]; then
+            if ! $dc config --services | grep -qx "$SERVICE_CIBLE"; then
+              echo "::error title=Service inconnu::« $SERVICE_CIBLE » n'est pas un service du compose."
+              echo "Services disponibles :"
+              $dc config --services | sed 's/^/    /'
+              exit 1
+            fi
+
+            echo "── Demarrage de $SERVICE_CIBLE seul"
+            $dc pull "$SERVICE_CIBLE"
+            $dc up -d --no-deps "$SERVICE_CIBLE"
+
+            echo "── Etat"
+            $dc ps "$SERVICE_CIBLE"
+          else
+            echo "── Demarrage de la pile"
+            $dc up -d --remove-orphans
+
+            echo "── Etat"
+            $dc ps
+          fi
           DISTANT
 
       # ═════════════════════════════════════════════════════════════════════
