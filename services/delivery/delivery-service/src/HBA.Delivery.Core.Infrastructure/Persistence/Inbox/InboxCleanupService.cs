@@ -34,7 +34,6 @@ namespace HBA.Deliveries.Infrastructure.Persistence.Inbox;
 /// CE QUE ÇA NE COUVRE PAS : un rejeu deliberement plus ancien que la retention.
 /// Avant une remise a zero d'offsets au-dela de trente jours, il faut savoir que
 /// les gestionnaires non idempotents par eux-memes refont leur effet.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
 internal sealed class InboxCleanupService : BackgroundService
 {
