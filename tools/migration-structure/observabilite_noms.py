@@ -110,13 +110,27 @@ def main():
             continue
         court = m.group(1)
         slug = kebab(court)
-        a_du_grpc = "SondeDesDestinationsGrpc" in s
+        # LA PRESENCE SE LIT SUR LA CLASSE, PAS SUR SON NOM DANS LE TEXTE.
+        # `"SondeDesDestinationsGrpc" in s` matchait la ligne de documentation
+        # du tag `dependencies`, presente dans les 26 fichiers — donc 11
+        # services sans client gRPC recevaient un AddCheck sur une classe
+        # absente. Ici on demande au disque si la sonde EXISTE.
+        sondes = os.path.join(os.path.dirname(chemin), "HealthChecks")
+        a_du_grpc = os.path.isdir(sondes) and any(
+            "class SondeDesDestinationsGrpc" in io.open(
+                os.path.join(sondes, f), encoding="utf-8").read()
+            for f in os.listdir(sondes) if f.endswith(".cs"))
 
         # ON REECRIT LE CORPS ENTIER plutot que de rustiner : les deux defauts
         # viennent d'un remplacement de texte par marqueur, et un troisieme
         # remplacement par marqueur serait la meme erreur une fois de plus.
         tete = s[:s.index("(\n        this IServiceCollection services, IConfiguration configuration)\n    {\n")]
         tete += "(\n        this IServiceCollection services, IConfiguration configuration)\n    {\n"
+
+        if not a_du_grpc:
+            tete = tete.replace(
+                "///   dependencies  — les voisins. Jamais rouge : voir "
+                "`SondeDesDestinationsGrpc`.\n", "")
         neuf = tete + CORPS.format(
             slug=slug, grpc=(GRPC.format(slug=slug) if a_du_grpc else ""))
 

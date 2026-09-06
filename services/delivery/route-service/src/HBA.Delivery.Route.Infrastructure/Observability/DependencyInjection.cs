@@ -23,7 +23,6 @@ namespace HBA.Routes.Infrastructure.Observability;
 ///
 ///   ready         — la base, le cache, le courtier. Rouge = ce conteneur ne peut
 ///                   pas travailler, on le retire du service.
-///   dependencies  — les voisins. Jamais rouge : voir `SondeDesDestinationsGrpc`.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public static class DependencyInjection
@@ -67,11 +66,6 @@ public static class DependencyInjection
         services.AddHealthChecks()
             .AddCheck<SondeDuCache>("cache-delivery-route", tags: ["ready"])
             .AddCheck<SondeDeKafka>("kafka-delivery-route", tags: ["ready"]);
-
-        // LA SONDE gRPC N'EST PAS DANS `ready` — voir son encadre. Une sonde de
-        // disponibilite qui tombe avec un voisin transforme une panne en N pannes.
-        services.AddHealthChecks().AddCheck<SondeDesDestinationsGrpc>(
-            "grpc-delivery-route", tags: ["dependencies"]);
 
         return services;
     }
