@@ -1,6 +1,9 @@
 using HBA.Shared.Infrastructure.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using HBA.Shared.Infrastructure.Outbox;
+using HBA.Routes.Infrastructure.Messaging.Kafka.Producers;
 
 namespace HBA.Routes.Infrastructure.Messaging.Kafka.Configuration;
 
@@ -22,7 +25,9 @@ namespace HBA.Routes.Infrastructure.Messaging.Kafka.Configuration;
 /// CE QU'ELLE NE COUVRE PAS. Elle verifie que le module a ete appele, pas qu'il
 /// est complet : un sujet ou un gestionnaire oublie passe sans rien dire.
 /// </summary>
-internal sealed class GardeDeCablage(IServiceProvider services) : IHostedService
+internal sealed class GardeDeCablage(
+    IServiceProvider services,
+    ILogger<GardeDeCablage> journal) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -33,6 +38,36 @@ internal sealed class GardeDeCablage(IServiceProvider services) : IHostedService
                 + "AbonnementsKafka dans le conteneur. Sans lui, ce service ne consomme "
                 + "aucun evenement et son outbox n'est jamais videe. Ajouter "
                 + "« builder.Services.AjouterMessagerieDeliveryRoute(); » dans Program.cs.");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // CE SERVICE PUBLIE TROIS EVENEMENTS QUI NE PARTENT NULLE PART.
+        //
+        // route-service garde ses routes EN MEMOIRE : pas de `ModuleDbContext`,
+        // donc pas de table d'outbox, donc aucun processeur pour la vider.
+        // `IIntegrationEventPublisher` est resolu sur `IntegrationEventQueue`,
+        // une file scopee que personne ne draine : `PublishAsync` rend
+        // `Task.CompletedTask` et le message part avec la portee.
+        //
+        // POURQUOI UN JOURNAL ET PAS UNE EXCEPTION. Ce service tourne aujourd'hui
+        // et rend son service — le calcul d'itineraire est synchrone, par gRPC.
+        // Le faire echouer au demarrage transformerait un defaut connu et sans
+        // consequence actuelle en panne. Les trois evenements n'ont d'ailleurs
+        // aucun consommateur.
+        //
+        // CE QUE CE MESSAGE DOIT PROVOQUER. Soit donner une base a ce service et
+        // cabler son outbox, soit retirer les trois publications. Les laisser
+        // sans le dire etait le pire des trois : le code affirme publier, et rien
+        // ne sort.
+        // ═════════════════════════════════════════════════════════════════════
+        if (EvenementsPublies.Types.Count > 0 && services.GetService<IOutboxDbContext>() is null)
+        {
+            journal.LogCritical(
+                "PUBLICATIONS SANS OUTBOX : ce service déclare publier {Nombre} événement(s) "
+                + "et n'a pas de base, donc pas de table d'outbox. `PublishAsync` n'écrit nulle "
+                + "part et le message est perdu à la fermeture de la portée. Voir "
+                + "`Messaging/Kafka/Producers/EvenementsPublies`.",
+                EvenementsPublies.Types.Count);
         }
 
         return Task.CompletedTask;

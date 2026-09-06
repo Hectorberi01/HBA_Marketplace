@@ -43,4 +43,26 @@ public sealed class KafkaEventBusOptions
     /// ═════════════════════════════════════════════════════════════════════════
     /// </remarks>
     public string[] SubscribeTopics { get; init; } = [];
+
+    /// <summary>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// « LISTE VIDE » ET « PAS DE LISTE » NE VEULENT PAS DIRE LA MEME CHOSE.
+    ///
+    /// Le consommateur traitait les deux pareil : liste vide, donc on s'abonne a
+    /// TOUT. C'etait le bon repli tant qu'aucun service ne declarait ses sujets —
+    /// mais depuis que les vingt-cinq modules le font, sept services qui ne
+    /// consomment RIEN se retrouvaient abonnes aux vingt sujets de la plateforme.
+    /// Ils deserialisaient l'integralite du trafic du bus pour tout jeter.
+    ///
+    /// Ce drapeau porte la difference : il vaut vrai des qu'un `AbonnementsKafka`
+    /// est enregistre, meme avec une liste vide. Un service qui declare « je
+    /// n'ecoute rien » ne demarre alors pas de consommateur du tout.
+    ///
+    /// CE QU'IL NE FAUT PAS EN FAIRE. Le poser a la main dans une configuration :
+    /// il est deduit de la presence du service, pas lu. Un service qui n'a pas
+    /// encore de module Kafka garde l'ancien comportement — c'est ce qui rend la
+    /// migration progressive possible.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </summary>
+    public bool AbonnementsDeclares { get; init; }
 }

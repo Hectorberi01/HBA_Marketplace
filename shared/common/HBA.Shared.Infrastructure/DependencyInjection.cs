@@ -133,7 +133,11 @@ public static class DependencyInjection
                     .SelectMany(abonnements => abonnements.Sujets)
                     .Distinct(StringComparer.Ordinal)
                     .OrderBy(sujet => sujet, StringComparer.Ordinal)
-                    .ToArray()
+                    .ToArray(),
+
+                // Vrai des qu'un module a declare ses abonnements, MEME VIDES.
+                // Voir `KafkaEventBusOptions.AbonnementsDeclares`.
+                AbonnementsDeclares = sp.GetServices<AbonnementsKafka>().Any()
             };
 
             // ON REFUSE DE DÉMARRER SI PUBLICATION ET ABONNEMENT DIVERGENT.

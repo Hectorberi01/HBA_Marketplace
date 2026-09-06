@@ -1,4 +1,5 @@
 using HBA.Communication.Api.Endpoints;
+using HBA.Communication.Infrastructure.Messaging.Kafka;
 using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka;
 using HBA.Communication.Infrastructure;
 using HBA.Communication.Infrastructure.Persistence;
@@ -97,6 +98,9 @@ new NotificationsModuleInstaller().Install(builder.Services, builder.Configurati
 // l'installeur, refuse le demarrage dans ce cas.
 // ═════════════════════════════════════════════════════════════════════════
 builder.Services.AjouterMessagerieCommunicationNotifications();
+
+// La messagerie interne a son propre module : son outbox y est cablee.
+builder.Services.AjouterMessagerieCommunication();
 
 var app = builder.Build();
 

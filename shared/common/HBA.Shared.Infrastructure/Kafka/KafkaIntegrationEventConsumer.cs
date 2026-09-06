@@ -16,6 +16,14 @@ namespace HBA.Shared.Infrastructure.Kafka;
 
 public sealed class KafkaIntegrationEventConsumer : BackgroundService
 {
+    /// <summary>
+    /// Le suffixe des sujets de lettres mortes : `service.identity.v1.dlq`.
+    ///
+    /// Suffixe et non prefixe : les outils d'exploitation listent les sujets par
+    /// ordre alphabetique, et un sujet mort reste ainsi colle a son sujet vivant.
+    /// </summary>
+    private const string SuffixeLettresMortes = ".dlq";
+
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>Types déjà signalés comme inconnus — un avertissement par type, pas par message.</summary>
@@ -34,6 +42,13 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly KafkaEventBusOptions _options;
     private readonly ILogger<KafkaIntegrationEventConsumer> _logger;
+
+    /// <summary>
+    /// Producteur de la file d'attente morte. Cree a la PREMIERE mise en lettre
+    /// morte, et pas au demarrage : la plupart des services n'en auront jamais
+    /// besoin, et une connexion ouverte pour rien est une connexion a surveiller.
+    /// </summary>
+    private IProducer<string, string>? _producteurLettresMortes;
 
     public KafkaIntegrationEventConsumer(
         IServiceScopeFactory scopeFactory,
@@ -75,6 +90,30 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
         var sujets = _options.SubscribeTopics is { Length: > 0 }
             ? _options.SubscribeTopics
             : HbaTopics.Tous(_options).ToArray();
+
+        // ═════════════════════════════════════════════════════════════════════
+        // UN SERVICE QUI DECLARE N'ECOUTER RIEN NE DEMARRE PAS DE CONSOMMATEUR.
+        //
+        // La ligne au-dessus lisait « liste vide » comme « pas de liste », et
+        // s'abonnait donc a tout. Sept services sans aucun gestionnaire —
+        // billing, driver, inventory, recommendation, return-refund, review,
+        // wishlist — deserialisaient ainsi l'integralite du trafic du bus pour le
+        // jeter aussitot.
+        //
+        // `AbonnementsDeclares` distingue les deux cas. Un service qui n'a pas
+        // encore de module Kafka garde l'ancien comportement.
+        //
+        // CE QUE ÇA NE COUVRE PAS. Le producteur, lui, reste enregistre : ces
+        // services publient toujours. Seule la boucle de consommation s'arrete.
+        // ═════════════════════════════════════════════════════════════════════
+        if (_options.AbonnementsDeclares && sujets.Length == 0)
+        {
+            _logger.LogInformation(
+                "Aucun abonnement déclaré : ce service ne consomme aucun événement, "
+                + "le consommateur Kafka ne démarre pas.");
+
+            return;
+        }
 
         _logger.LogInformation("Abonnement à {Nombre} sujet(s) : {Sujets}", sujets.Length, string.Join(", ", sujets));
 
@@ -219,8 +258,107 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
                 // et il ne se corrèle à rien.
                 activite?.SetStatus(ActivityStatusCode.Error, "événement abandonné après reprises");
                 activite?.AddException(ex);
+
+                await MettreEnLettreMorteAsync(result, ex, cancellationToken);
             }
         }
+    }
+
+    /// <summary>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// LA FILE D'ATTENTE MORTE : CE QUI RESTE D'UN EVENEMENT ABANDONNE.
+    ///
+    /// CE QUI SE PASSAIT. Apres trois tentatives, le message etait perdu. Pas
+    /// retarde : PERDU. L'offset avançait, l'evenement disparaissait du sujet a
+    /// l'expiration de la retention, et la seule trace etait une ligne de journal
+    /// `Critical` que personne ne relit. C'est par ce trou que le
+    /// `user.registered` du 30 aout est parti — il n'en reste rien a rejouer.
+    ///
+    /// CE QUE ÇA CHANGE. Le message est recopie TEL QUEL sur `{sujet}.dlq`, avec
+    /// ses en-tetes d'origine et cinq de plus qui disent d'ou il vient et pourquoi
+    /// il est la. Il devient inspectable, comptable, et surtout REJOUABLE : le
+    /// remettre sur son sujet d'origine est une commande, plus une reconstitution.
+    ///
+    /// LE SUJET N'EST PAS CREE AUTOMATIQUEMENT, ET C'EST UN PREREQUIS
+    ///     D'EXPLOITATION.
+    ///
+    /// Le consommateur pose `AllowAutoCreateTopics = false` par principe, et un
+    /// courtier de production refuse en general la creation implicite. Les sujets
+    /// `*.dlq` doivent donc etre provisionnes comme les autres. S'ils manquent,
+    /// la production echoue — et l'echec est journalise en `Critical` plutot
+    /// qu'avale : un message perdu qu'on croit sauve est pire qu'un message perdu.
+    ///
+    /// CE QUE ÇA NE COUVRE PAS. Rien ne relit ces sujets aujourd'hui : il n'y a
+    /// ni consommateur d'archivage, ni tableau de bord, ni alerte sur leur
+    /// profondeur. La perte devient visible, elle n'est pas encore surveillee.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </summary>
+    private async Task MettreEnLettreMorteAsync(
+        ConsumeResult<string, string> result, Exception cause, CancellationToken cancellationToken)
+    {
+        var sujet = $"{result.Topic}{SuffixeLettresMortes}";
+
+        try
+        {
+            _producteurLettresMortes ??= new ProducerBuilder<string, string>(new ProducerConfig
+            {
+                BootstrapServers = _options.BootstrapServers,
+
+                // `Acks.All` ET PAS MOINS. Un message qu'on met en lettre morte a
+                // deja ete perdu une fois ; accepter qu'il le soit une seconde
+                // pour gagner quelques millisecondes n'aurait aucun sens.
+                Acks = Acks.All,
+                EnableIdempotence = true,
+                AllowAutoCreateTopics = false
+            }).Build();
+
+            var entetes = new Headers();
+            foreach (var entete in result.Message.Headers)
+            {
+                entetes.Add(entete);
+            }
+
+            entetes.Add("dlq-sujet-origine", Encoding.UTF8.GetBytes(result.Topic));
+            entetes.Add("dlq-partition-origine", Encoding.UTF8.GetBytes(result.Partition.Value.ToString()));
+            entetes.Add("dlq-offset-origine", Encoding.UTF8.GetBytes(result.Offset.Value.ToString()));
+            entetes.Add("dlq-horodatage", Encoding.UTF8.GetBytes(DateTime.UtcNow.ToString("O")));
+
+            // LE MESSAGE D'ERREUR, TRONQUE. Une pile complete dans un en-tete
+            // Kafka gonfle chaque message et se lit mal ; le type et le message
+            // suffisent a orienter, la pile est dans le journal `Critical`.
+            var raison = $"{cause.GetType().Name}: {cause.Message}";
+            entetes.Add("dlq-raison", Encoding.UTF8.GetBytes(raison.Length <= 500 ? raison : raison[..500]));
+
+            await _producteurLettresMortes.ProduceAsync(
+                sujet,
+                new Message<string, string>
+                {
+                    Key = result.Message.Key,
+                    Value = result.Message.Value,
+                    Headers = entetes
+                },
+                cancellationToken);
+
+            _logger.LogWarning(
+                "Événement abandonné recopié sur {SujetDlq} — origine {Topic}[{Partition}]@{Offset}.",
+                sujet, result.Topic, result.Partition.Value, result.Offset.Value);
+        }
+        catch (Exception echec)
+        {
+            _logger.LogCritical(
+                echec,
+                "MISE EN LETTRE MORTE IMPOSSIBLE sur {SujetDlq} : l'événement "
+                + "{Topic}[{Partition}]@{Offset} est définitivement perdu, sans copie. "
+                + "Vérifier que le sujet existe — il n'est pas créé automatiquement.",
+                sujet, result.Topic, result.Partition.Value, result.Offset.Value);
+        }
+    }
+
+    public override void Dispose()
+    {
+        _producteurLettresMortes?.Flush(TimeSpan.FromSeconds(5));
+        _producteurLettresMortes?.Dispose();
+        base.Dispose();
     }
 
     /// <summary>
