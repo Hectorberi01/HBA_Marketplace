@@ -418,7 +418,7 @@ namespace HBA.Marketplace.ReturnRefund.Infrastructure.Migrations
                     b.ToTable("idempotency_keys", "return_refund");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Audit.AuditEntry", b =>
+            modelBuilder.Entity("HBA.Marketplace.ReturnRefund.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -463,7 +463,7 @@ namespace HBA.Marketplace.ReturnRefund.Infrastructure.Migrations
                     b.ToTable("audit_entries", "return_refund");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

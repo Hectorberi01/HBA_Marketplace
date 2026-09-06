@@ -147,7 +147,7 @@ namespace HBA.Commerce.Infrastructure.Migrations
                     b.ToTable("cart_item_options", "cart");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.Commerce.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -176,7 +176,7 @@ namespace HBA.Commerce.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "cart");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Commerce.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

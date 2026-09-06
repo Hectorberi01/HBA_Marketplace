@@ -181,7 +181,7 @@ namespace HBA.Delivery.Pricing.Infrastructure.Migrations
                     b.ToTable("pricing_rules", "delivery_pricing");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Audit.AuditEntry", b =>
+            modelBuilder.Entity("HBA.Delivery.Pricing.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -226,7 +226,7 @@ namespace HBA.Delivery.Pricing.Infrastructure.Migrations
                     b.ToTable("audit_entries", "delivery_pricing");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Delivery.Pricing.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

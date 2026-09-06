@@ -110,6 +110,15 @@ public sealed class MigrationsControle : IControle
         @"(AddColumn<[^>]*>|RenameColumn)\(([^;]*?)\)\s*;",
         RegexOptions.Singleline | RegexOptions.Compiled);
 
+    /// <summary>Le corps d'un `migrationBuilder.Sql(...)`, guillemets compris.</summary>
+    private static readonly Regex SqlBrut = new(
+        @"migrationBuilder\.Sql\s*\((.*?)\)\s*;", RegexOptions.Singleline | RegexOptions.Compiled);
+
+    /// <summary>Un nom de table dans du SQL brut : `CREATE TABLE [IF NOT EXISTS] [schema.]nom`.</summary>
+    private static readonly Regex NomDeTable = new(
+        @"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:[\w""]+\.)?""?(\w+)""?",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static readonly Regex VersUneTable = new(
         @"\.ToTable\(\s*""([a-z_0-9]+)""", RegexOptions.Compiled);
 
@@ -143,7 +152,7 @@ public sealed class MigrationsControle : IControle
             + "arbitraire dépasse ce que ce contrôle prétend faire. Les migrations de "
             + "reprise de données passent souvent par là et restent à vérifier à la main. "
             + "Seuls leurs identifiants entre guillemets sont relus, et uniquement pour la "
-            + "question de la CASSE",
+            + "question de la CASSE. Une table configurée que seul du SQL brut nomme est rendue en CONSTAT, jamais en faute : « je ne sais pas lire ça » n'est pas « ça n'existe pas »",
             "les tables héritées d'un module extrait, dont le `CreateTable` n'est pas dans "
             + "CES migrations : les juger produirait un faux positif à chaque colonne, et "
             + "le bruit tuerait le contrôle. Une colonne absente y passe donc inaperçue",
@@ -196,14 +205,43 @@ public sealed class MigrationsControle : IControle
             var configurees = TablesConfigurees(dossierService, partagees);
             var creees = TablesCreees(dossierService);
 
+            // UNE TABLE CRÉÉE EN SQL BRUT N'EST PAS UNE TABLE ABSENTE.
+            //
+            // Ce contrôle déclare, dans sa propre liste de non-couvert, qu'il
+            // n'analyse PAS `migrationBuilder.Sql(...)`. Il en tirait pourtant
+            // « AUCUNE migration ne la crée » — c'est-à-dire qu'il transformait
+            // « je ne sais pas lire ça » en « ça n'existe pas ».
+            //
+            // C'est l'exact inverse de la règle que tient `Depot` : un balayage
+            // qui ne peut rien voir doit le DIRE, jamais conclure. Ici il
+            // concluait, et faussement : dix services créent `audit_entries` par
+            // `CREATE TABLE IF NOT EXISTS`, et dix fautes les accusaient de ne pas
+            // l'avoir.
+            //
+            // La barrière ne se relâche pas pour autant. Une table configurée que
+            // RIEN ne mentionne — ni `CreateTable`, ni SQL brut — reste une faute :
+            // c'est ainsi que les huit `consumer_inbox` posées par le lot inbox
+            // dans des services qui ne consomment rien ont été trouvées.
+            var citeesEnSqlBrut = TablesCiteesEnSqlBrut(dossierService);
+
             foreach (var (table, source) in configurees
                          .Where(t => !creees.Contains(t.Key))
                          .OrderBy(t => t.Key, StringComparer.Ordinal))
             {
+                if (citeesEnSqlBrut.Contains(table))
+                {
+                    constats.Add(
+                        $"{service} : table « {table} » configurée ({source}), aucun "
+                        + "`CreateTable`, mais un `migrationBuilder.Sql` la nomme. "
+                        + "NON VÉRIFIÉ — ce contrôle ne lit pas le SQL brut.");
+                    continue;
+                }
+
                 fautes.Add(
                     $"{service} : table « {table} » configurée ({source}) et AUCUNE "
-                    + "migration ne la crée. Le code compile, les tests de domaine "
-                    + "passent, le service démarre — jusqu'à la première requête.");
+                    + "migration ne la crée — ni `CreateTable`, ni SQL brut. Le code "
+                    + "compile, les tests de domaine passent, le service démarre — "
+                    + "jusqu'à la première requête.");
             }
 
             // ── 3. La casse des identifiants dans le SQL brut ────────────────
@@ -237,6 +275,47 @@ public sealed class MigrationsControle : IControle
 
         return new Verdict(fautes, constats, nonCouvert);
     }
+
+    /// <summary>
+    /// Les tables qu'un `migrationBuilder.Sql(...)` de ce service NOMME, sans que
+    /// ce contrôle prétende comprendre ce qu'il en fait.
+    /// </summary>
+    /// <remarks>
+    /// Ce n'est PAS une preuve de création. C'est la seule chose qu'une lecture
+    /// textuelle peut honnêtement établir : le nom apparaît dans du SQL brut, donc
+    /// le silence de `CreateTable` ne prouve rien. La distinction entre « absente »
+    /// et « illisible d'ici » vaut d'être tenue — la première est une panne, la
+    /// seconde une limite de l'outil.
+    /// </remarks>
+    private static HashSet<string> TablesCiteesEnSqlBrut(string dossierService)
+    {
+        var citees = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var fichier in Depot.Fichiers(dossierService, ".cs"))
+        {
+            if (!Depot.Relatif(fichier).Contains("Migrations", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var texte = File.ReadAllText(fichier);
+            if (!texte.Contains("migrationBuilder.Sql", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (Match m in SqlBrut.Matches(texte))
+            {
+                foreach (Match t in NomDeTable.Matches(m.Groups[1].Value))
+                {
+                    citees.Add(t.Groups[1].Value);
+                }
+            }
+        }
+
+        return citees;
+    }
+
 
     /// <summary>Les services, sous la forme « univers/nom-du-service ».</summary>
     /// <remarks>

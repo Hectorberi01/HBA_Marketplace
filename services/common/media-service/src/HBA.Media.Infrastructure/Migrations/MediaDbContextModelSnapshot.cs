@@ -119,7 +119,7 @@ namespace HBA.Media.Infrastructure.Migrations
                     b.ToTable("media_assets", "media");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.Media.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -148,7 +148,7 @@ namespace HBA.Media.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "media");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Media.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

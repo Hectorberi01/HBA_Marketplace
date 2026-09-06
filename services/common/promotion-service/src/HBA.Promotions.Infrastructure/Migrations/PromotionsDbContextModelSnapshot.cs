@@ -222,7 +222,7 @@ namespace HBA.Promotions.Infrastructure.Migrations
                     b.ToTable("promotion_rules", "promotions");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Idempotency.IdempotencyRecord", b =>
+            modelBuilder.Entity("HBA.Promotions.Infrastructure.Idempotency.IdempotencyRecord", b =>
                 {
                     b.Property<string>("Key")
                         .HasMaxLength(120)
@@ -264,7 +264,7 @@ namespace HBA.Promotions.Infrastructure.Migrations
                     b.ToTable("idempotency_keys", "promotions");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.Promotions.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -293,7 +293,7 @@ namespace HBA.Promotions.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "promotions");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Promotions.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

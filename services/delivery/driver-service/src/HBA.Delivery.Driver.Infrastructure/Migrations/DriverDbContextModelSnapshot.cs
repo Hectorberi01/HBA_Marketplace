@@ -77,7 +77,7 @@ namespace HBA.Drivers.Infrastructure.Migrations
                     b.ToTable("driver_accounts", "drivers");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Audit.AuditEntry", b =>
+            modelBuilder.Entity("HBA.Drivers.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -122,7 +122,7 @@ namespace HBA.Drivers.Infrastructure.Migrations
                     b.ToTable("audit_entries", "drivers");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Drivers.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

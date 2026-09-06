@@ -23,7 +23,7 @@ namespace HBA.FoodOrders.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Audit.AuditEntry", b =>
+            modelBuilder.Entity("HBA.FoodOrders.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -68,7 +68,7 @@ namespace HBA.FoodOrders.Infrastructure.Migrations
                     b.ToTable("audit_entries", "food_ordering");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.FoodOrders.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -97,7 +97,7 @@ namespace HBA.FoodOrders.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "food_ordering");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.FoodOrders.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

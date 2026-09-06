@@ -140,7 +140,7 @@ namespace HBA.Financial.Billing.Infrastructure.Migrations
                     b.ToTable("invoice_lines", "billing");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Financial.Billing.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

@@ -176,7 +176,7 @@ namespace HBA.Communication.Infrastructure.Migrations
                     b.ToTable("message_reactions", "messaging");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Communication.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

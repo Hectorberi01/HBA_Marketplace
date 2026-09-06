@@ -94,8 +94,9 @@ public static class OutboxRegistration
             services.AddHostedService<OutboxPurger>();
         }
 
-        // LA PURGE DE L'INBOX, QUI N'EXISTAIT NULLE PART.
-        services.AddHostedService<InboxCleanupService>();
+        // PAS DE PURGE D'INBOX : ce service ne consomme rien, il n'a donc
+        // pas de table `consumer_inbox`. L'y enregistrer faisait interroger
+        // a chaque tick une table qu'aucune migration ne cree.
 
         return services;
     }

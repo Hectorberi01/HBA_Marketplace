@@ -776,7 +776,7 @@ namespace HBA.Catalog.Infrastructure.Migrations
                     b.ToTable("product_review_reasons", "catalog");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Idempotency.IdempotencyRecord", b =>
+            modelBuilder.Entity("HBA.Catalog.Infrastructure.Idempotency.IdempotencyRecord", b =>
                 {
                     b.Property<string>("Key")
                         .HasMaxLength(120)
@@ -818,7 +818,7 @@ namespace HBA.Catalog.Infrastructure.Migrations
                     b.ToTable("idempotency_keys", "catalog");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.Catalog.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -847,7 +847,7 @@ namespace HBA.Catalog.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "catalog");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Audit.AuditEntry", b =>
+            modelBuilder.Entity("HBA.Catalog.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -892,7 +892,7 @@ namespace HBA.Catalog.Infrastructure.Migrations
                     b.ToTable("audit_entries", "catalog");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Catalog.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

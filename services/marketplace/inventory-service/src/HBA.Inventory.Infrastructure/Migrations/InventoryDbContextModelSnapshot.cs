@@ -195,7 +195,7 @@ namespace HBA.Inventory.Infrastructure.Migrations
                     b.ToTable("stock_reservations", "inventory");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Inventory.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

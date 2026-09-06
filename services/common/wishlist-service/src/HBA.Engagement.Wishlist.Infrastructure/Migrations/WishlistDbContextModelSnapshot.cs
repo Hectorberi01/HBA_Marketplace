@@ -71,7 +71,7 @@ namespace HBA.Engagement.Wishlist.Infrastructure.Migrations
                     b.ToTable("wishlist_items", "wishlist");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Engagement.Wishlist.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

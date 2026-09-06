@@ -87,7 +87,7 @@ namespace HBA.Engagement.Reviews.Infrastructure.Migrations
                     b.ToTable("reviews", "reviews");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Audit.AuditEntry", b =>
+            modelBuilder.Entity("HBA.Engagement.Reviews.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -132,7 +132,7 @@ namespace HBA.Engagement.Reviews.Infrastructure.Migrations
                     b.ToTable("audit_entries", "reviews");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Engagement.Reviews.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

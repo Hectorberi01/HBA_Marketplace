@@ -634,7 +634,7 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
                     b.ToTable("withdrawals", "settlement");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.Financial.Wallet.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -663,7 +663,7 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "settlement");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Audit.AuditEntry", b =>
+            modelBuilder.Entity("HBA.Financial.Wallet.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -708,7 +708,7 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
                     b.ToTable("audit_entries", "settlement");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Financial.Wallet.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

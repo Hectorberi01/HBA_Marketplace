@@ -263,7 +263,7 @@ namespace HBA.Identity.Infrastructure.Migrations
                     b.ToTable("user_roles", "identity");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Idempotency.IdempotencyRecord", b =>
+            modelBuilder.Entity("HBA.Identity.Infrastructure.Idempotency.IdempotencyRecord", b =>
                 {
                     b.Property<string>("Key")
                         .HasMaxLength(120)
@@ -305,7 +305,7 @@ namespace HBA.Identity.Infrastructure.Migrations
                     b.ToTable("idempotency_keys", "identity");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.Identity.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -334,7 +334,7 @@ namespace HBA.Identity.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "identity");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Audit.AuditEntry", b =>
+            modelBuilder.Entity("HBA.Identity.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -379,7 +379,7 @@ namespace HBA.Identity.Infrastructure.Migrations
                     b.ToTable("audit_entries", "identity");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Identity.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

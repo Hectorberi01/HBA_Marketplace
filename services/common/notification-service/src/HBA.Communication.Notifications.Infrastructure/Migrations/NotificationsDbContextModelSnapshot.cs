@@ -178,7 +178,7 @@ namespace HBA.Communication.Notifications.Infrastructure.Migrations
                     b.ToTable("notification_templates", "notifications");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Idempotency.IdempotencyRecord", b =>
+            modelBuilder.Entity("HBA.Communication.Notifications.Infrastructure.Idempotency.IdempotencyRecord", b =>
                 {
                     b.Property<string>("Key")
                         .HasMaxLength(120)
@@ -220,7 +220,7 @@ namespace HBA.Communication.Notifications.Infrastructure.Migrations
                     b.ToTable("idempotency_keys", "notifications");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.Communication.Notifications.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -249,7 +249,7 @@ namespace HBA.Communication.Notifications.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "notifications");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Communication.Notifications.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

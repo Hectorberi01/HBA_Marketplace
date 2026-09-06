@@ -60,7 +60,7 @@ namespace HBA.Engagement.Recommendations.Infrastructure.Migrations
                     b.ToTable("recommendations", "recommendations");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Engagement.Recommendations.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

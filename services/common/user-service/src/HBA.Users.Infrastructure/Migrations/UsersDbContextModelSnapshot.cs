@@ -23,7 +23,7 @@ namespace HBA.Users.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Idempotency.IdempotencyRecord", b =>
+            modelBuilder.Entity("HBA.Users.Infrastructure.Idempotency.IdempotencyRecord", b =>
                 {
                     b.Property<string>("Key")
                         .HasMaxLength(120)
@@ -65,7 +65,7 @@ namespace HBA.Users.Infrastructure.Migrations
                     b.ToTable("idempotency_keys", "users");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.Users.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -94,7 +94,7 @@ namespace HBA.Users.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "users");
                 });
 
-            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Users.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
