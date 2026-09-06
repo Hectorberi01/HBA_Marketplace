@@ -108,7 +108,7 @@ public sealed class DistributedCacheService : ICacheService
         return value;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    
     // Accès à Redis — TOUJOURS en échec OUVERT (fail-open).
     //
     // Un cache est un accélérateur, pas une source de vérité. Si Redis tombe, la
@@ -119,7 +119,6 @@ public sealed class DistributedCacheService : ICacheService
     // (À ne pas confondre avec la vérification Turnstile du site, qui doit, elle,
     // échouer FERMÉE. Un cache et un contrôle de sécurité n'ont pas le même mode
     // de défaillance : l'un dégrade, l'autre protège.)
-    // ─────────────────────────────────────────────────────────────────────────
 
     private async Task<byte[]?> GetBytesAsync(string key, CancellationToken cancellationToken)
     {

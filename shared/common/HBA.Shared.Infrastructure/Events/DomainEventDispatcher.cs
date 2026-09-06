@@ -13,12 +13,9 @@ public sealed class DomainEventDispatcher : IDomainEventDispatcher
 {
     private readonly IServiceProvider _serviceProvider;
 
-    public DomainEventDispatcher(IServiceProvider serviceProvider)
-        => _serviceProvider = serviceProvider;
+    public DomainEventDispatcher(IServiceProvider serviceProvider) => _serviceProvider = serviceProvider;
 
-    public async Task DispatchAsync(
-        IEnumerable<IDomainEvent> domainEvents,
-        CancellationToken cancellationToken = default)
+    public async Task DispatchAsync(IEnumerable<IDomainEvent> domainEvents, CancellationToken cancellationToken = default)
     {
         foreach (var domainEvent in domainEvents)
         {

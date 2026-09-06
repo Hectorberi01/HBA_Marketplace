@@ -57,13 +57,8 @@ public static class EvenementsPublies
     /// </summary>
     public static readonly IReadOnlyList<Type> Types =
     [
-        // Application/Profiles/ProfileCommands.cs — le nom d'un profil change.
         typeof(UserProfileChangedIntegrationEvent),
-
-        // Application/Addresses/AddAddressCommand.cs — une adresse est ajoutée.
         typeof(UserAddressCreatedIntegrationEvent),
-
-        // Application/Devices/DeviceUseCases.cs — un appareil s'enregistre.
         typeof(UserDeviceRegisteredIntegrationEvent),
     ];
 

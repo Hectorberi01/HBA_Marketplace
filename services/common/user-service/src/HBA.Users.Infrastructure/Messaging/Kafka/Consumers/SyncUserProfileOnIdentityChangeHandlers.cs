@@ -2,6 +2,7 @@ using HBA.Identity.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using HBA.Users.Application.Profiles;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace HBA.Users.Infrastructure.Messaging.Kafka.Consumers;
 

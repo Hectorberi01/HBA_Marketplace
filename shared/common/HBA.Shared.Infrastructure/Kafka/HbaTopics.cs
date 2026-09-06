@@ -65,15 +65,12 @@ public static class HbaTopics
     public static readonly IReadOnlyDictionary<string, string> DomaineParService =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            // ── Les six traductions qui manquaient ────────────────────────────
             ["seller-service"] = "merchant",
             ["cart-service"] = "commerce",
             ["payment-service"] = "financial",
             ["review-service"] = "engagement",
             ["notification-service"] = "communication",
             ["restaurant-service"] = "food",
-
-            // ── Les services dont le nom coïncide déjà avec le domaine ────────
             ["identity-service"] = "identity",
             ["user-service"] = "user",
             ["catalog-service"] = "catalog",
@@ -89,9 +86,6 @@ public static class HbaTopics
             ["driver-service"] = "driver",
             ["route-service"] = "route",
 
-            // ═════════════════════════════════════════════════════════════════
-            // LES NOMS DE KUBERNETES, QUI NE SONT PAS CEUX DU COMPOSE.
-            //
             // Les déploiements nomment leurs conteneurs par DOMAINE —
             // `merchant-service`, `commerce-service`, `financial-service` — là où
             // `docker-compose.dev.yml` les nomme par dépôt : `seller-service`,
@@ -107,7 +101,6 @@ public static class HbaTopics
             // Ces alias ne créent aucun sujet supplémentaire — `Tous` déduplique
             // par domaine. Ils disent seulement que ces deux noms désignent le même
             // domaine, ce qui est vrai.
-            // ═════════════════════════════════════════════════════════════════
             ["merchant-service"] = "merchant",
             ["commerce-service"] = "commerce",
             ["financial-service"] = "financial",

@@ -39,8 +39,6 @@ public static class KafkaEventNaming
     /// Le sujet d'un producteur. Délègue à <see cref="HbaTopics"/>.
     /// </summary>
     /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// CETTE MÉTHODE DÉRIVAIT LE SUJET ELLE-MÊME, ET C'ÉTAIT LA MOITIÉ D'ISSUE-001.
     ///
     /// Elle retirait « -service » du nom du conteneur : `seller-service` donnait
     /// `service.seller.v1`, quand tous les consommateurs écoutaient
@@ -50,7 +48,6 @@ public static class KafkaEventNaming
     /// Elle est conservée plutôt que supprimée parce qu'elle est citée dans des
     /// encadrés et des tests ; mais elle ne décide plus. Une seule table décide,
     /// et c'est celle que lit aussi la liste d'abonnement du consommateur.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </remarks>
     public static string Topic(KafkaEventBusOptions options, string producer)
         => HbaTopics.Pour(options, producer);

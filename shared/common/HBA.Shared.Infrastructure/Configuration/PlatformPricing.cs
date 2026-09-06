@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 namespace HBA.Shared.Infrastructure.Configuration;
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// LE BARÈME DE LA PLATEFORME — UNE SEULE DÉFINITION, POUR TOUT LE MONDE.
 ///
 /// IL Y EN AVAIT TROIS, SUR TROIS CLÉS, DANS DEUX UNITÉS.
@@ -14,9 +13,6 @@ namespace HBA.Shared.Infrastructure.Configuration;
 ///   • <c>Pricing:PlatformCommissionRate</c>  — un TAUX (0.1), servant à calculer
 ///     le GAIN VENDEUR ;
 ///   • <c>Billing:DefaultCommissionRate</c>   — un TAUX, pour ses propres règles.
-///
-/// Les trois valaient 10 %, mais par coïncidence : la première n'était même pas
-/// dans appsettings.json et tombait sur son défaut interne.
 ///
 /// POURQUOI C'ÉTAIT DANGEREUX
 ///
@@ -36,7 +32,6 @@ namespace HBA.Shared.Infrastructure.Configuration;
 /// C'est celle des clés DÉJÀ DÉPLOYÉES. Basculer <c>Pricing:*</c> en pourcentage
 /// aurait fait relire « 0.1 » comme 0,1 % au lieu de 10 % — une division par cent
 /// de toutes les commissions, sur une simple lecture de configuration.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public sealed class PlatformPricing : IPlatformPricing
 {
@@ -119,14 +114,12 @@ public sealed class PlatformPricing : IPlatformPricing
 
         // Culture INVARIANTE, explicitement : s'appuyer sur un réglage global pour
         // lire un taux de commission serait fragile.
-        if (!decimal.TryParse(raw, System.Globalization.NumberStyles.Number,
-                System.Globalization.CultureInfo.InvariantCulture, out var rate))
+        if (!decimal.TryParse(raw, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var rate))
         {
-            throw new InvalidOperationException(
-                $"« {key} » vaut « {raw} », qui n'est pas un nombre. Attendu : un taux, par exemple « 0.1 » pour 10 %.");
+            throw new InvalidOperationException($"« {key} » vaut « {raw} », qui n'est pas un nombre. Attendu : un taux, par exemple « 0.1 » pour 10 %.");
         }
-
-        // ═════════════════════════════════════════════════════════════════════
+        
+        
         // ON REFUSE DE DÉMARRER SUR UNE VALEUR ABERRANTE.
         //
         // Reprise de la validation qui n'existait que côté Products — elle
@@ -139,7 +132,6 @@ public sealed class PlatformPricing : IPlatformPricing
         //
         // Une plage refusée à l'amorçage coûte un redémarrage ; le même réglage
         // accepté coûte une campagne de remboursement.
-        // ═════════════════════════════════════════════════════════════════════
         if (rate is < 0m or > 0.5m)
         {
             throw new InvalidOperationException(

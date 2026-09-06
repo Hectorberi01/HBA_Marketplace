@@ -12,7 +12,6 @@ namespace HBA.Shared.Infrastructure.Events;
 /// demain, le même contrat est rempli par un consumer Kafka — sans toucher au
 /// code métier des handlers.
 ///
-/// ═════════════════════════════════════════════════════════════════════════════
 /// L'IDEMPOTENCE DE CONSOMMATION EST ICI, ET NON DANS CHAQUE HANDLER.
 ///
 /// 6 HANDLERS SUR 96 SE PROTÉGEAIENT. LES 90 AUTRES ÉTAIENT REJOUABLES.
@@ -94,7 +93,6 @@ namespace HBA.Shared.Infrastructure.Events;
 /// fonctionner comme avant, et un avertissement le dit au premier message. Faire
 /// autrement aurait transformé une amélioration en panne de démarrage pour la
 /// moitié de la plateforme.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public sealed class IntegrationEventDispatcher
 {

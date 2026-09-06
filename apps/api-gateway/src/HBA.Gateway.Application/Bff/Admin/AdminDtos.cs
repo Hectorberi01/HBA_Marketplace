@@ -4,7 +4,6 @@ namespace HBA.Gateway.Application.Bff.Admin;
 /// Les files d'attente d'administration, en un seul appel.
 /// </summary>
 /// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// L'ÉCRAN D'ACCUEIL DE L'ADMINISTRATEUR, ET LA SEULE CHOSE QU'AUCUN SERVICE NE
 /// PEUT RENDRE SEUL.
 ///
@@ -26,7 +25,6 @@ namespace HBA.Gateway.Application.Bff.Admin;
 /// chaque ouverture, par chaque administrateur — une requête d'analyse sur sept
 /// bases. La mesure a sa place ailleurs, et elle n'a pas la même fraîcheur
 /// requise.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
 /// <param name="Files">Une entrée par file, dans l'ordre où l'écran les présente.</param>
 public sealed record AdminQueuesDto(IReadOnlyList<AdminQueueDto> Files);

@@ -12,8 +12,7 @@ public abstract record IntegrationEvent
 }
 
 /// <summary>Handler d'un event d'intégration côté consommateur.</summary>
-public interface IIntegrationEventHandler<in TEvent>
-    where TEvent : IntegrationEvent
+public interface IIntegrationEventHandler<in TEvent> where TEvent : IntegrationEvent
 {
     Task HandleAsync(TEvent integrationEvent, CancellationToken cancellationToken = default);
 }

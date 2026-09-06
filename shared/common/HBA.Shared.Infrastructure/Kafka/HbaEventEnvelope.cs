@@ -119,7 +119,7 @@ public sealed record HbaEventActor
     public string Id { get; init; } = string.Empty;
 }
 
-/// <summary>Métadonnées techniques (§19.1 `metadata`).</summary>
+/// <summary>Métadonnées techniques (19.1 `metadata`).</summary>
 public sealed record HbaEventMetadata
 {
     /// <summary>Nom de schéma versionné, ex. `hba.food.order.accepted.v1`.</summary>

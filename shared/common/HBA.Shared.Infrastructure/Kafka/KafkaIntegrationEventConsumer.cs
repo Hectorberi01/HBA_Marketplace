@@ -45,45 +45,10 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
         _logger = logger;
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// CETTE PREMIÈRE LIGNE EST CE QUI PERMET AU SERVICE D'ÉCOUTER.
-    ///
-    /// `BackgroundService.StartAsync` APPELLE `ExecuteAsync` et n'en récupère la
-    /// main qu'au premier `await` qui cède réellement le contrôle. Tant que la
-    /// méthode s'exécute de façon synchrone, l'hôte est BLOQUÉ DEDANS.
-    ///
-    /// Or `consumer.Consume(...)` est un appel bloquant de librdkafka, et rien
-    /// n'attendait avant lui : `ConsumerBuilder.Build()`, `Subscribe()` puis la
-    /// boucle sont tous synchrones. `Host.StartAsync` n'atteignait donc JAMAIS le
-    /// service hébergé suivant — Kestrel — et le port ne s'ouvrait pas.
-    ///
-    /// Le symptôme était parfaitement muet : conteneur `running`, code de sortie
-    /// 0, aucun redémarrage, migrations appliquées, admin amorcé… et pas une
-    /// ligne « Now listening on ». La passerelle rendait 502 sur chaque route,
-    /// ce qui envoyait chercher une panne dans le service appelé.
-    ///
-    /// C'est aussi l'explication des `TaskCanceledException` sur
-    /// `KestrelServerImpl.BindAsync` vues sur identity et delivery : l'hôte
-    /// restait coincé ici, et quand un SIGTERM arrivait, `ApplicationStopping`
-    /// était déjà déclenché au moment où Kestrel prenait enfin la main. Le jeton
-    /// arrivait annulé. La trace décrivait donc la conséquence — un démarrage
-    /// interrompu — jamais la cause.
-    ///
-    /// `Task.Yield()` ET NON `Task.Run(...)`.
-    ///
-    /// Ce qu'on cherche, c'est rendre la main à `StartAsync`, pas déplacer le
-    /// travail. `Task.Yield()` fait replanifier la suite sur le pool : la
-    /// méthode rend immédiatement une tâche incomplète, l'hôte poursuit son
-    /// démarrage, et la boucle bloquante s'exécute sur un thread du pool.
-    ///
-    /// Le coût assumé : ce thread reste occupé tant que le service vit. C'est
-    /// UN thread par service, et c'est le prix d'un client Kafka synchrone.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+   
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // NE PAS DÉPLACER, NE PAS SUPPRIMER. Voir ci-dessus.
+        // NE PAS DÉPLACER, NE PAS SUPPRIMER.
         await Task.Yield();
 
         if (!_options.Enabled || string.IsNullOrWhiteSpace(_options.BootstrapServers))
@@ -102,59 +67,16 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
             GroupId = group,
             EnableAutoCommit = false,
             AutoOffsetReset = AutoOffsetReset.Earliest,
-
-            // ═════════════════════════════════════════════════════════════════
-            // SANS CETTE LIGNE, UN SUJET CRÉÉ APRÈS L'ABONNEMENT MET JUSQU'À
-            //    CINQ MINUTES À ÊTRE VU.
-            //
-            // `Subscribe` reçoit les treize sujets de la plateforme, dont la
-            // plupart n'existent pas encore au démarrage : un sujet Kafka naît à
-            // la première publication. librdkafka ne redemande la liste des sujets
-            // que toutes les `topic.metadata.refresh.interval.ms` — 300 000 ms par
-            // défaut. Entre-temps, le service est ABONNÉ à un sujet qu'il ne voit
-            // pas, ne consomme rien, et ne journalise rien d'anormal.
-            //
-            // Le symptôme est exactement celui qu'on a mis une journée à
-            // comprendre : l'événement est bien publié, bien nommé, le
-            // gestionnaire est bien enregistré — et rien ne se passe pendant
-            // plusieurs minutes. On cherche alors une faute de nommage là où il
-            // n'y en a pas.
-            //
-            // CE N'EST PAS UN RÉGLAGE « POUR LES TESTS ». Un environnement de
-            // développement fraîchement monté, ou un service déployé avant celui
-            // qui publie, subit la même cécité. Vingt secondes est le compromis
-            // habituel : assez court pour qu'un sujet neuf soit vu au démarrage,
-            // assez long pour ne pas interroger le courtier en continu.
-            // ═════════════════════════════════════════════════════════════════
             TopicMetadataRefreshIntervalMs = 20_000,
-
-            // UN CONSOMMATEUR NE CRÉE PAS DE SUJET, JAMAIS.
-            //
-            // Le provisionnement vit dans `k8s/overlays/*/kafka-topics.yaml`, avec
-            // ses partitions et sa rétention. Un sujet créé à la volée par un
-            // consommateur en aurait d'autres — celles du courtier — et la
-            // divergence ne se verrait qu'en production, sur les volumes.
-            AllowAutoCreateTopics = false
+            AllowAutoCreateTopics = false // UN CONSOMMATEUR NE CRÉE PAS DE SUJET, JAMAIS.
         }).Build();
 
-        // ═════════════════════════════════════════════════════════════════════
-        // LA MÊME TABLE QUE CELLE DU PRODUCTEUR — C'EST TOUT L'OBJET D'ISSUE-001.
-        //
-        // Cette liste était écrite en dur dans `KafkaEventBusOptions` : treize
-        // sujets, justes le jour où ils ont été écrits, et qui avaient cessé de
-        // correspondre aux `SERVICE_NAME` des producteurs. Six domaines ne se
-        // croisaient plus. Deux listes ne restent jamais d'accord ; une seule si.
-        //
-        // `SubscribeTopics` renseigné reste prioritaire : un service peut vouloir
-        // n'écouter qu'une poignée de sujets. Il n'entendra alors plus un domaine
-        // ajouté au catalogue, et c'est à lui de le savoir.
-        // ═════════════════════════════════════════════════════════════════════
+        // LA MÊME TABLE QUE CELLE DU PRODUCTEUR 
         var sujets = _options.SubscribeTopics is { Length: > 0 }
             ? _options.SubscribeTopics
             : HbaTopics.Tous(_options).ToArray();
 
-        _logger.LogInformation(
-            "Abonnement à {Nombre} sujet(s) : {Sujets}", sujets.Length, string.Join(", ", sujets));
+        _logger.LogInformation("Abonnement à {Nombre} sujet(s) : {Sujets}", sujets.Length, string.Join(", ", sujets));
 
         consumer.Subscribe(sujets);
 
@@ -169,17 +91,6 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
                 }
 
                 await DispatchAvecReprisesAsync(result, stoppingToken);
-
-                // ON COMMITTE MÊME APRÈS UN ÉCHEC DÉFINITIF, ET C'EST DÉLIBÉRÉ.
-                //
-                // Ne pas committer bloquerait la PARTITION ENTIÈRE. Le publieur
-                // partitionne par identifiant d'agrégat : un message empoisonné
-                // retiendrait tous les événements de sa partition — soit un tiers
-                // du trafic du service émetteur, sans aucun rapport entre eux.
-                //
-                // Un événement perdu et journalisé en Critical vaut mieux qu'un
-                // flux arrêté. Une file de lettres mortes viendra ; en attendant,
-                // le journal est la trace.
                 consumer.Commit(result);
             }
             catch (ConsumeException ex)
@@ -224,7 +135,7 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
     private async Task DispatchAvecReprisesAsync(
         ConsumeResult<string, string> result, CancellationToken cancellationToken)
     {
-        const int TentativesMax = 3;
+        const int tentativesMax = 3;
 
         // ═════════════════════════════════════════════════════════════════════
         // LE `traceparent` ÉTAIT PUBLIÉ DEPUIS TOUJOURS ET LU PAR PERSONNE.
@@ -263,7 +174,7 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
         activite?.SetTag("messaging.kafka.partition", result.Partition.Value);
         activite?.SetTag("messaging.kafka.offset", result.Offset.Value);
 
-        for (var tentative = 1; tentative <= TentativesMax; tentative++)
+        for (var tentative = 1; tentative <= tentativesMax; tentative++)
         {
             try
             {
@@ -276,12 +187,12 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
             }
             catch (Exception ex)
             {
-                if (tentative < TentativesMax)
+                if (tentative < tentativesMax)
                 {
                     _logger.LogWarning(
                         ex,
                         "Échec du traitement (tentative {Tentative}/{Max}) — {Topic}[{Partition}]@{Offset}.",
-                        tentative, TentativesMax,
+                        tentative, tentativesMax,
                         result.Topic, result.Partition.Value, result.Offset.Value);
 
                     await Task.Delay(TimeSpan.FromSeconds(2 * tentative), cancellationToken);
@@ -296,7 +207,7 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
                     ex,
                     "ÉVÉNEMENT ABANDONNÉ après {Max} tentatives — {Topic}[{Partition}]@{Offset}. "
                     + "Son effet métier n'aura pas lieu et aucun rejeu automatique n'est prévu.",
-                    TentativesMax, result.Topic, result.Partition.Value, result.Offset.Value);
+                    tentativesMax, result.Topic, result.Partition.Value, result.Offset.Value);
 
                 // SANS CECI, UN ÉVÉNEMENT ABANDONNÉ EST UN SPAN VERT.
                 //
