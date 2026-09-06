@@ -63,6 +63,16 @@ internal static class TicketDeRepas
     public static bool Nous(string? origine)
         => string.Equals(origine, FoodOrderOrigins.Food, StringComparison.OrdinalIgnoreCase);
 }
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.FoodOrders.Application.Orders.EventHandlers.CancelMealOrderOnKitchenRejectionHandler")]
 public sealed class CancelMealOrderOnKitchenRejectionHandler
     : IIntegrationEventHandler<FoodOrderRejectedIntegrationEvent>
 {
@@ -112,6 +122,7 @@ public sealed class CancelMealOrderOnKitchenRejectionHandler
 /// qui atterrit dans le dossier n'est pas le même, et c'est ce que lit
 /// l'exploitation.
 /// </remarks>
+[NomDeConsommateur("HBA.FoodOrders.Application.Orders.EventHandlers.CancelMealOrderOnKitchenCancellationHandler")]
 public sealed class CancelMealOrderOnKitchenCancellationHandler
     : IIntegrationEventHandler<FoodOrderCancelledIntegrationEvent>
 {
@@ -157,6 +168,7 @@ public sealed class CancelMealOrderOnKitchenCancellationHandler
 /// TICKET, inconnu de cette base. C'est restaurant-service qui fait la
 /// correspondance, en publiant cet événement avec l'`OrderId`.
 /// </remarks>
+[NomDeConsommateur("HBA.FoodOrders.Application.Orders.EventHandlers.MarkMealOrderDeliveredOnKitchenDeliveryHandler")]
 public sealed class MarkMealOrderDeliveredOnKitchenDeliveryHandler
     : IIntegrationEventHandler<FoodOrderDeliveredIntegrationEvent>
 {

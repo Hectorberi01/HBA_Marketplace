@@ -130,6 +130,16 @@ internal static class FoodOrderNotification
 }
 
 /// <summary>Le restaurant a accepté : le client sait que son repas se fera.</summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.FoodOrderAcceptedNotificationHandler")]
 public sealed class FoodOrderAcceptedNotificationHandler
     : IIntegrationEventHandler<FoodOrderAcceptedIntegrationEvent>
 {
@@ -160,6 +170,7 @@ public sealed class FoodOrderAcceptedNotificationHandler
 }
 
 /// <summary>La préparation a commencé.</summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.FoodOrderPreparingNotificationHandler")]
 public sealed class FoodOrderPreparingNotificationHandler
     : IIntegrationEventHandler<FoodOrderPreparingIntegrationEvent>
 {
@@ -187,6 +198,7 @@ public sealed class FoodOrderPreparingNotificationHandler
 }
 
 /// <summary>Le repas est prêt : un livreur est cherché.</summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.FoodOrderReadyNotificationHandler")]
 public sealed class FoodOrderReadyNotificationHandler
     : IIntegrationEventHandler<FoodOrderReadyForPickupIntegrationEvent>
 {
@@ -214,6 +226,7 @@ public sealed class FoodOrderReadyNotificationHandler
 }
 
 /// <summary>Le livreur a le repas : il arrive.</summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.FoodOrderPickedUpNotificationHandler")]
 public sealed class FoodOrderPickedUpNotificationHandler
     : IIntegrationEventHandler<FoodOrderPickedUpIntegrationEvent>
 {

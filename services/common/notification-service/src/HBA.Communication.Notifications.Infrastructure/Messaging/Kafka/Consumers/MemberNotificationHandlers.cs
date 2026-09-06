@@ -89,6 +89,16 @@ internal static class MemberNotifications
 }
 
 /// <summary>L'invité vient d'accepter : il découvre son accès.</summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberJoinedNotificationHandler")]
 public sealed class SellerMemberJoinedNotificationHandler
     : IIntegrationEventHandler<SellerMemberJoinedIntegrationEvent>
 {
@@ -139,6 +149,7 @@ public sealed class SellerMemberJoinedNotificationHandler
 /// « Employé » dans la tête de qui le lit. L'écran des accès, lui, montre la liste
 /// exacte des permissions ; la notification y renvoie plutôt que de la résumer mal.
 /// </remarks>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberRolesUpdatedNotificationHandler")]
 public sealed class SellerMemberRolesUpdatedNotificationHandler
     : IIntegrationEventHandler<SellerMemberRolesUpdatedIntegrationEvent>
 {
@@ -170,6 +181,7 @@ public sealed class SellerMemberRolesUpdatedNotificationHandler
 }
 
 /// <summary>Le membre est affecté à une boutique.</summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberStoreAssignedNotificationHandler")]
 public sealed class SellerMemberStoreAssignedNotificationHandler
     : IIntegrationEventHandler<SellerMemberStoreAssignedIntegrationEvent>
 {
@@ -210,6 +222,7 @@ public sealed class SellerMemberStoreAssignedNotificationHandler
 /// cette boutique-là — et l'employé qui l'ignore verra des refus sur un magasin où
 /// il travaillait la veille.
 /// </remarks>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberStoreUnassignedNotificationHandler")]
 public sealed class SellerMemberStoreUnassignedNotificationHandler
     : IIntegrationEventHandler<SellerMemberStoreUnassignedIntegrationEvent>
 {
@@ -251,6 +264,7 @@ public sealed class SellerMemberStoreUnassignedNotificationHandler
 /// laisserait croire à une décision de la plateforme là où c'est l'employeur qui a
 /// agi. On dit QUI a suspendu, et on renvoie vers lui.
 /// </remarks>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberSuspendedNotificationHandler")]
 public sealed class SellerMemberSuspendedNotificationHandler
     : IIntegrationEventHandler<SellerMemberSuspendedIntegrationEvent>
 {
@@ -282,6 +296,7 @@ public sealed class SellerMemberSuspendedNotificationHandler
 }
 
 /// <summary>L'accès est rouvert.</summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberActivatedNotificationHandler")]
 public sealed class SellerMemberActivatedNotificationHandler
     : IIntegrationEventHandler<SellerMemberActivatedIntegrationEvent>
 {
@@ -331,6 +346,7 @@ public sealed class SellerMemberActivatedNotificationHandler
 /// dit qu'elle travaille ailleurs ou non.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberRevokedNotificationHandler")]
 public sealed class SellerMemberRevokedNotificationHandler
     : IIntegrationEventHandler<SellerMemberRevokedIntegrationEvent>
 {
@@ -397,6 +413,7 @@ public sealed class SellerMemberRevokedNotificationHandler
 /// dossier.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerOwnershipTransferredNotificationHandler")]
 public sealed class SellerOwnershipTransferredNotificationHandler
     : IIntegrationEventHandler<SellerOwnershipTransferredIntegrationEvent>
 {

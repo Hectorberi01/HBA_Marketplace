@@ -19,6 +19,16 @@ namespace HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Consumers;
 /// fonds encaissés deviennent reversables au vendeur. Idempotent (sans effet si
 /// déjà libéré, ou si le paiement n'est pas encaissé).
 /// </summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Financial.Payments.Application.Payments.EventHandlers.ReleaseEscrowOnOrderDeliveredHandler")]
 public sealed class ReleaseEscrowOnOrderDeliveredHandler : IIntegrationEventHandler<OrderDeliveredIntegrationEvent>
 {
     private readonly IPaymentRepository _repository;
@@ -80,6 +90,7 @@ public sealed class ReleaseEscrowOnOrderDeliveredHandler : IIntegrationEventHand
 /// s'il apparaît, il se verra au reversement manquant, pas ici.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+[NomDeConsommateur("HBA.Financial.Payments.Application.Payments.EventHandlers.ReleaseEscrowOnMealOrderDeliveredHandler")]
 public sealed class ReleaseEscrowOnMealOrderDeliveredHandler
     : IIntegrationEventHandler<MealOrderDeliveredIntegrationEvent>
 {

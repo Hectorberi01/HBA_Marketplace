@@ -32,6 +32,16 @@ namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consume
 /// faute de consommateur. Voir `AccountEmailHandlers`.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SendOtpCodeHandler")]
 public sealed class SendOtpCodeHandler : IIntegrationEventHandler<OtpChallengeIssuedIntegrationEvent>
 {
     /// <summary>Les valeurs de `MfaChannels`, recopiées côté consommateur.</summary>
@@ -50,17 +60,20 @@ public sealed class SendOtpCodeHandler : IIntegrationEventHandler<OtpChallengeIs
     private readonly IEmailSender _email;
     private readonly ISmsSender _sms;
     private readonly ISecretProtector _protecteur;
+    private readonly INotificationsUnitOfWork _unitOfWork;
     private readonly ILogger<SendOtpCodeHandler> _logger;
 
     public SendOtpCodeHandler(
         IEmailSender email,
         ISmsSender sms,
         ISecretProtector protecteur,
+        INotificationsUnitOfWork unitOfWork,
         ILogger<SendOtpCodeHandler> logger)
     {
         _email = email;
         _sms = sms;
         _protecteur = protecteur;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -126,5 +139,28 @@ public sealed class SendOtpCodeHandler : IIntegrationEventHandler<OtpChallengeIs
         _logger.LogInformation(
             "Code à usage unique remis à l'utilisateur {UserId} par {Channel}.",
             integrationEvent.UserId, integrationEvent.Channel);
+
+        // ═════════════════════════════════════════════════════════════════════
+        // CE `SaveChanges` NE SAUVEGARDE RIEN A NOUS — IL COMMITTE LA TRACE.
+        //
+        // `IntegrationEventDispatcher` ajoute l'entree d'inbox au contexte AVANT
+        // d'appeler ce gestionnaire, et ne la sauvegarde pas : elle doit partir
+        // avec la transaction de l'effet metier. Ce gestionnaire n'ecrivait rien
+        // en base — il envoie, c'est tout — donc la trace restait en attente et
+        // n'etait JAMAIS committee.
+        //
+        // Consequence : l'evenement restait « jamais traite » pour l'inbox. Au
+        // premier rejeu — remise a zero d'offsets, rebalancement de partition —
+        // le code a usage unique repartait a son destinataire, deja perime
+        // ou deja utilise.
+        //
+        // L'APPEL EST APRES L'ENVOI, ET C'EST DELIBERE. Sauvegarder avant
+        // marquerait l'evenement traite pour un envoi qui peut encore echouer :
+        // le message ne partirait jamais et rien ne le rejouerait. Dans l'autre
+        // sens, un echec de sauvegarde apres un envoi reussi fait un doublon —
+        // Kafka livre au moins une fois, c'est le cote acceptable de l'arbitrage.
+        // ═════════════════════════════════════════════════════════════════════
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
     }
 }

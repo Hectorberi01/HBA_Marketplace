@@ -20,6 +20,16 @@ namespace HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Consumers;
 /// Filet de sécurité complémentaire du handler par expédition : idempotent, il
 /// ne traite que les gains encore « Accrued » (les autres ont déjà été déplacés).
 /// </summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Financial.Wallet.Application.Earnings.ReleaseEarningsOnOrderDeliveredHandler")]
 public sealed class ReleaseEarningsOnOrderDeliveredHandler : IIntegrationEventHandler<OrderDeliveredIntegrationEvent>
 {
     private readonly ISellerEarningRepository _earningRepository;

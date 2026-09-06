@@ -12,6 +12,16 @@ using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>Notifie l'acheteur que sa commande est passée (en attente de paiement).</summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.OrderPlacedNotificationHandler")]
 public sealed class OrderPlacedNotificationHandler : IIntegrationEventHandler<OrderPlacedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -26,6 +36,7 @@ public sealed class OrderPlacedNotificationHandler : IIntegrationEventHandler<Or
 }
 
 /// <summary>Notifie l'acheteur que sa commande est confirmée.</summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.OrderConfirmedNotificationHandler")]
 public sealed class OrderConfirmedNotificationHandler : IIntegrationEventHandler<OrderConfirmedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -40,6 +51,7 @@ public sealed class OrderConfirmedNotificationHandler : IIntegrationEventHandler
 }
 
 /// <summary>Notifie l'acheteur que sa commande est annulée.</summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.OrderCancelledNotificationHandler")]
 public sealed class OrderCancelledNotificationHandler : IIntegrationEventHandler<OrderCancelledIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -82,6 +94,7 @@ public sealed class OrderCancelledNotificationHandler : IIntegrationEventHandler
 /// c'est précisément le moment où il doit être joint.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.OrderUnderReviewNotificationHandler")]
 public sealed class OrderUnderReviewNotificationHandler
     : IIntegrationEventHandler<OrderUnderReviewIntegrationEvent>
 {
@@ -114,6 +127,7 @@ public sealed class OrderUnderReviewNotificationHandler
 /// c'est une promesse non tenue, et c'est ce qui déclenche l'appel au support que
 /// le premier message devait éviter.
 /// </remarks>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.OrderResumedAfterReviewNotificationHandler")]
 public sealed class OrderResumedAfterReviewNotificationHandler
     : IIntegrationEventHandler<OrderResumedAfterReviewIntegrationEvent>
 {

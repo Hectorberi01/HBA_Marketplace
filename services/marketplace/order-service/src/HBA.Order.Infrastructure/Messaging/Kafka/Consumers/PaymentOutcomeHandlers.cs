@@ -40,6 +40,16 @@ namespace HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 /// passagère — vit dans <see cref="SagaOutcome"/>, avec son argumentaire.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Orders.Application.Orders.EventHandlers.ConfirmOrderOnPaymentCapturedHandler")]
 public sealed class ConfirmOrderOnPaymentCapturedHandler : IIntegrationEventHandler<PaymentCapturedIntegrationEvent>
 {
     private readonly ISender _sender;
@@ -76,6 +86,7 @@ public sealed class ConfirmOrderOnPaymentCapturedHandler : IIntegrationEventHand
 /// l'explique. C'est moins spectaculaire qu'un débit sans commande, et cela se
 /// découvre encore plus tard.
 /// </remarks>
+[NomDeConsommateur("HBA.Orders.Application.Orders.EventHandlers.CancelOrderOnPaymentFailedHandler")]
 public sealed class CancelOrderOnPaymentFailedHandler : IIntegrationEventHandler<PaymentFailedIntegrationEvent>
 {
     private readonly ISender _sender;

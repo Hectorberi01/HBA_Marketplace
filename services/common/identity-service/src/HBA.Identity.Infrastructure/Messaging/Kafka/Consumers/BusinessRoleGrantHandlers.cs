@@ -209,6 +209,16 @@ public sealed class BusinessRoleGrant
 /// KYB conditionne — vendre, encaisser — est vérifié par merchant-service sur le
 /// statut du vendeur, pas par ce rôle.
 /// </remarks>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.GrantSellerRoleHandler")]
 public sealed class GrantSellerRoleHandler : IIntegrationEventHandler<SellerRegisteredIntegrationEvent>
 {
     public const string RoleName = "Seller";
@@ -239,6 +249,7 @@ public sealed class GrantSellerRoleHandler : IIntegrationEventHandler<SellerRegi
 /// reste fermé. Le combler demande un événement « membre ajouté » que food-service
 /// ne publie pas encore.
 /// </remarks>
+[NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.GrantFoodPartnerRoleHandler")]
 public sealed class GrantFoodPartnerRoleHandler : IIntegrationEventHandler<RestaurantApprovedIntegrationEvent>
 {
     public const string RoleName = "FoodPartner";
@@ -282,6 +293,7 @@ public sealed class GrantFoodPartnerRoleHandler : IIntegrationEventHandler<Resta
 /// ce type-ci.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+[NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.GrantDriverRoleHandler")]
 public sealed class GrantDriverRoleHandler : IIntegrationEventHandler<DriverVerifiedIntegrationEvent>
 {
     public const string RoleName = "Driver";
@@ -323,6 +335,7 @@ public sealed class GrantDriverRoleHandler : IIntegrationEventHandler<DriverVeri
 /// concordante — qui établit le fait.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.GrantSellerRoleToMemberHandler")]
 public sealed class GrantSellerRoleToMemberHandler
     : IIntegrationEventHandler<SellerMemberJoinedIntegrationEvent>
 {
@@ -364,6 +377,7 @@ public sealed class GrantSellerRoleToMemberHandler
 /// exactement ce qu'on veut lui dire.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.RevokeSellerRoleOnMemberRemovedHandler")]
 public sealed class RevokeSellerRoleOnMemberRemovedHandler
     : IIntegrationEventHandler<SellerMemberRevokedIntegrationEvent>
 {

@@ -59,6 +59,16 @@ namespace HBA.FoodOrders.Infrastructure.Messaging.Kafka.Consumers;
 /// avant ce lot : aucune route `/api/admin/*` n'y existait.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.FoodOrders.Application.Orders.EventHandlers.HoldMealOrderOnDeliveryCancelledHandler")]
 public sealed class HoldMealOrderOnDeliveryCancelledHandler
     : IIntegrationEventHandler<DeliveryCancelledIntegrationEvent>
 {

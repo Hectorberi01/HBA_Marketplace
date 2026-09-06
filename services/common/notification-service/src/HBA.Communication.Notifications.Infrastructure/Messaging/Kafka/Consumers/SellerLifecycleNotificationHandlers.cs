@@ -22,6 +22,16 @@ namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consume
 /// Prévient l'ADMIN qu'une boutique vient d'être créée et attend sa validation KYB.
 /// Sans cela, un dossier pouvait dormir des jours : rien ne signalait son arrivée.
 /// </summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerRegisteredAdminNotificationHandler")]
 public sealed class SellerRegisteredAdminNotificationHandler : IIntegrationEventHandler<SellerRegisteredIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -60,6 +70,7 @@ public sealed class SellerRegisteredAdminNotificationHandler : IIntegrationEvent
 /// pas. La vraie suspension, elle, ne prévenait personne — voir
 /// SellerSuspendedNotificationHandler, ajouté depuis.
 /// </summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerClosedNotificationHandler")]
 public sealed class SellerClosedNotificationHandler : IIntegrationEventHandler<SellerClosedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -91,6 +102,7 @@ public sealed class SellerClosedNotificationHandler : IIntegrationEventHandler<S
 /// Doublée par e-mail : il n'ouvrira pas forcément l'application ce jour-là, et
 /// c'est justement le jour où il doit savoir.
 /// </summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerSuspendedNotificationHandler")]
 public sealed class SellerSuspendedNotificationHandler : IIntegrationEventHandler<SellerSuspendedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -111,6 +123,7 @@ public sealed class SellerSuspendedNotificationHandler : IIntegrationEventHandle
 }
 
 /// <summary>Prévient le vendeur que sa suspension est levée.</summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerSuspensionLiftedNotificationHandler")]
 public sealed class SellerSuspensionLiftedNotificationHandler : IIntegrationEventHandler<SellerSuspensionLiftedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -138,6 +151,7 @@ public sealed class SellerSuspensionLiftedNotificationHandler : IIntegrationEven
 ///
 /// Un refus sans motif n'est pas une décision de modération, c'est une impasse.
 /// </summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerKybRejectedNotificationHandler")]
 public sealed class SellerKybRejectedNotificationHandler : IIntegrationEventHandler<SellerKybRejectedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -160,6 +174,7 @@ public sealed class SellerKybRejectedNotificationHandler : IIntegrationEventHand
 }
 
 /// <summary>Prévient le vendeur que sa boutique est rouverte.</summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerReactivatedNotificationHandler")]
 public sealed class SellerReactivatedNotificationHandler : IIntegrationEventHandler<SellerReactivatedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -198,6 +213,7 @@ public sealed class SellerReactivatedNotificationHandler : IIntegrationEventHand
 /// Elle va d'ailleurs dans le sens déjà acté de la dualité Catalog/Products,
 /// Products étant le successeur.
 /// </remarks>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.ReviewPublishedNotificationHandler")]
 public sealed class ReviewPublishedNotificationHandler : IIntegrationEventHandler<ReviewPublishedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -250,6 +266,7 @@ public sealed class ReviewPublishedNotificationHandler : IIntegrationEventHandle
 /// Prévient le vendeur qu'une de ses références est en RUPTURE. Un produit en rupture
 /// ne se vend plus : chaque heure sans le savoir est une vente perdue.
 /// </summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.StockDepletedNotificationHandler")]
 public sealed class StockDepletedNotificationHandler : IIntegrationEventHandler<StockDepletedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -324,6 +341,7 @@ public sealed class StockDepletedNotificationHandler : IIntegrationEventHandler<
 /// Prévient l'acheteur que son PAIEMENT A ÉCHOUÉ. Sans ce message, il croit sa commande
 /// passée et attend un colis qui ne partira jamais.
 /// </summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.PaymentFailedNotificationHandler")]
 public sealed class PaymentFailedNotificationHandler : IIntegrationEventHandler<PaymentFailedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;

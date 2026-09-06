@@ -29,6 +29,16 @@ namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consume
 /// en cours. Le silence, ici, coûte plus cher qu'un remboursement.
 /// ─────────────────────────────────────────────────────────────────────────────
 /// </summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.ReturnRefundApprovedNotificationHandler")]
 public sealed class ReturnRefundApprovedNotificationHandler : IIntegrationEventHandler<ReturnRefundApprovedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -50,6 +60,7 @@ public sealed class ReturnRefundApprovedNotificationHandler : IIntegrationEventH
 /// <summary>
 /// L'argent est PARTI. On prévient l'acheteur… et le vendeur, qui vient d'être débité.
 /// </summary>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.ReturnRefundedNotificationHandler")]
 public sealed class ReturnRefundedNotificationHandler : IIntegrationEventHandler<ReturnRefundedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;
@@ -139,6 +150,7 @@ public sealed class ReturnRefundedNotificationHandler : IIntegrationEventHandler
 /// aucun vendeur n'a été crédité, il n'y a personne d'autre à prévenir.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+[NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.PaymentRefundedNotificationHandler")]
 public sealed class PaymentRefundedNotificationHandler : IIntegrationEventHandler<PaymentRefundedIntegrationEvent>
 {
     private readonly NotificationDispatcher _dispatcher;

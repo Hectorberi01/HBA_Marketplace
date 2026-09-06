@@ -31,6 +31,16 @@ namespace HBA.Promotions.Infrastructure.Messaging.Kafka.Consumers;
 /// une campagne qui ne s'épuise jamais.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Promotions.Api.Integration.ReleaseCouponsOnOrderCancelledHandler")]
 public sealed class ReleaseCouponsOnOrderCancelledHandler
     : IIntegrationEventHandler<OrderCancelledIntegrationEvent>
 {
@@ -91,6 +101,7 @@ public sealed class ReleaseCouponsOnOrderCancelledHandler
 /// aucun usage à libérer, et l'échec serait silencieux : la méthode rendrait
 /// « succès, rien à faire ».
 /// </summary>
+[NomDeConsommateur("HBA.Promotions.Api.Integration.ReleaseCouponsOnFoodOrderCancelledHandler")]
 public sealed class ReleaseCouponsOnFoodOrderCancelledHandler
     : IIntegrationEventHandler<FoodOrderCancelledIntegrationEvent>
 {

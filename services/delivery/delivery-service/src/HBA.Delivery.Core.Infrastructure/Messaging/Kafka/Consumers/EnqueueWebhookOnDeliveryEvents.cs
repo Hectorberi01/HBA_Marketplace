@@ -56,15 +56,18 @@ public sealed class DeliveryWebhookEnqueuer
 
     private readonly IDeliveryRepository _deliveries;
     private readonly IWebhookDeliveryRepository _webhooks;
+    private readonly IDeliveryUnitOfWork _unitOfWork;
     private readonly ILogger<DeliveryWebhookEnqueuer> _logger;
 
     public DeliveryWebhookEnqueuer(
         IDeliveryRepository deliveries,
         IWebhookDeliveryRepository webhooks,
+        IDeliveryUnitOfWork unitOfWork,
         ILogger<DeliveryWebhookEnqueuer> logger)
     {
         _deliveries = deliveries;
         _webhooks = webhooks;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -106,6 +109,30 @@ public sealed class DeliveryWebhookEnqueuer
         }
 
         await _webhooks.AddAsync(webhook.Value, ct);
+
+        // ═════════════════════════════════════════════════════════════════════
+        // AUCUN WEBHOOK N'A JAMAIS ETE ENREGISTRE, ET RIEN NE LE DISAIT.
+        //
+        // `WebhookDeliveryRepository.AddAsync` fait `_dbContext.WebhookDeliveries
+        // .AddAsync(...)` et RIEN D'AUTRE : l'entite reste dans le suivi des
+        // modifications. Personne n'appelait `SaveChanges` derriere — ni ce
+        // gestionnaire, ni le repartiteur, ni le consommateur Kafka, qui ouvre
+        // une portee, distribue et la referme. La ligne partait avec la portee.
+        //
+        // Consequence : la table `webhook_deliveries` restait VIDE,
+        // `WebhookDispatchService` la relisait sans rien y trouver, et aucun
+        // partenaire n'a jamais recu de notification de course. Le journal disait
+        // « webhook mis en file » a chaque fois.
+        //
+        // CE `SaveChanges` COMMITTE AUSSI LA TRACE D'INBOX que le repartiteur a
+        // ajoutee au meme contexte avant d'appeler ici : sans lui, l'evenement
+        // restait « jamais traite » et se rejouait.
+        //
+        // CE QUE CA NE COUVRE PAS. L'envoi lui-meme reste au
+        // `WebhookDispatchService`, avec ses reprises. Cette ligne garantit la
+        // mise en file, pas la remise au partenaire.
+        // ═════════════════════════════════════════════════════════════════════
+        await _unitOfWork.SaveChangesAsync(ct);
     }
 }
 
@@ -123,6 +150,16 @@ public sealed class DeliveryWebhookEnqueuer
 // ferait d'un renommage interne une rupture de contrat externe.
 // ═════════════════════════════════════════════════════════════════════════════
 
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.Deliveries.Application.Webhooks.WebhookOnDeliveryCreated")]
 public sealed class WebhookOnDeliveryCreated : IIntegrationEventHandler<DeliveryCreatedIntegrationEvent>
 {
     private readonly DeliveryWebhookEnqueuer _enqueuer;
@@ -133,6 +170,7 @@ public sealed class WebhookOnDeliveryCreated : IIntegrationEventHandler<Delivery
         => _enqueuer.EnqueueAsync(e, e.DeliveryId, e.Source, "delivery.created", ct);
 }
 
+[NomDeConsommateur("HBA.Deliveries.Application.Webhooks.WebhookOnDeliveryAccepted")]
 public sealed class WebhookOnDeliveryAccepted : IIntegrationEventHandler<DeliveryAcceptedIntegrationEvent>
 {
     private readonly DeliveryWebhookEnqueuer _enqueuer;
@@ -143,6 +181,7 @@ public sealed class WebhookOnDeliveryAccepted : IIntegrationEventHandler<Deliver
         => _enqueuer.EnqueueAsync(e, e.DeliveryId, e.Source, "delivery.accepted", ct);
 }
 
+[NomDeConsommateur("HBA.Deliveries.Application.Webhooks.WebhookOnDeliveryPickedUp")]
 public sealed class WebhookOnDeliveryPickedUp : IIntegrationEventHandler<DeliveryPickedUpIntegrationEvent>
 {
     private readonly DeliveryWebhookEnqueuer _enqueuer;
@@ -153,6 +192,7 @@ public sealed class WebhookOnDeliveryPickedUp : IIntegrationEventHandler<Deliver
         => _enqueuer.EnqueueAsync(e, e.DeliveryId, e.Source, "delivery.picked_up", ct);
 }
 
+[NomDeConsommateur("HBA.Deliveries.Application.Webhooks.WebhookOnDeliveryCompleted")]
 public sealed class WebhookOnDeliveryCompleted : IIntegrationEventHandler<DeliveryCompletedIntegrationEvent>
 {
     private readonly DeliveryWebhookEnqueuer _enqueuer;
@@ -163,6 +203,7 @@ public sealed class WebhookOnDeliveryCompleted : IIntegrationEventHandler<Delive
         => _enqueuer.EnqueueAsync(e, e.DeliveryId, e.Source, "delivery.completed", ct);
 }
 
+[NomDeConsommateur("HBA.Deliveries.Application.Webhooks.WebhookOnDeliveryCancelled")]
 public sealed class WebhookOnDeliveryCancelled : IIntegrationEventHandler<DeliveryCancelledIntegrationEvent>
 {
     private readonly DeliveryWebhookEnqueuer _enqueuer;
@@ -173,6 +214,7 @@ public sealed class WebhookOnDeliveryCancelled : IIntegrationEventHandler<Delive
         => _enqueuer.EnqueueAsync(e, e.DeliveryId, e.Source, "delivery.cancelled", ct);
 }
 
+[NomDeConsommateur("HBA.Deliveries.Application.Webhooks.WebhookOnDeliveryNoDriver")]
 public sealed class WebhookOnDeliveryNoDriver : IIntegrationEventHandler<DeliveryNoDriverAvailableIntegrationEvent>
 {
     private readonly DeliveryWebhookEnqueuer _enqueuer;

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using HBA.Shared.Application.Context;
 using HBA.Shared.Infrastructure.Inbox;
+using System.Reflection;
 using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Shared.Infrastructure.Events;
@@ -207,7 +208,27 @@ public sealed class IntegrationEventDispatcher
     /// </summary>
     private static string NomDuConsommateur(object handler)
     {
-        var nom = handler.GetType().FullName ?? handler.GetType().Name;
+        var type = handler.GetType();
+
+        // ═════════════════════════════════════════════════════════════════════
+        // L'ATTRIBUT L'EMPORTE SUR LE NOM DU TYPE, ET C'EST TOUT L'INTERET.
+        //
+        // Le commentaire ci-dessus disait qu'un renommage de handler etait « un
+        // geste a traiter comme une migration ». La migration des modules Kafka a
+        // change l'espace de noms de QUATRE-VINGT-SEIZE handlers d'un coup : leurs
+        // traces d'inbox sont devenues orphelines, et le premier rejeu les aurait
+        // tous refaits — dont six qui creditent des vendeurs et un qui renvoie un
+        // code a usage unique.
+        //
+        // `[NomDeConsommateur]` sort la cle du nom du type. Voir cet attribut pour
+        // la regle : c'est une cle de base, elle ne se refactorise pas.
+        //
+        // CE QUE CE REPLI NE COUVRE PAS. Un handler sans attribut retombe sur son
+        // nom complet et reste expose au meme piege au prochain deplacement.
+        // ═════════════════════════════════════════════════════════════════════
+        var nom = type.GetCustomAttribute<NomDeConsommateurAttribute>(inherit: false)?.Nom
+                  ?? type.FullName
+                  ?? type.Name;
 
         // La colonne fait 120 caractères (ConsumerInboxConfiguration). Un nom plus
         // long serait tronqué par PostgreSQL — ou refusé — et deux handlers dont les

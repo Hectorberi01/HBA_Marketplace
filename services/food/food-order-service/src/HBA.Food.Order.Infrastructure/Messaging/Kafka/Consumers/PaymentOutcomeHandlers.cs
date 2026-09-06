@@ -42,6 +42,16 @@ namespace HBA.FoodOrders.Infrastructure.Messaging.Kafka.Consumers;
 /// contrat de paiement documente déjà.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+// LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
+//
+// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
+// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
+// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
+// chaque evenement deja traite serait repasse pour neuf.
+//
+// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
+// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
+[NomDeConsommateur("HBA.FoodOrders.Application.Orders.EventHandlers.ConfirmMealOrderOnPaymentCapturedHandler")]
 public sealed class ConfirmMealOrderOnPaymentCapturedHandler
     : IIntegrationEventHandler<PaymentCapturedIntegrationEvent>
 {
@@ -87,6 +97,7 @@ public sealed class ConfirmMealOrderOnPaymentCapturedHandler
 /// ne se réserve pas. Ce qui reste est une commande fantôme en attente de
 /// paiement, qui bloquerait le panier suivant du même client.
 /// </remarks>
+[NomDeConsommateur("HBA.FoodOrders.Application.Orders.EventHandlers.CancelMealOrderOnPaymentFailedHandler")]
 public sealed class CancelMealOrderOnPaymentFailedHandler
     : IIntegrationEventHandler<PaymentFailedIntegrationEvent>
 {
