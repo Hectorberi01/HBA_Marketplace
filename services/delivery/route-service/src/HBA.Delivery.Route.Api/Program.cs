@@ -1,5 +1,5 @@
 using HBA.Routes.Api.Endpoints;
-using HBA.Delivery.Route.Infrastructure.Messaging.Kafka;
+using HBA.Routes.Infrastructure.Messaging.Kafka;
 using HBA.Routes.Api.Grpc;
 using HBA.Routes.Infrastructure;
 using HBA.Shared.Hosting;

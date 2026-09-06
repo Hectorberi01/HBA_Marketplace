@@ -1,5 +1,5 @@
 using System.Reflection;
-using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Drivers.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Delivery.Driver.Domain.Events;
 using HBA.Delivery.Driver.Domain.Repositories;
 using HBA.Drivers.Application.Abstractions;

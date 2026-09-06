@@ -4,8 +4,15 @@ using HBA.Shared.Application.Messaging;
 using HBA.Shared.IntegrationEvents;
 using MediatR;
 using Microsoft.Extensions.Logging;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.FoodOrders.Application.Orders.EventHandlers` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.FoodOrders.Application.Orders.EventHandlers;
 
-namespace HBA.Food.Order.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.FoodOrders.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// ═════════════════════════════════════════════════════════════════════════════

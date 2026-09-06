@@ -1,8 +1,8 @@
 using HBA.Deliveries.Contracts.Grpc;
-using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka;
+using HBA.Food.Infrastructure.Messaging.Kafka;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Food.Api.Endpoints;
-using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Food.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Food.Contracts.Grpc;
 using HBA.FoodOrders.Contracts.Grpc;
 using HBA.Food.Contracts.IntegrationEvents;

@@ -2,14 +2,15 @@ using HBA.Deliveries.Contracts;
 using HBA.Inventory.Contracts;
 using HBA.Orders.Application.Orders.Commands;
 using HBA.Orders.Application.Orders.EventHandlers;
-using HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Orders.Contracts;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Shared.Application.Messaging;
 using HBA.Shared.IntegrationEvents;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
-namespace HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// Commande marketplace payée → une course est demandée.

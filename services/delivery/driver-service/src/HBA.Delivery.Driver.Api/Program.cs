@@ -1,5 +1,5 @@
 using HBA.Drivers.Api.Endpoints;
-using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka;
+using HBA.Drivers.Infrastructure.Messaging.Kafka;
 using HBA.Drivers.Api.Grpc;
 using HBA.Drivers.Infrastructure;
 using HBA.Drivers.Infrastructure.Persistence;

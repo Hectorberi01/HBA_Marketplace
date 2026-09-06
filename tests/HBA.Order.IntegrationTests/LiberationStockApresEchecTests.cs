@@ -53,7 +53,7 @@ public sealed class LiberationStockApresEchecTests
     /// traités » tous les événements de l'historique.
     /// </summary>
     private const string ConsommateurEchec =
-        "HBA.Order.Infrastructure.Messaging.Kafka.Consumers.CancelOrderOnPaymentFailedHandler";
+        "HBA.Orders.Infrastructure.Messaging.Kafka.Consumers.CancelOrderOnPaymentFailedHandler";
 
     private readonly OrderIntegrationFixture _fixture;
 

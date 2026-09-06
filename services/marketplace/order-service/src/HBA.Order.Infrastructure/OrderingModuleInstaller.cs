@@ -1,5 +1,5 @@
 using System.Reflection;
-using HBA.Order.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -12,7 +12,7 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Application.Abstractions;
 using HBA.Orders.Application.Orders.Commands.PlaceOrder;
 using HBA.Orders.Application.Orders.EventHandlers;
-using HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Orders.Contracts;
 using HBA.Orders.Domain.Orders;
 using HBA.Orders.Domain.Orders.Events;

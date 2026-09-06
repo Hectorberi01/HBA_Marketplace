@@ -1,11 +1,11 @@
 using System.Reflection;
-using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Deliveries.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using HBA.Deliveries.Application.Abstractions;
 using HBA.Deliveries.Application.Deliveries.Commands;
 using HBA.Deliveries.Application.Deliveries.EventHandlers;
 using HBA.Deliveries.Application.Drivers;
-using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Deliveries.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using HBA.Deliveries.Contracts;

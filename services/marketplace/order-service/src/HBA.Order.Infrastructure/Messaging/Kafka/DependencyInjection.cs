@@ -1,17 +1,17 @@
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Financial.Payments.Contracts.IntegrationEvents;
 using HBA.Food.Contracts.IntegrationEvents;
-using HBA.Order.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
-using HBA.Order.Infrastructure.Messaging.Kafka.Inbox;
-using HBA.Order.Infrastructure.Messaging.Kafka.Outbox;
-using HBA.Order.Infrastructure.Messaging.Kafka.Producers;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Inbox;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Outbox;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Returns.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Order.Infrastructure.Messaging.Kafka;
+namespace HBA.Orders.Infrastructure.Messaging.Kafka;
 
 /// <summary>
 /// LE MODULE KAFKA DE CE SERVICE — UN SEUL POINT D'ENTREE.

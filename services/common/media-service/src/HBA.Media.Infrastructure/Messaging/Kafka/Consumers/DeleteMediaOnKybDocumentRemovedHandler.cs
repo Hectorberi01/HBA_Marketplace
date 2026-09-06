@@ -3,6 +3,14 @@ using Microsoft.Extensions.Logging;
 using HBA.Media.Contracts;
 using HBA.Merchants.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Media.Application.Assets.EventHandlers` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Media.Application.Assets;
+using HBA.Media.Application.Assets.EventHandlers;
 
 namespace HBA.Media.Infrastructure.Messaging.Kafka.Consumers;
 

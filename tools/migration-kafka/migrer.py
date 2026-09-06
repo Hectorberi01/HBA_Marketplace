@@ -59,7 +59,37 @@ def inventaire():
         if not infra:
             continue
         infra = infra[0]
+        # ═════════════════════════════════════════════════════════════════════
+        # LE NOM DU csproj N'EST PAS L'ESPACE DE NOMS, ET SEPT PROJETS LE
+        #     PROUVENT.
+        #
+        # `HBA.Order.Infrastructure` declare `HBA.Orders.Infrastructure` ;
+        # `HBA.Food.Restaurant.Infrastructure` declare `HBA.Food.Infrastructure`
+        # ; il y en a cinq autres. Deduire l'espace de noms du nom de fichier
+        # creait un membre `Order` dans l'espace `HBA` — qui MASQUE alors le type
+        # `Order` partout dans l'assembly, avec un CS0118 par fichier de
+        # persistance, tres loin du module qu'on venait d'ajouter.
+        #
+        # La racine se lit dans le code : le plus long prefixe commun aux
+        # `namespace` deja declares par le projet.
+        # ═════════════════════════════════════════════════════════════════════
+        declarations = []
+        for f in glob.glob(f"{os.path.dirname(infra)}/**/*.cs", recursive=True):
+            if "/obj/" in f or "/bin/" in f or "/Messaging/Kafka/" in f:
+                continue
+            m = re.search(r"^namespace ([\w.]+);", lire(f), re.M)
+            if m:
+                declarations.append(m.group(1).split("."))
         ns = os.path.basename(infra)[:-7]
+        if declarations:
+            commun = []
+            for i in range(min(len(d) for d in declarations)):
+                niveau = {d[i] for d in declarations}
+                if len(niveau) != 1:
+                    break
+                commun.append(niveau.pop())
+            if commun:
+                ns = ".".join(commun)
         court = "".join(ns.split(".")[1:-1])
         consumers, publie, ctx = {}, set(), None
         for f in sources(s):

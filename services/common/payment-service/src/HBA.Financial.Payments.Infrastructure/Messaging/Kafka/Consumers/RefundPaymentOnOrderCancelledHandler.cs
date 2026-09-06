@@ -4,6 +4,14 @@ using HBA.Financial.Payments.Application.Payments.Commands;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Shared.Domain.Results;
 using HBA.Shared.IntegrationEvents;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Financial.Payments.Application.Payments.EventHandlers` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Financial.Payments.Application.Payments;
+using HBA.Financial.Payments.Application.Payments.EventHandlers;
 
 // `IPaymentsModuleApi` EXISTE AUSSI DANS `HBA.Payments.Contracts` (partagé).
 //

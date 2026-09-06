@@ -3,6 +3,14 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Commerce.Application.Abstractions;
 using HBA.Commerce.Domain.Carts;
 using HBA.Orders.Contracts.IntegrationEvents;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Commerce.Application.Carts.EventHandlers` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Commerce.Application.Carts;
+using HBA.Commerce.Application.Carts.EventHandlers;
 
 namespace HBA.Commerce.Infrastructure.Messaging.Kafka.Consumers;
 

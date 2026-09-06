@@ -2,10 +2,11 @@ using HBA.Food.Application.Orders;
 using HBA.FoodOrders.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 using HBA.Food.Domain.Orders;
 
-namespace HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.Food.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// Commande de repas confirmée chez food-order-service → ticket de cuisine ouvert.

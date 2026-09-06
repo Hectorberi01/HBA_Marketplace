@@ -1,10 +1,10 @@
 using HBA.Shared.Infrastructure.Hosting;
-using HBA.Food.Cart.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Configuration;
 using System.Reflection;
 using FluentValidation;
 using HBA.FoodCarts.Application.Abstractions;
 using HBA.FoodCarts.Application.Carts.Commands;
-using HBA.Food.Cart.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.FoodCarts.Contracts;
 using HBA.FoodCarts.Domain.Carts;
 using HBA.FoodCarts.Domain.Carts.Events;

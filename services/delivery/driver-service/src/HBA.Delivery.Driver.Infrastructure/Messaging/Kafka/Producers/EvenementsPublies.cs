@@ -1,7 +1,7 @@
 using HBA.Drivers.Contracts.IntegrationEvents;
 using HBA.Shared.Infrastructure.Kafka;
 
-namespace HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Producers;
+namespace HBA.Drivers.Infrastructure.Messaging.Kafka.Producers;
 
 /// <summary>
 /// CE QUE CE SERVICE PUBLIE — LA MOITIE MANQUANTE DU MODULE.

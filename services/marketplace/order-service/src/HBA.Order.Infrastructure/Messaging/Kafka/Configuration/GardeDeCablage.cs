@@ -2,7 +2,7 @@ using HBA.Shared.Infrastructure.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace HBA.Order.Infrastructure.Messaging.Kafka.Configuration;
+namespace HBA.Orders.Infrastructure.Messaging.Kafka.Configuration;
 
 /// <summary>
 /// REFUSE LE DEMARRAGE SI LE MODULE DE MESSAGERIE N'A PAS ETE BRANCHE.

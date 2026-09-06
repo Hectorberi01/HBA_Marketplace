@@ -1,7 +1,7 @@
 using HBA.Shared.Infrastructure.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Configuration;
+namespace HBA.Drivers.Infrastructure.Messaging.Kafka.Configuration;
 
 /// <summary>
 /// LES SUJETS QUE CE SERVICE ECOUTE.

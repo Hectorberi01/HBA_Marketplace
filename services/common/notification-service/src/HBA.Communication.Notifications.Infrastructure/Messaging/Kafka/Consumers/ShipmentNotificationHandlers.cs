@@ -1,6 +1,14 @@
 using HBA.Shared.IntegrationEvents;
 using HBA.Ordering.Contracts;
 using HBA.Shipping.Contracts.IntegrationEvents;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Communication.Notifications.Application.Notifications;
+using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 

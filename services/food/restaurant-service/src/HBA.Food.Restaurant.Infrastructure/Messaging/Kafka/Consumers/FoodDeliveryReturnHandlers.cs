@@ -3,8 +3,9 @@ using HBA.Food.Application.Orders;
 using HBA.Shared.Application.Messaging;
 using HBA.Shared.IntegrationEvents;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
-namespace HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.Food.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// Le retour de course vers le ticket de cuisine : enlèvement, puis remise.

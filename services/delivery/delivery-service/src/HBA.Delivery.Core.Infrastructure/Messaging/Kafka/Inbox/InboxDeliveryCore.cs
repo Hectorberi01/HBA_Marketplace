@@ -2,7 +2,7 @@ using HBA.Shared.Infrastructure.Inbox;
 using HBA.Deliveries.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Inbox;
+namespace HBA.Deliveries.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
 /// L'INBOX DE CE SERVICE — LA GARDE CONTRE LE DOUBLE TRAITEMENT.

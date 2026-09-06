@@ -4,13 +4,14 @@ using HBA.Food.Contracts;
 using HBA.Food.Contracts.IntegrationEvents;
 using HBA.Orders.Application.Orders.Commands;
 using HBA.Orders.Application.Orders.EventHandlers;
-using HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Shared.Application.Messaging;
 using HBA.Shared.IntegrationEvents;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
-namespace HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// La convention qui empêche la boucle entre « commande annulée » et « course

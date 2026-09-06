@@ -1,5 +1,5 @@
 using HBA.Promotions.Contracts.Grpc;
-using HBA.Food.Cart.Infrastructure.Messaging.Kafka;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka;
 using HBA.Food.Contracts.Grpc;
 using HBA.FoodCarts.Api.Endpoints;
 using HBA.FoodCarts.Contracts.Grpc;

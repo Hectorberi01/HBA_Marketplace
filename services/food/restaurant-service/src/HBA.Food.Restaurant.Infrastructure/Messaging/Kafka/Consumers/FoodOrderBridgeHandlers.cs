@@ -5,6 +5,7 @@ using HBA.Food.Contracts.IntegrationEvents;
 using HBA.FoodOrders.Contracts;
 using HBA.Inventory.Contracts;
 using HBA.Ordering.Contracts;
+using Microsoft.Extensions.Logging;
 
 // LE CONTRAT DE L'ÉVÉNEMENT VIENT D'order-service, SON PUBLIEUR.
 //
@@ -22,7 +23,7 @@ using MediatR;
 
 using HBA.Food.Domain.Orders;
 
-namespace HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.Food.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// La référence sous laquelle un ticket de cuisine se reconnaît dans une course.

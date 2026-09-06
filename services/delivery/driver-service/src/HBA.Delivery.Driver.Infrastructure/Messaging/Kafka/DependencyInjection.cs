@@ -1,10 +1,10 @@
-using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Outbox;
-using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Producers;
+using HBA.Drivers.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Drivers.Infrastructure.Messaging.Kafka.Outbox;
+using HBA.Drivers.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Delivery.Driver.Infrastructure.Messaging.Kafka;
+namespace HBA.Drivers.Infrastructure.Messaging.Kafka;
 
 /// <summary>
 /// LE MODULE KAFKA DE CE SERVICE — UN SEUL POINT D'ENTREE.

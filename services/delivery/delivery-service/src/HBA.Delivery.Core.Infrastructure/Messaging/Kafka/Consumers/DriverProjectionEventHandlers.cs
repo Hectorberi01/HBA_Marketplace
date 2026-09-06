@@ -4,8 +4,15 @@ using HBA.Deliveries.Domain.Drivers;
 using HBA.Drivers.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.Logging;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Deliveries.Application.Drivers` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Deliveries.Application.Drivers;
 
-namespace HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.Deliveries.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// ═════════════════════════════════════════════════════════════════════════════

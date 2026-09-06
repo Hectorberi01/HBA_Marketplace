@@ -1,7 +1,7 @@
 using HBA.Shared.Infrastructure.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Configuration;
+namespace HBA.Food.Infrastructure.Messaging.Kafka.Configuration;
 
 /// <summary>
 /// LES SUJETS QUE CE SERVICE ECOUTE.

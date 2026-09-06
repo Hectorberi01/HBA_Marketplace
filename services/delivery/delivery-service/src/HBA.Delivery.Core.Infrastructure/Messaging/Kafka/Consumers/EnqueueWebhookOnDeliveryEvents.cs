@@ -6,7 +6,7 @@ using HBA.Deliveries.Domain.Webhooks;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.Logging;
 
-namespace HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.Deliveries.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// ═════════════════════════════════════════════════════════════════════════════

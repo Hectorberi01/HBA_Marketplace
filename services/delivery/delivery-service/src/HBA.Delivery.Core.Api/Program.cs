@@ -1,5 +1,5 @@
 using HBA.Deliveries.Api.Endpoints;
-using HBA.Delivery.Core.Infrastructure.Messaging.Kafka;
+using HBA.Deliveries.Infrastructure.Messaging.Kafka;
 using HBA.Deliveries.Api.Grpc;
 using HBA.Deliveries.Infrastructure;
 using HBA.Deliveries.Infrastructure.Persistence;

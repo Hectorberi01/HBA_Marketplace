@@ -1,9 +1,9 @@
-using HBA.Delivery.Route.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Delivery.Route.Infrastructure.Messaging.Kafka.Producers;
+using HBA.Routes.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Routes.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Delivery.Route.Infrastructure.Messaging.Kafka;
+namespace HBA.Routes.Infrastructure.Messaging.Kafka;
 
 /// <summary>
 /// LE MODULE KAFKA DE CE SERVICE — UN SEUL POINT D'ENTREE.

@@ -7,7 +7,7 @@ using HBA.Merchants.Contracts;
 // lieu d'expédition et le transporteur. Réécrire son enchaînement ici — devis
 // payé d'abord, repli sans devis, refus du multi-lieux — en produirait une
 // seconde version qui divergerait au premier correctif.
-using HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Orders.Application.Orders.Commands;
 using HBA.Orders.Application.Orders.Commands.PlaceOrder;
 using HBA.Orders.Application.Orders.Queries;

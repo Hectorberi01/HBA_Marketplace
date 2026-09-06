@@ -1,16 +1,16 @@
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Food.Contracts.IntegrationEvents;
-using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Consumers;
-using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Inbox;
-using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Outbox;
-using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Producers;
+using HBA.Food.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Food.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Food.Infrastructure.Messaging.Kafka.Inbox;
+using HBA.Food.Infrastructure.Messaging.Kafka.Outbox;
+using HBA.Food.Infrastructure.Messaging.Kafka.Producers;
 using HBA.FoodOrders.Contracts.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Food.Restaurant.Infrastructure.Messaging.Kafka;
+namespace HBA.Food.Infrastructure.Messaging.Kafka;
 
 /// <summary>
 /// LE MODULE KAFKA DE CE SERVICE — UN SEUL POINT D'ENTREE.

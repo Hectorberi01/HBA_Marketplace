@@ -1,13 +1,13 @@
-using HBA.Food.Cart.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Food.Cart.Infrastructure.Messaging.Kafka.Consumers;
-using HBA.Food.Cart.Infrastructure.Messaging.Kafka.Inbox;
-using HBA.Food.Cart.Infrastructure.Messaging.Kafka.Outbox;
-using HBA.Food.Cart.Infrastructure.Messaging.Kafka.Producers;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Inbox;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Outbox;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Producers;
 using HBA.FoodOrders.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Food.Cart.Infrastructure.Messaging.Kafka;
+namespace HBA.FoodCarts.Infrastructure.Messaging.Kafka;
 
 /// <summary>
 /// LE MODULE KAFKA DE CE SERVICE — UN SEUL POINT D'ENTREE.

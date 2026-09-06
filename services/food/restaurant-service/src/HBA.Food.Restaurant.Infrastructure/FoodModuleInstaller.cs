@@ -1,5 +1,5 @@
 using System.Reflection;
-using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Food.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using HBA.Food.Application.Abstractions;
 using HBA.Food.Application.Orders;

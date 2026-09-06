@@ -1,14 +1,14 @@
 using HBA.Deliveries.Contracts.IntegrationEvents;
-using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Consumers;
-using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Inbox;
-using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Outbox;
-using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Producers;
+using HBA.Deliveries.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Deliveries.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Deliveries.Infrastructure.Messaging.Kafka.Inbox;
+using HBA.Deliveries.Infrastructure.Messaging.Kafka.Outbox;
+using HBA.Deliveries.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Drivers.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Delivery.Core.Infrastructure.Messaging.Kafka;
+namespace HBA.Deliveries.Infrastructure.Messaging.Kafka;
 
 /// <summary>
 /// LE MODULE KAFKA DE CE SERVICE — UN SEUL POINT D'ENTREE.

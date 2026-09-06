@@ -3,6 +3,14 @@ using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.FoodOrders.Contracts.IntegrationEvents;
 using HBA.Financial.Payments.Application.Abstractions;
 using HBA.Financial.Payments.Domain.Payments;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Financial.Payments.Application.Payments.EventHandlers` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Financial.Payments.Application.Payments;
+using HBA.Financial.Payments.Application.Payments.EventHandlers;
 
 namespace HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Consumers;
 

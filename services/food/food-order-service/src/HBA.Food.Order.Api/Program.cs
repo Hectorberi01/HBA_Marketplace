@@ -1,5 +1,5 @@
 using HBA.DeliveryPricing.Contracts.Grpc;
-using HBA.Food.Order.Infrastructure.Messaging.Kafka;
+using HBA.FoodOrders.Infrastructure.Messaging.Kafka;
 using HBA.Deliveries.Contracts.Grpc;
 using HBA.Food.Contracts.Grpc;
 using HBA.FoodCarts.Contracts.Grpc;

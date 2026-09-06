@@ -2,7 +2,7 @@ using System.Security.Claims;
 using HBA.Deliveries.Application.Deliveries.Commands;
 using HBA.Deliveries.Application.Deliveries.Queries;
 using HBA.Deliveries.Application.Drivers;
-using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Deliveries.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Shared.Domain.Results;
 using HBA.Shared.Hosting.Http;
 using MediatR;

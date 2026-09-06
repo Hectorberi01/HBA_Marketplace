@@ -1,10 +1,10 @@
 using HBA.DeliveryPricing.Contracts.Grpc;
-using HBA.Order.Infrastructure.Messaging.Kafka;
+using HBA.Orders.Infrastructure.Messaging.Kafka;
 using HBA.Commerce.Contracts.Grpc;
 using HBA.Deliveries.Contracts.Grpc;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Food.Contracts.Grpc;
-using HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using HBA.Inventory.Contracts.Grpc;

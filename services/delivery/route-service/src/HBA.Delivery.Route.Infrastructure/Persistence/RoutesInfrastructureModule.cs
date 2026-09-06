@@ -1,5 +1,5 @@
 using HBA.Routes.Application;
-using HBA.Delivery.Route.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Routes.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;

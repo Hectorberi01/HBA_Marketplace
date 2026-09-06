@@ -3,8 +3,16 @@ using Microsoft.Extensions.Logging;
 using HBA.Food.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Application.Orders.Commands;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Orders.Application.Orders.EventHandlers` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Orders.Application.Orders;
+using HBA.Orders.Application.Orders.EventHandlers;
 
-namespace HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// Le restaurant refuse ou annule → la commande est annulée.

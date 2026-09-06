@@ -4,6 +4,13 @@ using HBA.Returns.Contracts.IntegrationEvents;
 using HBA.Financial.Wallet.Application.Abstractions;
 using HBA.Financial.Wallet.Application.Wallets;
 using HBA.Financial.Wallet.Domain.Earnings;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Financial.Wallet.Application.Earnings` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Financial.Wallet.Application.Earnings;
 
 namespace HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Consumers;
 

@@ -5,6 +5,13 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Catalog.Application.Abstractions;
 using HBA.Catalog.Domain.Products;
 using HBA.Merchants.Contracts.IntegrationEvents;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Catalog.Infrastructure.Integration` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Catalog.Infrastructure;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // CE FICHIER A DÉMÉNAGÉ DE `Application` VERS `Infrastructure/Messaging/Kafka/Consumers`.

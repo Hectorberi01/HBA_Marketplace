@@ -2,7 +2,7 @@ using HBA.Shared.Infrastructure.Inbox;
 using HBA.Food.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Inbox;
+namespace HBA.Food.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
 /// L'INBOX DE CE SERVICE — LA GARDE CONTRE LE DOUBLE TRAITEMENT.

@@ -2,7 +2,7 @@ using HBA.Shared.Infrastructure.Outbox;
 using HBA.Drivers.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Outbox;
+namespace HBA.Drivers.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
 /// L'OUTBOX DE CE SERVICE — LE CABLAGE ICI, LE TYPE ET LA TABLE AILLEURS.

@@ -2,7 +2,7 @@ using HBA.Shared.Infrastructure.Outbox;
 using HBA.Food.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Outbox;
+namespace HBA.Food.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>
 /// L'OUTBOX DE CE SERVICE — LE CABLAGE ICI, LE TYPE ET LA TABLE AILLEURS.

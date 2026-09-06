@@ -4,8 +4,16 @@ using HBA.Shared.Application.Messaging;
 using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Application.Orders.Commands;
 using HBA.Financial.Payments.Contracts.IntegrationEvents;
+// LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
+//
+// Il vivait dans `HBA.Orders.Application.Orders.EventHandlers` et y resolvait ses voisins SANS `using` : le
+// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
+// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
+// ci-dessous, qui rendent explicite ce qui etait implicite.
+using HBA.Orders.Application.Orders;
+using HBA.Orders.Application.Orders.EventHandlers;
 
-namespace HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
+namespace HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// Suite du Saga côté commande : à la capture du paiement, confirme la commande

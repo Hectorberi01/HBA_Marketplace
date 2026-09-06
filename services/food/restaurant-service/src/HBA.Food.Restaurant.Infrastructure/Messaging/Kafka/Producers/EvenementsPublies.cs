@@ -1,7 +1,7 @@
 using HBA.Food.Contracts.IntegrationEvents;
 using HBA.Shared.Infrastructure.Kafka;
 
-namespace HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Producers;
+namespace HBA.Food.Infrastructure.Messaging.Kafka.Producers;
 
 /// <summary>
 /// CE QUE CE SERVICE PUBLIE — LA MOITIE MANQUANTE DU MODULE.

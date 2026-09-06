@@ -14,7 +14,6 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Identity.Contracts.IntegrationEvents;
 using HBA.Engagement.Reviews.Contracts.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
-using HBA.Merchants.Infrastructure.Integration;
 using HBA.Merchants.Application.Abstractions;
 using HBA.Merchants.Application.Sellers.Commands.RegisterSeller;
 using HBA.Merchants.Application.Sellers.EventHandlers;

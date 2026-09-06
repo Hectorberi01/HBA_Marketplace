@@ -1,5 +1,5 @@
 using System.Reflection;
-using HBA.Food.Order.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.FoodOrders.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Financial.Payments.Contracts.IntegrationEvents;
@@ -7,7 +7,7 @@ using HBA.Food.Contracts.IntegrationEvents;
 using HBA.FoodOrders.Application.Abstractions;
 using HBA.FoodOrders.Application.Orders.Commands;
 using HBA.FoodOrders.Application.Orders.EventHandlers;
-using HBA.Food.Order.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.FoodOrders.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.FoodOrders.Contracts;
 using HBA.FoodOrders.Domain.Orders;
 using HBA.FoodOrders.Domain.Orders.Events;
