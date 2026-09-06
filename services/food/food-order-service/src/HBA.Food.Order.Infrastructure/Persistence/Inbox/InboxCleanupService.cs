@@ -62,7 +62,7 @@ internal sealed class InboxCleanupService : BackgroundService
                 var limite = DateTime.UtcNow - Retention;
 
                 var supprimees = await contexte.Set<ConsumerInboxEntry>()
-                    .Where(entree => entree.ProcessedOnUtc < limite)
+                    .Where(entree => entree.ProcessedAtUtc < limite)
                     .ExecuteDeleteAsync(stoppingToken);
 
                 if (supprimees > 0)
