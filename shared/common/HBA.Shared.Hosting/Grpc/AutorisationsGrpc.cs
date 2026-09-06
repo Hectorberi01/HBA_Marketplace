@@ -100,11 +100,6 @@ public static class AutorisationsGrpc
             ["HBA.Catalog.Api"] =
             new[]
             {
-                "/hba.catalog.v1.CatalogApi/GetOffer",
-                "/hba.catalog.v1.CatalogApi/GetOffers",
-                "/hba.catalog.v1.CatalogApi/GetProduct",
-                "/hba.catalog.v1.CatalogApi/ListOffersBySku",
-                "/hba.catalog.v1.CatalogApi/ListPurchasableOffers",
                 "/hba.media.v1.MediaApi/CreateSignedUrl",
                 "/hba.media.v1.MediaApi/Get",
                 "/hba.media.v1.MediaApi/GetMany",
@@ -128,8 +123,6 @@ public static class AutorisationsGrpc
                 "/hba.catalog.v1.CatalogApi/GetProduct",
                 "/hba.catalog.v1.CatalogApi/ListOffersBySku",
                 "/hba.catalog.v1.CatalogApi/ListPurchasableOffers",
-                "/hba.commerce.v1.CommerceApi/GetActiveCart",
-                "/hba.commerce.v1.CommerceApi/GetCart",
                 "/hba.inventory.v1.InventoryApi/ConfirmReservation",
                 "/hba.inventory.v1.InventoryApi/GetAvailability",
                 "/hba.inventory.v1.InventoryApi/GetLocation",
@@ -185,12 +178,6 @@ public static class AutorisationsGrpc
             ["HBA.Delivery.Core.Api"] =
             new[]
             {
-                "/hba.delivery.v1.DeliveryApi/CancelDelivery",
-                "/hba.delivery.v1.DeliveryApi/CreateDelivery",
-                "/hba.delivery.v1.DeliveryApi/GetDelivery",
-                "/hba.delivery.v1.DeliveryApi/GetDeliveryByReference",
-                "/hba.delivery.v1.DeliveryApi/GetTracking",
-                "/hba.delivery.v1.DeliveryApi/ResolveDriver",
                 "/hba.deliverypricing.v1.DeliveryPricingApi/ConsumeQuote",
                 "/hba.deliverypricing.v1.DeliveryPricingApi/LookupQuote",
             }
@@ -199,12 +186,8 @@ public static class AutorisationsGrpc
             // HBA.Delivery.Driver.Api : aucun appel gRPC sortant.
             ["HBA.Delivery.Driver.Api"] = FrozenSet<string>.Empty,
 
-            ["HBA.Delivery.Pricing.Api"] =
-            new[]
-            {
-                "/hba.deliverypricing.v1.DeliveryPricingApi/LookupQuote",
-            }
-            .ToFrozenSet(StringComparer.Ordinal),
+            // HBA.Delivery.Pricing.Api : aucun appel gRPC sortant — il REPOND aux devis, il n'en demande a personne.
+            ["HBA.Delivery.Pricing.Api"] = FrozenSet<string>.Empty,
 
             // HBA.Delivery.Route.Api : aucun appel gRPC sortant.
             ["HBA.Delivery.Route.Api"] = FrozenSet<string>.Empty,
@@ -266,8 +249,6 @@ public static class AutorisationsGrpc
                 "/hba.food.v1.FoodApi/GetRestaurant",
                 "/hba.food.v1.FoodApi/GetRestaurantByOwner",
                 "/hba.food.v1.FoodApi/GetStaffMembership",
-                "/hba.foodcart.v1.FoodCartApi/GetActiveCart",
-                "/hba.foodcart.v1.FoodCartApi/GetCart",
                 "/hba.foodorder.v1.FoodOrderApi/GetOrder",
                 "/hba.foodorder.v1.FoodOrderApi/HasPlacedOrder",
                 "/hba.promotion.v1.PromotionApi/CommitCoupon",
@@ -294,8 +275,6 @@ public static class AutorisationsGrpc
                 "/hba.food.v1.FoodApi/GetStaffMembership",
                 "/hba.foodcart.v1.FoodCartApi/GetActiveCart",
                 "/hba.foodcart.v1.FoodCartApi/GetCart",
-                "/hba.foodorder.v1.FoodOrderApi/GetOrder",
-                "/hba.foodorder.v1.FoodOrderApi/HasPlacedOrder",
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
@@ -308,11 +287,6 @@ public static class AutorisationsGrpc
                 "/hba.delivery.v1.DeliveryApi/GetDeliveryByReference",
                 "/hba.delivery.v1.DeliveryApi/GetTracking",
                 "/hba.delivery.v1.DeliveryApi/ResolveDriver",
-                "/hba.food.v1.FoodApi/GetFoodOrder",
-                "/hba.food.v1.FoodApi/GetMenuItem",
-                "/hba.food.v1.FoodApi/GetRestaurant",
-                "/hba.food.v1.FoodApi/GetRestaurantByOwner",
-                "/hba.food.v1.FoodApi/GetStaffMembership",
                 "/hba.foodorder.v1.FoodOrderApi/GetOrder",
                 "/hba.foodorder.v1.FoodOrderApi/HasPlacedOrder",
                 "/hba.inventory.v1.InventoryApi/ConfirmReservation",
@@ -346,25 +320,12 @@ public static class AutorisationsGrpc
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
-            ["HBA.Identity.Api"] =
-            new[]
-            {
-                "/hba.identity.v1.IdentityApi/GetUser",
-                "/hba.identity.v1.IdentityApi/GetUserByEmail",
-                "/hba.identity.v1.IdentityApi/GetUserRoles",
-                "/hba.identity.v1.IdentityApi/RevokeUserSessions",
-                "/hba.identity.v1.IdentityApi/ValidateAccessToken",
-            }
-            .ToFrozenSet(StringComparer.Ordinal),
+            // HBA.Identity.Api : aucun appel gRPC sortant — il est appele, il n'appelle pas — sa seule autorisation etait sur lui-meme.
+            ["HBA.Identity.Api"] = FrozenSet<string>.Empty,
 
             ["HBA.Inventory.Api"] =
             new[]
             {
-                "/hba.inventory.v1.InventoryApi/ConfirmReservation",
-                "/hba.inventory.v1.InventoryApi/GetAvailability",
-                "/hba.inventory.v1.InventoryApi/GetLocation",
-                "/hba.inventory.v1.InventoryApi/ReleaseReservation",
-                "/hba.inventory.v1.InventoryApi/ReserveStock",
                 "/hba.merchant.v1.MerchantApi/CheckMerchantCapability",
                 "/hba.merchant.v1.MerchantApi/GetMemberAccess",
                 "/hba.merchant.v1.MerchantApi/GetSeller",
@@ -399,15 +360,8 @@ public static class AutorisationsGrpc
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
-            ["HBA.Media.Api"] =
-            new[]
-            {
-                "/hba.media.v1.MediaApi/CreateSignedUrl",
-                "/hba.media.v1.MediaApi/Get",
-                "/hba.media.v1.MediaApi/GetMany",
-                "/hba.media.v1.MediaApi/ListByOwner",
-            }
-            .ToFrozenSet(StringComparer.Ordinal),
+            // HBA.Media.Api : aucun appel gRPC sortant — il sert les medias, il n'interroge aucun voisin.
+            ["HBA.Media.Api"] = FrozenSet<string>.Empty,
 
             ["HBA.Merchants.Api"] =
             new[]
@@ -426,14 +380,6 @@ public static class AutorisationsGrpc
                 "/hba.media.v1.MediaApi/Get",
                 "/hba.media.v1.MediaApi/GetMany",
                 "/hba.media.v1.MediaApi/ListByOwner",
-                "/hba.merchant.v1.MerchantApi/CheckMerchantCapability",
-                "/hba.merchant.v1.MerchantApi/GetMemberAccess",
-                "/hba.merchant.v1.MerchantApi/GetSeller",
-                "/hba.merchant.v1.MerchantApi/GetSellerByUser",
-                "/hba.merchant.v1.MerchantApi/GetSellerPayout",
-                "/hba.merchant.v1.MerchantApi/GetStore",
-                "/hba.merchant.v1.MerchantApi/ListSellerStores",
-                "/hba.merchant.v1.MerchantApi/ValidateSeller",
                 "/hba.order.v1.OrderApi/GetOrder",
                 "/hba.order.v1.OrderApi/GetOrderReturnContext",
                 "/hba.order.v1.OrderApi/GetSellerSalesCount",
@@ -476,10 +422,6 @@ public static class AutorisationsGrpc
                 "/hba.merchant.v1.MerchantApi/GetStore",
                 "/hba.merchant.v1.MerchantApi/ListSellerStores",
                 "/hba.merchant.v1.MerchantApi/ValidateSeller",
-                "/hba.order.v1.OrderApi/GetOrder",
-                "/hba.order.v1.OrderApi/GetOrderReturnContext",
-                "/hba.order.v1.OrderApi/GetSellerSalesCount",
-                "/hba.order.v1.OrderApi/ListOrdersByBuyer",
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
@@ -494,25 +436,11 @@ public static class AutorisationsGrpc
                 "/hba.merchant.v1.MerchantApi/GetStore",
                 "/hba.merchant.v1.MerchantApi/ListSellerStores",
                 "/hba.merchant.v1.MerchantApi/ValidateSeller",
-                "/hba.promotion.v1.PromotionApi/CommitCoupon",
-                "/hba.promotion.v1.PromotionApi/EvaluatePromotion",
-                "/hba.promotion.v1.PromotionApi/ReleaseCoupon",
-                "/hba.promotion.v1.PromotionApi/ReserveCoupon",
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
-            ["HBA.Users.Api"] =
-            new[]
-            {
-                "/hba.identity.v1.IdentityApi/GetUser",
-                "/hba.identity.v1.IdentityApi/GetUserByEmail",
-                "/hba.identity.v1.IdentityApi/GetUserRoles",
-                "/hba.identity.v1.IdentityApi/RevokeUserSessions",
-                "/hba.identity.v1.IdentityApi/ValidateAccessToken",
-                "/hba.user.v1.UsersApi/GetProfile",
-                "/hba.user.v1.UsersApi/GetProfiles",
-            }
-            .ToFrozenSet(StringComparer.Ordinal),
+            // HBA.Users.Api : aucun appel gRPC sortant — aucun appel sortant, et son serveur n'a aucun appelant (voir §3 de l'inventaire shared).
+            ["HBA.Users.Api"] = FrozenSet<string>.Empty,
         }
         .ToFrozenDictionary(StringComparer.Ordinal);
 }

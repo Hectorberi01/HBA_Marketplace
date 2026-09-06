@@ -70,6 +70,12 @@ COPY services/marketplace/order-service/src/HBA.Order.Contracts/ services/market
 # l'était pas. `dotnet restore` échouait sur un csproj introuvable, uniquement
 # dans l'image : la compilation locale voit tout le dépôt.
 COPY services/marketplace/seller-service/src/HBA.Merchants.Contracts/ services/marketplace/seller-service/src/HBA.Merchants.Contracts/
+# DEPLACE PAR LE LOT CONTRATS (6b04597) : ce projet vivait sous
+# `shared/contracts/`, copie en bloc. Il vit maintenant chez son proprietaire,
+# et `COPY` ne suit pas les `ProjectReference` — sans cette ligne, MSB9008 puis
+# CS0234 sur un espace de noms, en designant la mauvaise cause.
+COPY services/marketplace/order-service/src/HBA.Ordering.Contracts ./services/marketplace/order-service/src/HBA.Ordering.Contracts
+
 COPY services/marketplace/return-refund-service/src/ services/marketplace/return-refund-service/src/
 COPY services/marketplace/return-refund-service/contracts/ services/marketplace/return-refund-service/contracts/
 

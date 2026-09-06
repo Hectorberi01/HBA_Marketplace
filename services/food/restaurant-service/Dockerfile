@@ -67,6 +67,12 @@ COPY services/marketplace/seller-service/src/HBA.Merchants.Contracts ./services/
 # tombe sur un CS0234 de namespace qui ne désigne pas la cause.
 COPY services/food/food-order-service/src/HBA.Food.Order.Contracts ./services/food/food-order-service/src/HBA.Food.Order.Contracts
 
+# DEPLACE PAR LE LOT CONTRATS (6b04597) : ce projet vivait sous
+# `shared/contracts/`, copie en bloc. Il vit maintenant chez son proprietaire,
+# et `COPY` ne suit pas les `ProjectReference` — sans cette ligne, MSB9008 puis
+# CS0234 sur un espace de noms, en designant la mauvaise cause.
+COPY services/marketplace/order-service/src/HBA.Ordering.Contracts ./services/marketplace/order-service/src/HBA.Ordering.Contracts
+
 COPY services/food/restaurant-service/src/ services/food/restaurant-service/src/
 
 RUN dotnet restore services/food/restaurant-service/src/HBA.Food.Restaurant.Api/HBA.Food.Restaurant.Api.csproj

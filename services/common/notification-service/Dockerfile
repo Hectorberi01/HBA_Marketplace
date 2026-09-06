@@ -100,6 +100,14 @@ COPY services/common/payment-service/src/HBA.Financial.Payments.Contracts ./serv
 # delivery-service, tiré par son client gRPC.
 COPY services/delivery/delivery-service/src/HBA.Deliveries.Contracts ./services/delivery/delivery-service/src/HBA.Deliveries.Contracts
 
+# DEPLACE PAR LE LOT CONTRATS (6b04597) : ce projet vivait sous
+# `shared/contracts/`, copie en bloc. Il vit maintenant chez son proprietaire,
+# et `COPY` ne suit pas les `ProjectReference` — sans cette ligne, MSB9008 puis
+# CS0234 sur un espace de noms, en designant la mauvaise cause.
+COPY services/common/payment-service/src/HBA.Payments.Contracts ./services/common/payment-service/src/HBA.Payments.Contracts
+COPY services/marketplace/catalog-service/src/HBA.Products.Contracts ./services/marketplace/catalog-service/src/HBA.Products.Contracts
+COPY services/marketplace/order-service/src/HBA.Ordering.Contracts ./services/marketplace/order-service/src/HBA.Ordering.Contracts
+
 COPY services/common/notification-service/src/ services/common/notification-service/src/
 
 RUN dotnet restore services/common/notification-service/src/HBA.Communication.Api/HBA.Communication.Api.csproj

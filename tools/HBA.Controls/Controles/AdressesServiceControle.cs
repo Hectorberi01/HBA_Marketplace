@@ -404,8 +404,14 @@ public sealed class AdressesServiceControle : IControle
         "toute adresse Services:<X> réclamée par un client gRPC est déclarée là où l'hôte démarre";
 
     // `AddXGrpcClient(…) { … }` : la signature, puis le corps jusqu'à l'accolade
-    // fermante posée à quatre espaces. C'est la forme des extensions
-    // d'enregistrement de `shared/contracts`.
+    // fermante posée à quatre espaces.
+    //
+    // CES EXTENSIONS ONT CHANGÉ D'ADRESSE. Elles vivaient dans `shared/contracts`
+    // du temps des enveloppes `*.Contracts.Grpc` partagées ; le lot gRPC les a
+    // descendues dans `Infrastructure/Grpc/Clients/` de CHAQUE service appelant.
+    // Le contrôle a alors rendu une faute — « aucune extension trouvée » — au lieu
+    // d'un vert vide, et c'était le bon comportement : c'est la règle de `Depot`
+    // tenue jusqu'au bout. Un balayage qui ne trouve rien doit le CRIER.
     private static readonly Regex Enregistrement = new(
         @"Add(\w+)GrpcClient\s*\([^)]*\)\s*\{(.*?)\n    \}",
         RegexOptions.Singleline | RegexOptions.Compiled);
@@ -439,14 +445,17 @@ public sealed class AdressesServiceControle : IControle
             "les clés sont trouvées par expression régulière : une adresse construite "
             + "dynamiquement, ou une extension d'enregistrement dont l'accolade fermante "
             + "n'est pas posée à quatre espaces, resterait invisible",
+            "les extensions posées ailleurs que sous `services/` et `apps/` : le "
+            + "périmètre suit les APPELANTS, et un enregistrement écrit dans `shared/` "
+            + "ne serait plus vu",
         };
 
         var table = ClientsConnus();
         if (table.Count == 0)
         {
             fautes.Add(
-                "aucune extension d'enregistrement trouvée sous shared/contracts : le "
-                + "contrôle serait sans objet, et rendrait vert sans avoir rien comparé.");
+                "aucune extension `Add<X>GrpcClient` trouvée sous services/ ni apps/ : "
+                + "le contrôle serait sans objet, et rendrait vert sans avoir rien comparé.");
             return new Verdict(fautes, constats, nonCouvert);
         }
 
@@ -569,7 +578,11 @@ public sealed class AdressesServiceControle : IControle
     {
         var table = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var fichier in Depot.Fichiers(Depot.Dossier("shared", "contracts"), ".cs"))
+        // ON BALAIE LES APPELANTS, PAS UN DOSSIER DE CONTRATS. Chaque service porte
+        // desormais SES enregistrements de clients ; la passerelle aussi.
+        var racines = new[] { Depot.Dossier("services"), Depot.Dossier("apps") };
+
+        foreach (var fichier in racines.SelectMany(r => Depot.Fichiers(r, ".cs")))
         {
             var contenu = File.ReadAllText(fichier);
             foreach (Match methode in Enregistrement.Matches(contenu))

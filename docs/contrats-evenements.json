@@ -1473,46 +1473,6 @@
         "UserId"
       ]
     },
-    "ShipmentDeliveredIntegrationEvent": {
-      "champs": {
-        "ShipmentId": "Guid",
-        "OrderId": "Guid",
-        "SellerId": "Guid"
-      },
-      "requis": [
-        "OrderId",
-        "SellerId",
-        "ShipmentId"
-      ]
-    },
-    "ShipmentReadyForPickupIntegrationEvent": {
-      "champs": {
-        "ShipmentId": "Guid",
-        "OrderId": "Guid",
-        "SellerId": "Guid",
-        "ShipFromLocationId": "Guid"
-      },
-      "requis": [
-        "OrderId",
-        "SellerId",
-        "ShipFromLocationId",
-        "ShipmentId"
-      ]
-    },
-    "ShipmentShippedIntegrationEvent": {
-      "champs": {
-        "ShipmentId": "Guid",
-        "OrderId": "Guid",
-        "Carrier": "string",
-        "TrackingNumber": "string"
-      },
-      "requis": [
-        "Carrier",
-        "OrderId",
-        "ShipmentId",
-        "TrackingNumber"
-      ]
-    },
     "StockDepletedIntegrationEvent": {
       "champs": {
         "InventoryItemId": "Guid",
@@ -1690,7 +1650,8 @@
       "champs": {
         "UserId": "Guid",
         "Email": "string",
-        "FirstName": "string"
+        "FirstName": "string",
+        "LastName": "string?"
       },
       "requis": [
         "Email",
