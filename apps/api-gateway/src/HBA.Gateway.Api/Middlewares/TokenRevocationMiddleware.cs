@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using HBA.Gateway.Infrastructure.Messaging.Kafka;
 using System.Text;
 using HBA.Gateway.Api.Extensions;
 using HBA.Gateway.Api.Options;
@@ -66,17 +67,20 @@ public sealed class TokenRevocationMiddleware
 
     private readonly RequestDelegate _next;
     private readonly IMemoryCache _cache;
+    private readonly RegistreDeRevocation _registre;
     private readonly TokenRevocationOptions _options;
     private readonly ILogger<TokenRevocationMiddleware> _logger;
 
     public TokenRevocationMiddleware(
         RequestDelegate next,
         IMemoryCache cache,
+        RegistreDeRevocation registre,
         IOptions<TokenRevocationOptions> options,
         ILogger<TokenRevocationMiddleware> logger)
     {
         _next = next;
         _cache = cache;
+        _registre = registre;
         _options = options.Value;
         _logger = logger;
     }
@@ -148,12 +152,22 @@ public sealed class TokenRevocationMiddleware
         Verdict verdict;
         TimeSpan duree;
 
+        // LE COMPTE, POUR POUVOIR EVINCER SANS CONNAITRE LES JETONS.
+        //
+        // La cle de cache est l'empreinte du JETON ; la revocation arrive par
+        // COMPTE. Retenir l'identifiant ici permet d'attacher l'entree au compte,
+        // et donc de l'evincer sur `TokenRevoked`. Reste `null` sur le chemin
+        // degrade : sans reponse d'identity, on ne sait pas a qui appartient ce
+        // jeton, et l'entree vivra ses cinq secondes sans pouvoir etre evincee.
+        Guid? compte = null;
+
         try
         {
             var validation = await identity.ValidateAccessTokenAsync(jeton, delai.Token);
 
             verdict = validation.Valid ? Verdict.Vivant : Verdict.Revoque;
             duree = TimeSpan.FromSeconds(_options.CacheSeconds);
+            compte = validation.UserId;
         }
         catch (Exception exception) when (exception is not OperationCanceledException
                                           || !context.RequestAborted.IsCancellationRequested)
@@ -179,7 +193,27 @@ public sealed class TokenRevocationMiddleware
         // Expiration ABSOLUE, jamais glissante : une session active repousserait
         // indéfiniment sa propre vérification, et la révocation ne mordrait que sur
         // les comptes inactifs — c'est-à-dire jamais sur celui qu'on veut couper.
-        _cache.Set(cle, verdict, duree);
+        var entree = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = duree };
+
+        // ═════════════════════════════════════════════════════════════════════
+        // L'ENTREE EST ATTACHEE AU COMPTE, ET C'EST CE QUI REND LA COUPURE
+        //     IMMEDIATE POSSIBLE.
+        //
+        // Sans ce jeton d'expiration, un `TokenRevoked` ne pourrait rien evincer :
+        // `IMemoryCache` ne s'enumere pas, et l'on ne connaît pas les empreintes
+        // des jetons du compte. Voir `RegistreDeRevocation`.
+        //
+        // CE QUE ÇA NE COUVRE PAS. Le chemin degrade — identity injoignable —
+        // ne connaît pas le compte : ces entrees-la restent inevincibles pendant
+        // leurs `FailOpenCacheSeconds`. C'est deja le cas ou le controle est
+        // hors service, et ces cinq secondes sont le moindre des problemes.
+        // ═════════════════════════════════════════════════════════════════════
+        if (compte is { } utilisateur && utilisateur != Guid.Empty)
+        {
+            entree.AddExpirationToken(_registre.JetonDExpiration(utilisateur));
+        }
+
+        _cache.Set(cle, verdict, entree);
 
         return verdict;
     }

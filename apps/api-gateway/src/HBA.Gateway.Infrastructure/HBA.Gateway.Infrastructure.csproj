@@ -25,6 +25,17 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HBA.Gateway.Application\HBA.Gateway.Application.csproj" />
+    <!--
+      AJOUTEES POUR QUE LA PASSERELLE CONSOMME `TokenRevoked`.
+
+      `HBA.Shared.Infrastructure` apporte le consommateur Kafka et le
+      repartiteur ; `HBA.Identity.Contracts` le type de l'evenement. C'est un
+      poids reel sur le composant en frontal — EF Core et Npgsql entrent par la
+      meme porte, sans etre utilises. Le trier a la main donnerait une seconde
+      façon d'assembler le socle : voir `Messaging/Kafka/DependencyInjection`.
+    -->
+    <ProjectReference Include="..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

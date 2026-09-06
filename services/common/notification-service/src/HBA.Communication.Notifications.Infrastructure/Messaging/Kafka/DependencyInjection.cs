@@ -1,4 +1,5 @@
 using HBA.Communication.Contracts.IntegrationEvents;
+using HBA.Catalog.Contracts.IntegrationEvents;
 using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Inbox;
@@ -377,6 +378,29 @@ public static class DependencyInjection
         services.AddScoped<
             IIntegrationEventHandler<PaymentFailedIntegrationEvent>,
             PaymentFailedNotificationHandler>();
+
+        // ═════════════════════════════════════════════════════════════════════
+        // LES DECISIONS FAVORABLES, ET LES REFUS QUI RESTAIENT MUETS.
+        //
+        // Quatre evenements etaient publies sans consommateur, alors que leur
+        // symetrique negatif — ou positif — etait deja notifie. Voir
+        // `ApprobationsEtRefusHandlers` pour le motif complet.
+        // ═════════════════════════════════════════════════════════════════════
+        services.AddScoped<
+            IIntegrationEventHandler<SellerKybApprovedIntegrationEvent>,
+            SellerKybApprovedNotificationHandler>();
+
+        services.AddScoped<
+            IIntegrationEventHandler<ProductApprovedIntegrationEvent>,
+            ProductApprovedNotificationHandler>();
+
+        services.AddScoped<
+            IIntegrationEventHandler<ProductRejectedIntegrationEvent>,
+            ProductRejectedNotificationHandler>();
+
+        services.AddScoped<
+            IIntegrationEventHandler<ReviewRejectedIntegrationEvent>,
+            ReviewRejectedNotificationHandler>();
 
         return services;
     }

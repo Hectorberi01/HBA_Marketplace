@@ -26,6 +26,10 @@ public static class SujetsCommunicationNotifications
 {
     private static readonly string[] Sujets =
     [
+        // AJOUTE AVEC LES NOTIFICATIONS D'APPROBATION ET DE REFUS DE FICHE.
+        // catalog-service publiait `ProductApproved` et `ProductRejected` sans que
+        // personne les ecoute ; le vendeur ne savait pas que sa fiche etait passee.
+        "service.catalog.v1",
         "service.communication.v1",
         "service.delivery.v1",
         "service.engagement.v1",

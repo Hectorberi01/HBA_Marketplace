@@ -969,6 +969,23 @@ services:
     # proxy de Coolify sache ou router le domaine.
     expose: ["8080"]
     environment:
+      # ═══════════════════════════════════════════════════════════════════
+      # LA PASSERELLE CONSOMME `TokenRevoked` POUR COUPER TOUT DE SUITE.
+      #
+      # LE GROUPE N'EST PAS POSE ICI, ET C'EST DELIBERE. Il doit etre PAR
+      # INSTANCE : dans un groupe partage, une seule replique recevrait le
+      # message et les autres serviraient un verdict perime. Or `${HOSTNAME}`
+      # serait substitue par le shell qui lance compose, pas par le conteneur —
+      # les repliques partageraient la meme valeur. Le groupe est donc forge
+      # dans le processus, depuis `Environment.MachineName` : voir
+      # `HBA.Gateway.Infrastructure/Messaging/Kafka/DependencyInjection`.
+      #
+      # OUTBOX_ENABLED=false : la passerelle n'a pas de base, donc pas de table
+      # d'outbox. Le socle refuse de demarrer si le drainage est actif sans
+      # producteur joignable.
+      # ═══════════════════════════════════════════════════════════════════
+      KAFKA__BOOTSTRAPSERVERS: kafka:29092
+      OUTBOX_ENABLED: "false"
       # Ajoutees pour la production : le compose de developpement ne les porte pas.
       INTERNAL__PRIVATEKEY: ${INTERNAL_KEY_HBA_GATEWAY_API:?identite gRPC de gateway absente — scripts/generer-identites-internes.sh}
       <<: *prod-auth

@@ -1,4 +1,5 @@
 using HBA.Gateway.Api.Extensions;
+using HBA.Gateway.Infrastructure.Messaging.Kafka;
 using HBA.Gateway.Api.Middlewares;
 using HBA.Gateway.Application;
 using HBA.Gateway.Application.Abstractions;
@@ -22,6 +23,20 @@ builder.Services.AddGatewayOpenApi();
 builder.Services.AddGatewayApplication();
 builder.Services.AddGatewayBffOptions(builder.Configuration);
 builder.Services.AddGatewayInfrastructure(builder.Configuration);
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LA PASSERELLE CONSOMME UN EVENEMENT, ET UN SEUL.
+//
+// `TokenRevoked` evince les verdicts de revocation mis en cache : sans lui, un
+// jeton revoque restait accepte jusqu'a trente secondes. Voir
+// `HBA.Gateway.Infrastructure/Messaging/Kafka/DependencyInjection`.
+//
+// LE GROUPE DE CONSOMMATION DOIT ETRE PAR INSTANCE. Le cache vit en memoire de
+// processus ; avec un groupe partage, une seule replique recevrait le message et
+// les autres serviraient un verdict perime. Le compose pose
+// `KAFKA__CONSUMERGROUP: hba-gateway-${HOSTNAME}`.
+// ═════════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieGateway(builder.Configuration);
 
 // Porte l'identifiant de corrélation jusqu'à la couche Application sans lui
 // exposer HttpContext. Les deux enregistrements visent le MÊME objet : sans

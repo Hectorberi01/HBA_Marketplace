@@ -21,6 +21,17 @@
     <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
     <ProjectReference Include="..\..\..\payment-service\src\HBA.Financial.Payments.Contracts\HBA.Financial.Payments.Contracts.csproj" />
       <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+    <!--
+      AJOUTEE AVEC LES NOTIFICATIONS DE MODERATION DE FICHE.
+
+      `ProductApproved` et `ProductRejected` sont declares dans
+      `HBA.Catalog.Contracts`, et non dans `HBA.Products.Contracts` que ce
+      projet connaissait deja. Les deux coexistent — Products est le
+      successeur annonce — et se ressemblent assez pour qu'on prenne le
+      mauvais : l'evenement serait alors resolu sur un type que personne ne
+      publie, et le gestionnaire ne serait jamais appele, sans erreur.
+    -->
+    <ProjectReference Include="..\..\..\..\marketplace\catalog-service\src\HBA.Catalog.Contracts\HBA.Catalog.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
