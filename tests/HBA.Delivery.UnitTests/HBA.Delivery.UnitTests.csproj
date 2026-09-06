@@ -111,6 +111,22 @@
     -->
     <ProjectReference Include="..\..\services\delivery\delivery-service\src\HBA.Delivery.Core.Application\HBA.Delivery.Core.Application.csproj" />
     <ProjectReference Include="..\..\services\delivery\driver-service\src\HBA.Delivery.Driver.Domain\HBA.Delivery.Driver.Domain.csproj" />
+
+    <!--
+      AJOUTÉE AVEC LA MIGRATION DU MODULE KAFKA.
+
+      `DriverProjectionEventHandlers` — que ce test éprouve — vivait dans
+      `HBA.Delivery.Core.Application/EventHandlers`. Les consommateurs de tous
+      les services sont descendus dans
+      `Infrastructure/Messaging/Kafka/Consumers` : le type a changé d'assembly,
+      et ce projet ne le voyait plus.
+
+      CE QUE ÇA AJOUTE. Le test tire desormais l'Infrastructure du service —
+      donc EF, Npgsql et le socle partagé — pour éprouver deux gestionnaires.
+      C'est le coût du déplacement, et il se paie ici plutôt qu'en rendant le
+      gestionnaire public depuis un projet qu'on ne référence pas.
+    -->
+    <ProjectReference Include="..\..\services\delivery\delivery-service\src\HBA.Delivery.Core.Infrastructure\HBA.Delivery.Core.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

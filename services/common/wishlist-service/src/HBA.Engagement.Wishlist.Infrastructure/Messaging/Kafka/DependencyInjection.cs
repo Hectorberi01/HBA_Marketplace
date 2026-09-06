@@ -1,5 +1,4 @@
 using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;

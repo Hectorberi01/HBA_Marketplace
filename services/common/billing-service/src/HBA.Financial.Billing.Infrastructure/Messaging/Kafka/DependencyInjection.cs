@@ -1,5 +1,4 @@
 using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;

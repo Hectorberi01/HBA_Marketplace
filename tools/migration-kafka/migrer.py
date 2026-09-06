@@ -398,8 +398,15 @@ public static class EvenementsPublies
 
 def g_di(ns, court, ns_ev, handlers, a_publie, a_inbox, a_outbox):
     """handlers : liste de (classe, evenement)."""
+    # UN `using` VERS UN DOSSIER QUI N'EXISTE PAS NE COMPILE PAS.
+    #
+    # `Consumers` etait importe sans condition. Pour les neuf services qui ne
+    # consomment rien, le dossier n'existe pas — un dossier vide se lit comme une
+    # promesse tenue ailleurs — et l'espace de noms non plus : CS0234.
     us = {f"{ns}.Messaging.Kafka.Configuration", "Microsoft.Extensions.DependencyInjection",
-          "HBA.Shared.IntegrationEvents", f"{ns}.Messaging.Kafka.Consumers"}
+          "HBA.Shared.IntegrationEvents"}
+    if handlers:
+        us.add(f"{ns}.Messaging.Kafka.Consumers")
     if a_publie:
         us.add(f"{ns}.Messaging.Kafka.Producers")
     if a_inbox:
@@ -677,8 +684,20 @@ def reparer_usings(paires, appliquer):
                     t = t.replace(f"using {ancien};\n", "")
                 else:
                     t = t.replace(f"using {ancien};", f"using {nouveau};")
-            elif f"using {ancien};" in t and f"using {nouveau};" not in t:
-                t = t.replace(f"using {ancien};", f"using {ancien};\nusing {nouveau};")
+            elif (f"using {ancien};" in t and f"using {nouveau};" not in t
+                  and f.startswith(nouveau.split(".Messaging.")[0].replace(".", "/")[:0] or "")
+                  and os.path.basename(os.path.dirname(f.split("/Messaging/")[0])) or True):
+                # AJOUTER LE NOUVEAU `using` N'EST LEGITIME QUE DANS L'ASSEMBLY QUI
+                #     PORTE LE MODULE.
+                #
+                # Quand l'ancien espace de noms survit — un fichier non deplace y
+                # reste — la reparation ajoutait le nouveau `using` PARTOUT ou
+                # l'ancien apparaissait. Dans `Application`, cela cree une
+                # dependance vers `Infrastructure` : l'inverse du sens des
+                # references, donc CS0234.
+                projet = nouveau.split(".Messaging.")[0]
+                if f"/{projet}/" in f:
+                    t = t.replace(f"using {ancien};", f"using {ancien};\nusing {nouveau};")
             # Les mentions en commentaire, qui ne compilent pas mais qui mentent.
             # La forme abregee — sans le prefixe `HBA.` — est aussi frequente dans
             # ce depot que la forme complete, et tout aussi fausse apres coup.

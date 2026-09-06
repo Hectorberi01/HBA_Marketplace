@@ -1,5 +1,4 @@
 using HBA.Inventory.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Inventory.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Inventory.Infrastructure.Messaging.Kafka.Outbox;
 using HBA.Inventory.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Shared.IntegrationEvents;

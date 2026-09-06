@@ -1,5 +1,4 @@
 using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Outbox;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Shared.IntegrationEvents;

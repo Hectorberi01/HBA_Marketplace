@@ -1,5 +1,4 @@
 using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Outbox;
 using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Shared.IntegrationEvents;

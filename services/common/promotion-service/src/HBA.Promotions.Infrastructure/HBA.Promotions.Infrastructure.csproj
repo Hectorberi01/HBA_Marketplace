@@ -14,6 +14,23 @@
     <ProjectReference Include="..\HBA.Promotions.Application\HBA.Promotions.Application.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+    <!--
+      CES REFERENCES SONT ARRIVEES AVEC LES CONSOMMATEURS, ET C'EST UNE FRONTIERE
+      OUVERTE.
+
+      Les gestionnaires d'evenements de ce service vivaient dans `Api/Integration`,
+      ou le composition root avait le droit de tout connaître. Les ranger dans
+      `Infrastructure/Messaging/Kafka/Consumers` — la convention du depot — oblige
+      ce projet a connaître les contrats des services qu'il ECOUTE.
+
+      CE QUI TIENT ENCORE. Ce sont des projets de CONTRATS : des records
+      d'evenements, pas des services. Aucun appel reseau n'entre par la, et le
+      couplage est confine a `Messaging/Kafka/` — il se supprime en supprimant ce
+      dossier. Si la frontiere doit redevenir opposable, c'est un test
+      d'architecture qu'il faut ecrire, pas un commentaire.
+    -->
+    <ProjectReference Include="..\..\..\..\food\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

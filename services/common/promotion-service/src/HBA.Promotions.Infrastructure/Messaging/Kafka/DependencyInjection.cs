@@ -1,5 +1,3 @@
-using HBA.Food.Contracts.IntegrationEvents;
-using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Promotions.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Promotions.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Promotions.Infrastructure.Messaging.Kafka.Inbox;

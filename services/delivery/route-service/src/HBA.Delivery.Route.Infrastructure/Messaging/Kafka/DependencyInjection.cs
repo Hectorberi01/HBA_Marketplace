@@ -1,5 +1,4 @@
 using HBA.Delivery.Route.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Delivery.Route.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Delivery.Route.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;

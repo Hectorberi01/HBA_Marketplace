@@ -1,5 +1,4 @@
 using System.Reflection;
-using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

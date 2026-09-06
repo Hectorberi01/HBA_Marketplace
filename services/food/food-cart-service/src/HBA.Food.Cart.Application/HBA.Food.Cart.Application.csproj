@@ -29,6 +29,21 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="FoodCart.UnitTests" />
+    <!--
+      LE CONSOMMATEUR KAFKA A CHANGE D'ASSEMBLY, PAS DE SERVICE.
+
+      `FoodCartEventHandlers` invalide le cache apres l'evenement, et lit
+      `FoodCartCacheKeys` — `internal` dans ce projet. Le gestionnaire vivait
+      dans `Application` ; il vit maintenant dans
+      `Infrastructure/Messaging/Kafka/Consumers`, avec ceux des vingt-trois autres
+      services. La cle n'a pas a devenir `public` pour autant : c'est le meme
+      service, un assembly plus loin.
+
+      CE QUE CETTE LIGNE OUVRE. Tout l'`internal` de ce projet, pas seulement la
+      cle de cache. C'est plus large que le besoin — la contrepartie de ne pas
+      elargir l'API publique.
+    -->
+    <InternalsVisibleTo Include="HBA.Food.Cart.Infrastructure" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,4 @@
 using HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka.Outbox;
 using HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Shared.IntegrationEvents;

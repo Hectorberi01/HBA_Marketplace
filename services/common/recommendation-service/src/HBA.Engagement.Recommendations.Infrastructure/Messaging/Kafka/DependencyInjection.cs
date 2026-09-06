@@ -1,5 +1,4 @@
 using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Configuration;
-using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
