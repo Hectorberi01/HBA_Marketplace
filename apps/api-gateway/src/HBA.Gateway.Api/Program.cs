@@ -5,10 +5,6 @@ using HBA.Gateway.Application.Abstractions;
 using HBA.Gateway.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// ═════════════════════════════════════════════════════════════════════════════
-// SERVICES
-// ═════════════════════════════════════════════════════════════════════════════
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 
@@ -45,7 +41,6 @@ builder.Services.AddGatewayForwardedHeaders(
 
 var app = builder.Build();
 
-// ═════════════════════════════════════════════════════════════════════════════
 // PIPELINE — L'ORDRE EST UNE DÉCISION, PAS UNE MISE EN FORME.
 //
 // 1. ForwardedHeaders  : avant tout ce qui lit une IP ou un schéma.
@@ -66,14 +61,12 @@ var app = builder.Build();
 //                        d'appels vers identity. Avant l'autorisation : un jeton
 //                        mort ne doit franchir aucune politique.
 // 8. Authorization
-// ═════════════════════════════════════════════════════════════════════════════
 app.UseForwardedHeaders();
 
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
-// ═════════════════════════════════════════════════════════════════════════════
 // LA DOCUMENTATION PASSE AVANT L'AUTORISATION, ET CE N'EST PAS UN CONFORT.
 //
 // `AddGatewayAuthorization` pose une politique de REPLI qui exige un compte
@@ -92,7 +85,6 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 //
 // Elle reste APRÈS la corrélation et la journalisation : une page blanche doit
 // laisser une trace comme le reste.
-// ═════════════════════════════════════════════════════════════════════════════
 app.UseGatewayOpenApi();
 
 app.UseAuthentication();
@@ -123,6 +115,4 @@ app.Run();
 /// l'erreur obtenue (« inaccessible en raison de son niveau de protection »)
 /// n'oriente vers aucune solution évidente.
 /// </remarks>
-public partial class Program
-{
-}
+public partial class Program { }

@@ -47,7 +47,7 @@ public sealed class AdminController : ControllerBase
     /// <remarks>
     /// AUCUNE FILE N'EST CRITIQUE : UN SERVICE À TERRE NE COÛTE PAS L'ÉCRAN.
     ///
-    /// Les quatre autres files restent lisibles et l'administrateur travaille ;
+    /// Les neuf autres files restent lisibles et l'administrateur travaille ;
     /// celle qui manque vaut `null` et porte son avertissement. C'est pourquoi
     /// cette action ne déclare pas 503 — contrairement aux façades client, elle
     /// n'a aucune dépendance dont l'absence viderait l'écran de son sens.

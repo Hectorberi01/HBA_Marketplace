@@ -23,7 +23,7 @@ namespace HBA.Gateway.Application.Bff.Admin;
 /// Ce ne sont pas des indicateurs d'activité, et ils ne doivent pas le devenir.
 /// Un compteur de files sert à ORIENTER un geste ; y ajouter le chiffre
 /// d'affaires ou le nombre de commandes du jour ferait de cet appel — passé à
-/// chaque ouverture, par chaque administrateur — une requête d'analyse sur cinq
+/// chaque ouverture, par chaque administrateur — une requête d'analyse sur sept
 /// bases. La mesure a sa place ailleurs, et elle n'a pas la même fraîcheur
 /// requise.
 /// ═════════════════════════════════════════════════════════════════════════════
@@ -34,7 +34,8 @@ public sealed record AdminQueuesDto(IReadOnlyList<AdminQueueDto> Files);
 /// <summary>Une file d'attente d'administration.</summary>
 /// <param name="Cle">
 /// Identifiant STABLE et fermé — `kyb`, `produits`, `marques`, `restaurants`,
-/// `livreurs`.
+/// `livreurs`, `commandes-arbitrage`, `commandes-echec`, `comptes`, `factures`,
+/// `stock`.
 /// </param>
 /// <remarks>
 /// LE CLIENT SE BRANCHE SUR `Cle`, JAMAIS SUR `Libelle`.
@@ -65,10 +66,11 @@ public sealed record AdminQueuesDto(IReadOnlyList<AdminQueueDto> Files);
 /// <remarks>
 /// VRAI POUR LES FILES QUE L'AMONT NE SAIT PAS COMPTER.
 ///
-/// Trois des cinq amonts rendent une LISTE, pas une page : `brands/requests`
-/// rend tout, `restaurants/pending` rend tout, et `admin/drivers` rend au plus
-/// `take` éléments. On compte donc les éléments reçus — ce qui est exact tant
-/// qu'on n'atteint pas la borne, et un plancher au-delà.
+/// Quatre des dix amonts rendent une LISTE, pas une page : `brands/requests`
+/// rend tout, `restaurants/pending` rend tout, `admin/drivers` et
+/// `inventory/low-stock` rendent au plus `take` éléments. On compte donc les
+/// éléments reçus — ce qui est exact tant qu'on n'atteint pas la borne, et un
+/// plancher au-delà.
 ///
 /// Le dire est indispensable : un « 100 » affiché comme un compte exact quand il
 /// y en a mille trois cents décide mal. L'écran affiche « 100+ ».

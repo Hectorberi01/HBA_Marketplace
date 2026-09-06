@@ -5,7 +5,7 @@ using HBA.Gateway.Application.Bff.Shared;
 namespace HBA.Gateway.Application.Bff.Admin;
 
 /// <summary>
-/// Compte les cinq files d'attente d'administration, en parallèle.
+/// Compte les dix files d'attente d'administration, en parallèle.
 /// </summary>
 /// <remarks>
 /// ═════════════════════════════════════════════════════════════════════════════
@@ -14,7 +14,7 @@ namespace HBA.Gateway.Application.Bff.Admin;
 /// Le contrat d'`IServiceClient` est explicite : « les chemins passés ici ne
 /// doivent JAMAIS venir du client HTTP » — y brancher une valeur de la requête
 /// entrante ferait de la passerelle un proxy ouvert vers le réseau interne. Ces
-/// cinq chemins sont donc des constantes de compilation, sans un seul segment
+/// dix chemins sont donc des constantes de compilation, sans un seul segment
 /// interpolé.
 ///
 /// QUATRE SUR CINQ N'ONT AUCUN FILTRE À DEVINER, ET LE CINQUIÈME A COÛTÉ CHER.
@@ -41,7 +41,7 @@ namespace HBA.Gateway.Application.Bff.Admin;
 /// TOUTES LES FILES SONT `Important`, AUCUNE N'EST `Critical`.
 ///
 /// Un service à terre ne doit pas coûter l'écran d'accueil tout entier : les
-/// quatre autres files restent lisibles et l'administrateur travaille. Celle qui
+/// neuf autres files restent lisibles et l'administrateur travaille. Celle qui
 /// manque s'affiche « indisponible » — voir `AdminQueueDto.Total`.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
@@ -80,7 +80,75 @@ public sealed class GetAdminQueuesHandler
 
         new("livreurs", "Livreurs à vérifier",
             "Drivers", "/api/v1/admin/drivers", false),
+
+        // ═════════════════════════════════════════════════════════════════════
+        // LES CINQ FILES AJOUTÉES — ET CE QUI LES A RENDUES NÉCESSAIRES.
+        //
+        // Le portail d'administration comptait TREIZE files depuis le
+        // NAVIGATEUR, avec `allSettled`, un drapeau d'exactitude et une liste
+        // d'échecs : la conception exacte de ce fichier, réinventée du mauvais
+        // côté du réseau. Treize allers-retours HTTP, chacun avec son jeton et
+        // sa latence, contre dix appels sur le réseau interne.
+        //
+        // Ces cinq-là s'ajoutent parce qu'aucun service ne peut les rendre au milieu
+        // milieu des autres — c'est le critère de ce contrôleur, pas le nombre.
+        // ═════════════════════════════════════════════════════════════════════
+
+        // ORDER-SERVICE REND UNE PAGE NUE, PAS L'ENVELOPPE DU §5.
+        //
+        // `Results.Ok(pagedResult)` pose `total` À LA RACINE ; les cinq files
+        // au-dessus lisent `meta.total`. C'est ce qui a obligé `Extraire` à
+        // accepter les deux formes — voir son encadré. Ajouter ces deux lignes
+        // sans cela les aurait rendues « indisponibles » en permanence, sur un
+        // service parfaitement sain.
+        new("commandes-arbitrage", "Commandes en arbitrage",
+            "Order", "/api/admin/orders?status=UnderReview&page=1&pageSize=1", true),
+
+        new("commandes-echec", "Commandes échouées",
+            "Order", "/api/admin/orders?status=Failed&page=1&pageSize=1", true),
+
+        // `PendingVerification` ET NON `Suspended` : un compte suspendu est une
+        // décision déjà prise, pas une file. Celui-ci attend un geste — et
+        // depuis la mise en production, il ne pouvait rien faire d'autre
+        // qu'attendre : aucune route ne l'approuvait.
+        new("comptes", "Comptes à approuver",
+            "Identity", "/api/identity/users?status=PendingVerification&page=1&pageSize=1", true),
+
+        new("factures", "Factures émises, non payées",
+            "Financial", "/api/financial/invoices?status=Issued&page=1&pageSize=1", true),
+
+        // LISTE BORNÉE : `ListLowStockQuery(take)` rend au plus `take` articles
+        // et ne dit pas combien il en reste. `Approximatif` sera donc vrai, et
+        // l'écran doit écrire « 200+ ». La borne est haute exprès : un stock
+        // sous seuil qui dépasse deux cents articles est déjà l'incident.
+        new("stock", "Articles sous seuil",
+            "Inventory", "/api/inventory/low-stock?take=200", false),
     ];
+
+    /*
+     * ═════════════════════════════════════════════════════════════════════════
+     * DEUX FAMILLES DE FILES SONT DÉLIBÉRÉMENT ABSENTES.
+     *
+     * LES RETOURS — arbitrage manuel, inspection à faire, remboursement à faire.
+     * `return-refund-service` N'EST PAS DÉPLOYÉ : `ComposeProd.Bloques` le
+     * retient parce que « deux adaptateurs gRPC restent des bouchons — la
+     * marchandise retournée n'est jamais remise en stock, et aucune course
+     * d'enlèvement n'est créée alors qu'un numéro est rendu au client ». Les
+     * ajouter donnerait trois files à `null` en permanence, donc trois
+     * avertissements permanents dans l'enveloppe — et un avertissement permanent
+     * apprend à ignorer les avertissements. Elles s'ajouteront le jour où le
+     * service sera déployé, en trois lignes.
+     *
+     * LES RÈGLEMENTS — versements refusés, lots partiellement échoués.
+     * `GET /api/financial/settlements` rend la liste COMPLÈTE des lots, sans
+     * aucun paramètre : ni page, ni filtre de statut. Compter « ce qui a échoué »
+     * suppose donc de parcourir les lots ET leurs versements, c'est-à-dire une
+     * logique métier que ce comptage générique ne porte pas — et qu'il ne doit
+     * pas porter, sous peine de devenir le second endroit où l'on décide ce
+     * qu'est un règlement en souffrance. La bonne correction est amont : un
+     * `?status=` sur cette route, comme en ont ses trois voisines.
+     * ═════════════════════════════════════════════════════════════════════════
+     */
 
     private readonly IServiceClientRegistry _services;
 
@@ -92,7 +160,7 @@ public sealed class GetAdminQueuesHandler
 
         // ON LANCE LES CINQ, PUIS ON ATTEND — voir l'encadré d'AggregationContext.
         // Enchaîner `await` par file rendrait l'écran d'accueil aussi lent que la
-        // SOMME des cinq services, au lieu du plus lent d'entre eux.
+        // SOMME des services interrogés, au lieu du plus lent d'entre eux.
         var appels = _files
             .Select(f => ctx.CallAsync(f.Service, () => CompterAsync(f, cancellationToken)))
             .ToArray();
@@ -168,12 +236,47 @@ public sealed class GetAdminQueuesHandler
     {
         if (paginee)
         {
-            if (charge.ValueKind == JsonValueKind.Object
-                && charge.TryGetProperty("meta", out var meta)
-                && meta.TryGetProperty("total", out var total)
-                && total.TryGetInt32(out var valeur))
+            // ═════════════════════════════════════════════════════════════════
+            // DEUX FORMES DE PAGE COEXISTENT DANS LA PLATEFORME, ET CE COMPTAGE
+            //     N'EN CONNAISSAIT QU'UNE.
+            //
+            //   ApiResults.Page(...)      ->  { data, meta: { total, … } }
+            //   Results.Ok(pagedResult)   ->  { items, total, page, … }
+            //
+            // `ApiResults.cs` décrit cette coexistence et la juge : « un endpoint
+            // non migré rend encore l'ancienne forme en succès et la nouvelle en
+            // erreur. Cette incohérence est TEMPORAIRE et doit être suivie :
+            // c'est le pire état des deux mondes. »
+            //
+            // Les cinq files d'origine tapaient toutes des endpoints migrés, et
+            // le comptage n'avait donc jamais rencontré l'autre forme.
+            // `/api/admin/orders` la rend, et une file « indisponible » sur un
+            // service parfaitement sain aurait envoyé chercher la panne dans
+            // order-service — c'est-à-dire au mauvais endroit.
+            //
+            // ON LIT `meta.total` D'ABORD. Une page enveloppée porte aussi un
+            // `data`, jamais un `total` à la racine ; l'ordre n'est donc pas
+            // ambigu, il est seulement explicite.
+            //
+            // Le jour où toute la plateforme aura migré, c'est la seconde branche
+            // qui disparaîtra — et ce sera le seul endroit à toucher.
+            // ═════════════════════════════════════════════════════════════════
+            if (charge.ValueKind != JsonValueKind.Object)
             {
-                return new Compte(valeur, Approximatif: false);
+                return null;
+            }
+
+            if (charge.TryGetProperty("meta", out var meta)
+                && meta.TryGetProperty("total", out var totalEnveloppe)
+                && totalEnveloppe.TryGetInt32(out var valeurEnveloppe))
+            {
+                return new Compte(valeurEnveloppe, Approximatif: false);
+            }
+
+            if (charge.TryGetProperty("total", out var totalNu)
+                && totalNu.TryGetInt32(out var valeurNue))
+            {
+                return new Compte(valeurNue, Approximatif: false);
             }
 
             return null;
