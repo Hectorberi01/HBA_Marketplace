@@ -4,9 +4,6 @@
     <ProjectReference Include="..\HBA.Merchants.Application\HBA.Merchants.Application.csproj" />
     <ProjectReference Include="..\HBA.Merchants.Infrastructure\HBA.Merchants.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts.Grpc\HBA.Identity.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
-
     <!--
       LE CONTRAT MÉDIA EST RÉFÉRENCÉ PAR HBA.Merchants.Application ; LE CLIENT
       gRPC — donc `AddMediaGrpcClient` — VIENT D'ICI.
@@ -16,16 +13,33 @@
       découpage que chez catalog : la couche métier connaît le contrat, la
       composition root connaît le transport.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts.Grpc\HBA.Media.Contracts.Grpc.csproj" />
-
     <!-- Même découpage pour Inventory : le contrat côté Application, le transport ici. -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Inventory.Contracts.Grpc\HBA.Inventory.Contracts.Grpc.csproj" />
-
     <!--
       Et pour Ordering : `SellerSalesCountHandler` recalcule le compteur de ventes
       depuis la source à chaque commande confirmée, plutôt que d'incrémenter.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\merchant\v1\merchant.proto" GrpcServices="Server" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

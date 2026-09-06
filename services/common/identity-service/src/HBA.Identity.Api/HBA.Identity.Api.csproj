@@ -8,8 +8,29 @@
   <ItemGroup>
     <ProjectReference Include="..\HBA.Identity.Application\HBA.Identity.Application.csproj" />
     <ProjectReference Include="..\HBA.Identity.Infrastructure\HBA.Identity.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts.Grpc\HBA.Identity.Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\identity\v1\identity.proto" GrpcServices="Server" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

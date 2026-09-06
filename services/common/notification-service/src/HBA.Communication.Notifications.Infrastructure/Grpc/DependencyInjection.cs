@@ -1,9 +1,9 @@
-using HBA.Deliveries.Contracts.Grpc;
-using HBA.FoodOrders.Contracts.Grpc;
-using HBA.Identity.Contracts.Grpc;
-using HBA.Merchants.Contracts.Grpc;
-using HBA.Ordering.Contracts.Grpc;
-using HBA.Products.Contracts.Grpc;
+using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
+using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
+using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
+using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
+using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
+using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

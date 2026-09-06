@@ -32,7 +32,29 @@
        vivent encore dans les assemblages de contrats ; le CABLAGE, lui, est
        ici, dans Grpc/. -->
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\merchant\v1\merchant.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

@@ -4,7 +4,24 @@
     <ProjectReference Include="..\HBA.Delivery.Route.Application\HBA.Delivery.Route.Application.csproj" />
     <ProjectReference Include="..\HBA.Delivery.Route.Infrastructure\HBA.Delivery.Route.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Routes.Contracts.Grpc\HBA.Routes.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\route\v1\route.proto" GrpcServices="Server" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>

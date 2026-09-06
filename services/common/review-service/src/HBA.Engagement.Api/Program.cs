@@ -10,8 +10,6 @@ using HBA.Engagement.Reviews.Infrastructure;
 using HBA.Engagement.Wishlist.Application.Wishlists;
 using HBA.Engagement.Wishlist.Infrastructure.Persistence;
 using HBA.Engagement.Wishlist.Infrastructure;
-using HBA.Merchants.Contracts.Grpc;
-using HBA.Ordering.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
 using HBA.Engagement.Reviews.Infrastructure.Grpc;

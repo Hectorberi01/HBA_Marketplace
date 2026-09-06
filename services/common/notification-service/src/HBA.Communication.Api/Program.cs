@@ -5,9 +5,6 @@ using HBA.Communication.Infrastructure;
 using HBA.Communication.Infrastructure.Persistence;
 using HBA.Communication.Notifications.Application.Notifications.Queries;
 using HBA.Communication.Notifications.Infrastructure;
-using HBA.Identity.Contracts.Grpc;
-using HBA.Merchants.Contracts.Grpc;
-
 // `HBA.Products.Contracts.Grpc`, ALORS QUE LE PROJET S'APPELLE
 //    `HBA.Catalog.Contracts.Grpc`.
 //
@@ -17,11 +14,7 @@ using HBA.Merchants.Contracts.Grpc;
 //
 // C'est la trace de la dualité Catalog/Products : Products est le successeur,
 // son client gRPC est encore hébergé par le projet de son prédécesseur.
-using HBA.Products.Contracts.Grpc;
-using HBA.Deliveries.Contracts.Grpc;
-using HBA.Ordering.Contracts.Grpc;
 using HBA.Communication.Notifications.Infrastructure.Persistence;
-using HBA.FoodOrders.Contracts.Grpc;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Shared.Hosting;

@@ -1,7 +1,6 @@
 using Contracts = HBA.Commerce.Contracts;
 
 using Grpc.Core;
-using HBA.Commerce.Contracts.Grpc;
 using HBA.Commerce.Grpc.V1;
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;
@@ -53,7 +52,7 @@ namespace HBA.Commerce.Api.Grpc.Services;
 /// franc plutôt que retenir la requête de l'acheteur.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
-public sealed class CommerceGrpcService : CommerceApi.CommerceApiBase
+internal sealed class CommerceGrpcService : CommerceApi.CommerceApiBase
 {
     private readonly Contracts.ICartModuleApi _carts;
 

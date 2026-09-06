@@ -1,4 +1,4 @@
-using HBA.Merchants.Contracts.Grpc;
+using HBA.Promotions.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

@@ -24,7 +24,7 @@ using System.Globalization;
 
 namespace HBA.Routes.Api.Grpc.Services;
 
-public sealed class RoutesGrpcService : RouteApi.RouteApiBase
+internal sealed class RoutesGrpcService : RouteApi.RouteApiBase
 {
     private readonly RouteStore _routes;
     private readonly IIntegrationEventPublisher _publisher;

@@ -1,7 +1,6 @@
 using Contracts = HBA.Inventory.Contracts;
 
 using Grpc.Core;
-using HBA.Inventory.Contracts.Grpc;
 using HBA.Inventory.Grpc.V1;
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;
@@ -29,7 +28,7 @@ using HBA.Inventory.Contracts;
 
 namespace HBA.Inventory.Api.Grpc.Services;
 
-public sealed class InventoryGrpcService : InventoryApi.InventoryApiBase
+internal sealed class InventoryGrpcService : InventoryApi.InventoryApiBase
 {
     private readonly Contracts.IInventoryModuleApi _inventory;
 

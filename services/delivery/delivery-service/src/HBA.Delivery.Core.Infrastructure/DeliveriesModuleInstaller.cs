@@ -22,7 +22,6 @@ using HBA.Deliveries.Infrastructure.Persistence;
 using HBA.Deliveries.Infrastructure.Pricing;
 using HBA.Deliveries.Infrastructure.Public;
 using HBA.Deliveries.Infrastructure.Webhooks;
-using HBA.DeliveryPricing.Contracts.Grpc;
 using HBA.Drivers.Contracts.IntegrationEvents;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Infrastructure.Modularity;

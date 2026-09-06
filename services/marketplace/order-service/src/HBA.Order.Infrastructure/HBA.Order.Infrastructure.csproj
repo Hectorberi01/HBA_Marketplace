@@ -40,13 +40,96 @@
        vivent encore dans les assemblages de contrats ; le CABLAGE, lui, est
        ici, dans Grpc/. -->
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Catalog.Contracts.Grpc\HBA.Catalog.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Commerce.Contracts.Grpc\HBA.Commerce.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts.Grpc\HBA.DeliveryPricing.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Inventory.Contracts.Grpc\HBA.Inventory.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\catalog\v1\catalog.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\catalog-service\src\HBA.Catalog.Contracts\HBA.Catalog.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\commerce\v1\commerce.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\cart-service\src\HBA.Commerce.Contracts\HBA.Commerce.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\delivery\v1\delivery.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\deliverypricing\v1\delivery_pricing.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\food\v1\food.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\food\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\inventory\v1\inventory.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\inventory-service\src\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\merchant\v1\merchant.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

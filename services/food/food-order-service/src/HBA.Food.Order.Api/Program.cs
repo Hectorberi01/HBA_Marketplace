@@ -1,10 +1,5 @@
-using HBA.DeliveryPricing.Contracts.Grpc;
 using HBA.FoodOrders.Infrastructure.Messaging.Kafka;
-using HBA.Deliveries.Contracts.Grpc;
-using HBA.Food.Contracts.Grpc;
-using HBA.FoodCarts.Contracts.Grpc;
 using HBA.FoodOrders.Api.Endpoints;
-using HBA.FoodOrders.Contracts.Grpc;
 using HBA.FoodOrders.Infrastructure;
 using HBA.FoodOrders.Infrastructure.Persistence;
 using HBA.Shared.Hosting;

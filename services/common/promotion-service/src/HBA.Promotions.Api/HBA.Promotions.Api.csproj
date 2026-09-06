@@ -6,8 +6,6 @@
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
 
     <!-- Les trois RPC du §10.16 : c'est ce projet qui porte le serveur. -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts.Grpc\HBA.Promotions.Contracts.Grpc.csproj" />
-
     <!--
       AJOUTÉ POUR LA GARDE D'APPARTENANCE DE `/api/v1/merchant/promotions` (D28).
 
@@ -22,8 +20,6 @@
       vocabulaire de seller-service, ce que le commentaire de son `.csproj`
       interdit explicitement.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
-
     <!--
       LES CONTRATS DES DEUX UNIVERS, ET SEULEMENT ICI.
 
@@ -36,6 +32,28 @@
     -->
     <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\food\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\promotion\v1\promotion.proto" GrpcServices="Server" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

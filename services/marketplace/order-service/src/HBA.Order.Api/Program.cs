@@ -1,19 +1,11 @@
-using HBA.DeliveryPricing.Contracts.Grpc;
 using HBA.Orders.Infrastructure.Messaging.Kafka;
-using HBA.Commerce.Contracts.Grpc;
-using HBA.Deliveries.Contracts.Grpc;
 using HBA.Deliveries.Contracts.IntegrationEvents;
-using HBA.Food.Contracts.Grpc;
 using HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
-using HBA.Inventory.Contracts.Grpc;
-using HBA.Products.Contracts.Grpc;
-using HBA.Merchants.Contracts.Grpc;
 using HBA.Orders.Api.Endpoints;
 using HBA.Orders.Infrastructure;
 using HBA.Orders.Infrastructure.Persistence;
-using HBA.Ordering.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
 using HBA.Orders.Api.Grpc.Services;

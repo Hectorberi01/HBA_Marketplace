@@ -41,7 +41,7 @@ namespace HBA.Drivers.Api.Grpc.Services;
 /// l'éligibilité se posera synchroniquement le jour où dispatch-service sera réel.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
-public sealed class DriversGrpcService : DriverApi.DriverApiBase
+internal sealed class DriversGrpcService : DriverApi.DriverApiBase
 {
     private readonly ISender _sender;
 

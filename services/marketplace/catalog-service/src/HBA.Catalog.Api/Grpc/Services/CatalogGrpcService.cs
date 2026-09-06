@@ -1,7 +1,6 @@
 using CatalogContracts = HBA.Catalog.Contracts;
 using Contracts = HBA.Products.Contracts;
 using Grpc.Core;
-using HBA.Products.Contracts.Grpc;
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -32,7 +31,7 @@ using HBA.Products.Contracts;
 
 namespace HBA.Catalog.Api.Grpc.Services;
 
-public sealed class CatalogGrpcService : Proto.CatalogApi.CatalogApiBase
+internal sealed class CatalogGrpcService : Proto.CatalogApi.CatalogApiBase
 {
     private readonly CatalogContracts.ICatalogModuleApi _catalog;
     private readonly CatalogContracts.IOfferModuleApi _offers;

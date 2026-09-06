@@ -1,8 +1,8 @@
-using HBA.Deliveries.Contracts.Grpc;
-using HBA.FoodOrders.Contracts.Grpc;
-using HBA.Inventory.Contracts.Grpc;
-using HBA.Merchants.Contracts.Grpc;
-using HBA.Ordering.Contracts.Grpc;
+using HBA.Food.Infrastructure.Grpc.Clients;
+using HBA.Food.Infrastructure.Grpc.Clients;
+using HBA.Food.Infrastructure.Grpc.Clients;
+using HBA.Food.Infrastructure.Grpc.Clients;
+using HBA.Food.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

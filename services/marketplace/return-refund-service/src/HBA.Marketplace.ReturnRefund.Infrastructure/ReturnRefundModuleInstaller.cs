@@ -16,8 +16,6 @@ using HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.PaymentClient;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Repositories;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Redis;
-using HBA.Financial.Contracts.Grpc;
-using HBA.Ordering.Contracts.Grpc;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Infrastructure.Modularity;
 using HBA.Shared.Infrastructure.Outbox;

@@ -28,11 +28,74 @@
        vivent encore dans les assemblages de contrats ; le CABLAGE, lui, est
        ici, dans Grpc/. -->
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\delivery\v1\delivery.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\food\v1\food.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\food\restaurant-service\src\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\foodorder\v1\foodorder.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\food\food-order-service\src\HBA.Food.Order.Contracts\HBA.Food.Order.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\merchant\v1\merchant.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\order\v1\order.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

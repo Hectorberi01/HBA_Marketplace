@@ -1,8 +1,7 @@
 using Grpc.Core;
 using HBA.Promotion.Grpc.V1;
 
-using HBA.Promotions.Contracts.Grpc;
-
+using HBA.Promotions.Api.Grpc.Mappers;
 using HBA.Promotions.Contracts;
 // ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Promotions.Contracts.Grpc` (lot B de la migration gRPC).
@@ -48,7 +47,7 @@ namespace HBA.Promotions.Api.Grpc.Services;
 /// un identifiant malformé.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
-public sealed class PromotionGrpcService : PromotionApi.PromotionApiBase
+internal sealed class PromotionGrpcService : PromotionApi.PromotionApiBase
 {
     private readonly IPromotionModuleApi _promotions;
 

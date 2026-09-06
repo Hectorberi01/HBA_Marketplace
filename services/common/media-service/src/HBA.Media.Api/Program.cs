@@ -1,6 +1,5 @@
 using HBA.Media.Api.Endpoints;
 using HBA.Media.Infrastructure.Messaging.Kafka;
-using HBA.Media.Contracts.Grpc;
 using HBA.Media.Infrastructure;
 using HBA.Media.Infrastructure.Persistence;
 using HBA.Shared.Hosting;

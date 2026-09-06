@@ -1,10 +1,5 @@
-using HBA.Identity.Contracts.Grpc;
 using HBA.Merchants.Infrastructure.Messaging.Kafka;
-using HBA.Inventory.Contracts.Grpc;
-using HBA.Media.Contracts.Grpc;
-using HBA.Ordering.Contracts.Grpc;
 using HBA.Merchants.Api.Endpoints;
-using HBA.Merchants.Contracts.Grpc;
 using HBA.Merchants.Infrastructure;
 using HBA.Merchants.Infrastructure.Persistence;
 using HBA.Shared.Hosting;

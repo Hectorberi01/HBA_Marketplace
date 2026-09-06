@@ -28,7 +28,28 @@
       chemins change, l'erreur désignerait un `using` plutôt qu'un projet.
     -->
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts.Grpc\HBA.DeliveryPricing.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\deliverypricing\v1\delivery_pricing.proto" GrpcServices="Server" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

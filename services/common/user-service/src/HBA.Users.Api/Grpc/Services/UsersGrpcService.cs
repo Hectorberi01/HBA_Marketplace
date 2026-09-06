@@ -2,7 +2,7 @@ using ContractProfile = HBA.Users.Contracts.UserProfileSummary;
 using Grpc.Core;
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;
-using HBA.Users.Contracts.Grpc;
+using HBA.Users.Api.Grpc.Mappers;
 using HBA.Users.Grpc.V1;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,7 +31,7 @@ using HBA.Users.Contracts;
 namespace HBA.Users.Api.Grpc.Services;
 
 /// <summary>Côté serveur : expose <see cref="IUsersModuleApi"/> en gRPC.</summary>
-public sealed class UsersGrpcService : UsersApi.UsersApiBase
+internal sealed class UsersGrpcService : UsersApi.UsersApiBase
 {
     private readonly IUsersModuleApi _users;
 

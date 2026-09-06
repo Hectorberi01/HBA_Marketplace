@@ -77,7 +77,6 @@
       utilisés dans `TokenRevocationExtensions`.
       ═══════════════════════════════════════════════════════════════════════
     -->
-    <ProjectReference Include="..\..\..\..\shared\contracts\HBA.Identity.Contracts.Grpc\HBA.Identity.Contracts.Grpc.csproj" />
   </ItemGroup>
 
   <ItemGroup>

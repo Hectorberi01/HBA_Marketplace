@@ -1,5 +1,5 @@
 using Grpc.Core;
-using HBA.Media.Contracts.Grpc;
+using HBA.Media.Api.Grpc.Mappers;
 using HBA.Media.Grpc.V1;
 
 
@@ -34,7 +34,7 @@ namespace HBA.Media.Api.Grpc.Services;
 /// pendant l'étranglement : le même média serait visible par un chemin et pas par
 /// l'autre, selon que l'appelant est déjà extrait ou non.
 /// </remarks>
-public sealed class MediaGrpcService : MediaApi.MediaApiBase
+internal sealed class MediaGrpcService : MediaApi.MediaApiBase
 {
     private readonly IMediaModuleApi _media;
 

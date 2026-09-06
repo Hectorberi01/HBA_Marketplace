@@ -1,10 +1,8 @@
 using HBA.Food.Contracts.IntegrationEvents;
 using HBA.Promotions.Infrastructure.Messaging.Kafka;
-using HBA.Merchants.Contracts.Grpc;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Promotions.Api.Endpoints;
 using HBA.Promotions.Infrastructure.Messaging.Kafka.Consumers;
-using HBA.Promotions.Contracts.Grpc;
 using HBA.Promotions.Infrastructure;
 using HBA.Promotions.Infrastructure.Persistence;
 using HBA.Shared.Hosting;

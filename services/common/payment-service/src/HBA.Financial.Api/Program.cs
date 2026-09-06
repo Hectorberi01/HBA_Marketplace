@@ -10,11 +10,6 @@ using HBA.Financial.Payments.Infrastructure;
 using HBA.Financial.Wallet.Application.Batches;
 using HBA.Financial.Wallet.Infrastructure.Persistence;
 using HBA.Financial.Wallet.Infrastructure;
-using HBA.Deliveries.Contracts.Grpc;
-using HBA.Food.Contracts.Grpc;
-using HBA.FoodOrders.Contracts.Grpc;
-using HBA.Merchants.Contracts.Grpc;
-using HBA.Ordering.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
 using HBA.Financial.Api.Grpc.Services;

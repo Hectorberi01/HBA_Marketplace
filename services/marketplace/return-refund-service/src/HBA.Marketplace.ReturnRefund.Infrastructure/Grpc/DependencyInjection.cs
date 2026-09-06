@@ -1,7 +1,7 @@
-using HBA.Financial.Contracts.Grpc;
-using HBA.Media.Contracts.Grpc;
-using HBA.Merchants.Contracts.Grpc;
-using HBA.Ordering.Contracts.Grpc;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.Clients;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.Clients;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.Clients;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

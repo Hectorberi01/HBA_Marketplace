@@ -1,11 +1,7 @@
-using HBA.Promotions.Contracts.Grpc;
 using HBA.FoodCarts.Infrastructure.Messaging.Kafka;
-using HBA.Food.Contracts.Grpc;
 using HBA.FoodCarts.Api.Endpoints;
-using HBA.FoodCarts.Contracts.Grpc;
 using HBA.FoodCarts.Infrastructure;
 using HBA.FoodCarts.Infrastructure.Persistence;
-using HBA.FoodOrders.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
 using HBA.FoodCarts.Api.Grpc.Services;

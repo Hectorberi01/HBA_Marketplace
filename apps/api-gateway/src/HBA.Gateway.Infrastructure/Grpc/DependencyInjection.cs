@@ -1,4 +1,4 @@
-using HBA.Identity.Contracts.Grpc;
+using HBA.Gateway.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

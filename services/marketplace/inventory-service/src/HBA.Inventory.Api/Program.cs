@@ -1,9 +1,7 @@
 using HBA.Inventory.Api.Endpoints;
 using HBA.Inventory.Infrastructure.Messaging.Kafka;
-using HBA.Inventory.Contracts.Grpc;
 using HBA.Inventory.Infrastructure;
 using HBA.Inventory.Infrastructure.Persistence;
-using HBA.Merchants.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
 using HBA.Inventory.Api.Grpc.Services;

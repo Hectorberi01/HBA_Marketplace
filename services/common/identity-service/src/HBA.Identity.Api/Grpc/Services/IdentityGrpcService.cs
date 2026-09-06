@@ -1,7 +1,7 @@
 using ContractUser = HBA.Identity.Contracts.UserSummary;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
-using HBA.Identity.Contracts.Grpc;
+using HBA.Identity.Api.Grpc.Mappers;
 using HBA.Identity.Grpc.V1;
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;
@@ -32,7 +32,7 @@ using HBA.Identity.Contracts;
 namespace HBA.Identity.Api.Grpc.Services;
 
 /// <summary>Côté serveur : expose <see cref="IIdentityModuleApi"/> en gRPC.</summary>
-public sealed class IdentityGrpcService : IdentityApi.IdentityApiBase
+internal sealed class IdentityGrpcService : IdentityApi.IdentityApiBase
 {
     private readonly IIdentityModuleApi _identity;
 

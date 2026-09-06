@@ -27,7 +27,7 @@ using System.Globalization;
 
 namespace HBA.Delivery.Pricing.Api.Grpc.Services;
 
-public sealed class DeliveryPricingGrpcService : DeliveryPricingApi.DeliveryPricingApiBase
+internal sealed class DeliveryPricingGrpcService : DeliveryPricingApi.DeliveryPricingApiBase
 {
     private readonly IPricingStore _pricing;
     private readonly IIntegrationEventPublisher _publisher;

@@ -1,4 +1,4 @@
-using HBA.DeliveryPricing.Contracts.Grpc;
+using HBA.Deliveries.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

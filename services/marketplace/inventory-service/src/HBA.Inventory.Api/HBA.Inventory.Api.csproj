@@ -3,7 +3,6 @@
   <ItemGroup>
     <ProjectReference Include="..\HBA.Inventory.Application\HBA.Inventory.Application.csproj" />
     <ProjectReference Include="..\HBA.Inventory.Infrastructure\HBA.Inventory.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Inventory.Contracts.Grpc\HBA.Inventory.Contracts.Grpc.csproj" />
     <!--
       AJOUTÉ POUR RÉSOUDRE COMPTE → VENDEUR, ET RIEN D'AUTRE.
 
@@ -17,8 +16,29 @@
       compilation locale passe et l'image échoue en CS0234, sans que le message
       nomme jamais le fichier manquant.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\inventory\v1\inventory.proto" GrpcServices="Server" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,5 @@
 using Contracts = HBA.FoodCarts.Contracts;
 using Grpc.Core;
-using HBA.FoodCarts.Contracts.Grpc;
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -42,7 +41,7 @@ namespace HBA.FoodCarts.Api.Grpc.Services;
 /// commande, pas au démarrage — la même erreur a déjà été faite côté commerce,
 /// et le commentaire y est encore.
 /// </summary>
-public sealed class FoodCartGrpcService : Proto.FoodCartApi.FoodCartApiBase
+internal sealed class FoodCartGrpcService : Proto.FoodCartApi.FoodCartApiBase
 {
     private readonly Contracts.IFoodCartModuleApi _carts;
 

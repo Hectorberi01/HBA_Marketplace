@@ -16,7 +16,6 @@
     <ProjectReference Include="..\HBA.Delivery.Core.Domain\HBA.Delivery.Core.Domain.csproj" />
     <ProjectReference Include="..\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
     <ProjectReference Include="..\HBA.Delivery.Core.Application\HBA.Delivery.Core.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts.Grpc\HBA.DeliveryPricing.Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
   </ItemGroup>
 
@@ -41,6 +40,29 @@
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="MediatR" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\deliverypricing\v1\delivery_pricing.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

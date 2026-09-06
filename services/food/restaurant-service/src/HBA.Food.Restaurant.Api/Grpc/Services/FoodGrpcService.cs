@@ -1,6 +1,5 @@
 using Contracts = HBA.Food.Contracts;
 using Grpc.Core;
-using HBA.Food.Contracts.Grpc;
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -30,7 +29,7 @@ using HBA.Food.Contracts;
 
 namespace HBA.Food.Api.Grpc.Services;
 
-public sealed class FoodGrpcService : Proto.FoodApi.FoodApiBase
+internal sealed class FoodGrpcService : Proto.FoodApi.FoodApiBase
 {
     private readonly Contracts.IFoodModuleApi _food;
 

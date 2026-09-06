@@ -1,9 +1,7 @@
-using HBA.Media.Contracts.Grpc;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka;
 using HBA.Marketplace.ReturnRefund.Api.Endpoints;
 using HBA.Marketplace.ReturnRefund.Infrastructure;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence;
-using HBA.Merchants.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
 using HBA.Marketplace.ReturnRefund.Infrastructure.Grpc;

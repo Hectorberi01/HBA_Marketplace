@@ -1,6 +1,5 @@
 using HBA.Gateway.Api.Middlewares;
 using HBA.Gateway.Api.Options;
-using HBA.Identity.Contracts.Grpc;
 using HBA.Shared.Hosting;
 using HBA.Shared.Hosting.Grpc;
 

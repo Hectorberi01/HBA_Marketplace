@@ -68,7 +68,7 @@ namespace HBA.Deliveries.Api.Grpc.Services;
 /// partirait dans le mauvais flux.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
-public sealed class DeliveryGrpcService : DeliveryApi.DeliveryApiBase
+internal sealed class DeliveryGrpcService : DeliveryApi.DeliveryApiBase
 {
     private readonly ISender _sender;
     private readonly Contracts.IDeliveryModuleApi _deliveries;

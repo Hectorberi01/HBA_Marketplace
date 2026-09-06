@@ -25,7 +25,7 @@ using System.Globalization;
 
 namespace HBA.Financial.Api.Grpc.Services;
 
-public sealed class FinancialGrpcService : FinancialApi.FinancialApiBase
+internal sealed class FinancialGrpcService : FinancialApi.FinancialApiBase
 {
     private readonly ISender _sender;
 

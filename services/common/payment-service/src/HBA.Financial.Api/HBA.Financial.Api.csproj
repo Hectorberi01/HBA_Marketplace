@@ -11,19 +11,31 @@
       Autorisation seule : `GET /wallets/drivers/{driverId}` confronte le livreur
       de l'URL au jeton via `IDeliveryModuleApi.GetDriverAccountAsync`.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Financial.Contracts.Grpc\HBA.Financial.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
     <!--
       `HBA.Food.Contracts.Grpc` (ci-dessus) EST restaurant-service, PAS les
       commandes de repas. Les deux noms se ressemblent et ne désignent pas le même
       service : celui-ci porte `IMealOrderModuleApi`, dont `IPayableOrderReader` a
       besoin pour lire une commande food à payer (lot 6.1).
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\financial\v1\financial.proto" GrpcServices="Server" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>

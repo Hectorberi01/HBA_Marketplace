@@ -1,7 +1,6 @@
 using HBA.Users.Api.Endpoints;
 using HBA.Users.Infrastructure.Messaging.Kafka;
 using HBA.Shared.Hosting;
-using HBA.Users.Contracts.Grpc;
 using HBA.Users.Infrastructure;
 using HBA.Users.Infrastructure.Persistence;
 

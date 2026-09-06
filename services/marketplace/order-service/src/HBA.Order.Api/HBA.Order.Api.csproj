@@ -3,11 +3,6 @@
   <ItemGroup>
     <ProjectReference Include="..\HBA.Order.Application\HBA.Order.Application.csproj" />
     <ProjectReference Include="..\HBA.Order.Infrastructure\HBA.Order.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Commerce.Contracts.Grpc\HBA.Commerce.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts.Grpc\HBA.DeliveryPricing.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Inventory.Contracts.Grpc\HBA.Inventory.Contracts.Grpc.csproj" />
-
     <!--
       LE CLIENT DU CATALOGUE — SANS LUI, LE PRIX N'EST PAS REVÉRIFIÉ (ISSUE-048).
 
@@ -16,9 +11,6 @@
       entre l'ajout au panier et le paiement, et le panier fige son prix à l'ajout
       sans jamais le rafraîchir — sur un panier qu'aucune expiration ne ferme.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Catalog.Contracts.Grpc\HBA.Catalog.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
-
     <!--
       RÉFÉRENCÉ POUR TRADUIRE UNE RÉFÉRENCE DE COURSE, PAS POUR PILOTER FOOD.
 
@@ -28,8 +20,6 @@
       course. `IFoodModuleApi.GetOrderAsync` ne rend que des rattachements — ni
       lignes, ni prix, ni ticket.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
-
     <!--
       RÉFÉRENCÉ POUR UNE AUTORISATION, PAS POUR UNE FONCTIONNALITÉ.
 
@@ -39,8 +29,30 @@
       Sans cet appel, la route rendait le carnet de commandes de n'importe quel
       vendeur à n'importe quel inscrit.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\order\v1\order.proto" GrpcServices="Server" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

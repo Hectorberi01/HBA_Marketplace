@@ -17,19 +17,12 @@
       depuis Application donnerait à la logique métier une dépendance au
       transport.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Catalog.Contracts.Grpc\HBA.Catalog.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts.Grpc\HBA.Identity.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
-
     <!--
       LE SECOND UNIVERS DE COMMANDES (lot 6.4). `AcheteurDuTicket` résout
       l'acheteur d'un ticket de cuisine chez order-service OU chez
       food-order-service selon l'origine du ticket ; sans ce client, le parcours
       food n'avait aucune notification de suivi.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
   </ItemGroup>
 

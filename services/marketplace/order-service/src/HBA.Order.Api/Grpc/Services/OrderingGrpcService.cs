@@ -1,5 +1,5 @@
 using Grpc.Core;
-using HBA.Ordering.Contracts.Grpc;
+using HBA.Orders.Api.Grpc.Mappers;
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -34,7 +34,7 @@ using HBA.Ordering.Contracts;
 
 namespace HBA.Orders.Api.Grpc.Services;
 
-public sealed class OrderingGrpcService : Proto.OrderApi.OrderApiBase
+internal sealed class OrderingGrpcService : Proto.OrderApi.OrderApiBase
 {
     private readonly HBA.Orders.Contracts.IOrderingModuleApi _orders;
 

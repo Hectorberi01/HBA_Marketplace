@@ -7,11 +7,7 @@
     <ProjectReference Include="..\..\..\recommendation-service\src\HBA.Engagement.Recommendations.Infrastructure\HBA.Engagement.Recommendations.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\wishlist-service\src\HBA.Engagement.Wishlist.Application\HBA.Engagement.Wishlist.Application.csproj" />
     <ProjectReference Include="..\..\..\wishlist-service\src\HBA.Engagement.Wishlist.Infrastructure\HBA.Engagement.Wishlist.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
-
     <!-- Implémente `ISellerModuleApi` à distance : voir `AddMerchantsGrpcClient` dans Program.cs. -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
-
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
   </ItemGroup>
 

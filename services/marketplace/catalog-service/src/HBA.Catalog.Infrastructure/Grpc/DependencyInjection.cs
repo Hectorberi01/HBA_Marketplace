@@ -1,5 +1,5 @@
-using HBA.Media.Contracts.Grpc;
-using HBA.Merchants.Contracts.Grpc;
+using HBA.Catalog.Infrastructure.Grpc.Clients;
+using HBA.Catalog.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

@@ -1,6 +1,5 @@
 using Contracts = HBA.Merchants.Contracts;
 using Grpc.Core;
-using HBA.Merchants.Contracts.Grpc;
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -31,7 +30,7 @@ using HBA.Merchants.Contracts;
 
 namespace HBA.Merchants.Api.Grpc.Services;
 
-public sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
+internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
 {
     private readonly Contracts.ISellerModuleApi _sellers;
     private readonly Contracts.IMerchantAccessApi _access;

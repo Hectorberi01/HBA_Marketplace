@@ -3,8 +3,6 @@
   <ItemGroup>
     <ProjectReference Include="..\HBA.Food.Restaurant.Application\HBA.Food.Restaurant.Application.csproj" />
     <ProjectReference Include="..\HBA.Food.Restaurant.Infrastructure\HBA.Food.Restaurant.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
-
     <!--
       TROIS CLIENTS, ET ILS NE SONT RÉFÉRENCÉS QUE PAR CE PROJET.
 
@@ -13,10 +11,6 @@
       restaurant. Seule la composition root a le droit de les connaître tous ;
       la couche Application de Food n'en voit aucun.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Inventory.Contracts.Grpc\HBA.Inventory.Contracts.Grpc.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
-
     <!--
       QUATRIÈME CLIENT : LE DOSSIER VENDEUR QUI ENCAISSE POUR LE RESTAURANT.
 
@@ -25,8 +19,6 @@
       qui rend le module extractible, et `Restaurant.PayoutSellerId` la rappelle
       en toutes lettres. Seule cette composition root voit les deux.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
-
     <!--
       RÉFÉRENCE EXPLICITE, BIEN QU'ELLE SOIT DÉJÀ TRANSITIVE VIA LE CLIENT gRPC.
 
@@ -67,9 +59,29 @@
       univers. Le commentaire du proto affirmait depuis le début que
       restaurant-service était un appelant : c'était une intention, pas un fait.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
-
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\food\v1\food.proto" GrpcServices="Server" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Food.Restaurant.Contracts\HBA.Food.Restaurant.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

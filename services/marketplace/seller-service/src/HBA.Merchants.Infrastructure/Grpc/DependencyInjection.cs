@@ -1,7 +1,7 @@
-using HBA.Identity.Contracts.Grpc;
-using HBA.Inventory.Contracts.Grpc;
-using HBA.Media.Contracts.Grpc;
-using HBA.Ordering.Contracts.Grpc;
+using HBA.Merchants.Infrastructure.Grpc.Clients;
+using HBA.Merchants.Infrastructure.Grpc.Clients;
+using HBA.Merchants.Infrastructure.Grpc.Clients;
+using HBA.Merchants.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
