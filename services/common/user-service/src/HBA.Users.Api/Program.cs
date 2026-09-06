@@ -1,8 +1,6 @@
 using HBA.Identity.Contracts.Grpc;
-using HBA.Identity.Contracts.IntegrationEvents;
-using HBA.Shared.IntegrationEvents;
 using HBA.Users.Api.Endpoints;
-using HBA.Users.Api.Integration;
+using HBA.Users.Api.Messaging.Kafka.Configuration;
 using HBA.Shared.Hosting;
 using HBA.Users.Contracts.Grpc;
 using HBA.Users.Infrastructure;
@@ -29,23 +27,16 @@ builder.AddHbaGrpc();
 // ═════════════════════════════════════════════════════════════════════════
 builder.Services.AddIdentityGrpcClient(builder.Configuration);
 
-// Inscription → création du profil.
-builder.Services.AddScoped<
-    IIntegrationEventHandler<UserRegisteredIntegrationEvent>,
-    CreateUserProfileOnUserRegisteredHandler>();
-
-// Le compte change de nom → le profil suit.
-builder.Services.AddScoped<
-    IIntegrationEventHandler<UserProfileUpdatedIntegrationEvent>,
-    RenameUserProfileOnIdentityProfileUpdatedHandler>();
-
-// CELUI-CI EST UNE OBLIGATION LÉGALE, PAS UN CONFORT.
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ÉCOUTE EST DÉCLARÉ DANS SON PROPRE MODULE.
 //
-// Sans lui, un compte supprimé laisse le carnet d'adresses de son titulaire en
-// base, indéfiniment, sans que rien ne signale qu'il aurait dû partir.
-builder.Services.AddScoped<
-    IIntegrationEventHandler<UserAnonymizedIntegrationEvent>,
-    PurgeUserDataOnAccountAnonymizedHandler>();
+// Les trois enregistrements vivaient ici, et la liste des sujets nulle part —
+// le service s'abonnait donc aux vingt sujets de la plateforme pour en traiter
+// trois. `Messaging/Kafka/Configuration/MessagerieUsers.cs` porte désormais les
+// deux, côte à côte : un gestionnaire dont le sujet n'est pas déclaré ne serait
+// jamais appelé, en silence, et rien d'autre ne relie les deux.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieUsers();
 
 var app = builder.Build();
 

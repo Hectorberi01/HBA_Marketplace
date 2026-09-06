@@ -111,7 +111,15 @@ public static class DependencyInjection
                 Producer = configuration["Kafka:Producer"],
                 ProducerVersion = configuration["Kafka:ProducerVersion"],
                 ConsumerGroup = configuration["Kafka:ConsumerGroup"],
-                Enabled = !string.Equals(enabled, "false", StringComparison.OrdinalIgnoreCase)
+                Enabled = !string.Equals(enabled, "false", StringComparison.OrdinalIgnoreCase),
+
+                // LA LIGNE QUI MANQUAIT. Sans elle, `SubscribeTopics` restait vide
+                // quoi qu'on écrive : la propriété était documentée, honorée par le
+                // consommateur, et remplie par personne. Voir `AbonnementsKafka`.
+                //
+                // Absent = tous les sujets, comme avant. La migration se fait donc
+                // service par service.
+                SubscribeTopics = sp.GetService<AbonnementsKafka>()?.Sujets ?? []
             };
 
             // ON REFUSE DE DÉMARRER SI PUBLICATION ET ABONNEMENT DIVERGENT.

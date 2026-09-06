@@ -20,7 +20,7 @@ using HBA.Merchants.Contracts.IntegrationEvents;
 // raisons. La première est que le contrat décrit un mécanisme de PERSISTANCE —
 // une table, une transaction — et non une règle métier. La seconde est que le
 // dépôt a déjà tranché ailleurs : `CreateUserProfileOnUserRegisteredHandler` vit
-// dans `HBA.Users.Api/Integration` avec l'encadré qui l'explique, « la
+// dans `HBA.Users.Api/Messaging/Kafka/Consumers` avec l'encadré qui l'explique, « la
 // composition root a le droit de tout connaître ».
 //
 // Ce que ce déplacement change pour le lecteur : les gestionnaires d'événements

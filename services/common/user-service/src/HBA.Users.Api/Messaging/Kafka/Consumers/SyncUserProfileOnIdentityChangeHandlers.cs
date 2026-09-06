@@ -3,7 +3,7 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Users.Application.Profiles;
 using MediatR;
 
-namespace HBA.Users.Api.Integration;
+namespace HBA.Users.Api.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// ═════════════════════════════════════════════════════════════════════════════
