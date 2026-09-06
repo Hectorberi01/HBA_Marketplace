@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Drivers.Infrastructure.Persistence;
-using HBA.Drivers.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 
 using HBA.Drivers.Infrastructure.Messaging.Kafka.Retry;

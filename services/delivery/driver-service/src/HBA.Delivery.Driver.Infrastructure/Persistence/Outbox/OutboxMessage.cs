@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Drivers.Infrastructure.Persistence;
-using HBA.Drivers.Infrastructure.Persistence.Inbox;
 using HBA.Drivers.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Drivers.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════

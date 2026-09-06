@@ -2,7 +2,6 @@ using HBA.Drivers.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Drivers.Infrastructure.Persistence.Outbox;
-using HBA.Drivers.Infrastructure.Persistence.Inbox;
 using HBA.Drivers.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Drivers.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Drivers.Infrastructure.Messaging.Kafka.Outbox;

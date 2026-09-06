@@ -150,6 +150,22 @@ fi
 export ASPNETCORE_ENVIRONMENT=Development
 export ConnectionStrings__Default="Host=localhost;Port=5432;Database=hba_migrations_verification;Username=postgres;Password=postgres"
 
+# LE NETTOYAGE, PAR DIFFERENCE ET PAR git.
+#
+# `dotnet ef migrations remove` a echoue a chaque execution — il reconstruit le
+# projet, et un projet que la migration vient de casser ne se reconstruit pas.
+# Demander a l'outil de defaire ce qu'il a fait suppose qu'il en soit encore
+# capable. On ne le suppose plus : on retire les fichiers APPARUS, et on rend
+# l'instantane a git.
+nettoyer() {
+  local apres
+  apres="$(ls "$PROJET_DIR/$SORTIE" 2>/dev/null | sort)"
+  comm -13 <(echo "$AVANT") <(echo "$apres") | while read -r nouveau; do
+    [[ -n "$nouveau" ]] && rm -f "$PROJET_DIR/$SORTIE/$nouveau"
+  done
+  (cd "$RACINE" && git checkout -- "$(dirname "$CSPROJ")/$SORTIE" 2>/dev/null) || true
+}
+
 VUS=0; VIDES=0; PLEINS=0; ECHECS=0
 declare -a A_REVOIR=()
 
@@ -177,13 +193,26 @@ while IFS=$'\t' read -r CONTEXTE CSPROJ SORTIE FABRIQUE; do
     fi
   fi
 
+  # `--namespace` EXPLICITE. Sans lui, EF derive l'espace de noms du NOM DU
+  # PROJET et du dossier de sortie : `HBA.Order.Infrastructure.Migrations` la ou
+  # le code vit dans `HBA.Orders.*`. Ce seul fichier cree un espace de noms
+  # `HBA.Order` qui masque le TYPE `Order` dans tout le service — CS0118 en
+  # cascade. On lit l'espace de noms sur l'instantane, qui est la reference.
+  NS="$(grep -m1 "^namespace" "$PROJET_DIR/$SORTIE/${CONTEXTE}ModelSnapshot.cs" 2>/dev/null | awk '{print $2}' | tr -d ';')"
   ARGS=("${COMMUN[@]}" --output-dir "$SORTIE")
+  [[ -n "$NS" ]] && ARGS+=(--namespace "$NS")
+
+  # CE QUI EXISTE AVANT. Le nettoyage se fera par difference, pas en demandant
+  # a `dotnet ef` de defaire son propre travail.
+  AVANT="$(ls "$PROJET_DIR/$SORTIE" 2>/dev/null | sort)"
 
   JOURNAL="$(mktemp)"
   if ! dotnet ef migrations add "$NOM" "${ARGS[@]}" >"$JOURNAL" 2>&1; then
     echo "ECHEC de migrations add"
     sed 's/^/      /' "$JOURNAL" | tail -12
     rm -f "$JOURNAL"
+    # `add` peut avoir ecrit AVANT d'echouer : on nettoie meme sur ce chemin.
+    nettoyer
     ECHECS=$((ECHECS + 1))
     A_REVOIR+=("$CONTEXTE (la commande a echoue)")
     continue
@@ -223,8 +252,7 @@ PYEOF
   if [[ -z "$CORPS" ]]; then
     echo "diff VIDE — modele et instantane concordent"
     VIDES=$((VIDES + 1))
-    dotnet ef migrations remove "${COMMUN[@]}" >/dev/null 2>&1 \
-      || echo "      ATTENTION : migrations remove a echoue, retirez $FICHIER a la main"
+    nettoyer
   else
     echo "diff NON VIDE — le realignement a manque quelque chose"
     echo "$CORPS" | sed 's/^/      /' | head -30
@@ -233,8 +261,7 @@ PYEOF
     if [[ "$GARDER" == "1" ]]; then
       echo "      conservee : ${FICHIER#$RACINE/}"
     else
-      dotnet ef migrations remove "${COMMUN[@]}" >/dev/null 2>&1 \
-        || echo "      ATTENTION : migrations remove a echoue, retirez $FICHIER a la main"
+      nettoyer
     fi
   fi
 done <<< "$INVENTAIRE"

@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Drivers.Infrastructure.Persistence;
-using HBA.Drivers.Infrastructure.Persistence.Inbox;
 using System.Text.Json;
 using HBA.Shared.Infrastructure.Serialization;
 using HBA.Shared.IntegrationEvents;
