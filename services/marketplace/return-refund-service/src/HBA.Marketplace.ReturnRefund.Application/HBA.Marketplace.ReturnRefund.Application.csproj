@@ -3,7 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HBA.Marketplace.ReturnRefund.Domain\HBA.Marketplace.ReturnRefund.Domain.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

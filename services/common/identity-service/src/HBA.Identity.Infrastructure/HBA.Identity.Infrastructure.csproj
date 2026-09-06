@@ -5,7 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HBA.Identity.Domain\HBA.Identity.Domain.csproj" />
     <ProjectReference Include="..\HBA.Identity.Application\HBA.Identity.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
   </ItemGroup>
 

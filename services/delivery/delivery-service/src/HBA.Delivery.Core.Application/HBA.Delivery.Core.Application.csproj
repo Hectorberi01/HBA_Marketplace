@@ -48,7 +48,7 @@
          doublait celle de Drivers et rendait le même « driver.verified ». Un
          gestionnaire enregistré pour l'autre des deux types n'était jamais
          appelé, sans erreur. L'agrégat décrit est le livreur, pas la course. -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\driver-service\src\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
   </ItemGroup>

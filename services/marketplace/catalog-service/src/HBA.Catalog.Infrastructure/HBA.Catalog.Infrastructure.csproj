@@ -71,7 +71,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\common\media-service\src\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
   </ItemGroup>
 
 

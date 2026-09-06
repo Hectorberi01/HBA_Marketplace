@@ -4,7 +4,7 @@
        (hasher, JWT, TOTP). Référence Domain + Contracts + BuildingBlocks. -->
   <ItemGroup>
     <ProjectReference Include="..\HBA.Identity.Domain\HBA.Identity.Domain.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
 
@@ -37,7 +37,7 @@
          alphabétique : `GrantDriverRoleHandler`, enregistré sur l'autre, n'aurait
          jamais été appelé — sans erreur — et le rôle `Driver` n'aurait été
          attribué à personne. La déclaration côté Deliveries a été retirée. -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\delivery\driver-service\src\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

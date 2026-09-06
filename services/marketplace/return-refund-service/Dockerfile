@@ -52,6 +52,13 @@ WORKDIR /source
 
 COPY Directory.Build.props Directory.Packages.props ./
 COPY shared/ shared/
+
+# CES CONTRATS ONT QUITTE `shared/`, ET `COPY shared` NE LES EMBARQUE PLUS.
+#
+# Sans ces lignes, `dotnet restore` echoue A L'INTERIEUR DE L'IMAGE, sur un
+# message qui nomme un chemin et pas la fonctionnalite qui en depend — le pire
+# endroit pour decouvrir un deplacement de fichiers.
+COPY services/common/media-service/src/HBA.Media.Contracts/ services/common/media-service/src/HBA.Media.Contracts/
 COPY services/marketplace/order-service/src/HBA.Order.Contracts/ services/marketplace/order-service/src/HBA.Order.Contracts/
 
 # ENTRAÎNÉ PAR `HBA.Merchants.Contracts.Grpc`, QUI EST DANS `shared/`.

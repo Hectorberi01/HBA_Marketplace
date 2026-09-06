@@ -104,6 +104,13 @@ ARG BFF=apps/api-gateway
 # façon besoin de `shared/proto/identity/v1/identity.proto` à la compilation.
 COPY shared/ shared/
 
+
+# CES CONTRATS ONT QUITTE `shared/`, ET `COPY shared` NE LES EMBARQUE PLUS.
+#
+# Sans ces lignes, `dotnet restore` echoue A L'INTERIEUR DE L'IMAGE, sur un
+# message qui nomme un chemin et pas la fonctionnalite qui en depend — le pire
+# endroit pour decouvrir un deplacement de fichiers.
+COPY services/common/identity-service/src/HBA.Identity.Contracts/ services/common/identity-service/src/HBA.Identity.Contracts/
 COPY ${BFF}/src/HBA.Gateway.Api/HBA.Gateway.Api.csproj                       ${BFF}/src/HBA.Gateway.Api/
 COPY ${BFF}/src/HBA.Gateway.Application/HBA.Gateway.Application.csproj       ${BFF}/src/HBA.Gateway.Application/
 COPY ${BFF}/src/HBA.Gateway.Infrastructure/HBA.Gateway.Infrastructure.csproj ${BFF}/src/HBA.Gateway.Infrastructure/

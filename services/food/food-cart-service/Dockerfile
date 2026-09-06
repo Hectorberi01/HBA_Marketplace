@@ -55,6 +55,14 @@ WORKDIR /src
 COPY Directory.Build.props Directory.Packages.props ./
 COPY shared ./shared
 
+# CES CONTRATS ONT QUITTE `shared/`, ET `COPY shared` NE LES EMBARQUE PLUS.
+#
+# Sans ces lignes, `dotnet restore` echoue A L'INTERIEUR DE L'IMAGE, sur un
+# message qui nomme un chemin et pas la fonctionnalite qui en depend — le pire
+# endroit pour decouvrir un deplacement de fichiers.
+COPY services/common/promotion-service/src/HBA.Pricing.Promotion ./services/common/promotion-service/src/HBA.Pricing.Promotion
+COPY services/common/promotion-service/src/HBA.Promotions.Contracts ./services/common/promotion-service/src/HBA.Promotions.Contracts
+
 # LA CARTE DU RESTAURANT — référencée par l'Application ET par le client gRPC
 # de Food, que `COPY shared` embarque SANS sa dépendance.
 #

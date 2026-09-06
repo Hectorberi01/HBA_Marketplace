@@ -94,7 +94,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
   </ItemGroup>
 

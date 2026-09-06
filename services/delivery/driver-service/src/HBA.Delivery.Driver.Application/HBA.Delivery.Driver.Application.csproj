@@ -20,7 +20,7 @@
   -->
   <ItemGroup>
     <ProjectReference Include="..\HBA.Delivery.Driver.Domain\HBA.Delivery.Driver.Domain.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
   </ItemGroup>

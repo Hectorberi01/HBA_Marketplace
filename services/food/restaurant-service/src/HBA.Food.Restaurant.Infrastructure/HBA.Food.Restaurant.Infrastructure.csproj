@@ -24,7 +24,7 @@
     <ProjectReference Include="..\..\..\food-order-service\src\HBA.Food.Order.Contracts\HBA.Food.Order.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\marketplace\inventory-service\src\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

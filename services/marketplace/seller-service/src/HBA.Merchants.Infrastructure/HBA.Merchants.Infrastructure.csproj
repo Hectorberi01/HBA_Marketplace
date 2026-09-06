@@ -11,7 +11,7 @@
       où cette référence-là changerait. Une dépendance qu'on utilise directement
       se déclare.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\common\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
 
     <!--
       LES DEUX COMPTEURS DE LA VITRINE, QUI VALAIENT ZÉRO POUR TOUT LE MONDE.
@@ -26,7 +26,7 @@
     -->
     <ProjectReference Include="..\..\..\..\..\services\common\review-service\src\HBA.Engagement.Reviews.Contracts\HBA.Engagement.Reviews.Contracts.csproj" />
     <ProjectReference Include="..\..\..\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\order-service\src\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
 
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
   </ItemGroup>
@@ -94,7 +94,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\common\media-service\src\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
   </ItemGroup>
 
 

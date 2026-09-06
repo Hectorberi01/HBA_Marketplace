@@ -16,7 +16,7 @@
     <ProjectReference Include="..\..\..\..\delivery\delivery-service\src\HBA.Deliveries.Contracts\HBA.Deliveries.Contracts.csproj" />
 
     <!-- Le devis de course se relit chez delivery-pricing — voir HBA.Order.Application. -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\delivery\delivery-pricing-service\src\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
 
     <!--
       LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.

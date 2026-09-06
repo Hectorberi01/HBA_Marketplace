@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

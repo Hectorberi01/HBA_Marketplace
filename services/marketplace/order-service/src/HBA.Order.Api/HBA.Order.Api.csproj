@@ -51,7 +51,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
     <ProjectReference Include="..\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
   </ItemGroup>
 

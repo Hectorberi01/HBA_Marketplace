@@ -23,7 +23,7 @@
       qu'elle servait — ce service n'appelle plus identity-service, il ecoute ses
       evenements. Un contrat partage n'est pas un appel reseau.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
   </ItemGroup>
 
@@ -46,7 +46,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Users.Contracts\HBA.Users.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Users.Contracts\HBA.Users.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

@@ -16,7 +16,7 @@
     personne à référencer un client Kafka.
   -->
   <ItemGroup>
-    <ProjectReference Include="..\..\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
   </ItemGroup>
 
 </Project>

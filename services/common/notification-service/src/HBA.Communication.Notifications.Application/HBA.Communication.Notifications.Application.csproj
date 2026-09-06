@@ -43,17 +43,17 @@
 
   <!-- Contrats partagés : émetteurs restés dans le socle commun. -->
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
 
     <!--
       Produits : `IProductsModuleApi`, utilisé par les gestionnaires « avis publié »
       et « rupture de stock » pour remonter d'un produit ou d'un SKU à son vendeur.
       L'événement ne porte que l'identifiant ; le destinataire, lui, se déduit.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Payments.Contracts\HBA.Payments.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\catalog-service\src\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\payment-service\src\HBA.Payments.Contracts\HBA.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\return-refund-service\src\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Shipping.Contracts\HBA.Shipping.Contracts.csproj" />
   </ItemGroup>
 

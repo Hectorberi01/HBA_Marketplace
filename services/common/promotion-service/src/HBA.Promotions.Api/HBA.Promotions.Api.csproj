@@ -53,7 +53,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

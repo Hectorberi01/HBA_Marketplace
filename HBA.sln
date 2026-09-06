@@ -121,13 +121,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Shared.Infrastructure",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Shared.IntegrationEvents", "shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj", "{4DB280ED-3273-FC03-4D69-5D8FE4665224}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Identity.Contracts", "shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj", "{9F66275D-85EF-629A-5F32-99F24BB45B5D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Identity.Contracts", "services\common\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj", "{9F66275D-85EF-629A-5F32-99F24BB45B5D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Media.Contracts", "shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj", "{621F42B8-5575-C3D7-B956-70AD53F51688}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Media.Contracts", "services\common\media-service\src\HBA.Media.Contracts\HBA.Media.Contracts.csproj", "{621F42B8-5575-C3D7-B956-70AD53F51688}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Promotions.Contracts", "shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj", "{C0000004-0000-4000-8000-0000000000C4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Promotions.Contracts", "services\common\promotion-service\src\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj", "{C0000004-0000-4000-8000-0000000000C4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Users.Contracts", "shared\contracts\HBA.Users.Contracts\HBA.Users.Contracts.csproj", "{38D954A3-F709-517B-A74E-A11CC7B73A45}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Users.Contracts", "services\common\user-service\src\HBA.Users.Contracts\HBA.Users.Contracts.csproj", "{38D954A3-F709-517B-A74E-A11CC7B73A45}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
@@ -225,14 +225,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Commerce.Domain", "serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Commerce.Infrastructure", "services\marketplace\cart-service\src\HBA.Commerce.Infrastructure\HBA.Commerce.Infrastructure.csproj", "{94037178-0B4A-48DC-AA32-5516E4F891F7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Products.Contracts", "shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj", "{361BD825-3020-42D7-AAA8-E7A94E10AEBC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Products.Contracts", "services\marketplace\catalog-service\src\HBA.Products.Contracts\HBA.Products.Contracts.csproj", "{361BD825-3020-42D7-AAA8-E7A94E10AEBC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Pricing.Contracts", "shared\contracts\HBA.Pricing.Contracts\HBA.Pricing.Contracts.csproj", "{BCF06C31-C2AC-4A91-AC29-FF154243F4C4}"
 EndProject
 
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Pricing.Promotion", "shared\contracts\HBA.Pricing.Promotion\HBA.Pricing.Promotion.csproj", "{7C1E4A02-5D3B-4F18-9A6C-0B2E9D74A311}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Pricing.Promotion", "services\common\promotion-service\src\HBA.Pricing.Promotion\HBA.Pricing.Promotion.csproj", "{7C1E4A02-5D3B-4F18-9A6C-0B2E9D74A311}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Ordering.Contracts", "shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj", "{627D3AA0-01B3-4ABD-8293-839C3045889C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Ordering.Contracts", "services\marketplace\order-service\src\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj", "{627D3AA0-01B3-4ABD-8293-839C3045889C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "order-service", "order-service", "{AE98AD44-FEB3-4351-C593-298BE52AAB0E}"
 EndProject
@@ -248,7 +248,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Order.Domain", "service
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Order.Infrastructure", "services\marketplace\order-service\src\HBA.Order.Infrastructure\HBA.Order.Infrastructure.csproj", "{B72D62F0-A2B0-4F81-A90F-83B3FD9D578F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Payments.Contracts", "shared\contracts\HBA.Payments.Contracts\HBA.Payments.Contracts.csproj", "{0C28BDFD-2D3B-411F-AB54-66E22588D37B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Payments.Contracts", "services\common\payment-service\src\HBA.Payments.Contracts\HBA.Payments.Contracts.csproj", "{0C28BDFD-2D3B-411F-AB54-66E22588D37B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Shipping.Contracts", "shared\contracts\HBA.Shipping.Contracts\HBA.Shipping.Contracts.csproj", "{1AFAB515-F1CC-4A10-877F-E6AD3B17597D}"
 EndProject
@@ -282,7 +282,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Financial.Wallet.Domain
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Financial.Wallet.Infrastructure", "services\common\wallet-service\src\HBA.Financial.Wallet.Infrastructure\HBA.Financial.Wallet.Infrastructure.csproj", "{9525B0D4-8F22-4C1A-A3BF-FD61317DF76C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Returns.Contracts", "shared\contracts\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj", "{1E9EEFC9-8333-42C2-8138-508CB0482B1D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Returns.Contracts", "services\marketplace\return-refund-service\src\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj", "{1E9EEFC9-8333-42C2-8138-508CB0482B1D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "engagement-service", "engagement-service", "{5F07B76A-ED7B-F32B-F9D8-50C0790E7774}"
 EndProject

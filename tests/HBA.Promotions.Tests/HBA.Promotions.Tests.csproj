@@ -24,7 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\services\common\promotion-service\src\HBA.Promotions.Domain\HBA.Promotions.Domain.csproj" />
-    <ProjectReference Include="..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+    <ProjectReference Include="..\..\services\common\promotion-service\src\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

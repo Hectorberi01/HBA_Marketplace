@@ -5,7 +5,7 @@
     <ProjectReference Include="..\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\common\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
 
     <!--
       `AddKybDocumentCommandHandler` INTERROGE LE SERVICE MÉDIA AVANT DE
@@ -19,7 +19,7 @@
       Le CONTRAT seul, jamais le client gRPC : celui-ci vient de la composition
       root, comme chez catalog.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\common\media-service\src\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
 
     <!--
       MÊME RAISON POUR LE LIEU D'EXPÉDITION.

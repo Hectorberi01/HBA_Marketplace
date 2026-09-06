@@ -49,6 +49,14 @@ WORKDIR /source
 COPY Directory.Build.props Directory.Packages.props ./
 COPY shared/ shared/
 
+
+# CES CONTRATS ONT QUITTE `shared/`, ET `COPY shared` NE LES EMBARQUE PLUS.
+#
+# Sans ces lignes, `dotnet restore` echoue A L'INTERIEUR DE L'IMAGE, sur un
+# message qui nomme un chemin et pas la fonctionnalite qui en depend — le pire
+# endroit pour decouvrir un deplacement de fichiers.
+COPY services/common/identity-service/src/HBA.Identity.Contracts/ services/common/identity-service/src/HBA.Identity.Contracts/
+COPY services/marketplace/return-refund-service/src/HBA.Returns.Contracts/ services/marketplace/return-refund-service/src/HBA.Returns.Contracts/
 # CINQ CONTRATS D'AUTRES SERVICES — REQUIS PAR LA TRANCHE NOTIFICATIONS.
 #
 # Ce module réagit à ce qui se passe partout : commande payée, vendeur suspendu,

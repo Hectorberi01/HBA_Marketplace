@@ -81,7 +81,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\catalog-service\src\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
   </ItemGroup>
 
 
@@ -110,7 +110,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
   </ItemGroup>
 
 
@@ -132,7 +132,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
   </ItemGroup>
 
 

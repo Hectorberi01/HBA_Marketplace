@@ -55,7 +55,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\common\media-service\src\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
   </ItemGroup>
 
 
@@ -77,7 +77,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\order-service\src\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
     <ProjectReference Include="..\..\..\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
   </ItemGroup>
 

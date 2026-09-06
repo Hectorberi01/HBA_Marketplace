@@ -49,7 +49,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

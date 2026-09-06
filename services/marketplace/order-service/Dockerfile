@@ -41,6 +41,23 @@ WORKDIR /src
 
 COPY Directory.Build.props Directory.Packages.props ./
 COPY shared ./shared
+
+
+# CES CONTRATS ONT QUITTE `shared/`, ET `COPY shared` NE LES EMBARQUE PLUS.
+#
+# Sans ces lignes, `dotnet restore` echoue A L'INTERIEUR DE L'IMAGE, sur un
+# message qui nomme un chemin et pas la fonctionnalite qui en depend — le pire
+# endroit pour decouvrir un deplacement de fichiers.
+COPY services/marketplace/order-service/src/HBA.Ordering.Contracts/ services/marketplace/order-service/src/HBA.Ordering.Contracts/
+# CES CONTRATS ONT QUITTE `shared/`, ET `COPY shared` NE LES EMBARQUE PLUS.
+#
+# Sans ces lignes, `dotnet restore` echoue A L'INTERIEUR DE L'IMAGE, sur un
+# message qui nomme un chemin et pas la fonctionnalite qui en depend — le pire
+# endroit pour decouvrir un deplacement de fichiers.
+COPY services/common/payment-service/src/HBA.Payments.Contracts ./services/common/payment-service/src/HBA.Payments.Contracts
+COPY services/delivery/delivery-pricing-service/src/HBA.DeliveryPricing.Contracts ./services/delivery/delivery-pricing-service/src/HBA.DeliveryPricing.Contracts
+COPY services/marketplace/catalog-service/src/HBA.Products.Contracts ./services/marketplace/catalog-service/src/HBA.Products.Contracts
+COPY services/marketplace/return-refund-service/src/HBA.Returns.Contracts ./services/marketplace/return-refund-service/src/HBA.Returns.Contracts
 COPY services/marketplace/inventory-service/src/HBA.Inventory.Contracts ./services/marketplace/inventory-service/src/HBA.Inventory.Contracts
 COPY services/marketplace/cart-service/src/HBA.Commerce.Contracts ./services/marketplace/cart-service/src/HBA.Commerce.Contracts
 

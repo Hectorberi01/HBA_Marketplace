@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HBA.Users.Domain\HBA.Users.Domain.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Users.Contracts\HBA.Users.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Users.Contracts\HBA.Users.Contracts.csproj" />
     <ProjectReference Include="..\HBA.Users.Application\HBA.Users.Application.csproj" />
     <!--
       LA FRONTIERE User -> Identity EST OUVERTE ICI, ET C'EST UNE DECISION.
@@ -24,7 +24,7 @@
       supprimant ce dossier. Si la frontiere doit redevenir opposable, c'est un
       test d'architecture qu'il faut ecrire — pas un commentaire.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
   </ItemGroup>
 

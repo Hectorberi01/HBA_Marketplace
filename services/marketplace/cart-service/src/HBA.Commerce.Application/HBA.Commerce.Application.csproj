@@ -5,10 +5,10 @@
     <ProjectReference Include="..\HBA.Commerce.Contracts\HBA.Commerce.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\catalog-service\src\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
     <ProjectReference Include="..\..\..\inventory-service\src\HBA.Inventory.Contracts\HBA.Inventory.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Pricing.Contracts\HBA.Pricing.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\order-service\src\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
   
     <!--
       LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.

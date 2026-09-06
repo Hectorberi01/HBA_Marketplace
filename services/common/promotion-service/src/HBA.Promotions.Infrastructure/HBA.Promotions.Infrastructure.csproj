@@ -12,7 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HBA.Promotions.Domain\HBA.Promotions.Domain.csproj" />
     <ProjectReference Include="..\HBA.Promotions.Application\HBA.Promotions.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
     <!--
       CES REFERENCES SONT ARRIVEES AVEC LES CONSOMMATEURS, ET C'EST UNE FRONTIERE

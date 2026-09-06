@@ -33,8 +33,8 @@
       `AddPromotionGrpcClient` — c'est elle, le composition root, qui choisit le
       transport.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Pricing.Promotion\HBA.Pricing.Promotion.csproj" />
+    <ProjectReference Include="..\..\..\..\common\promotion-service\src\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\common\promotion-service\src\HBA.Pricing.Promotion\HBA.Pricing.Promotion.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -89,7 +89,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\catalog-service\src\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
     <ProjectReference Include="..\..\..\catalog-service\src\HBA.Catalog.Contracts\HBA.Catalog.Contracts.csproj" />
   </ItemGroup>
 
@@ -112,7 +112,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\order-service\src\HBA.Ordering.Contracts\HBA.Ordering.Contracts.csproj" />
   </ItemGroup>
 
 

@@ -19,9 +19,9 @@
       Tout ce qui finit sur une ligne de commande venait du panier, qui fige son
       prix a l ajout et ne le rafraichit jamais — et rien ne fait expirer un panier.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\catalog-service\src\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Pricing.Contracts\HBA.Pricing.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Payments.Contracts\HBA.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\common\payment-service\src\HBA.Payments.Contracts\HBA.Payments.Contracts.csproj" />
     <!--
       DELIVERY A REMPLACÉ SHIPPING, ET CE N'EST PAS UN RENOMMAGE.
 
@@ -39,7 +39,7 @@
       delivery-service n'a plus de domaine de tarification : le seul magasin de
       devis vivant est celui-ci.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\delivery\delivery-pricing-service\src\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
   
     <!--
       LE CONTRAT VIENT DU SERVICE QUI PUBLIE, ET DE LUI SEUL.
@@ -77,7 +77,7 @@
       consommé par wallet, notification et order — trois services qui n'ont
       aucune raison de dépendre du service de retours.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\return-refund-service\src\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

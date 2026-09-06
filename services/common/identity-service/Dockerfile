@@ -56,6 +56,13 @@ WORKDIR /source
 # dépendance change, pas à chaque modification de C#.
 COPY Directory.Build.props Directory.Packages.props ./
 COPY shared/ shared/
+
+# CES CONTRATS ONT QUITTE `shared/`, ET `COPY shared` NE LES EMBARQUE PLUS.
+#
+# Sans ces lignes, `dotnet restore` echoue A L'INTERIEUR DE L'IMAGE, sur un
+# message qui nomme un chemin et pas la fonctionnalite qui en depend — le pire
+# endroit pour decouvrir un deplacement de fichiers.
+COPY services/delivery/driver-service/src/HBA.Drivers.Contracts/ services/delivery/driver-service/src/HBA.Drivers.Contracts/
 # Contrats écoutés pour l'attribution des rôles métier. Contrats seuls : rien
 # d'autre de ces services n'entre ici.
 COPY services/marketplace/seller-service/src/HBA.Merchants.Contracts ./services/marketplace/seller-service/src/HBA.Merchants.Contracts

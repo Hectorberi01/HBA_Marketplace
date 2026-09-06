@@ -63,7 +63,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\delivery\delivery-pricing-service\src\HBA.DeliveryPricing.Contracts\HBA.DeliveryPricing.Contracts.csproj" />
   </ItemGroup>
 
 

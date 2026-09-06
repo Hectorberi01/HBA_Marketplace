@@ -35,7 +35,7 @@
       façon d'assembler le socle : voir `Messaging/Kafka/DependencyInjection`.
     -->
     <ProjectReference Include="..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\services\common\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
   </ItemGroup>
 
 

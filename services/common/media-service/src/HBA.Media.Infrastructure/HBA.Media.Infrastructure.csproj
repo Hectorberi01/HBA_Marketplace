@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HBA.Media.Domain\HBA.Media.Domain.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
     <ProjectReference Include="..\HBA.Media.Application\HBA.Media.Application.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
       <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />

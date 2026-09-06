@@ -9,7 +9,7 @@
       rattacher une image : nature, appartenance, format, statut, URL. Seuls les
       ENREGISTREMENTS sont référencés ici — le transport gRPC reste dans .Api.
     -->
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\common\media-service\src\HBA.Media.Contracts\HBA.Media.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.IntegrationEvents\HBA.Shared.IntegrationEvents.csproj" />
   </ItemGroup>

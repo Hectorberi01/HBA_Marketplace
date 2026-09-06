@@ -10,7 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HBA.Promotions.Domain\HBA.Promotions.Domain.csproj" />
     <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
+    <ProjectReference Include="..\HBA.Promotions.Contracts\HBA.Promotions.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
