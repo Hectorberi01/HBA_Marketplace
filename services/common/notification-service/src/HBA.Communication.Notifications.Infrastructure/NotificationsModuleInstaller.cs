@@ -28,7 +28,6 @@ using HBA.Communication.Notifications.Infrastructure.Sms;
 using HBA.Identity.Contracts.IntegrationEvents;
 using HBA.Merchants.Contracts.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
-using HBA.Shipping.Contracts.IntegrationEvents;
 using HBA.Returns.Contracts.IntegrationEvents;
 using HBA.Food.Contracts.IntegrationEvents;
 using HBA.Financial.Wallet.Contracts.IntegrationEvents;

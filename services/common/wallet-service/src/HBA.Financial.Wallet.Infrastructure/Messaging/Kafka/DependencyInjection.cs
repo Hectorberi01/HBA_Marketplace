@@ -7,7 +7,6 @@ using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Producers;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Returns.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
-using HBA.Shipping.Contracts.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HBA.Financial.Wallet.Infrastructure.Messaging.Kafka;
@@ -93,11 +92,6 @@ public static class DependencyInjection
         services.AddScoped<
             IIntegrationEventHandler<OrderDeliveredIntegrationEvent>,
             ReleaseEarningsOnOrderDeliveredHandler>();
-
-        // Affinage multi-vendeur : libération des gains d'un vendeur dès SA livraison.
-        services.AddScoped<
-            IIntegrationEventHandler<ShipmentDeliveredIntegrationEvent>,
-            ReleaseSellerEarningsOnShipmentDeliveredHandler>();
 
         // SANS CETTE LIGNE, LE LIVREUR N'EST JAMAIS PAYÉ.
         //

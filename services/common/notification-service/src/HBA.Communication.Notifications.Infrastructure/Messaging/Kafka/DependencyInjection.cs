@@ -16,7 +16,6 @@ using HBA.Merchants.Contracts.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Returns.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
-using HBA.Shipping.Contracts.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka;
@@ -186,14 +185,6 @@ public static class DependencyInjection
         services.AddScoped<
             IIntegrationEventHandler<OrderResumedAfterReviewIntegrationEvent>,
             OrderResumedAfterReviewNotificationHandler>();
-
-        services.AddScoped<
-            IIntegrationEventHandler<ShipmentShippedIntegrationEvent>,
-            ShipmentShippedNotificationHandler>();
-
-        services.AddScoped<
-            IIntegrationEventHandler<ShipmentDeliveredIntegrationEvent>,
-            ShipmentDeliveredNotificationHandler>();
 
         // REMBOURSEMENTS. Deux moments, deux messages :
         //  - accepté : rassure l'acheteur pendant que l'admin exécute le versement

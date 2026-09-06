@@ -54,7 +54,6 @@
     <ProjectReference Include="..\..\..\..\marketplace\catalog-service\src\HBA.Products.Contracts\HBA.Products.Contracts.csproj" />
     <ProjectReference Include="..\..\..\payment-service\src\HBA.Payments.Contracts\HBA.Payments.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\marketplace\return-refund-service\src\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Shipping.Contracts\HBA.Shipping.Contracts.csproj" />
   </ItemGroup>
 
   <!-- Contrats d'autres services extraits. -->

@@ -17,7 +17,8 @@ namespace HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Configuration;
 /// UN GESTIONNAIRE DANS `Consumers/` DONT LE SUJET MANQUE ICI NE SERA JAMAIS
 /// APPELE, en silence. Aucun compilateur ne relie les deux.
 ///
-/// AUCUN PRODUCTEUR CONNU POUR : ShipmentDeliveredIntegrationEvent.
+/// LES GESTIONNAIRES `Shipment*` ONT ETE SUPPRIMES : le service qui devait
+/// publier ces evenements n'a jamais existe. Voir le commit de suppression.
 /// Ces evenements sont consommes par ce service et publies par PERSONNE dans
 /// le depot. Le gestionnaire correspondant ne sera donc jamais appele. Aucun
 /// sujet n'a ete ajoute pour eux : il n'y a rien a ecouter.

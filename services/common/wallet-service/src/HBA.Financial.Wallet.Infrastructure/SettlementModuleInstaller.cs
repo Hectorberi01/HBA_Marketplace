@@ -12,7 +12,6 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Returns.Contracts.IntegrationEvents;
-using HBA.Shipping.Contracts.IntegrationEvents;
 using HBA.Financial.Wallet.Application.Abstractions;
 using HBA.Financial.Wallet.Application.Batches;
 using HBA.Financial.Wallet.Application.Batches.EventHandlers;

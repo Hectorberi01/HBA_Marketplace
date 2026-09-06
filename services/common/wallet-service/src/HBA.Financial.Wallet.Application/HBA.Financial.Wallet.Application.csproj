@@ -10,7 +10,6 @@
     <ProjectReference Include="..\..\..\..\marketplace\return-refund-service\src\HBA.Returns.Contracts\HBA.Returns.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\marketplace\catalog-service\src\HBA.Catalog.Contracts\HBA.Catalog.Contracts.csproj" />
     <ProjectReference Include="..\..\..\billing-service\src\HBA.Financial.Billing.Contracts\HBA.Financial.Billing.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Shipping.Contracts\HBA.Shipping.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
     <ProjectReference Include="..\..\..\payment-service\src\HBA.Financial.Payments.Contracts\HBA.Financial.Payments.Contracts.csproj" />
     <!--
