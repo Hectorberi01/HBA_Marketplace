@@ -32,7 +32,7 @@ using ContratsFood = HBA.Food.Contracts;  // alias non masquable : voir tools/mi
 
 namespace HBA.FoodCarts.Infrastructure.Grpc.Clients;
 
-internal sealed class FoodGrpcClient : ContratsFood.IFoodModuleApi
+internal sealed class FoodGrpcClient : IFoodModuleApi
 {
     private readonly Proto.FoodApi.FoodApiClient _client;
 
@@ -68,7 +68,7 @@ internal sealed class FoodGrpcClient : ContratsFood.IFoodModuleApi
         return response.Found ? ToContract(response.Restaurant) : null;
     }
 
-    public async Task<ContratsFood.FoodStaffMembership?> GetStaffMembershipAsync(
+    public async Task<FoodStaffMembership?> GetStaffMembershipAsync(
         Guid userId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetStaffMembershipAsync(
@@ -229,7 +229,7 @@ internal static class FoodGrpcRegistration
                 options.Address = new UriBuilder(address) { Port = grpcPort }.Uri)
             .AjouterLesInterceptionsInternes();
 
-        services.AddScoped<ContratsFood.IFoodModuleApi, FoodGrpcClient>();
+        services.AddScoped<IFoodModuleApi, FoodGrpcClient>();
 
         return services;
     }

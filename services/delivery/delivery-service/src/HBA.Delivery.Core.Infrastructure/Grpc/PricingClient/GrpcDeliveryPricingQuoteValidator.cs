@@ -5,7 +5,19 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Deliveries.Infrastructure.Pricing;
 
-public sealed class GrpcDeliveryPricingQuoteValidator : IDeliveryPricingQuoteValidator
+// ═════════════════════════════════════════════════════════════════════════════
+// `internal` DEPUIS LA DISSOLUTION DES ASSEMBLAGES DE CONTRATS (lot D).
+//
+// Le stub genere est desormais compile DANS CET ASSEMBLAGE, avec
+// `Access="Internal"` — sans quoi deux services qui compilent le meme proto
+// exposeraient deux types publics du meme nom complet, et un hote compose qui
+// reference les deux tomberait sur CS0433 a l'usage.
+//
+// Un type public dont le constructeur prend un type interne ne compile pas
+// (CS0051). Cette classe n'est de toute facon resolue que par le conteneur, dans
+// son propre assemblage : la rendre publique n'apportait rien.
+// ═════════════════════════════════════════════════════════════════════════════
+internal sealed class GrpcDeliveryPricingQuoteValidator : IDeliveryPricingQuoteValidator
 {
     private readonly DeliveryPricingApi.DeliveryPricingApiClient _client;
 
