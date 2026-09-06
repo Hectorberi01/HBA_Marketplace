@@ -384,8 +384,11 @@ public static class DependencyInjection
         # ── paquets
         csproj = [os.path.join(infra, f) for f in os.listdir(infra) if f.endswith(".csproj")][0]
         s = io.open(csproj, encoding="utf-8").read()
-        manquants = [p for p in ("Confluent.Kafka",
-                                 "Microsoft.Extensions.Diagnostics.HealthChecks") if f'"{p}"' not in s]
+        # PAS DE PAQUET POUR LES SONDES : `Microsoft.Extensions.Diagnostics.HealthChecks`
+        # est fourni par Microsoft.AspNetCore.App, et le SDK en pose une reference
+        # implicite AVEC version. En ajouter une explicite sous gestion centralisee
+        # des versions donne NU1008 sur les vingt-six projets d'un coup.
+        manquants = [p for p in ("Confluent.Kafka",) if f'"{p}"' not in s]
         if manquants:
             bloc = ("\n  <!-- L'OBSERVABILITE DE CE SERVICE (Observability/). Les sondes\n"
                     "       interrogent vraiment le courtier et le cache ; ces paquets venaient\n"

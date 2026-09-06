@@ -100,7 +100,16 @@
        transitivement du socle. -->
   <ItemGroup>
     <PackageReference Include="Confluent.Kafka" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+  </ItemGroup>
+
+
+  <!-- LES SONDES DE SANTE VIENNENT DU FRAMEWORK, PAS D'UN PAQUET.
+       `IHealthCheck`, `HealthCheckResult` et `AddHealthChecks()` sont fournis
+       par Microsoft.AspNetCore.App. Les demander en PackageReference sous
+       gestion centralisee des versions donne NU1008 : le SDK en pose deja une
+       reference implicite, avec sa version. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>

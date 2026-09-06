@@ -82,7 +82,6 @@
        transitivement du socle. -->
   <ItemGroup>
     <PackageReference Include="Confluent.Kafka" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
   </ItemGroup>
 
 </Project>
