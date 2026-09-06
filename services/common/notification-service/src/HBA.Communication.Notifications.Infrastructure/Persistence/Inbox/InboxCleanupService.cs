@@ -1,9 +1,12 @@
-using HBA.Communication.Notifications.Infrastructure.Persistence.DbContext;
+using HBA.Communication.Notifications.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Communication.Notifications.Infrastructure.Persistence.Outbox;
+using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Communication.Notifications.Infrastructure.Persistence.Inbox;
 
 /// <summary>

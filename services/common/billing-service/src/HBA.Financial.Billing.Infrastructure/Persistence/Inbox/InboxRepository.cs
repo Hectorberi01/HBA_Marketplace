@@ -1,9 +1,11 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Financial.Billing.Infrastructure.Persistence.DbContext;
+using HBA.Financial.Billing.Infrastructure.Persistence;
 using HBA.Financial.Billing.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 using HBA.Shared.Infrastructure.Events;
+using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //

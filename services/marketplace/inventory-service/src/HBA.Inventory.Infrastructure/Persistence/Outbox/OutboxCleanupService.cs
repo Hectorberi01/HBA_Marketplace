@@ -1,11 +1,13 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Inventory.Infrastructure.Persistence.DbContext;
+using HBA.Inventory.Infrastructure.Persistence;
 using HBA.Inventory.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Inventory.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Inventory.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

@@ -1,9 +1,12 @@
-using HBA.Orders.Infrastructure.Persistence.DbContext;
+using HBA.Orders.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Orders.Infrastructure.Persistence.Outbox;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Orders.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Orders.Infrastructure.Persistence.Inbox;
 
 /// <summary>

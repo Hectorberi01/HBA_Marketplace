@@ -1,9 +1,13 @@
 using HBA.Shared.Infrastructure.Idempotency;
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Catalog.Infrastructure.Persistence.DbContext;
+using HBA.Catalog.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Catalog.Infrastructure.Persistence.Outbox;
+using HBA.Catalog.Infrastructure.Persistence.Inbox;
+using HBA.Catalog.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Catalog.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Idempotency`.
 //

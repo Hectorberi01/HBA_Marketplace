@@ -1,5 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Engagement.Recommendations.Infrastructure.Persistence.DbContext;
+using HBA.Engagement.Recommendations.Infrastructure.Persistence;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 using HBA.Shared.Infrastructure.Events;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

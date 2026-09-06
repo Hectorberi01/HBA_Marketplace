@@ -1,7 +1,8 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.FoodCarts.Infrastructure.Persistence.DbContext;
+using HBA.FoodCarts.Infrastructure.Persistence;
 using HBA.FoodCarts.Infrastructure.Persistence.Inbox;
 using HBA.FoodCarts.Infrastructure.Persistence.Outbox;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

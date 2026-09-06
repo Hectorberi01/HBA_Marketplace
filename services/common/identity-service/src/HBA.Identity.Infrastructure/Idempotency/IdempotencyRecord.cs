@@ -1,6 +1,10 @@
 using HBA.Shared.Infrastructure.Idempotency;
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Identity.Infrastructure.Persistence.DbContext;
+using HBA.Identity.Infrastructure.Persistence;
+using HBA.Identity.Infrastructure.Persistence.Outbox;
+using HBA.Identity.Infrastructure.Persistence.Inbox;
+using HBA.Identity.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Identity.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Idempotency`.
 //
@@ -37,7 +41,7 @@ namespace HBA.Identity.Infrastructure.Idempotency;
 /// rendre 409 CONFLICT, jamais la réponse mémorisée d'une autre requête.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
-internal sealed class IdempotencyRecord : IEnregistrementDIdempotence
+public sealed class IdempotencyRecord : IEnregistrementDIdempotence
 {
     /// <summary>Valeur de l'en-tête <c>Idempotency-Key</c> fournie par le client.</summary>
     public string Key { get; init; } = default!;

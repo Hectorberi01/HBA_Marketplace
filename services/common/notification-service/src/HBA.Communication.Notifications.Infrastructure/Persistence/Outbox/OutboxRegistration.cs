@@ -1,5 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Communication.Notifications.Infrastructure.Persistence.DbContext;
+using HBA.Communication.Notifications.Infrastructure.Persistence;
 using HBA.Communication.Notifications.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 using HBA.Shared.Infrastructure.Events;
+using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

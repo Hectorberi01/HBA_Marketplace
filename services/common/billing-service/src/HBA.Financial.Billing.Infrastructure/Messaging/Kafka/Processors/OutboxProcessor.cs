@@ -1,5 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Financial.Billing.Infrastructure.Persistence.DbContext;
+using HBA.Financial.Billing.Infrastructure.Persistence;
 using HBA.Financial.Billing.Infrastructure.Persistence.Inbox;
 using HBA.Financial.Billing.Infrastructure.Persistence.Outbox;
 using System.Diagnostics;
@@ -16,6 +16,7 @@ using HBA.Shared.Application.Context;
 using HBA.Shared.IntegrationEvents;
 using HBA.Shared.Infrastructure.Observability;
 
+using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Retry;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

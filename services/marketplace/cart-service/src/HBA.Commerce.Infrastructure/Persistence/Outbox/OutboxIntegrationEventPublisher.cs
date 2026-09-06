@@ -1,10 +1,12 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Commerce.Infrastructure.Persistence.DbContext;
+using HBA.Commerce.Infrastructure.Persistence;
 using HBA.Commerce.Infrastructure.Persistence.Inbox;
 using System.Text.Json;
 using HBA.Shared.Infrastructure.Serialization;
 using HBA.Shared.IntegrationEvents;
 
+using HBA.Commerce.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Commerce.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

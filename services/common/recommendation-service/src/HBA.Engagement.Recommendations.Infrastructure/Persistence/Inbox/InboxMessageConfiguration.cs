@@ -1,9 +1,11 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Engagement.Recommendations.Infrastructure.Persistence.DbContext;
+using HBA.Engagement.Recommendations.Infrastructure.Persistence;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //

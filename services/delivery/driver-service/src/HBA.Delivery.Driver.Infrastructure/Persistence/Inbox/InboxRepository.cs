@@ -1,9 +1,11 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Drivers.Infrastructure.Persistence.DbContext;
+using HBA.Drivers.Infrastructure.Persistence;
 using HBA.Drivers.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 using HBA.Shared.Infrastructure.Events;
+using HBA.Drivers.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Drivers.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //

@@ -1,8 +1,10 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Routes.Infrastructure.Persistence.DbContext;
+using HBA.Routes.Infrastructure.Persistence;
 using HBA.Routes.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 
+using HBA.Routes.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Routes.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

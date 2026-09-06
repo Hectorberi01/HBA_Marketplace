@@ -1,10 +1,12 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Engagement.Reviews.Infrastructure.Persistence.DbContext;
+using HBA.Engagement.Reviews.Infrastructure.Persistence;
 using HBA.Engagement.Reviews.Infrastructure.Persistence.Inbox;
 using System.Text.Json;
 using HBA.Shared.Infrastructure.Serialization;
 using HBA.Shared.IntegrationEvents;
 
+using HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

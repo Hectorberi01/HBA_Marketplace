@@ -1,7 +1,8 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Delivery.Pricing.Infrastructure.Persistence.DbContext;
+using HBA.Delivery.Pricing.Infrastructure.Persistence;
 using HBA.Delivery.Pricing.Infrastructure.Persistence.Inbox;
 using HBA.Delivery.Pricing.Infrastructure.Persistence.Outbox;
+using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

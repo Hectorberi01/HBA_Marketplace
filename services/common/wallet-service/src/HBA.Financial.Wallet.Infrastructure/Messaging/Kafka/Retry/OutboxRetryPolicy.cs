@@ -1,7 +1,8 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Financial.Wallet.Infrastructure.Persistence.DbContext;
+using HBA.Financial.Wallet.Infrastructure.Persistence;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Inbox;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Outbox;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

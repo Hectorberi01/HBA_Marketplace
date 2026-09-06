@@ -1,5 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Communication.Infrastructure.Persistence.DbContext;
+using HBA.Communication.Infrastructure.Persistence;
 using HBA.Communication.Infrastructure.Persistence.Inbox;
 using HBA.Communication.Infrastructure.Persistence.Outbox;
 using System.Diagnostics;
@@ -16,6 +16,7 @@ using HBA.Shared.Application.Context;
 using HBA.Shared.IntegrationEvents;
 using HBA.Shared.Infrastructure.Observability;
 
+using HBA.Communication.Infrastructure.Messaging.Kafka.Retry;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

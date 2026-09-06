@@ -1,7 +1,8 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Communication.Notifications.Infrastructure.Persistence.DbContext;
+using HBA.Communication.Notifications.Infrastructure.Persistence;
 using HBA.Communication.Notifications.Infrastructure.Persistence.Inbox;
 using HBA.Communication.Notifications.Infrastructure.Persistence.Outbox;
+using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

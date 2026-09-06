@@ -1,9 +1,12 @@
-using HBA.Financial.Wallet.Infrastructure.Persistence.DbContext;
+using HBA.Financial.Wallet.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Financial.Wallet.Infrastructure.Persistence.Outbox;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Financial.Wallet.Infrastructure.Persistence.Inbox;
 
 /// <summary>

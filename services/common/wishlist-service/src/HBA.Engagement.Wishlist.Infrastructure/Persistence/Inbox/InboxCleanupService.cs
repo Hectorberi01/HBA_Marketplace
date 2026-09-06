@@ -1,9 +1,12 @@
-using HBA.Engagement.Wishlist.Infrastructure.Persistence.DbContext;
+using HBA.Engagement.Wishlist.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Engagement.Wishlist.Infrastructure.Persistence.Outbox;
+using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Engagement.Wishlist.Infrastructure.Persistence.Inbox;
 
 /// <summary>

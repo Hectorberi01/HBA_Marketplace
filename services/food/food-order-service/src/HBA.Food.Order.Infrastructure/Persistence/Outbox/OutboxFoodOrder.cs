@@ -3,6 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HBA.FoodOrders.Infrastructure.Persistence.Outbox;
 using HBA.FoodOrders.Infrastructure.Persistence.Inbox;
+using HBA.FoodOrders.Infrastructure.Messaging.Kafka.Outbox.Persistence.Outbox;
+using HBA.FoodOrders.Infrastructure.Messaging.Kafka.Outbox.Persistence.Inbox;
+using HBA.FoodOrders.Infrastructure.Messaging.Kafka.Outbox.Messaging.Kafka.Retry;
+using HBA.FoodOrders.Infrastructure.Messaging.Kafka.Outbox.Messaging.Kafka.Processors;
 namespace HBA.FoodOrders.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>

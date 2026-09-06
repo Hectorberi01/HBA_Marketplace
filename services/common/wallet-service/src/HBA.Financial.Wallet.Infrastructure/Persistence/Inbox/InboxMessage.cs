@@ -1,6 +1,8 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Financial.Wallet.Infrastructure.Persistence.DbContext;
+using HBA.Financial.Wallet.Infrastructure.Persistence;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Outbox;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //
@@ -37,7 +39,7 @@ namespace HBA.Financial.Wallet.Infrastructure.Persistence.Inbox;
 /// soit les deux, soit aucun, jamais l'effet métier sans sa trace.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
-internal sealed class ConsumerInboxEntry : IEntreeDInbox
+public sealed class ConsumerInboxEntry : IEntreeDInbox
 {
     /// <summary>`eventId` de l'enveloppe Kafka (§19.1). UUID v7 côté producteur.</summary>
     public Guid EventId { get; init; }

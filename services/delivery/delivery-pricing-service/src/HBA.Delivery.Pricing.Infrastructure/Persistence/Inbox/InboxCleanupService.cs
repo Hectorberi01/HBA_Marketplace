@@ -1,9 +1,12 @@
-using HBA.Delivery.Pricing.Infrastructure.Persistence.DbContext;
+using HBA.Delivery.Pricing.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Delivery.Pricing.Infrastructure.Persistence.Outbox;
+using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Delivery.Pricing.Infrastructure.Persistence.Inbox;
 
 /// <summary>

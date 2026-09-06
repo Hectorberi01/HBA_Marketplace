@@ -1,7 +1,8 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Drivers.Infrastructure.Persistence.DbContext;
+using HBA.Drivers.Infrastructure.Persistence;
 using HBA.Drivers.Infrastructure.Persistence.Inbox;
 using HBA.Drivers.Infrastructure.Persistence.Outbox;
+using HBA.Drivers.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

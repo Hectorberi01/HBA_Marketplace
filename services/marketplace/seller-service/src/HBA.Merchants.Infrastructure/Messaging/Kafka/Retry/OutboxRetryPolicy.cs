@@ -1,7 +1,8 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Merchants.Infrastructure.Persistence.DbContext;
+using HBA.Merchants.Infrastructure.Persistence;
 using HBA.Merchants.Infrastructure.Persistence.Inbox;
 using HBA.Merchants.Infrastructure.Persistence.Outbox;
+using HBA.Merchants.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

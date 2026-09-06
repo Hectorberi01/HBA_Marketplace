@@ -3,6 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Engagement.Recommendations.Infrastructure.Persistence.Outbox;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence.Inbox;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Outbox.Persistence.Outbox;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Outbox.Persistence.Inbox;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Outbox.Messaging.Kafka.Retry;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Outbox.Messaging.Kafka.Processors;
 namespace HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>

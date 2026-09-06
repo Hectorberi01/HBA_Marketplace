@@ -1,9 +1,12 @@
-using HBA.Merchants.Infrastructure.Persistence.DbContext;
+using HBA.Merchants.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Merchants.Infrastructure.Persistence.Outbox;
+using HBA.Merchants.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Merchants.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Merchants.Infrastructure.Persistence.Inbox;
 
 /// <summary>

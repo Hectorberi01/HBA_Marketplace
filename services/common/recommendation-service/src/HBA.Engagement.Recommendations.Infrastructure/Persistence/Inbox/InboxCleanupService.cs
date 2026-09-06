@@ -1,9 +1,12 @@
-using HBA.Engagement.Recommendations.Infrastructure.Persistence.DbContext;
+using HBA.Engagement.Recommendations.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Engagement.Recommendations.Infrastructure.Persistence.Outbox;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Engagement.Recommendations.Infrastructure.Persistence.Inbox;
 
 /// <summary>

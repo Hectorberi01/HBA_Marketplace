@@ -1,6 +1,10 @@
 using HBA.Shared.Infrastructure.Idempotency;
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Financial.Payments.Infrastructure.Persistence.DbContext;
+using HBA.Financial.Payments.Infrastructure.Persistence;
+using HBA.Financial.Payments.Infrastructure.Persistence.Outbox;
+using HBA.Financial.Payments.Infrastructure.Persistence.Inbox;
+using HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Idempotency`.
 //
@@ -37,7 +41,7 @@ namespace HBA.Financial.Payments.Infrastructure.Idempotency;
 /// rendre 409 CONFLICT, jamais la réponse mémorisée d'une autre requête.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
-internal sealed class IdempotencyRecord : IEnregistrementDIdempotence
+public sealed class IdempotencyRecord : IEnregistrementDIdempotence
 {
     /// <summary>Valeur de l'en-tête <c>Idempotency-Key</c> fournie par le client.</summary>
     public string Key { get; init; } = default!;

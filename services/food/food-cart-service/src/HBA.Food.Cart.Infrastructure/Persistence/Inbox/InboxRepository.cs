@@ -1,9 +1,11 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.FoodCarts.Infrastructure.Persistence.DbContext;
+using HBA.FoodCarts.Infrastructure.Persistence;
 using HBA.FoodCarts.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 using HBA.Shared.Infrastructure.Events;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Retry;
+using HBA.FoodCarts.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //

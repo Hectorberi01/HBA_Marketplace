@@ -1,11 +1,13 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Drivers.Infrastructure.Persistence.DbContext;
+using HBA.Drivers.Infrastructure.Persistence;
 using HBA.Drivers.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Drivers.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Drivers.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

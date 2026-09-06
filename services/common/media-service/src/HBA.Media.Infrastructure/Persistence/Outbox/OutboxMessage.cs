@@ -1,6 +1,8 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Media.Infrastructure.Persistence.DbContext;
+using HBA.Media.Infrastructure.Persistence;
 using HBA.Media.Infrastructure.Persistence.Inbox;
+using HBA.Media.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Media.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //
@@ -22,7 +24,7 @@ namespace HBA.Media.Infrastructure.Persistence.Outbox;
 /// (in-process aujourd'hui, Kafka demain) — garantie « au moins une fois ».
 /// Vit dans le schéma du module propriétaire.
 /// </summary>
-internal sealed class OutboxMessage : IMessageDOutbox
+public sealed class OutboxMessage : IMessageDOutbox
 {
     public Guid Id { get; init; } = Guid.NewGuid();
 

@@ -4,6 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Merchants.Infrastructure.Persistence.Outbox;
 using HBA.Merchants.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
+using HBA.Merchants.Infrastructure.Messaging.Kafka.Inbox.Persistence.Outbox;
+using HBA.Merchants.Infrastructure.Messaging.Kafka.Inbox.Persistence.Inbox;
+using HBA.Merchants.Infrastructure.Messaging.Kafka.Inbox.Messaging.Kafka.Retry;
+using HBA.Merchants.Infrastructure.Messaging.Kafka.Inbox.Messaging.Kafka.Processors;
 namespace HBA.Merchants.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>

@@ -1,8 +1,10 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Engagement.Wishlist.Infrastructure.Persistence.DbContext;
+using HBA.Engagement.Wishlist.Infrastructure.Persistence;
 using HBA.Engagement.Wishlist.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 
+using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //

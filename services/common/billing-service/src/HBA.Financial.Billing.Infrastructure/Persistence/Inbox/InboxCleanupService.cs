@@ -1,9 +1,12 @@
-using HBA.Financial.Billing.Infrastructure.Persistence.DbContext;
+using HBA.Financial.Billing.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using HBA.Financial.Billing.Infrastructure.Persistence.Outbox;
+using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Financial.Billing.Infrastructure.Persistence.Inbox;
 
 /// <summary>

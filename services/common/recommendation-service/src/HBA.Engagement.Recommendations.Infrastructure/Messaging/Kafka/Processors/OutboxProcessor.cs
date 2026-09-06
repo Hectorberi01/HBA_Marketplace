@@ -1,5 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
-using HBA.Engagement.Recommendations.Infrastructure.Persistence.DbContext;
+using HBA.Engagement.Recommendations.Infrastructure.Persistence;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence.Inbox;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence.Outbox;
 using System.Diagnostics;
@@ -16,6 +16,7 @@ using HBA.Shared.Application.Context;
 using HBA.Shared.IntegrationEvents;
 using HBA.Shared.Infrastructure.Observability;
 
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Retry;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
 //
