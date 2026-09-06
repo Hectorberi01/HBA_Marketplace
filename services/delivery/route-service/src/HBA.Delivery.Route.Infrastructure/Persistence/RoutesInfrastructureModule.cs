@@ -6,8 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Routes.Infrastructure.Caching.Redis;
 using Microsoft.Extensions.Configuration;
 using HBA.Routes.Infrastructure.Observability;
-using HBA.Routes.Infrastructure.Persistence.Outbox;
-using HBA.Routes.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Routes.Infrastructure;
 

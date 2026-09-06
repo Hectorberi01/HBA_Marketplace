@@ -4,8 +4,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using HBA.Routes.Infrastructure.Messaging.Kafka.Producers;
 
-using HBA.Routes.Infrastructure.Persistence.Outbox;
-using HBA.Routes.Infrastructure.Persistence.Inbox;
 namespace HBA.Routes.Infrastructure.Messaging.Kafka.Configuration;
 
 /// <summary>

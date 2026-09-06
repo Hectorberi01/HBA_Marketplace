@@ -136,7 +136,7 @@ public sealed class OutboxProcessor : BackgroundService
     private async Task ProcessBatchAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService();
+        var dbContext = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
         var publisher = scope.ServiceProvider.GetRequiredService<IKafkaIntegrationEventPublisher>();
 
         var nowUtc = DateTime.UtcNow;

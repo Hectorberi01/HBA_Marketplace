@@ -183,7 +183,7 @@ public sealed class OutboxPurger : BackgroundService
         while (!cancellationToken.IsCancellationRequested)
         {
             using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService();
+            var dbContext = scope.ServiceProvider.GetRequiredService<MediaDbContext>();
 
             var identifiants = await dbContext.OutboxMessages
                 .Where(m => m.ProcessedOnUtc != null

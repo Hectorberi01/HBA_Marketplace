@@ -171,7 +171,7 @@ public sealed class IdempotencyPurger : BackgroundService
         while (!cancellationToken.IsCancellationRequested)
         {
             using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService();
+            var dbContext = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
 
             // MAINTENANT EST RELU À CHAQUE TRANCHE, et non figé avant la boucle :
             // une purge longue ne doit pas laisser derrière elle les lignes qui ont
