@@ -1,32 +1,24 @@
-# `Mappers/` — vide aujourd'hui, et voici pourquoi
+# `Grpc/Mappers/`
 
-Ce dossier accueillera les traductions proto <-> enregistrements de contrats de ce service.
+Vide dans **HBA.Inventory.Infrastructure**.
 
-**Aujourd'hui, ils vivent dans `shared/contracts/HBA.<Domaine>.Contracts.Grpc`,
-en un seul exemplaire par domaine**, partagé par tous les appelants.
+**Ce qui va ici :** les traductions proto <-> enregistrements de contrats, POSEES
+A COTE DU CLIENT OU DU SERVEUR QUI S'EN SERT.
 
-## Ce qui bloque leur descente ici
+**Ou ca vit aujourd'hui :** chez chaque appelant qui en a besoin
+(`Infrastructure/Grpc/Mappers/`) et chez chaque serveur (`<Service>.Api/Grpc/Mappers/`).
+Les enveloppes partagees `shared/contracts/HBA.<Domaine>.Contracts.Grpc`, qui
+portaient une traduction unique par domaine, ont ete dissoutes par le lot D.
 
-Un adaptateur implémente `I<Domaine>ModuleApi` **en entier** — l'interface l'exige.
-Une copie par service consommateur serait donc une copie INTÉGRALE, sans la
-réduction qui la rendrait défendable : `merchant.proto` a neuf consommateurs, et
-les neuf devraient porter les mêmes treize traductions.
+**Pourquoi ce dossier est vide ici :** ce projet n'a ni client gRPC a nourrir,
+ni serveur a servir — ou son serveur vit dans son projet `.Api`, avec ses
+propres mappings.
 
-Deux domaines sur quinze échappent à cette règle, parce qu'ils exposent DEUX
-interfaces séparées :
+---
 
-- `HBA.Merchants` — `ISellerModuleApi` et `IMerchantAccessApi`
-- `HBA.Deliveries` — `IDeliveryModuleApi` et `IDeliveryDispatchApi`
+Ce fichier existe parce que git ne versionne pas les dossiers vides : sans lui,
+ce dossier n'existerait que sur la machine ou il a ete cree. Le supprimer quand
+le dossier recoit du vrai contenu.
 
-Là, un consommateur qui n'a besoin que d'une des deux peut n'en porter qu'une.
-Partout ailleurs, réduire supposerait de découper `I<X>ModuleApi` par appelant —
-un vrai travail de conception, pas un déplacement de fichiers.
-
-## Ce qui est décidé, et ce qui ne l'est pas
-
-Décidé : le CÂBLAGE descend ici — `Grpc/DependencyInjection.cs` et
-`Grpc/Configuration/`. C'est ce qui rend la liste des dépendances d'un service
-lisible en un fichier.
-
-Pas décidé : la duplication des adaptateurs. Elle coûte environ 12 500 lignes
-copiées contre 2 700 aujourd'hui, et elle ne peut pas être réduite comme prévu.
+La regle de partage du depot, la meme depuis la migration Kafka : **ce dossier
+porte la politique de ce service, le socle partage porte le type et le protocole.**

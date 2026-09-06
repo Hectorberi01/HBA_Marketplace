@@ -1,10 +1,15 @@
 # `Persistence/Outbox/`
 
-Vide dans **HBA.Gateway.Infrastructure**.
+Vide dans **HBA.Gateway.Infrastructure** : ce service ne publie rien par outbox.
 
-**Ce qui va ici :** le CABLAGE de l'outbox de ce service, pas une copie de l'entite.
+**Ce qui va ici :** `OutboxMessage`, sa configuration EF, le depot, la purge,
+l'enregistrement et le publieur d'evenements d'integration.
 
-**Ou ca vit aujourd'hui :** `HBA.Shared.Infrastructure.Outbox` — `OutboxMessage` est une entite EF dont les colonnes sont creees par les migrations de 18 services sur la MEME table, et `OutboxProcessor<TDbContext>` est deja generique sur le DbContext de ce service. Le service possede donc deja son outbox a l'execution ; une copie du code ne lui donnerait que le droit de diverger de la table.
+**Ou ca vit aujourd'hui :** dans les VINGT-QUATRE services qui publient, chacun
+dans son propre `Persistence/Outbox/`. `HBA.Shared.Infrastructure.Outbox`
+n'existe plus : le drain reste au socle (`ModuleDbContext`, `DrainageDOutbox`,
+seule lecture de `OUTBOX_ENABLED`), parce qu'un evenement doit partir dans la
+MEME transaction que le fait qui l'a produit — cette regle-la ne se duplique pas.
 
 ---
 

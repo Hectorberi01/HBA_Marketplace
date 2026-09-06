@@ -1,10 +1,17 @@
 # `Grpc/Clients/`
 
-Vide dans **HBA.Financial.Billing.Infrastructure**.
+Vide dans **HBA.Financial.Billing.Infrastructure**, et ce n'est pas un manque : ce service n'appelle aucun
+voisin en gRPC. Sa table d'autorisations le dit aussi — `FrozenSet<string>.Empty`
+ou l'absence d'entree dans `AutorisationsGrpc`.
 
-**Ce qui va ici :** les adaptateurs `I<X>ModuleApi` vers le stub gRPC.
+**Ce qui va ici :** les adaptateurs `I<X>ModuleApi` vers le stub gRPC, un par
+voisin appele, avec le `<Protobuf GrpcServices="Client">` qui va avec dans le
+csproj.
 
-**Ou ca vit aujourd'hui :** `shared/contracts/HBA.<X>.Contracts.Grpc`, un par domaine. Un adaptateur implemente l'interface ENTIERE : une copie par consommateur serait integrale.
+**Ou ca vit aujourd'hui :** chez CHAQUE appelant, dans son propre
+`Infrastructure/Grpc/Clients/` — quinze projets en ont un. Les enveloppes
+partagees `shared/contracts/HBA.<X>.Contracts.Grpc` ont ete dissoutes par le
+lot D : un adaptateur appartient a celui qui appelle, pas au domaine appele.
 
 ---
 

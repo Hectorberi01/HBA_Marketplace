@@ -1,10 +1,16 @@
 # `Persistence/Inbox/`
 
-Vide dans **HBA.Gateway.Infrastructure**.
+Vide dans **HBA.Gateway.Infrastructure** : ce service ne consomme aucun evenement d'integration.
 
-**Ce qui va ici :** le cablage de la garde anti-doublon.
+**Ce qui va ici :** `InboxMessage`, sa configuration EF, le depot et la purge.
 
-**Ou ca vit aujourd'hui :** `HBA.Shared.Infrastructure.Inbox` — `ConsumerInboxEntry` et `EfConsumerInbox`. MANQUE ENCORE : rien ne purge `consumer_inbox`, contrairement a l'outbox et a l'idempotence qui ont leur purger.
+**Ou ca vit aujourd'hui :** dans les services qui consomment, chacun dans son
+propre `Persistence/Inbox/`. `HBA.Shared.Infrastructure.Inbox` n'existe plus ;
+seul le port `IConsumerInbox` reste au socle, parce que le dispatcher partage
+verifie l'idempotence avant CHAQUE gestionnaire.
+
+La purge, elle, n'existait nulle part avant ce lot : `consumer_inbox` grossissait
+indefiniment dans les quinze services qui consomment.
 
 ---
 
