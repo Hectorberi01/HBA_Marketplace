@@ -1,0 +1,16 @@
+# `Caching/Redis/Keys/`
+
+Vide dans **HBA.Inventory.Infrastructure**.
+
+**Ce qui va ici :** les cles de cache de CE service — elles lui appartiennent vraiment.
+
+**Ou ca vit aujourd'hui :** a plat dans l'Infrastructure des services qui en ont (`CartCacheKeys`, `FoodCartCacheKeys`)
+
+---
+
+Ce fichier existe parce que git ne versionne pas les dossiers vides : sans lui,
+ce dossier n'existerait que sur la machine ou il a ete cree. Le supprimer quand
+le dossier recoit du vrai contenu.
+
+La regle de partage du depot, la meme depuis la migration Kafka : **ce dossier
+porte la politique de ce service, le socle partage porte le type et le protocole.**
