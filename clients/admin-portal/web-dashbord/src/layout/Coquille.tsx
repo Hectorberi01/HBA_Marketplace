@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
 import SideBar from '../components/SideBar/SideBar'
 import { Logo } from '../components/Icones'
 import { NAVIGATION } from './navigation'
@@ -30,9 +30,21 @@ export default function Coquille() {
                 }
                 footer={
                     <div className="pied-lateral">
-                        <span title={jeton?.email ?? undefined}>
-                            {jeton?.email ?? jeton?.nom ?? 'Session'}
-                        </span>
+                        {/*
+                          * L'ADRESSE DEVIENT LE LIEN VERS SON PROPRE COMPTE.
+                          *
+                          * C'est là qu'on la cherche, et elle ne menait nulle part.
+                          * Un vrai lien plutôt qu'un `onClick` : onglet, clavier et
+                          * lecteur d'écran gratuits — la même leçon que sur les
+                          * entrées de navigation.
+                          */}
+                        <Link
+                            to="/profil"
+                            className="lien-fiche"
+                            title={jeton?.email ?? undefined}
+                        >
+                            {jeton?.email ?? jeton?.nom ?? 'Mon compte'}
+                        </Link>
                         <button
                             type="button"
                             className="lien-deconnexion"

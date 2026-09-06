@@ -4,6 +4,7 @@ import RouteProtegee from './routes/RouteProtegee'
 import ConnexionPage from './pages/ConnexionPage'
 import InterditPage from './pages/InterditPage'
 import IntrouvablePage from './pages/IntrouvablePage'
+import ProfilPage from './features/compte/ProfilPage'
 import HomePage from './pages/HomePage'
 import MonitoringPage from './features/monitoring/MonitoringPage'
 import CommandesPage from './features/commandes/CommandesPage'
@@ -47,6 +48,7 @@ export default function App() {
             <Route element={<RouteProtegee />}>
                 <Route element={<Coquille />}>
                     <Route index element={<HomePage />} />
+                    <Route path="profil" element={<ProfilPage />} />
                     <Route path="supervision" element={<MonitoringPage />} />
 
                     <Route path="commandes" element={<CommandesPage />} />
