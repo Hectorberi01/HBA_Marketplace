@@ -59,7 +59,15 @@ internal sealed class GardeDeCablage(
         // sans le dire etait le pire des trois : le code affirme publier, et rien
         // ne sort.
         // ═════════════════════════════════════════════════════════════════════
-        if (EvenementsPublies.Types.Count > 0 && services.GetService<IOutboxDbContext>() is null)
+        // LA SONDE `GetService<IOutboxDbContext>()` A DISPARU AVEC LE TYPE.
+        //
+        // Elle demandait au conteneur si une table d'outbox existait. Depuis que
+        // l'outbox est descendue dans les services, `IOutboxDbContext` n'est plus
+        // un type PARTAGE : chaque service qui en a une le declare chez lui, et
+        // route-service n'en declare aucun — il n'a pas de base. La condition
+        // n'est donc plus une question, c'est un fait, et elle s'ecrit sans
+        // interroger le conteneur.
+        if (EvenementsPublies.Types.Count > 0)
         {
             journal.LogCritical(
                 "PUBLICATIONS SANS OUTBOX : ce service déclare publier {Nombre} événement(s) "
