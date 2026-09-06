@@ -11,12 +11,16 @@ namespace HBA.Shared.Hosting.Grpc;
 public sealed class InternalCallClientInterceptor : Interceptor
 {
     private readonly IOptions<InternalCallOptions> _options;
+    private readonly IOptions<EcheancesGrpcOptions> _echeances;
     private readonly IHttpContextAccessor _accessor;
 
     public InternalCallClientInterceptor(
-        IOptions<InternalCallOptions> options, IHttpContextAccessor accessor)
+        IOptions<InternalCallOptions> options,
+        IOptions<EcheancesGrpcOptions> echeances,
+        IHttpContextAccessor accessor)
     {
         _options = options;
+        _echeances = echeances;
         _accessor = accessor;
     }
 
@@ -109,12 +113,26 @@ public sealed class InternalCallClientInterceptor : Interceptor
         // besoin d'un délai différent peut toujours le fournir — on ne l'écrase
         // pas.
         //
-        // 5 secondes correspond au `TotalTimeout` déjà retenu pour les clients
-        // HTTP de la passerelle. Valeur de départ, à ajuster sur des mesures.
+        // LA VALEUR N'EST PLUS EN DUR : ELLE VIENT DE `EcheancesGrpcOptions`.
+        //
+        // Le défaut reste CINQ SECONDES et reste posé ici — c'est cette ligne qui
+        // rend l'oubli impossible, et la déplacer dans les modules la rendrait
+        // oubliable. Ce qui change, c'est qu'un service appelant peut désormais
+        // dire « pour MerchantApi, moi, c'est 800 ms », depuis son propre module
+        // gRPC ou depuis la configuration. Le commentaire d'origine demandait ce
+        // réglage — « valeur de départ, à ajuster sur des mesures » — sans qu'il
+        // existe d'endroit où l'écrire.
+        //
+        // LA SURCHARGE EST CHERCHÉE PAR SERVICE APPELÉ, PAS PAR MÉTHODE. Deux RPC
+        // du même service qui auraient besoin d'échéances différentes ne sont pas
+        // couverts : c'est un cas réel — lire un panier et le valider n'ont pas le
+        // même coût — mais il n'existe pas encore ici, et une clé par méthode
+        // multiplierait par cinq le nombre de réglages à tenir justes.
         // ═════════════════════════════════════════════════════════════════════
         if (options.Deadline is null)
         {
-            options = options.WithDeadline(DateTime.UtcNow.AddSeconds(5));
+            options = options.WithDeadline(
+                DateTime.UtcNow + _echeances.Value.Pour(context.Method.ServiceName));
         }
 
         return continuation(request, new ClientInterceptorContext<TRequest, TResponse>(

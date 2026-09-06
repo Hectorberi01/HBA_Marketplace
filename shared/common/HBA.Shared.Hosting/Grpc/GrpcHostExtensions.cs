@@ -81,6 +81,15 @@ public static class GrpcHostExtensions
         builder.Services.AddSingleton<InternalCallServerInterceptor>();
         builder.Services.AddSingleton<InternalCallClientInterceptor>();
 
+        // L'ÉCHÉANCE DES APPELS SORTANTS EST DÉSORMAIS RÉGLABLE.
+        //
+        // Sans cette ligne, `IOptions<EcheancesGrpcOptions>` rend une instance
+        // neuve — donc le défaut de cinq secondes, exactement le comportement
+        // d'avant. Elle n'est donc pas une condition de bon fonctionnement, mais
+        // la condition pour qu'une surcharge écrite en configuration soit LUE.
+        // Voir `EcheancesGrpcOptions`, y compris ce qu'elle ne couvre pas.
+        builder.Services.AjouterLesEcheancesGrpc(builder.Configuration);
+
         // SINGLETON, ET C'EST LA CONDITION POUR QU'IL SERVE À QUELQUE CHOSE.
         //
         // Un disjoncteur EST un état : le compte d'échecs sur la fenêtre glissante

@@ -90,6 +90,13 @@ public static class TokenRevocationExtensions
         // enregistre tous les deux ; la passerelle n'appelle pas `AddHbaGrpc`.
         services.AddSingleton<DisjoncteurClientInterceptor>();
 
+        // MÊME MOTIF QUE LES DEUX INTERCEPTEURS CI-DESSUS : `AddHbaGrpc` le fait
+        // pour les vingt-trois services, la passerelle ne l'appelle pas. Sans
+        // cette ligne, la passerelle garderait le défaut de cinq secondes sur son
+        // appel de révocation quoi qu'on écrive dans sa configuration — un réglage
+        // sans effet, c'est-à-dire le pire des deux mondes.
+        services.AjouterLesEcheancesGrpc(configuration);
+
         // LÈVE À LA CONSTRUCTION DE L'HÔTE si `Services:Identity` est absente.
         // C'est déjà le cas sans ce fichier : `ServicesOptions.Identity` porte
         // `[Required, Url]` et la validation est vérifiée au démarrage.
