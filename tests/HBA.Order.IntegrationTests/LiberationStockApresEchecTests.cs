@@ -43,6 +43,24 @@ public sealed class LiberationStockApresEchecTests
     /// dériver le test AVEC le producteur, en silence, pendant que les messages
     /// déjà en rétention et les autres services resteraient sur l'ancien nom. Un
     /// nom d'événement est un contrat, et un contrat se relit.
+    ///
+    /// CE LITTERAL A DEJA ETE REECRIT UNE FOIS PAR UN SCRIPT, ET LE TEST EST PASSE.
+    ///
+    /// La migration des modules Kafka a deplace le gestionnaire de
+    /// `Application/Orders/EventHandlers` vers
+    /// `Infrastructure/Messaging/Kafka/Consumers`. Une reparation automatique des
+    /// espaces de noms a suivi le deplacement JUSQU'ICI : elle a mis a jour la
+    /// chaîne, et ce test — ecrit precisement pour attraper ce cas — est devenu
+    /// vert en validant la rupture.
+    ///
+    /// C'est ce que la remarque ci-dessus decrivait : un test qui lit le nom
+    /// depuis la classe passe quoi qu'il arrive. Un litteral que l'outillage
+    /// reecrit fait exactement pareil.
+    ///
+    /// LA VALEUR CI-DESSOUS EST CELLE QUI EST EN BASE EN PRODUCTION. Elle vient de
+    /// `[NomDeConsommateur]` pose sur le gestionnaire, pas de son espace de noms
+    /// actuel. Les deux ne coincident plus, et c'est voulu : la cle ne suit pas les
+    /// deplacements de fichier.
     /// </remarks>
     private const string TypeEchec = "payment.failed";
 
@@ -53,7 +71,7 @@ public sealed class LiberationStockApresEchecTests
     /// traités » tous les événements de l'historique.
     /// </summary>
     private const string ConsommateurEchec =
-        "HBA.Orders.Infrastructure.Messaging.Kafka.Consumers.CancelOrderOnPaymentFailedHandler";
+        "HBA.Orders.Application.Orders.EventHandlers.CancelOrderOnPaymentFailedHandler";
 
     private readonly OrderIntegrationFixture _fixture;
 

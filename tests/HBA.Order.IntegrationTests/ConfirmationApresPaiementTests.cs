@@ -72,9 +72,27 @@ public sealed class ConfirmationApresPaiementTests
     /// tous les événements de l'historique : au prochain rejeu, ils referaient
     /// leur effet. Un renommage de handler est une migration, pas du confort
     /// d'IDE — d'où le littéral.
+    ///
+    /// CE LITTERAL A DEJA ETE REECRIT UNE FOIS PAR UN SCRIPT, ET LE TEST EST PASSE.
+    ///
+    /// La migration des modules Kafka a deplace le gestionnaire de
+    /// `Application/Orders/EventHandlers` vers
+    /// `Infrastructure/Messaging/Kafka/Consumers`. Une reparation automatique des
+    /// espaces de noms a suivi le deplacement JUSQU'ICI : elle a mis a jour la
+    /// chaîne, et ce test — ecrit precisement pour attraper ce cas — est devenu
+    /// vert en validant la rupture.
+    ///
+    /// C'est ce que la remarque ci-dessus decrivait : un test qui lit le nom
+    /// depuis la classe passe quoi qu'il arrive. Un litteral que l'outillage
+    /// reecrit fait exactement pareil.
+    ///
+    /// LA VALEUR CI-DESSOUS EST CELLE QUI EST EN BASE EN PRODUCTION. Elle vient de
+    /// `[NomDeConsommateur]` pose sur le gestionnaire, pas de son espace de noms
+    /// actuel. Les deux ne coincident plus, et c'est voulu : la cle ne suit pas les
+    /// deplacements de fichier.
     /// </remarks>
     private const string ConsommateurCapture =
-        "HBA.Orders.Infrastructure.Messaging.Kafka.Consumers.ConfirmOrderOnPaymentCapturedHandler";
+        "HBA.Orders.Application.Orders.EventHandlers.ConfirmOrderOnPaymentCapturedHandler";
 
     /// <summary>`OrderConfirmedIntegrationEvent` → `order.confirmed`. Même règle.</summary>
     private const string TypeConfirmation = "order.confirmed";
