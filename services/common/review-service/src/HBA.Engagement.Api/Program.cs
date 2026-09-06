@@ -14,22 +14,17 @@ using HBA.Merchants.Contracts.Grpc;
 using HBA.Ordering.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
+using HBA.Engagement.Reviews.Infrastructure.Grpc;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<ReviewsDbContext>(new ReviewsModuleInstaller());
-builder.Services.AddOrderingGrpcClient(builder.Configuration);
-
-// ═════════════════════════════════════════════════════════════════════════════
-// LA RÉSOLUTION VENDEUR — SANS ELLE, LA RÉPONSE AUX AVIS RESTE OUVERTE À TOUS.
+// LES CLIENTS gRPC DE CE SERVICE SONT DANS SON MODULE (lot C).
 //
-// `AddMerchantsGrpcClient` LÈVE SI `Services:Merchant` EST ABSENT.
-//
-// La levée se produit à la CONSTRUCTION de l'hôte, donc le conteneur ne démarre
-// pas du tout. C'est exactement ce qui était arrivé à ce service avec
-// `Services:Order` — voir le commentaire de `compose.services.yml`. La clé est
-// donc posée dans le même bloc, et `AuthorizationTestFactory` la fournit déjà.
-// ═════════════════════════════════════════════════════════════════════════════
-builder.Services.AddMerchantsGrpcClient(builder.Configuration);
+// Ils etaient enregistres ici, un par un, chacun precede de la raison
+// qui l'avait fait ajouter. Ces raisons ont voyage avec eux vers
+// `Infrastructure/Grpc/DependencyInjection.cs` — les separer aurait
+// produit deux mensonges : un commentaire sans code, du code sans raison.
+builder.Services.AjouterClientsGrpcEngagementReviews(builder.Configuration);
 
 builder.AddHbaGrpc();
 

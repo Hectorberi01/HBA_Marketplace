@@ -38,4 +38,12 @@
     <ProjectReference Include="..\..\..\..\shared\contracts\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
   </ItemGroup>
 
+
+  <!-- LES CLIENTS gRPC DE CE SERVICE (lot C). Les stubs et les adaptateurs
+       vivent encore dans les assemblages de contrats ; le CABLAGE, lui, est
+       ici, dans Grpc/. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\shared\contracts\HBA.Identity.Contracts.Grpc\HBA.Identity.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
 </Project>

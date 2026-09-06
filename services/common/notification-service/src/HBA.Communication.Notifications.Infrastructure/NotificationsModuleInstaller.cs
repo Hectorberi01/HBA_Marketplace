@@ -290,30 +290,9 @@ public sealed class NotificationsModuleInstaller : IModuleInstaller
         // Les gestionnaires d'evenements sont enregistres par le module de
         // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
         // LITIGES. À l'ouverture, l'ADMIN est alerté (sinon rien ne remonte hors console) ;
         // à la résolution, l'ACHETEUR apprend la décision.
         services.AddScoped<AdminNotificationTarget>();
-
-
-
-
-
-
-
-
 
     }
 

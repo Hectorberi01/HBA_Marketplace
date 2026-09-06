@@ -8,39 +8,18 @@ using HBA.Products.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
 using HBA.Catalog.Api.Grpc.Services;
+using HBA.Catalog.Infrastructure.Grpc;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<CatalogDbContext>(new CatalogModuleInstaller());
 
-// ═════════════════════════════════════════════════════════════════════════
-// UNE SEULE LIGNE MANQUAIT POUR FERMER UN IDOR OUVERT DEPUIS L'ORIGINE.
+// LES CLIENTS gRPC DE CE SERVICE SONT DANS SON MODULE (lot C).
 //
-// `CatalogEndpoints` affirmait que la propriété était invérifiable parce que
-// « catalog-service ne référence pas HBA.Merchants.Contracts ». C'était faux :
-// `HBA.Catalog.Application` le référence depuis toujours (pour les événements
-// d'intégration du cycle de vie vendeur), le `COPY` est dans le Dockerfile et
-// `SERVICES__MERCHANT` est dans le compose.
-//
-// Il ne manquait que l'ENREGISTREMENT du client. Le commentaire décrivait une
-// impossibilité là où il y avait un oubli — et c'est ce qui l'a laissé vivre.
-// ═════════════════════════════════════════════════════════════════════════
-builder.Services.AddMerchantsGrpcClient(builder.Configuration);
-
-// ═════════════════════════════════════════════════════════════════════════
-// LE MÊME OUBLI SE REJOUAIT AVEC LE MÉDIA.
-//
-// `AddProductMediaCommandHandler` dépend maintenant de `IMediaModuleApi` pour
-// vérifier qu'une image appartient bien au produit avant de l'afficher. Cette
-// dépendance ne se voit qu'à l'exécution : sans cette ligne, le conteneur
-// démarre, la vitrine fonctionne, et SEUL le rattachement d'image casse — avec
-// une 500 que rien ne relie à une configuration manquante.
-//
-// `SERVICES__MEDIA` est déjà posé par `docker-compose.dev.yml` et par le
-// ConfigMap de déploiement ; là encore, il ne manquait que l'enregistrement.
-// (Cette ligne citait `infra/docker/env/catalog.env`, dossier retiré du dépôt
-// le 27 août.)
-// ═════════════════════════════════════════════════════════════════════════
-builder.Services.AddMediaGrpcClient(builder.Configuration);
+// Ils etaient enregistres ici, un par un, chacun precede de la raison
+// qui l'avait fait ajouter. Ces raisons ont voyage avec eux vers
+// `Infrastructure/Grpc/DependencyInjection.cs` — les separer aurait
+// produit deux mensonges : un commentaire sans code, du code sans raison.
+builder.Services.AjouterClientsGrpcCatalog(builder.Configuration);
 
 builder.AddHbaGrpc();
 

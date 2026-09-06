@@ -272,9 +272,6 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         // Les gestionnaires d'evenements sont enregistres par le module de
         // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-
-
-
         // Validators FluentValidation du module.
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 

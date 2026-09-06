@@ -23,4 +23,16 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
   </ItemGroup>
 
+
+  <!-- LES CLIENTS gRPC DE CE SERVICE (lot C). Les stubs et les adaptateurs
+       vivent encore dans les assemblages de contrats ; le CABLAGE, lui, est
+       ici, dans Grpc/. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Deliveries.Contracts.Grpc\HBA.Deliveries.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Food.Contracts.Grpc\HBA.Food.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.FoodOrders.Contracts.Grpc\HBA.FoodOrders.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Order.Contracts.Grpc\HBA.Order.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
 </Project>

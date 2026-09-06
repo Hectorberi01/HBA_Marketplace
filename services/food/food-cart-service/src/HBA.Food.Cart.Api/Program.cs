@@ -9,24 +9,18 @@ using HBA.FoodOrders.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
 using HBA.FoodCarts.Api.Grpc.Services;
+using HBA.FoodCarts.Infrastructure.Grpc;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<FoodCartDbContext>(new FoodCartModuleInstaller());
 
-// La carte du restaurant : c'est elle qui donne le prix, et non le client.
-builder.Services.AddFoodGrpcClient(builder.Configuration);
-
-// La commande de repas : « cet acheteur en est-il à sa première ? », sans quoi
-// les promotions « première commande » seraient inapplicables.
-builder.Services.AddFoodOrdersGrpcClient(builder.Configuration);
-
-// LES PROMOTIONS — SANS CE CLIENT, LE PANIER DE REPAS N'A PAS DE TARIFICATION.
+// LES CLIENTS gRPC DE CE SERVICE SONT DANS SON MODULE (lot C).
 //
-// `PromotionPricingModuleApi` prend un `IPromotionModuleApi` ; cette ligne est ce
-// qui le fournit. `AddPromotionGrpcClient` LÈVE à la construction de l'hôte si
-// `Services:Promotion` est absent — le service ne démarre pas, plutôt que de
-// refuser tout coupon en silence, ce qu'il faisait avant le 29 août 2026.
-builder.Services.AddPromotionGrpcClient(builder.Configuration);
+// Ils etaient enregistres ici, un par un, chacun precede de la raison
+// qui l'avait fait ajouter. Ces raisons ont voyage avec eux vers
+// `Infrastructure/Grpc/DependencyInjection.cs` — les separer aurait
+// produit deux mensonges : un commentaire sans code, du code sans raison.
+builder.Services.AjouterClientsGrpcFoodCart(builder.Configuration);
 
 builder.AddHbaGrpc();
 

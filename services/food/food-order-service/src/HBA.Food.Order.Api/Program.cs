@@ -10,38 +10,18 @@ using HBA.FoodOrders.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 
 using HBA.FoodOrders.Api.Grpc.Services;
+using HBA.FoodOrders.Infrastructure.Grpc;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<MealOrderingDbContext>(new MealOrderingModuleInstaller());
 
-// LE PANIER VIT DANS food-cart-service, ET LE PASSAGE EN COMMANDE EN DÉPEND.
+// LES CLIENTS gRPC DE CE SERVICE SONT DANS SON MODULE (lot C).
 //
-// Sans ce client, `IFoodCartModuleApi` n'a aucune implémentation et la
-// validation du conteneur refuse de démarrer le service. C'est exactement ce qui
-// est arrivé à order-service le jour où le panier a été extrait.
-builder.Services.AddFoodCartsGrpcClient(builder.Configuration);
-
-// La carte et l'appartenance au personnel : le restaurant prend-il encore des
-// commandes, et ce compte y travaille-t-il ?
-builder.Services.AddFoodGrpcClient(builder.Configuration);
-
-// LE DEVIS DE COURSE, RELU ET JAMAIS REDEMANDÉ.
-//
-// `RequestQuoteAsync` ÉCRIT et rendrait un SECOND prix, calculé sur la grille de
-// l'instant : on facturerait un montant que le client n'a jamais accepté. Seule
-// `LookupQuoteAsync` satisfait les deux exigences — le serveur impose le prix, ET
-// c'est le prix affiché.
-builder.Services.AddDeliveryGrpcClient(builder.Configuration);
-
-// ═════════════════════════════════════════════════════════════════════════
-// LE DEVIS DE COURSE SE RELIT CHEZ delivery-pricing.
-//
-// `DeliveryApi.LookupQuote` n'a JAMAIS eu de corps de serveur : le checkout
-// rendait `UNIMPLEMENTED` sur toute commande portant un devis. Et
-// delivery-service n'a plus de domaine de tarification — l'implémenter chez lui
-// aurait interrogé une table vide. Ce client-ci apporte `IDeliveryQuoteLookup`.
-// ═════════════════════════════════════════════════════════════════════════
-builder.Services.AddDeliveryPricingGrpcClient(builder.Configuration);
+// Ils etaient enregistres ici, un par un, chacun precede de la raison
+// qui l'avait fait ajouter. Ces raisons ont voyage avec eux vers
+// `Infrastructure/Grpc/DependencyInjection.cs` — les separer aurait
+// produit deux mensonges : un commentaire sans code, du code sans raison.
+builder.Services.AjouterClientsGrpcFoodOrder(builder.Configuration);
 
 builder.AddHbaGrpc();
 

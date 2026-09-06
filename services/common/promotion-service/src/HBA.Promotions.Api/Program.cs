@@ -11,6 +11,7 @@ using HBA.Shared.Hosting;
 using HBA.Shared.IntegrationEvents;
 
 using HBA.Promotions.Api.Grpc.Services;
+using HBA.Promotions.Infrastructure.Grpc;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<PromotionsDbContext>(new PromotionsModuleInstaller());
@@ -22,30 +23,13 @@ builder.AddHbaService<PromotionsDbContext>(new PromotionsModuleInstaller());
 // service — `validate` — sert un écran ; c'est ici que passe l'argent.
 builder.AddHbaGrpc();
 
-// ═════════════════════════════════════════════════════════════════════════════
-// SANS CE CLIENT, LES TROIS ROUTES MARCHAND NE SAVENT PAS À QUI PARLE LE JETON.
+// LES CLIENTS gRPC DE CE SERVICE SONT DANS SON MODULE (lot C).
 //
-// Elles étaient fermées à `RequireAdmin` PAR DÉFAUT DE PROPRIÉTAIRE — c'était
-// écrit noir sur blanc dans `PromotionEndpoints`. D28 ajoute `OwnerSellerId` et
-// ouvre les routes au vendeur PROPRIÉTAIRE ; encore faut-il pouvoir répondre à
-// « ce compte, quel vendeur est-il ? ». Le jeton ne le dit pas, et un membre
-// d'équipe n'a pas de dossier vendeur à son nom : seul seller-service sait relier
-// les deux.
-//
-// `AddMerchantsGrpcClient` LÈVE à la construction de l'hôte si `Services:Merchant`
-// est absent. C'est le bon sens de l'erreur : un service qui pilote des budgets
-// promotionnels et démarre sans savoir vérifier l'appartenance vaut moins qu'un
-// service qui ne démarre pas.
-//
-// CE SERVICE N'APPELAIT PERSONNE, ET SON COMPOSE LE DISAIT.
-//
-// Le bloc `promotion-service` de `docker-compose.dev.yml` portait un encadré
-// « AUCUNE ADRESSE `SERVICES__*`, ET C'EST LE POINT FORT DE CE SERVICE ». Ce n'est
-// plus vrai, et l'encadré a été corrigé au lieu d'être laissé à mentir : la
-// dépendance est réelle, elle est d'AUTORISATION et non de calcul — promotion
-// continue d'ignorer ce qu'est un produit, un plat ou un restaurant.
-// ═════════════════════════════════════════════════════════════════════════════
-builder.Services.AddMerchantsGrpcClient(builder.Configuration);
+// Ils etaient enregistres ici, un par un, chacun precede de la raison
+// qui l'avait fait ajouter. Ces raisons ont voyage avec eux vers
+// `Infrastructure/Grpc/DependencyInjection.cs` — les separer aurait
+// produit deux mensonges : un commentaire sans code, du code sans raison.
+builder.Services.AjouterClientsGrpcPromotions(builder.Configuration);
 
         // Les gestionnaires d'evenements sont enregistres par le module de
         // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.

@@ -31,6 +31,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 
+using HBA.Deliveries.Infrastructure.Grpc;
 namespace HBA.Deliveries.Infrastructure;
 
 /// <summary>
@@ -67,7 +68,13 @@ public sealed class DeliveriesModuleInstaller : IModuleInstaller
         services.AddScoped<IDeliveryModuleApi, DeliveryModuleApi>();
 
         services.AddScoped<IPartnerRepository, PartnerRepository>();
-        services.AddDeliveryPricingGrpcClient(configuration);
+        // LES CLIENTS gRPC DE CE SERVICE SONT DANS SON MODULE (lot C).
+        //
+        // Ils etaient enregistres ici, un par un, chacun precede de la raison
+        // qui l'avait fait ajouter. Ces raisons ont voyage avec eux vers
+        // `Infrastructure/Grpc/DependencyInjection.cs` — les separer aurait
+        // produit deux mensonges : un commentaire sans code, du code sans raison.
+        services.AjouterClientsGrpcDeliveryCore(configuration);
         services.AddScoped<IDeliveryPricingQuoteValidator, GrpcDeliveryPricingQuoteValidator>();
         services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
 

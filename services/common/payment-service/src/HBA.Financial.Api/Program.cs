@@ -18,30 +18,17 @@ using HBA.Ordering.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
 using HBA.Financial.Api.Grpc.Services;
+using HBA.Financial.Payments.Infrastructure.Grpc;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<PaymentsDbContext>(new PaymentsModuleInstaller());
-builder.Services.AddOrderingGrpcClient(builder.Configuration);
-builder.Services.AddFoodGrpcClient(builder.Configuration);
-
-// Commandes de repas : lues par `IPayableOrderReader` pour ouvrir leur paiement
-// (lot 6.1). À ne pas confondre avec la ligne au-dessus, qui vise
-// restaurant-service.
-builder.Services.AddFoodOrdersGrpcClient(builder.Configuration);
-builder.Services.AddMerchantsGrpcClient(builder.Configuration);
-
-// CE CLIENT NE SERT QU'À UNE AUTORISATION.
+// LES CLIENTS gRPC DE CE SERVICE SONT DANS SON MODULE (lot C).
 //
-// `GET /api/financial/wallets/drivers/{driverId}` et son relevé doivent
-// vérifier que l'appelant EST ce livreur. Le jeton porte un identifiant
-// d'utilisateur, la route un identifiant de livreur ; seule delivery-service
-// connaît la correspondance (`GetDriverAccountAsync`). Faute de ce client, les
-// deux routes avaient été rangées chez l'admin — et l'écran « Gains » du BFF
-// livreur rendait 403 à tous les livreurs.
-//
-// Aucun flux métier ne passe par là : financial-service ne crée ni ne pilote
-// de course.
-builder.Services.AddDeliveryGrpcClient(builder.Configuration);
+// Ils etaient enregistres ici, un par un, chacun precede de la raison
+// qui l'avait fait ajouter. Ces raisons ont voyage avec eux vers
+// `Infrastructure/Grpc/DependencyInjection.cs` — les separer aurait
+// produit deux mensonges : un commentaire sans code, du code sans raison.
+builder.Services.AjouterClientsGrpcFinancialPayments(builder.Configuration);
 
 builder.AddHbaGrpc();
 

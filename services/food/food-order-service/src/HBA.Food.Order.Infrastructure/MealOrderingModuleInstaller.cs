@@ -84,8 +84,6 @@ public sealed class MealOrderingModuleInstaller : IModuleInstaller
         // Les gestionnaires d'evenements sont enregistres par le module de
         // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-
-
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
     }

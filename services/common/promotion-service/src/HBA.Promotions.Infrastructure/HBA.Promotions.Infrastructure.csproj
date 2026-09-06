@@ -56,4 +56,12 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 
+
+  <!-- LES CLIENTS gRPC DE CE SERVICE (lot C). Les stubs et les adaptateurs
+       vivent encore dans les assemblages de contrats ; le CABLAGE, lui, est
+       ici, dans Grpc/. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\contracts\HBA.Merchants.Contracts.Grpc\HBA.Merchants.Contracts.Grpc.csproj" />
+  </ItemGroup>
+
 </Project>

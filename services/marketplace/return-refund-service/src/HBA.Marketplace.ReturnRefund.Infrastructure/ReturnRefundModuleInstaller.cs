@@ -57,8 +57,6 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<ReturnPolicyCache>();
 
-        services.AddOrderingGrpcClient(configuration);
-        services.AddFinancialGrpcClient(configuration);
         services.AddScoped<IOrderGrpcClient, OrderGrpcClient>();
         services.AddScoped<IPaymentGrpcClient, PaymentGrpcClient>();
         services.AddScoped<IInventoryGrpcClient, InventoryGrpcClient>();

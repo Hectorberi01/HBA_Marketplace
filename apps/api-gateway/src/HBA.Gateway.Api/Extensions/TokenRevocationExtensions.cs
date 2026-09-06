@@ -4,6 +4,7 @@ using HBA.Identity.Contracts.Grpc;
 using HBA.Shared.Hosting;
 using HBA.Shared.Hosting.Grpc;
 
+using HBA.Gateway.Infrastructure.Grpc;
 namespace HBA.Gateway.Api.Extensions;
 
 /// <summary>
@@ -79,8 +80,9 @@ public static class TokenRevocationExtensions
 
         // MANQUANT DEPUIS LE LOT 8.8, ET L'ERREUR N'ARRIVAIT QU'À L'EXÉCUTION.
         //
-        // `AjouterLesInterceptionsInternes` — que `AddIdentityGrpcClient` appelle
-        // deux lignes plus bas — pose DEUX intercepteurs, et `AddInterceptor<T>`
+        // `AjouterLesInterceptionsInternes` — que `AddIdentityGrpcClient` appelle,
+        // depuis le module gRPC de la passerelle — pose DEUX intercepteurs, et
+        // `AddInterceptor<T>`
         // les résout depuis le conteneur au moment où le client est FABRIQUÉ. La
         // passerelle n'enregistrait que le premier : le contrôle de révocation
         // aurait levé `InvalidOperationException` à la première vérification de
@@ -97,10 +99,13 @@ public static class TokenRevocationExtensions
         // sans effet, c'est-à-dire le pire des deux mondes.
         services.AjouterLesEcheancesGrpc(configuration);
 
-        // LÈVE À LA CONSTRUCTION DE L'HÔTE si `Services:Identity` est absente.
-        // C'est déjà le cas sans ce fichier : `ServicesOptions.Identity` porte
-        // `[Required, Url]` et la validation est vérifiée au démarrage.
-        services.AddIdentityGrpcClient(configuration);
+        // LES CLIENTS gRPC DE CE SERVICE SONT DANS SON MODULE (lot C).
+        //
+        // Ils etaient enregistres ici, un par un, chacun precede de la raison
+        // qui l'avait fait ajouter. Ces raisons ont voyage avec eux vers
+        // `Infrastructure/Grpc/DependencyInjection.cs` — les separer aurait
+        // produit deux mensonges : un commentaire sans code, du code sans raison.
+        services.AjouterClientsGrpcGateway(configuration);
 
         return services;
     }

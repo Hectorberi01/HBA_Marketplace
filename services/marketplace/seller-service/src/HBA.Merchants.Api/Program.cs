@@ -10,45 +10,18 @@ using HBA.Merchants.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 
 using HBA.Merchants.Api.Grpc.Services;
+using HBA.Merchants.Infrastructure.Grpc;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<SellersDbContext>(new SellersModuleInstaller());
 builder.AddHbaGrpc();
-builder.Services.AddIdentityGrpcClient(builder.Configuration);
-
-// ═════════════════════════════════════════════════════════════════════════
-// SANS CETTE LIGNE, N'IMPORTE QUEL MÉDIA DE LA PLATEFORME POUVAIT DEVENIR
-//    UNE PIÈCE KYB.
+// LES CLIENTS gRPC DE CE SERVICE SONT DANS SON MODULE (lot C).
 //
-// `AddKybDocumentCommandHandler` vérifie désormais que le fichier appartient à
-// CE vendeur et qu'il est bien une pièce légale. Il lui faut donc `IMediaModuleApi`.
-//
-// Le service n'avait aucun client média : le domaine renvoyait le contrôle « à la
-// couche qui voit les deux », la documentation renvoyait ensuite au BFF Vendeur —
-// qui est un squelette sans aucun cas d'usage. La délégation ne pointait vers
-// personne, et un vendeur rattachait à son dossier la pièce d'identité d'un
-// concurrent avant de s'en faire signer l'URL.
-// ═════════════════════════════════════════════════════════════════════════
-builder.Services.AddMediaGrpcClient(builder.Configuration);
-
-// ═════════════════════════════════════════════════════════════════════════
-// ET SANS CELLE-CI, UNE BOUTIQUE EXPÉDIAIT DEPUIS L'ADRESSE D'UN CONCURRENT.
-//
-// `AttachStoreLocationCommand` acceptait n'importe quel GUID. L'identifiant
-// partait ensuite vers delivery, qui bâtissait un enlèvement coursier sur une
-// adresse que le vendeur ne contrôle pas — et un GUID inexistant ne se
-// manifestait qu'APRÈS le paiement de l'acheteur.
-// ═════════════════════════════════════════════════════════════════════════
-builder.Services.AddInventoryGrpcClient(builder.Configuration);
-
-// ═════════════════════════════════════════════════════════════════════════
-// POUR RECALCULER LE COMPTEUR DE VENTES, PAS POUR L'INCRÉMENTER.
-//
-// `SellerSalesCountHandler` redemande le total à order-service à chaque commande
-// confirmée : poser une valeur exacte est idempotent, incrémenter double-compte
-// au premier rejeu — et Kafka livre au moins une fois.
-// ═════════════════════════════════════════════════════════════════════════
-builder.Services.AddOrderingGrpcClient(builder.Configuration);
+// Ils etaient enregistres ici, un par un, chacun precede de la raison
+// qui l'avait fait ajouter. Ces raisons ont voyage avec eux vers
+// `Infrastructure/Grpc/DependencyInjection.cs` — les separer aurait
+// produit deux mensonges : un commentaire sans code, du code sans raison.
+builder.Services.AjouterClientsGrpcMerchants(builder.Configuration);
 
 // ═════════════════════════════════════════════════════════════════════════
 // TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
