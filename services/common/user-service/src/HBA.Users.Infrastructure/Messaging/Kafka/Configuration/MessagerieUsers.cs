@@ -3,12 +3,13 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Shared.Infrastructure.Kafka;
 using HBA.Shared.IntegrationEvents;
 using HBA.Users.Infrastructure.Messaging.Kafka.Consumers;
+using HBA.Users.Infrastructure.Messaging.Kafka.Producers;
 
 namespace HBA.Users.Infrastructure.Messaging.Kafka.Configuration;
 
 /// <summary>
 /// ═════════════════════════════════════════════════════════════════════════════
-/// TOUT CE QUE user-service ÉCOUTE, DÉCLARÉ AU MÊME ENDROIT.
+/// TOUT CE QUE user-service ÉCOUTE ET PUBLIE, DÉCLARÉ AU MÊME ENDROIT.
 ///
 /// POURQUOI CE MODULE EXISTE. Les consommateurs de la plateforme vivaient dans
 /// SIX conventions différentes selon le service — `Application/EventHandlers`,
@@ -64,6 +65,14 @@ public static class MessagerieUsers
     /// </summary>
     public static IServiceCollection AjouterMessagerieUsers(this IServiceCollection services)
     {
+        // CE QU'ON PUBLIE EST VÉRIFIÉ AVANT CE QU'ON ÉCOUTE.
+        //
+        // Un événement sans `[HbaEvent]` part quand même, sous un nom de repli, et
+        // le consommateur d'en face le rejette en silence. Échouer ici coûte un
+        // démarrage ; le découvrir en face coûte des semaines. Voir
+        // `EvenementsPublies`.
+        EvenementsPublies.VerifierLesDescripteurs();
+
         services.AddSingleton(new AbonnementsKafka(Sujets));
 
         // Inscription → création du profil.
