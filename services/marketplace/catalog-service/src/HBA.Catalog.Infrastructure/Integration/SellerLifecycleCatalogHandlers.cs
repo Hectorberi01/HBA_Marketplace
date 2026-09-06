@@ -32,12 +32,6 @@ using HBA.Merchants.Contracts.IntegrationEvents;
 
 namespace HBA.Catalog.Infrastructure.Integration;
 
-/// <summary>
-/// Fermeture d'un compte vendeur (suppression partielle) : on RETIRE ses produits de
-/// la vente. On les dépublie (Active -> Draft) plutôt que de les archiver : le retrait
-/// doit être RÉVERSIBLE, puisque le vendeur peut demander une réactivation et
-/// republier ses fiches d'un geste.
-/// </summary>
 // ═════════════════════════════════════════════════════════════════════════════
 // CES HANDLERS NE SONT PLUS LES SEULS, ET NE SONT PLUS LES PRINCIPAUX.
 //
@@ -53,6 +47,12 @@ namespace HBA.Catalog.Infrastructure.Integration;
 // À SUPPRIMER AVEC catalog.products, PAS AVANT. Les retirer maintenant
 // laisserait ces onze lectures rendre des fiches d'un vendeur écarté.
 // ═════════════════════════════════════════════════════════════════════════════
+/// <summary>
+/// Fermeture d'un compte vendeur (suppression partielle) : on RETIRE ses produits de
+/// la vente. On les dépublie (Active -> Draft) plutôt que de les archiver : le retrait
+/// doit être RÉVERSIBLE, puisque le vendeur peut demander une réactivation et
+/// republier ses fiches d'un geste.
+/// </summary>
 public sealed class SellerClosedProductInvalidationHandler : IIntegrationEventHandler<SellerClosedIntegrationEvent>
 {
     /// <summary>Nom de ce consumer dans `consumer_inbox` (§19.5). Stable : il est en base.</summary>

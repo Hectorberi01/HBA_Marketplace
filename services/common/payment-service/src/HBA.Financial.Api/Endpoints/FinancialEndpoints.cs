@@ -544,14 +544,6 @@ public static class FinancialEndpoints
         return refus ?? facture.Match(Results.Ok);
     }
 
-    /// <summary>
-    /// LA DERNIÈRE DES « TROIS LECTURES FINANCIÈRES SANS CONTRÔLE D'APPARTENANCE »
-    /// que le commentaire du fichier signalait, et la seule qui restait.
-    ///
-    /// Les factures d'un vendeur portent son chiffre d'affaires ligne à ligne. Sans
-    /// ce garde, il suffisait d'un identifiant de vendeur — visible dans n'importe
-    /// quelle fiche boutique — pour lire le carnet de commandes d'un concurrent.
-    /// </summary>
     // ───────────────────────────────────────────────────────── §10.12 (v1)
 
     /// <summary>
@@ -626,6 +618,27 @@ public static class FinancialEndpoints
         return resultat.Match(donnees => ApiResults.Page(donnees));
     }
 
+    /// <summary>
+    /// LA DERNIÈRE DES « TROIS LECTURES FINANCIÈRES SANS CONTRÔLE D'APPARTENANCE »
+    /// que le commentaire du fichier signalait, et la seule qui restait.
+    ///
+    /// Les factures d'un vendeur portent son chiffre d'affaires ligne à ligne. Sans
+    /// ce garde, il suffisait d'un identifiant de vendeur — visible dans n'importe
+    /// quelle fiche boutique — pour lire le carnet de commandes d'un concurrent.
+    /// </summary>
+    /// <remarks>
+    /// CE BLOC AVAIT ÉTÉ SÉPARÉ DE SA MÉTHODE, ET LE COMPILATEUR LE DISAIT.
+    ///
+    /// Il vivait quatre-vingts lignes plus haut, collé sous `GetInvoiceAsync` et
+    /// suivi d'un séparateur `//` — donc rattaché à rien : CS1587, « le
+    /// commentaire XML n'est pas placé dans un élément valide du langage ».
+    ///
+    /// L'avertissement ne coûtait pas une compilation ; il coûtait la
+    /// DOCUMENTATION. Le garde qu'il justifie était décrit au-dessus d'une
+    /// méthode qui ne le porte pas, et la méthode qui le porte n'avait rien.
+    /// Quiconque relisait `ListInvoicesBySellerAsync` pour savoir pourquoi ce
+    /// `DenyUnlessOwnSellerAsync` est là ne trouvait aucune réponse.
+    /// </remarks>
     private static async Task<IResult> ListInvoicesBySellerAsync(
         Guid sellerId, ClaimsPrincipal user, IMerchantAccessApi access, ISender sender, CancellationToken ct)
     {

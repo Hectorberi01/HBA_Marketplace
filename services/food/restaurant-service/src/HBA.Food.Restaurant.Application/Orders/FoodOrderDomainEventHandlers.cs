@@ -223,6 +223,10 @@ public sealed class FoodOrderCancelledDomainEventHandler : IDomainEventHandler<F
             cancellationToken);
 }
 
+// PUBLIQUE : l'infrastructure s'en sert aussi, pour `FoodModuleApi.GetOrderAsync`.
+// Une seconde traduction, même de trois lignes, finirait par diverger de
+// celle-ci — et une divergence sur ce champ précis renvoie un consommateur vers
+// la mauvaise base.
 /// <summary>
 /// La traduction domaine → contrat de l'univers de la commande.
 /// </summary>
@@ -239,10 +243,6 @@ public sealed class FoodOrderCancelledDomainEventHandler : IDomainEventHandler<F
 /// Le `switch` exhaustif fait l'inverse : ajouter une valeur au domaine sans la
 /// déclarer au contrat ne compile pas.
 /// </remarks>
-// PUBLIQUE : l'infrastructure s'en sert aussi, pour `FoodModuleApi.GetOrderAsync`.
-// Une seconde traduction, même de trois lignes, finirait par diverger de
-// celle-ci — et une divergence sur ce champ précis renvoie un consommateur vers
-// la mauvaise base.
 public static class FoodOrderOriginTranslation
 {
     public static string Traduire(FoodOrderOrigin origine) => origine switch

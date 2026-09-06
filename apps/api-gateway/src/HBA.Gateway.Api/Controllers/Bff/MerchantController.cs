@@ -8,16 +8,6 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace HBA.Gateway.Api.Controllers.Bff;
 
-/// <summary>Façade BFF de HBA Partner — boutiques HBAExpress (§11, §12, §44).</summary>
-/// <remarks>
-/// `/activities` EST ICI, ET NON DANS UN CONTRÔLEUR NEUTRE.
-///
-/// Il rend pourtant boutiques ET restaurants. Le §44 en fait le point d'entrée
-/// unique du sélecteur d'activité, sous `merchant` : l'application appelle une
-/// seule route au démarrage, puis bascule vers le BFF correspondant au type
-/// choisi. Le déplacer ailleurs ajouterait une troisième adresse à connaître pour
-/// une seule requête.
-/// </remarks>
 // ═════════════════════════════════════════════════════════════════════════════
 // LA POLITIQUE EST POSÉE PAR MÉTHODE, ET NON SUR LA CLASSE. NE PAS REMONTER.
 //
@@ -35,6 +25,16 @@ namespace HBA.Gateway.Api.Controllers.Bff;
 // retomberait sur la `FallbackPolicy` de la passerelle — authentifié, sans rôle.
 // Un tableau de bord de boutique lisible par n'importe quel inscrit.
 // ═════════════════════════════════════════════════════════════════════════════
+/// <summary>Façade BFF de HBA Partner — boutiques HBAExpress (§11, §12, §44).</summary>
+/// <remarks>
+/// `/activities` EST ICI, ET NON DANS UN CONTRÔLEUR NEUTRE.
+///
+/// Il rend pourtant boutiques ET restaurants. Le §44 en fait le point d'entrée
+/// unique du sélecteur d'activité, sous `merchant` : l'application appelle une
+/// seule route au démarrage, puis bascule vers le BFF correspondant au type
+/// choisi. Le déplacer ailleurs ajouterait une troisième adresse à connaître pour
+/// une seule requête.
+/// </remarks>
 [ApiController]
 [Route("api/v1/bff/merchant")]
 [EnableRateLimiting(RateLimitingExtensions.ReadPolicy)]

@@ -186,6 +186,10 @@ public sealed class ReceiveFoodOrderOnOrderConfirmedHandler
     }
 }
 
+// PUBLICS tous les deux : ils apparaissent dans la signature du constructeur de
+// `CreateDeliveryOnFoodOrderReadyHandler`, qui est public parce que le conteneur
+// l'instancie. Un type moins accessible que la méthode qui l'accepte est une
+// erreur de compilation (CS0051), pas un détail de style.
 /// <summary>
 /// Repas prêt → un livreur est cherché.
 /// </summary>
@@ -222,10 +226,6 @@ public sealed class ReceiveFoodOrderOnOrderConfirmedHandler
 /// Ce que la CRÉATION DE COURSE a besoin de savoir de la commande commerciale,
 /// quel que soit l'univers dont elle vient.
 /// </summary>
-// PUBLICS tous les deux : ils apparaissent dans la signature du constructeur de
-// `CreateDeliveryOnFoodOrderReadyHandler`, qui est public parce que le conteneur
-// l'instancie. Un type moins accessible que la méthode qui l'accepte est une
-// erreur de compilation (CS0051), pas un détail de style.
 public sealed record CommandeALivrer(
     string? Recipient,
     string? Phone,

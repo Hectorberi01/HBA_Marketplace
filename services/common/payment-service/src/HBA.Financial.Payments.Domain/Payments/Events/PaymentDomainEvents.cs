@@ -2,14 +2,13 @@ using HBA.Shared.Domain.Events;
 
 namespace HBA.Financial.Payments.Domain.Payments.Events;
 
-/// <summary>Un paiement a été initié pour une commande.</summary>
 // `OrderType` TRAVERSE TOUTE LA CHAÎNE, DU DOMAINE À KAFKA.
 //
 // L'ajouter seulement sur l'événement d'intégration aurait obligé le handler à le
 // relire en base pour le remplir — une requête de plus, et surtout une occasion de
 // lire un état déjà modifié depuis. L'événement de domaine porte l'univers au
 // moment où le fait s'est produit ; le handler ne fait plus que recopier.
-
+/// <summary>Un paiement a été initié pour une commande.</summary>
 public sealed record PaymentInitiatedDomainEvent(
     Guid PaymentId, Guid OrderId, string OrderType, Guid BuyerId,
     decimal Amount, string Currency, string Provider) : DomainEvent;
