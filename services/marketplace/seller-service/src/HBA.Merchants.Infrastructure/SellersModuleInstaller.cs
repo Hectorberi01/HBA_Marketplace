@@ -31,6 +31,7 @@ using HBA.Merchants.Infrastructure.Persistence;
 using HBA.Merchants.Infrastructure.Public;
 
 using HBA.Merchants.Infrastructure.Caching.Redis;
+using HBA.Merchants.Infrastructure.Observability;
 namespace HBA.Merchants.Infrastructure;
 
 /// <summary>
@@ -48,6 +49,11 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
         // socle pour les vingt-six services a la fois ; il l'est desormais ici.
         services.AjouterCacheMerchants(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteMerchants(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");

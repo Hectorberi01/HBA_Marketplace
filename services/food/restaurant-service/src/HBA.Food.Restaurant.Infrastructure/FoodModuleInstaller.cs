@@ -22,6 +22,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Food.Infrastructure.Caching.Redis;
+using HBA.Food.Infrastructure.Observability;
 namespace HBA.Food.Infrastructure;
 
 /// <summary>
@@ -50,6 +51,11 @@ public sealed class FoodModuleInstaller : IModuleInstaller
         // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
         // socle pour les vingt-six services a la fois ; il l'est desormais ici.
         services.AjouterCacheFoodRestaurant(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteFoodRestaurant(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");

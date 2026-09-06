@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Routes.Infrastructure.Caching.Redis;
 using Microsoft.Extensions.Configuration;
+using HBA.Routes.Infrastructure.Observability;
 namespace HBA.Routes.Infrastructure;
 
 public static class RoutesInfrastructureModule
@@ -23,6 +24,11 @@ public static class RoutesInfrastructureModule
         this IServiceCollection services, IConfiguration configuration)
     {
         services.AjouterCacheDeliveryRoute(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteDeliveryRoute(configuration);
 
         // L'outbox et les abonnements sont descendus dans `Messaging/Kafka/`, donc
         // hors de ce module d'infrastructure : ils sont enregistres par

@@ -23,6 +23,7 @@ using HBA.Commerce.Infrastructure.Public;
 using HBA.Orders.Contracts.IntegrationEvents;
 
 using HBA.Commerce.Infrastructure.Caching.Redis;
+using HBA.Commerce.Infrastructure.Observability;
 namespace HBA.Commerce.Infrastructure;
 
 /// <summary>Enregistre le module Cart : DbContext, repository, API publique, handlers, validators, outbox.</summary>
@@ -37,6 +38,11 @@ public sealed class CartModuleInstaller : IModuleInstaller
         // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
         // socle pour les vingt-six services a la fois ; il l'est desormais ici.
         services.AjouterCacheCommerce(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteCommerce(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");

@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using HBA.Gateway.Infrastructure.Caching.Redis;
+using HBA.Gateway.Infrastructure.Observability;
 namespace HBA.Gateway.Infrastructure;
 
 public static class DependencyInjection
@@ -23,6 +24,11 @@ public static class DependencyInjection
         // vingt-six services a la fois ; la passerelle n'a pas d'installeur de
         // module, son point d'entree d'infrastructure est donc ici.
         services.AjouterCacheGateway(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteGateway(configuration);
 
         services
             .AddOptions<ServicesOptions>()

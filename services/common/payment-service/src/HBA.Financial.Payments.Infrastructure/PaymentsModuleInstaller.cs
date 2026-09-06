@@ -28,6 +28,7 @@ using HBA.Financial.Payments.Infrastructure.Persistence;
 using HBA.Financial.Payments.Infrastructure.Public;
 
 using HBA.Financial.Payments.Infrastructure.Caching.Redis;
+using HBA.Financial.Payments.Infrastructure.Observability;
 namespace HBA.Financial.Payments.Infrastructure;
 
 /// <summary>Enregistre le module Payments : DbContext, repository, API publique, handlers, validators, outbox.</summary>
@@ -42,6 +43,11 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
         // socle pour les vingt-six services a la fois ; il l'est desormais ici.
         services.AjouterCacheFinancialPayments(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteFinancialPayments(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");

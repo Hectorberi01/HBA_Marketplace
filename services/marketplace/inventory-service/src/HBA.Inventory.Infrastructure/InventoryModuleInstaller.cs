@@ -19,6 +19,7 @@ using HBA.Inventory.Infrastructure.Persistence;
 using HBA.Inventory.Infrastructure.Public;
 
 using HBA.Inventory.Infrastructure.Caching.Redis;
+using HBA.Inventory.Infrastructure.Observability;
 namespace HBA.Inventory.Infrastructure;
 
 /// <summary>Enregistre le module Inventory : DbContext, repositories, API publique, handlers, validators, outbox.</summary>
@@ -33,6 +34,11 @@ public sealed class InventoryModuleInstaller : IModuleInstaller
         // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
         // socle pour les vingt-six services a la fois ; il l'est desormais ici.
         services.AjouterCacheInventory(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteInventory(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");

@@ -213,10 +213,18 @@ public static class DependencyInjection
         services.AddScoped<IntegrationEventQueue>();
         services.AddScoped<IIntegrationEventPublisher>(sp => sp.GetRequiredService<IntegrationEventQueue>());
 
-        services.TryAddSingleton<IPaymentMetrics, NoOpPaymentMetrics>();
-        services.TryAddSingleton<IHbaBusinessMetrics, NoOpBusinessMetrics>();
-        services.TryAddSingleton<ISecurityMetrics, NoOpSecurityMetrics>();
-        services.TryAddSingleton<IOutboxMetrics, NoOpOutboxMetrics>();
+        // LES METRIQUES NEUTRES ONT QUITTE CE FICHIER.
+        //
+        // Les quatre implementations vides etaient enregistrees ici, donc pour les
+        // vingt-six services a la fois. Elles vivent desormais dans
+        // `Observability/Metrics/` de chaque service, enregistrees par son
+        // `AjouterObservabilite<Service>()`.
+        //
+        // LES INTERFACES, ELLES, RESTENT DANS `HBA.Shared.Application.Observability` :
+        // ce sont les ports dont depend la couche Application. Un service qui
+        // compte vraiment quelque chose remplace SON implementation, sans toucher
+        // a celles des autres — c'est precisement ce que le `TryAdd` central
+        // rendait impossible a faire proprement.
 
         // ═════════════════════════════════════════════════════════════════════
         // LE CACHE A QUITTÉ CE FICHIER — IL APPARTIENT AUX SERVICES.

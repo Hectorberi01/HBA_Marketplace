@@ -41,6 +41,7 @@ using HBA.Deliveries.Contracts.IntegrationEvents;
 using FcmOptions = HBA.Communication.Notifications.Infrastructure.Push.FcmOptions;
 
 using HBA.Communication.Notifications.Infrastructure.Caching.Redis;
+using HBA.Communication.Notifications.Infrastructure.Observability;
 namespace HBA.Communication.Notifications.Infrastructure;
 
 /// <summary>Enregistre le module Notifications : DbContext, repository, dispatcher et consumers fan-out.</summary>
@@ -55,6 +56,11 @@ public sealed class NotificationsModuleInstaller : IModuleInstaller
         // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
         // socle pour les vingt-six services a la fois ; il l'est desormais ici.
         services.AjouterCacheCommunicationNotifications(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteCommunicationNotifications(configuration);
 
         // « Default », ET NON « Marketplace ».
         //

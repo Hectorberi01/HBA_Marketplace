@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using HBA.Delivery.Pricing.Infrastructure.Caching.Redis;
+using HBA.Delivery.Pricing.Infrastructure.Observability;
 namespace HBA.Delivery.Pricing.Infrastructure;
 
 public static class DeliveryPricingInfrastructureModule
@@ -19,6 +20,11 @@ public static class DeliveryPricingInfrastructureModule
         // LE CACHE DE CE SERVICE (Caching/Redis/). Ce service n'a pas d'installeur
         // nomme *ModuleInstaller — son point d'entree d'infrastructure est ici.
         services.AjouterCacheDeliveryPricing(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteDeliveryPricing(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");

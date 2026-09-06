@@ -30,4 +30,13 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
   </ItemGroup>
 
+
+  <!-- L'OBSERVABILITE DE CE SERVICE (Observability/). Les sondes
+       interrogent vraiment le courtier et le cache ; ces paquets venaient
+       transitivement du socle. -->
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+  </ItemGroup>
+
 </Project>

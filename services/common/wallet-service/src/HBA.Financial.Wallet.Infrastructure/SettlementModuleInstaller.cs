@@ -27,6 +27,7 @@ using HBA.Financial.Wallet.Domain.Wallets;
 using HBA.Financial.Wallet.Infrastructure.Persistence;
 
 using HBA.Financial.Wallet.Infrastructure.Caching.Redis;
+using HBA.Financial.Wallet.Infrastructure.Observability;
 namespace HBA.Financial.Wallet.Infrastructure;
 
 /// <summary>Enregistre le module Settlement : DbContext, repositories, accrual consumer, validators, outbox.</summary>
@@ -41,6 +42,11 @@ public sealed class WalletModuleInstaller : IModuleInstaller
         // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
         // socle pour les vingt-six services a la fois ; il l'est desormais ici.
         services.AjouterCacheFinancialWallet(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteFinancialWallet(configuration);
 
         // ═══════════════════════════════════════════════════════════════════
         // LE BARÈME VIENT DE LA SOURCE UNIQUE, PLUS D'UNE LECTURE LOCALE.

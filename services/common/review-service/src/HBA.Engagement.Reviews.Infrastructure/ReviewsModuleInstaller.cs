@@ -17,6 +17,7 @@ using HBA.Engagement.Reviews.Infrastructure.Persistence;
 using HBA.Engagement.Reviews.Infrastructure.Public;
 
 using HBA.Engagement.Reviews.Infrastructure.Caching.Redis;
+using HBA.Engagement.Reviews.Infrastructure.Observability;
 namespace HBA.Engagement.Reviews.Infrastructure;
 
 /// <summary>Enregistre le module Reviews : DbContext, repository, API publique, handlers, validators, outbox.</summary>
@@ -31,6 +32,11 @@ public sealed class ReviewsModuleInstaller : IModuleInstaller
         // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
         // socle pour les vingt-six services a la fois ; il l'est desormais ici.
         services.AjouterCacheEngagementReviews(configuration);
+
+        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
+        // etait verifiee : un service dont le consommateur Kafka etait mort
+        // repondait « ready », et le deploiement individuel le croyait sain.
+        services.AjouterObservabiliteEngagementReviews(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
