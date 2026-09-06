@@ -8,11 +8,10 @@ using HBA.Users.Domain.Preferences;
 using HBA.Users.Domain.Profiles;
 using HBA.Users.Contracts;
 using HBA.Users.Infrastructure.Public;
+using HBA.Users.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Users.Infrastructure.Persistence;
 using HBA.Shared.Infrastructure.Modularity;
 using HBA.Shared.Infrastructure.Idempotency;
-using HBA.Shared.Infrastructure.Inbox;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,33 +56,36 @@ public sealed class UsersModuleInstaller : IModuleInstaller
         services.AddScoped<IUsersModuleApi, UsersModuleApi>();
 
         // ═════════════════════════════════════════════════════════════════════
-        // LA PLOMBERIE TRANSACTIONNELLE RESTE ICI, PAS DANS `Messaging/Kafka/`.
+        // L'OUTBOX ET L'INBOX SONT DESCENDUES DANS `Messaging/Kafka/`.
         //
-        // Le module Kafka du service porte les producteurs, les consommateurs et
-        // la liste des sujets. Il ne porte PAS les trois enregistrements
-        // ci-dessous, et c'est une décision, pas un oubli.
+        // Ce bloc portait `AddScoped<IConsumerInbox, ...>` et
+        // `AddOutboxProcessor<UsersDbContext>`. Les deux sont maintenant dans
+        // `Messaging/Kafka/Inbox/` et `Messaging/Kafka/Outbox/`, appelés par
+        // `AjouterMessagerieUsers()` : le module de messagerie porte TOUT le
+        // câblage de la messagerie, y compris son chemin de sortie.
         //
-        // La raison tient à ce qu'est réellement l'outbox : une TABLE, écrite par
-        // `ModuleDbContext.SaveChangesAsync` dans la transaction métier, même
-        // quand Kafka est éteint. Elle appartient au DbContext qui la persiste —
-        // ses `DbSet` et ses `IEntityTypeConfiguration` sont dans
-        // `UsersDbContext`, ses colonnes dans les migrations du service. Un
-        // « module Kafka » qui prétendrait la posséder mentirait : on ne peut pas
-        // le retirer sans casser une migration.
+        // CE QUI N'A PAS BOUGÉ, ET NE DOIT PAS. `OutboxMessage` et
+        // `ConsumerInboxEntry` restent des entités du socle partagé, mappées par
+        // `UsersDbContext` et créées par les migrations de ce service. Le module
+        // possède la POLITIQUE, pas le TYPE.
         //
-        // CE QUE CE CHOIX NE COUVRE PAS. Il laisse ces lignes copiables — et donc
-        // oubliables — dans les dix-huit autres installeurs. Un service qui
-        // omettrait `AddOutboxProcessor` compilerait, démarrerait, écrirait dans
-        // l'outbox, et n'enverrait jamais rien : la panne serait silencieuse,
-        // exactement celle qui a laissé `user_profiles` vide. La seule vraie
-        // parade serait une vérification au démarrage, pas un rangement.
+        // CE QUE CE DÉPLACEMENT A COÛTÉ, ET COMMENT C'EST PAYÉ. Ces
+        // enregistrements ne sont plus faits par l'installeur, que le composition
+        // root appelle toujours, mais par un module qu'il peut oublier. Un oubli
+        // ne casserait RIEN de visible : le service démarre, sert ses routes, et
+        // n'émet plus rien. `GardeDeCablage`, enregistrée trois lignes plus bas,
+        // refuse le démarrage dans ce cas — elle est enregistrée ICI précisément
+        // parce qu'elle doit exister quand le module, lui, est absent.
         // ═════════════════════════════════════════════════════════════════════
+        services.AddHostedService<GardeDeCablage>();
 
-        // Socle du §5 et du §19.5. Sans ces deux enregistrements, le filtre
-        // d'idempotence laisse passer en journalisant une erreur et les consumers
-        // n'ont aucune garde contre le double traitement : les tables existent, et
-        // rien ne s'en sert.
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<UsersDbContext>>();
+        // L'IDEMPOTENCE RESTE ICI, ELLE, ET CE N'EST PAS UNE INCOHÉRENCE.
+        //
+        // Elle protège aussi les routes HTTP annotées `AllowIdempotency()`, qui
+        // n'ont aucun rapport avec Kafka. La ranger dans le module de messagerie
+        // ferait dépendre l'idempotence des commandes HTTP d'un module qu'un
+        // service sans Kafka n'appellerait pas.
+        //
         // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
         //
         // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
@@ -95,20 +97,5 @@ public sealed class UsersModuleInstaller : IModuleInstaller
         services.AddIdempotence<UsersDbContext>();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
-
-        // CE COMMENTAIRE DISAIT LE CONTRAIRE DE LA VÉRITÉ, ET PERSONNE NE POUVAIT
-        //     LE SAVOIR.
-        //
-        // Il affirmait que « le module n'émet encore aucun événement
-        // d'intégration ». Le service en publie TROIS —
-        // `UserProfileChangedIntegrationEvent`, `UserAddressCreatedIntegrationEvent`
-        // et `UserDeviceRegisteredIntegrationEvent` — depuis `Application`, via
-        // `IIntegrationEventPublisher`. La liste tenue à jour est dans
-        // `Messaging/Kafka/Producers/EvenementsPublies.cs` ; c'est elle qui fait
-        // foi désormais, parce qu'elle échoue au démarrage quand elle a tort.
-        //
-        // Le processeur n'est donc pas là « en prévision » : il est le seul chemin
-        // par lequel ces trois événements quittent la base.
-        services.AddOutboxProcessor<UsersDbContext>();
     }
 }

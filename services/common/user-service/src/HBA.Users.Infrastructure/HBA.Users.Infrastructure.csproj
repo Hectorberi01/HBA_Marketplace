@@ -36,6 +36,13 @@
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <!--
+      Requis par `Messaging/Kafka/Configuration/GardeDeCablage.cs` (IHostedService).
+      Le paquet arrivait deja de facon transitive par HBA.Shared.Infrastructure ;
+      une dependance transitive disparaît sans prevenir quand le projet amont
+      change, alors que le code qui s'en sert reste. Declare, donc.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="MediatR" />
   </ItemGroup>
 

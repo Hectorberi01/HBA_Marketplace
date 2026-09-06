@@ -1,6 +1,6 @@
 using HBA.Identity.Contracts.Grpc;
 using HBA.Users.Api.Endpoints;
-using HBA.Users.Infrastructure.Messaging.Kafka.Configuration;
+using HBA.Users.Infrastructure.Messaging.Kafka;
 using HBA.Shared.Hosting;
 using HBA.Users.Contracts.Grpc;
 using HBA.Users.Infrastructure;
@@ -35,6 +35,11 @@ builder.Services.AddIdentityGrpcClient(builder.Configuration);
 // trois. `HBA.Users.Infrastructure/Messaging/Kafka/` porte désormais les deux,
 // côte à côte : un gestionnaire dont le sujet n'est pas déclaré ne serait jamais
 // appelé, en silence, et rien d'autre ne relie les deux.
+//
+// CET APPEL N'EST PLUS FACULTATIF. Il porte aussi l'outbox et l'inbox du
+// service : l'oublier laisserait un service qui démarre et n'émet plus rien.
+// `GardeDeCablage`, enregistrée par l'installeur, refuse le démarrage dans ce
+// cas — c'est la contrepartie du déplacement.
 // ═════════════════════════════════════════════════════════════════════════
 builder.Services.AjouterMessagerieUsers();
 
