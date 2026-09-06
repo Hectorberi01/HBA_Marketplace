@@ -1,5 +1,4 @@
 using HBA.Catalog.Infrastructure.Grpc.Clients;
-using HBA.Catalog.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

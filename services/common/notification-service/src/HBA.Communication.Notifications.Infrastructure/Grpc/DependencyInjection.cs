@@ -1,9 +1,4 @@
 using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
-using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
-using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
-using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
-using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
-using HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

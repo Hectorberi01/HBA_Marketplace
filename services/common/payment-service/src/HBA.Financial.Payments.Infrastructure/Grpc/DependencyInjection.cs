@@ -1,8 +1,4 @@
 using HBA.Financial.Payments.Infrastructure.Grpc.Clients;
-using HBA.Financial.Payments.Infrastructure.Grpc.Clients;
-using HBA.Financial.Payments.Infrastructure.Grpc.Clients;
-using HBA.Financial.Payments.Infrastructure.Grpc.Clients;
-using HBA.Financial.Payments.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

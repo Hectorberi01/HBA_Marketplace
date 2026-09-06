@@ -1,5 +1,4 @@
 using HBA.Engagement.Reviews.Infrastructure.Grpc.Clients;
-using HBA.Engagement.Reviews.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

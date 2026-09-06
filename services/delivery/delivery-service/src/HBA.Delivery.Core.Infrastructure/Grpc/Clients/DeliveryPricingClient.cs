@@ -1,6 +1,5 @@
 using HBA.DeliveryPricing.Contracts;
 using HBA.DeliveryPricing.Grpc.V1;
-using HBA.DeliveryPricing.Grpc.V1;
 
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;

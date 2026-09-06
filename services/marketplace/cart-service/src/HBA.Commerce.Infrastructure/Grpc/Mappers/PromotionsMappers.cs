@@ -1,6 +1,5 @@
 using Google.Protobuf.WellKnownTypes;
 using HBA.Promotion.Grpc.V1;
-using HBA.Promotion.Grpc.V1;
 
 using HBA.Promotions.Contracts;
 using HBA.Shared.Hosting.Grpc;

@@ -32,12 +32,11 @@ namespace HBA.Merchants.Infrastructure.Persistence.Inbox;
 /// distinctes, et la fenêtre entre les deux est exactement le trou que l'inbox est
 /// censée fermer.
 /// </summary>
-public sealed class EfConsumerInbox<TContext> : IConsumerInbox
-    where TContext : DbContext
+public sealed class EfConsumerInbox : IConsumerInbox
 {
-    private readonly TContext _context;
+    private readonly SellersDbContext _context;
 
-    public EfConsumerInbox(TContext context) => _context = context;
+    public EfConsumerInbox(SellersDbContext context) => _context = context;
 
     public Task<bool> HasProcessedAsync(Guid eventId, string consumerName, CancellationToken cancellationToken = default)
         => _context.Set<ConsumerInboxEntry>()

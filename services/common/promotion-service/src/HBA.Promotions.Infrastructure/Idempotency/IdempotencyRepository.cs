@@ -40,12 +40,11 @@ namespace HBA.Promotions.Infrastructure.Idempotency;
 /// existe déjà ». La base arbitre, pas l'application.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
-public sealed class EfIdempotencyStore<TContext> : IIdempotencyStore
-    where TContext : DbContext
+public sealed class EfIdempotencyStore : IIdempotencyStore
 {
-    private readonly TContext _context;
+    private readonly PromotionsDbContext _context;
 
-    public EfIdempotencyStore(TContext context) => _context = context;
+    public EfIdempotencyStore(PromotionsDbContext context) => _context = context;
 
     public Task<IdempotencyReservation> TryBeginAsync(
         string key,

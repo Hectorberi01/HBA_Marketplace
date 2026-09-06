@@ -1,8 +1,4 @@
 using HBA.Food.Infrastructure.Grpc.Clients;
-using HBA.Food.Infrastructure.Grpc.Clients;
-using HBA.Food.Infrastructure.Grpc.Clients;
-using HBA.Food.Infrastructure.Grpc.Clients;
-using HBA.Food.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

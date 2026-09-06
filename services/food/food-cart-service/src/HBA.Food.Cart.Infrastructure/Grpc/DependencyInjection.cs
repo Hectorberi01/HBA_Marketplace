@@ -1,6 +1,4 @@
 using HBA.FoodCarts.Infrastructure.Grpc.Clients;
-using HBA.FoodCarts.Infrastructure.Grpc.Clients;
-using HBA.FoodCarts.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

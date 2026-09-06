@@ -3,10 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Outbox;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Inbox;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Outbox.Persistence.Outbox;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Outbox.Persistence.Inbox;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Outbox.Messaging.Kafka.Retry;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Outbox.Messaging.Kafka.Processors;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Outbox;
 
 /// <summary>

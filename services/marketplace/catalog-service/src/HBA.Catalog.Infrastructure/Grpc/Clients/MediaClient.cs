@@ -5,7 +5,6 @@ using Google.Protobuf.WellKnownTypes;
 using HBA.Catalog.Infrastructure.Grpc.Mappers;
 using HBA.Media.Contracts;
 using HBA.Media.Grpc.V1;
-using HBA.Media.Grpc.V1;
 
 using HBA.Shared.Hosting.Grpc;
 using HBA.Shared.Hosting;

@@ -4,10 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Identity.Infrastructure.Persistence.Outbox;
 using HBA.Identity.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
-using HBA.Identity.Infrastructure.Messaging.Kafka.Inbox.Persistence.Outbox;
-using HBA.Identity.Infrastructure.Messaging.Kafka.Inbox.Persistence.Inbox;
-using HBA.Identity.Infrastructure.Messaging.Kafka.Inbox.Messaging.Kafka.Retry;
-using HBA.Identity.Infrastructure.Messaging.Kafka.Inbox.Messaging.Kafka.Processors;
+using HBA.Identity.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Identity.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Identity.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>

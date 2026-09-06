@@ -1,7 +1,4 @@
 using HBA.Merchants.Infrastructure.Grpc.Clients;
-using HBA.Merchants.Infrastructure.Grpc.Clients;
-using HBA.Merchants.Infrastructure.Grpc.Clients;
-using HBA.Merchants.Infrastructure.Grpc.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

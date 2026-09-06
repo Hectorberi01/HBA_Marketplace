@@ -4,10 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Outbox;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
-using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Inbox.Persistence.Outbox;
-using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Inbox.Persistence.Inbox;
-using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Inbox.Messaging.Kafka.Retry;
-using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Inbox.Messaging.Kafka.Processors;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Retry;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>
