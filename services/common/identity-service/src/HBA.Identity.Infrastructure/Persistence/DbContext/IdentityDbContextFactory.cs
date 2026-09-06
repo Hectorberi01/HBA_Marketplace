@@ -4,6 +4,7 @@ using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Identity.Infrastructure.Persistence.Outbox;
 using HBA.Identity.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Identity.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF (migrations add / database update).</summary>

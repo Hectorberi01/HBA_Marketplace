@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using HBA.Food.Infrastructure.Auditing;
 using HBA.Food.Infrastructure.Persistence.Outbox;
 using HBA.Food.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Food.Infrastructure.Persistence;
 
 /// <summary>

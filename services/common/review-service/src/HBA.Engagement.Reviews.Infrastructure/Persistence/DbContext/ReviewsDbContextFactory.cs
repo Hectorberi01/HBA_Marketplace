@@ -5,6 +5,7 @@ using HBA.Shared.Domain.Events;
 using HBA.Engagement.Reviews.Infrastructure.Caching.Redis.Services;
 using HBA.Engagement.Reviews.Infrastructure.Persistence.Outbox;
 using HBA.Engagement.Reviews.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Engagement.Reviews.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF.</summary>

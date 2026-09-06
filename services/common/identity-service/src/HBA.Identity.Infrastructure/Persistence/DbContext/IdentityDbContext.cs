@@ -11,6 +11,7 @@ using HBA.Identity.Infrastructure.Auditing;
 using HBA.Identity.Infrastructure.Persistence.Outbox;
 using HBA.Identity.Infrastructure.Persistence.Inbox;
 using HBA.Identity.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Identity.Infrastructure.Persistence;
 
 /// <summary>

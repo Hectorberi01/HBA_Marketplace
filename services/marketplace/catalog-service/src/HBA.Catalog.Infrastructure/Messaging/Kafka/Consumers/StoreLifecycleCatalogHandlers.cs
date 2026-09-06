@@ -14,6 +14,7 @@ using HBA.Catalog.Infrastructure;
 
 using HBA.Catalog.Infrastructure.Persistence.Outbox;
 using HBA.Catalog.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 // ═════════════════════════════════════════════════════════════════════════════
 // FERMER UNE BOUTIQUE NE RETIRAIT RIEN DE LA VENTE (ISSUE-041).
 //

@@ -4,6 +4,7 @@ using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Communication.Notifications.Infrastructure.Persistence.Outbox;
 using HBA.Communication.Notifications.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Communication.Notifications.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF.</summary>

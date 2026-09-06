@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using HBA.Promotions.Infrastructure.Persistence.Outbox;
 using HBA.Promotions.Infrastructure.Persistence.Inbox;
 using HBA.Promotions.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Promotions.Infrastructure.Persistence;
 
 /// <summary>

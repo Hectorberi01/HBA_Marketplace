@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Financial.Wallet.Infrastructure.Persistence.Outbox;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>

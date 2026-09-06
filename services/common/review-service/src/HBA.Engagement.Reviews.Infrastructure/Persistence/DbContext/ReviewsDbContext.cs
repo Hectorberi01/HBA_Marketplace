@@ -8,6 +8,7 @@ using HBA.Engagement.Reviews.Domain.Reviews;
 using HBA.Engagement.Reviews.Infrastructure.Auditing;
 using HBA.Engagement.Reviews.Infrastructure.Persistence.Outbox;
 using HBA.Engagement.Reviews.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Engagement.Reviews.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Reviews (schéma « reviews »).</summary>

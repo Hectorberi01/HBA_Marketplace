@@ -4,6 +4,7 @@ using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Outbox;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Financial.Wallet.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF.</summary>

@@ -15,6 +15,7 @@ using HBA.Merchants.Infrastructure;
 
 using HBA.Merchants.Infrastructure.Persistence.Outbox;
 using HBA.Merchants.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Merchants.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>

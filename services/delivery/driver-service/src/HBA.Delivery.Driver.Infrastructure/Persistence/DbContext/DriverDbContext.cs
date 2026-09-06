@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using HBA.Drivers.Infrastructure.Auditing;
 using HBA.Drivers.Infrastructure.Persistence.Outbox;
 using HBA.Drivers.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Drivers.Infrastructure.Persistence;
 
 /// <summary>

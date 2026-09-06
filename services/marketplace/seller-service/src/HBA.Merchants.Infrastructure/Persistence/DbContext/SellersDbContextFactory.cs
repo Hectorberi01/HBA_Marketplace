@@ -5,6 +5,7 @@ using HBA.Shared.Domain.Events;
 using HBA.Merchants.Infrastructure.Caching.Redis.Services;
 using HBA.Merchants.Infrastructure.Persistence.Outbox;
 using HBA.Merchants.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Merchants.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF (migrations add / database update).</summary>

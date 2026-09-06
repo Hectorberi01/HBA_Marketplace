@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Media.Infrastructure.Persistence.Outbox;
 using HBA.Media.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Media.Infrastructure.Messaging.Kafka.Inbox;
 
 /// <summary>

@@ -8,6 +8,7 @@ using HBA.Orders.Domain.Orders.SellerOrders;
 using HBA.Orders.Infrastructure.Auditing;
 using HBA.Orders.Infrastructure.Persistence.Outbox;
 using HBA.Orders.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Orders.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Ordering (schéma « ordering »).</summary>

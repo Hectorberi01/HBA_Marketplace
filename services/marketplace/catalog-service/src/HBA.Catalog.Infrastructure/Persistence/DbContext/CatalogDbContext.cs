@@ -16,6 +16,7 @@ using HBA.Catalog.Infrastructure.Auditing;
 using HBA.Catalog.Infrastructure.Persistence.Outbox;
 using HBA.Catalog.Infrastructure.Persistence.Inbox;
 using HBA.Catalog.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Catalog.Infrastructure.Persistence;
 
 /// <summary>

@@ -6,6 +6,7 @@ using HBA.Engagement.Recommendations.Domain.Recommendations;
 
 using HBA.Engagement.Recommendations.Infrastructure.Persistence.Outbox;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Engagement.Recommendations.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Recommendations (schéma « recommendations »).</summary>

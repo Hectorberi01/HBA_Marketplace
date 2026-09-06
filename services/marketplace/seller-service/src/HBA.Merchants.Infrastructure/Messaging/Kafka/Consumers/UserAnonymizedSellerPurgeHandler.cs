@@ -14,6 +14,7 @@ using HBA.Merchants.Infrastructure;
 
 using HBA.Merchants.Infrastructure.Persistence.Outbox;
 using HBA.Merchants.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 // ═════════════════════════════════════════════════════════════════════════════
 // CE FICHIER VIT DANS `Infrastructure/Messaging/Kafka/Consumers`, ET NON DANS `Application`.
 //

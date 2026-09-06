@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using HBA.Deliveries.Infrastructure.Auditing;
 using HBA.Deliveries.Infrastructure.Persistence.Outbox;
 using HBA.Deliveries.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Deliveries.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Deliveries (schéma « deliveries »).</summary>

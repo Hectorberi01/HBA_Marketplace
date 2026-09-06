@@ -11,6 +11,7 @@ using HBA.Communication.Notifications.Domain.Preferences;
 using HBA.Communication.Notifications.Infrastructure.Persistence.Outbox;
 using HBA.Communication.Notifications.Infrastructure.Persistence.Inbox;
 using HBA.Communication.Notifications.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Communication.Notifications.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Notifications (schéma « notifications »).</summary>

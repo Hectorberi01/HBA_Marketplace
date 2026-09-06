@@ -7,6 +7,7 @@ using HBA.Inventory.Domain.Stock;
 
 using HBA.Inventory.Infrastructure.Persistence.Outbox;
 using HBA.Inventory.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Inventory.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Inventory (schéma « inventory »).</summary>

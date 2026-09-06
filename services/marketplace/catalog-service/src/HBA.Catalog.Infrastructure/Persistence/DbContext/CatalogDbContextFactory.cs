@@ -5,6 +5,7 @@ using HBA.Shared.Domain.Events;
 using HBA.Catalog.Infrastructure.Caching.Redis.Services;
 using HBA.Catalog.Infrastructure.Persistence.Outbox;
 using HBA.Catalog.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Catalog.Infrastructure.Persistence;
 
 /// <summary>

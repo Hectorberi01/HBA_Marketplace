@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using HBA.Media.Infrastructure.Persistence.Outbox;
 using HBA.Media.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Media.Infrastructure.Persistence;
 
 /// <summary>

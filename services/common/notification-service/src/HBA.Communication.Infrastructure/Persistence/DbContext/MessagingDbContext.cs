@@ -6,6 +6,7 @@ using HBA.Communication.Domain.Conversations;
 
 using HBA.Communication.Infrastructure.Persistence.Outbox;
 using HBA.Communication.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Communication.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Messaging (schéma « messaging »).</summary>

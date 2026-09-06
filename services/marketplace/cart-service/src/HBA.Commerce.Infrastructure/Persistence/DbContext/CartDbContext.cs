@@ -6,6 +6,7 @@ using CartAggregate = HBA.Commerce.Domain.Carts.Cart;
 
 using HBA.Commerce.Infrastructure.Persistence.Outbox;
 using HBA.Commerce.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Commerce.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Cart (schéma « cart »).</summary>

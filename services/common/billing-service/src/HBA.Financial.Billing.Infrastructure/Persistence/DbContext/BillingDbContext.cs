@@ -7,6 +7,7 @@ using HBA.Financial.Billing.Domain.Invoices;
 
 using HBA.Financial.Billing.Infrastructure.Persistence.Outbox;
 using HBA.Financial.Billing.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Financial.Billing.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Billing (schéma « billing »).</summary>

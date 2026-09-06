@@ -4,6 +4,7 @@ using HBA.Routes.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 using HBA.Routes.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Design;
 
 using HBA.FoodCarts.Infrastructure.Persistence.Outbox;
 using HBA.FoodCarts.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.FoodCarts.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF.</summary>

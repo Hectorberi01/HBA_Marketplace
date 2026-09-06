@@ -3,6 +3,7 @@ using HBA.Engagement.Wishlist.Infrastructure.Persistence.DbContext;
 using HBA.Engagement.Wishlist.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
+using HBA.Shared.Infrastructure.Events;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //

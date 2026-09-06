@@ -3,6 +3,7 @@ using HBA.Promotions.Infrastructure.Persistence.DbContext;
 using HBA.Promotions.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
+using HBA.Shared.Infrastructure.Events;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //

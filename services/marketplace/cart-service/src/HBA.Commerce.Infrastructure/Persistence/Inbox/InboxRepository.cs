@@ -3,6 +3,7 @@ using HBA.Commerce.Infrastructure.Persistence.DbContext;
 using HBA.Commerce.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
+using HBA.Shared.Infrastructure.Events;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //

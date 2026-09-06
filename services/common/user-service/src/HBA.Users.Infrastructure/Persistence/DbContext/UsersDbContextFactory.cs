@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Design;
 
 using HBA.Users.Infrastructure.Persistence.Outbox;
 using HBA.Users.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Users.Infrastructure.Persistence;
 
 /// <summary>

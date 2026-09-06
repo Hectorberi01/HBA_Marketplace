@@ -9,6 +9,7 @@ using HBA.Financial.Wallet.Domain.Wallets;
 using HBA.Financial.Wallet.Infrastructure.Auditing;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Outbox;
 using HBA.Financial.Wallet.Infrastructure.Persistence.Inbox;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Financial.Wallet.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Settlement (schéma « settlement »).</summary>

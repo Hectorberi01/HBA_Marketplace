@@ -3,6 +3,7 @@ using HBA.Engagement.Reviews.Infrastructure.Persistence.DbContext;
 using HBA.Engagement.Reviews.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
+using HBA.Shared.Infrastructure.Events;
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Inbox`.
 //

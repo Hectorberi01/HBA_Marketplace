@@ -10,6 +10,7 @@ using HBA.Financial.Payments.Infrastructure.Auditing;
 using HBA.Financial.Payments.Infrastructure.Persistence.Outbox;
 using HBA.Financial.Payments.Infrastructure.Persistence.Inbox;
 using HBA.Financial.Payments.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Financial.Payments.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Payments (schéma « payments »).</summary>

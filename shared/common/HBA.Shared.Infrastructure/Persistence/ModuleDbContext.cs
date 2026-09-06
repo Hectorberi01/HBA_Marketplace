@@ -5,6 +5,7 @@ using HBA.Shared.Application.Context;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Serialization;
 
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Shared.Infrastructure.Persistence;
 
 /// <summary>

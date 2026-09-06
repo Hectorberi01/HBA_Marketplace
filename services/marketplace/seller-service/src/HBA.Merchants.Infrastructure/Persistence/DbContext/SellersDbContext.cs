@@ -13,6 +13,7 @@ using HBA.Merchants.Infrastructure.Auditing;
 using HBA.Merchants.Infrastructure.Persistence.Outbox;
 using HBA.Merchants.Infrastructure.Persistence.Inbox;
 using HBA.Merchants.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Events;
 namespace HBA.Merchants.Infrastructure.Persistence;
 
 /// <summary>
