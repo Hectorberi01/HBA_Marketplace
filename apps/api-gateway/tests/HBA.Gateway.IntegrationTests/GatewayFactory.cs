@@ -25,6 +25,38 @@ namespace HBA.Gateway.IntegrationTests;
 /// </remarks>
 public class GatewayFactory : WebApplicationFactory<Program>
 {
+    /// <summary>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// CE QUI DOIT PASSER PAR L'ENVIRONNEMENT, ET NON PAR LA CONFIGURATION.
+    ///
+    /// La passerelle consomme desormais un evenement Kafka — `TokenRevoked`, pour
+    /// evincer les verdicts de revocation mis en cache. Elle appelle donc
+    /// `AddBuildingBlocksInfrastructure`, qui REFUSE DE DEMARRER quand le
+    /// producteur est indisponible alors que le drainage d'outbox est actif.
+    ///
+    /// Sans les deux lignes ci-dessous, les trente et un tests de ce projet
+    /// echouaient d'un bloc a la construction de l'hote — pas sur une assertion,
+    /// mais sur un refus de demarrage.
+    ///
+    /// `OUTBOX_ENABLED` EST LU DANS L'ENVIRONNEMENT, PAS DANS LA CONFIGURATION.
+    /// `OutboxRegistration.Enabled` appelle `Environment.GetEnvironmentVariable`
+    /// directement : le poser dans `AddInMemoryCollection` n'aurait aucun effet,
+    /// et l'echec serait identique et inexplicable.
+    ///
+    /// LE CONSTRUCTEUR STATIQUE, ET NON `ConfigureWebHost`. Les variables sont
+    /// lues par `CreateBuilder` avant que la premiere ligne de `Program` ne
+    /// s'execute ; les poser plus tard arriverait apres la lecture.
+    ///
+    /// CE QUE ÇA NE COUVRE PAS. Aucun test de ce projet n'eprouve le
+    /// consommateur lui-meme : avec `Kafka:Enabled=false`, il ne demarre pas. La
+    /// coupure immediate d'un jeton revoque n'est donc verifiee par rien.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </summary>
+    static GatewayFactory()
+    {
+        Environment.SetEnvironmentVariable("OUTBOX_ENABLED", "false");
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Environments.Development);
@@ -39,6 +71,11 @@ public class GatewayFactory : WebApplicationFactory<Program>
                 ["Authentication:SigningKey"] = TestTokens.SigningKey,
                 ["Authentication:Issuer"] = TestTokens.Issuer,
                 ["Authentication:Audience"] = TestTokens.Audience,
+
+                // Kafka éteint : sinon le consommateur d'événements — ajouté avec
+                // l'invalidation du cache de révocation — cherche un courtier
+                // absent pendant toute la suite.
+                ["Kafka:Enabled"] = "false",
 
                 // Export désactivé : sans cela, chaque test tente d'atteindre le
                 // collecteur et attend son délai de connexion.
