@@ -3,6 +3,7 @@ using HBA.Shared.IntegrationEvents;
 namespace HBA.Inventory.Contracts.IntegrationEvents;
 
 /// <summary>Du stock a été réservé pour une commande (consommé par Ordering).</summary>
+[HbaEvent("inventory.stock.reserved")]
 public sealed record StockReservedIntegrationEvent : IntegrationEvent
 {
     public required Guid InventoryItemId { get; init; }
@@ -12,6 +13,7 @@ public sealed record StockReservedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Un SKU est en rupture (consommé par Offers pour passer l'offre OutOfStock, Search…).</summary>
+[HbaEvent("inventory.stock.depleted")]
 public sealed record StockDepletedIntegrationEvent : IntegrationEvent
 {
     public required Guid InventoryItemId { get; init; }
@@ -26,6 +28,7 @@ public sealed record StockDepletedIntegrationEvent : IntegrationEvent
 /// retirées de la vente. Sans lui, un réassort ne remet rien en vente : le
 /// vendeur doit s'en apercevoir et relancer chaque offre à la main.
 /// </summary>
+[HbaEvent("inventory.stock.replenished")]
 public sealed record StockReplenishedIntegrationEvent : IntegrationEvent
 {
     public required Guid InventoryItemId { get; init; }

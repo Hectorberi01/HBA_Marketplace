@@ -2,6 +2,7 @@ using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Catalog.Contracts.IntegrationEvents;
 
+[HbaEvent("catalog.category.created")]
 public sealed record CategoryCreatedIntegrationEvent : IntegrationEvent
 {
     public required Guid CategoryId { get; init; }

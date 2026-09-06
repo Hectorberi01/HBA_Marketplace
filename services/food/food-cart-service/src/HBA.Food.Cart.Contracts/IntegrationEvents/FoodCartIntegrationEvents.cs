@@ -12,6 +12,7 @@ namespace HBA.FoodCarts.Contracts.IntegrationEvents;
 /// publiait d'abord et que la commande échouait, on aurait un panier vidé sans
 /// commande, et un client dont le repas a disparu de l'écran.
 /// </summary>
+[HbaEvent("food-cart.food.cart.checked.out")]
 public sealed record FoodCartCheckedOutIntegrationEvent : IntegrationEvent
 {
     public required Guid CartId { get; init; }

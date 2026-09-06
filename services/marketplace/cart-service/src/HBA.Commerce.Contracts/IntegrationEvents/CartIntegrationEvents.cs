@@ -3,6 +3,7 @@ using HBA.Shared.IntegrationEvents;
 namespace HBA.Commerce.Contracts.IntegrationEvents;
 
 /// <summary>Le panier a été validé (checkout). Consommé par Ordering / analytics.</summary>
+[HbaEvent("commerce.cart.checked.out")]
 public sealed record CartCheckedOutIntegrationEvent : IntegrationEvent
 {
     public required Guid CartId { get; init; }

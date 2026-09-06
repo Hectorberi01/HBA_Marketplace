@@ -16,6 +16,7 @@ namespace HBA.Catalog.Contracts.IntegrationEvents;
 /// Consommé par un adaptateur du composition root, qui seul connaît à la fois
 /// Catalog et le service média.
 /// </summary>
+[HbaEvent("catalog.product.media.removed")]
 public sealed record ProductMediaRemovedIntegrationEvent : IntegrationEvent
 {
     public required Guid ProductId { get; init; }

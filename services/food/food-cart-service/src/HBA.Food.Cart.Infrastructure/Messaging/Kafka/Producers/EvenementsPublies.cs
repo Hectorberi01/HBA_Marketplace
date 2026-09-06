@@ -30,26 +30,23 @@ public static class EvenementsPublies
     /// <summary>Les evenements publies par ce service, descripteur `[HbaEvent]` compris.</summary>
     public static readonly IReadOnlyList<Type> Types =
     [
-        // aucun
+        typeof(FoodCartCheckedOutIntegrationEvent),
     ];
 
     /// <summary>
-    /// LES EVENEMENTS PUBLIES QUI N'ONT PAS ENCORE DE `[HbaEvent]`.
+    /// PLUS AUCUN EVENEMENT PUBLIE NE MANQUE DE `[HbaEvent]`.
     ///
-    /// Ils sont NOMMES ici plutot que passes sous silence. La verification les
-    /// ignore volontairement : les faire echouer arreterait un service qui tourne
-    /// aujourd'hui en production, pour un defaut qui n'a pas d'effet tant que
-    /// `HbaEventNaming` n'est pas branche sur le fil (voir `HbaTopics`, §19.2).
+    /// Cette liste nommait les evenements que la verification devait ignorer,
+    /// parce que les faire echouer aurait arrete des services qui tournaient. Les
+    /// quatre-vingts concernes ont recu leur descripteur : elle est vide, et elle
+    /// doit le rester.
     ///
-    /// CE QU'ILS COUTENT DEJA. Leur nom d'evenement et leur sujet tombent sur le
-    /// repli de `KafkaEventNaming`. Le jour ou le nommage canonique sera branche,
-    /// ces evenements changeront de nom sur le fil — c'est cette liste qu'il
-    /// faudra vider AVANT, pas apres.
+    /// CE QU'ELLE REDEVIENT SI ELLE SE REMPLIT. Une derogation. Y inscrire un
+    /// evenement, c'est dire que son nom sur le fil tombera sur un repli le jour
+    /// ou le nommage canonique sera branche — donc qu'un consommateur cherchera un
+    /// nom qui n'existe pas. La raison doit etre ecrite a cote.
     /// </summary>
-    public static readonly IReadOnlyList<Type> SansDescripteur =
-    [
-        typeof(FoodCartCheckedOutIntegrationEvent),
-    ];
+    public static readonly IReadOnlyList<Type> SansDescripteur = [];
 
     /// <summary>Refuse le demarrage si un evenement de `Types` n'a pas `[HbaEvent]`.</summary>
     internal static void VerifierLesDescripteurs()

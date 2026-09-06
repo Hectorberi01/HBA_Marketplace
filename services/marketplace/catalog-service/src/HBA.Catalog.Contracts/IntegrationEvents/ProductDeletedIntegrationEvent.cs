@@ -6,6 +6,7 @@ namespace HBA.Catalog.Contracts.IntegrationEvents;
 /// Publié quand un produit est supprimé. Consommé par Search pour retirer le
 /// produit de l'index (évite les entrées orphelines en vitrine).
 /// </summary>
+[HbaEvent("catalog.product.deleted")]
 public sealed record ProductDeletedIntegrationEvent : IntegrationEvent
 {
     public required Guid ProductId { get; init; }

@@ -24,6 +24,7 @@ namespace HBA.FoodOrders.Contracts.IntegrationEvents;
 /// DÉPLAÇANT le contrat, pas en le dupliquant.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("food-order.meal.order.placed")]
 public sealed record MealOrderPlacedIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -63,6 +64,7 @@ public sealed record MealOrderLineOptionPayload
 /// l'événement était commun à deux univers et ne pouvait donc rien porter de
 /// spécifique. Ici il n'y a qu'un univers : l'événement dit tout.
 /// </summary>
+[HbaEvent("food-order.meal.order.confirmed")]
 public sealed record MealOrderConfirmedIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -79,6 +81,7 @@ public sealed record MealOrderConfirmedIntegrationEvent : IntegrationEvent
     public IReadOnlyList<MealOrderLinePayload> Lines { get; init; } = [];
 }
 
+[HbaEvent("food-order.meal.order.cancelled")]
 public sealed record MealOrderCancelledIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -87,6 +90,7 @@ public sealed record MealOrderCancelledIntegrationEvent : IntegrationEvent
     public required string Reason { get; init; }
 }
 
+[HbaEvent("food-order.meal.order.delivered")]
 public sealed record MealOrderDeliveredIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -108,6 +112,7 @@ public sealed record MealOrderDeliveredIntegrationEvent : IntegrationEvent
 /// <c>Reason</c> voyage en clair : il finit dans la file d'arbitrage, lue par
 /// quelqu'un qui ne connaît pas ce code.
 /// </summary>
+[HbaEvent("food-order.meal.order.under.review")]
 public sealed record MealOrderUnderReviewIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -124,6 +129,7 @@ public sealed record MealOrderUnderReviewIntegrationEvent : IntegrationEvent
 /// les gains — tout cela a déjà eu lieu. Celui-ci ne dit qu'une chose : la
 /// suspension est levée.
 /// </summary>
+[HbaEvent("food-order.meal.order.resumed.after.review")]
 public sealed record MealOrderResumedAfterReviewIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }

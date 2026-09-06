@@ -60,6 +60,7 @@ public sealed record UserRegisteredIntegrationEvent : IntegrationEvent
 /// Le nom dit ce qu'il contient : personne ne doit le lire en croyant y trouver un
 /// code, ni le journaliser en pensant que c'est anodin.
 /// </summary>
+[HbaEvent("identity.email.verification.requested")]
 public sealed record EmailVerificationRequestedIntegrationEvent : IntegrationEvent
 {
     public required Guid UserId { get; init; }
@@ -123,6 +124,7 @@ public sealed record OtpChallengeIssuedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>L'e-mail d'un compte a été confirmé.</summary>
+[HbaEvent("identity.user.email.confirmed")]
 public sealed record UserEmailConfirmedIntegrationEvent : IntegrationEvent
 {
     public required Guid UserId { get; init; }
@@ -141,6 +143,7 @@ public sealed record UserEmailConfirmedIntegrationEvent : IntegrationEvent
 /// sens s'inversera : User écrira, Identity perdra ses colonnes, et cet événement
 /// disparaîtra avec elles.
 /// </summary>
+[HbaEvent("identity.user.profile.updated")]
 public sealed record UserProfileUpdatedIntegrationEvent : IntegrationEvent
 {
     public required Guid UserId { get; init; }
@@ -156,6 +159,7 @@ public sealed record UserProfileUpdatedIntegrationEvent : IntegrationEvent
 /// l'effacement de données personnelles n'a aucune raison d'en transporter — il
 /// resterait dans la table d'outbox, lisible, après que l'original a disparu.
 /// </summary>
+[HbaEvent("identity.user.anonymized")]
 public sealed record UserAnonymizedIntegrationEvent : IntegrationEvent
 {
     public required Guid UserId { get; init; }
@@ -191,6 +195,7 @@ public sealed record UserAnonymizedIntegrationEvent : IntegrationEvent
 /// `ToString()`. Un chiffré recopié dans les journaux d'un service qui détient la
 /// clé redevient un secret en clair pour qui lit les deux.
 /// </summary>
+[HbaEvent("identity.password.reset.requested")]
 public sealed record PasswordResetRequestedIntegrationEvent : IntegrationEvent
 {
     public required Guid UserId { get; init; }

@@ -16,6 +16,7 @@ namespace HBA.Engagement.Reviews.Contracts.IntegrationEvents;
 /// Le résumé d'origine disait « Consommé par Search » — il n'y a pas de service de
 /// recherche dans ce dépôt. La ligne est retirée plutôt que recopiée.
 /// </remarks>
+[HbaEvent("engagement.review.published")]
 public sealed record ReviewPublishedIntegrationEvent : IntegrationEvent
 {
     public required Guid ReviewId { get; init; }
@@ -25,6 +26,7 @@ public sealed record ReviewPublishedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Un avis a été rejeté : sa contribution aux notes disparaît.</summary>
+[HbaEvent("engagement.review.rejected")]
 public sealed record ReviewRejectedIntegrationEvent : IntegrationEvent
 {
     public required Guid ReviewId { get; init; }
@@ -76,6 +78,7 @@ public sealed record ReviewRejectedIntegrationEvent : IntegrationEvent
 /// pouvoir republier l'historique coûterait bien davantage que de le porter dès
 /// maintenant.
 /// </remarks>
+[HbaEvent("engagement.seller.rating.recomputed")]
 public sealed record SellerRatingRecomputedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }

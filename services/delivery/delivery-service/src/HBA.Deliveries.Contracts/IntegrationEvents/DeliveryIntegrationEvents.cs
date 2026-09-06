@@ -20,6 +20,7 @@ namespace HBA.Deliveries.Contracts.IntegrationEvents;
 /// pour rester vendable à des tiers.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("delivery.created")]
 public sealed record DeliveryCreatedIntegrationEvent : IntegrationEvent
 {
     public required Guid DeliveryId { get; init; }
@@ -45,6 +46,7 @@ public sealed record DeliveryCreatedIntegrationEvent : IntegrationEvent
 /// Le handler relit donc le livreur par <c>IDeliveryModuleApi</c>. C'est le même
 /// arbitrage que pour la création de profil à l'inscription.
 /// </summary>
+[HbaEvent("delivery.assigned")]
 public sealed record DeliveryAssignedIntegrationEvent : IntegrationEvent
 {
     public required Guid DeliveryId { get; init; }
@@ -84,6 +86,7 @@ public sealed record DeliveryAssignedIntegrationEvent : IntegrationEvent
 // ═════════════════════════════════════════════════════════════════════════════
 
 /// <summary>Un livreur a accepté la course. Le client peut être prévenu.</summary>
+[HbaEvent("delivery.accepted")]
 public sealed record DeliveryAcceptedIntegrationEvent : IntegrationEvent
 {
     public required Guid DeliveryId { get; init; }
@@ -93,6 +96,7 @@ public sealed record DeliveryAcceptedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Le colis est pris en charge : la course est physiquement engagée.</summary>
+[HbaEvent("delivery.picked.up")]
 public sealed record DeliveryPickedUpIntegrationEvent : IntegrationEvent
 {
     public required Guid DeliveryId { get; init; }
@@ -147,6 +151,7 @@ public sealed record DeliveryPickedUpIntegrationEvent : IntegrationEvent
 /// le partenaire. Toute modification de sa forme est une rupture de contrat
 /// EXTERNE — pas seulement interne.
 /// </summary>
+[HbaEvent("delivery.completed")]
 public sealed record DeliveryCompletedIntegrationEvent : IntegrationEvent
 {
     public required Guid DeliveryId { get; init; }
@@ -166,6 +171,7 @@ public sealed record DeliveryCompletedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Course annulée avant collecte.</summary>
+[HbaEvent("delivery.cancelled")]
 public sealed record DeliveryCancelledIntegrationEvent : IntegrationEvent
 {
     public required Guid DeliveryId { get; init; }
@@ -181,6 +187,7 @@ public sealed record DeliveryCancelledIntegrationEvent : IntegrationEvent
 /// course reste vivante et reprenable : annoncer un échec à l'acheteur alors
 /// qu'un opérateur peut encore la pourvoir ferait perdre une vente pour rien.
 /// </summary>
+[HbaEvent("delivery.no.driver.available")]
 public sealed record DeliveryNoDriverAvailableIntegrationEvent : IntegrationEvent
 {
     public required Guid DeliveryId { get; init; }

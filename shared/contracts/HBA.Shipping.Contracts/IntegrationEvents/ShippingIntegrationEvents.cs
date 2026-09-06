@@ -17,6 +17,7 @@ namespace HBA.Shipping.Contracts.IntegrationEvents;
 /// tout connaître. Voir CreateDeliveryOnShipmentReadyHandler.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("shipment.ready.for.pickup")]
 public sealed record ShipmentReadyForPickupIntegrationEvent : IntegrationEvent
 {
     public required Guid ShipmentId { get; init; }
@@ -28,6 +29,7 @@ public sealed record ShipmentReadyForPickupIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Expédition remise au transporteur. Consommé par Notifications.</summary>
+[HbaEvent("shipment.shipped")]
 public sealed record ShipmentShippedIntegrationEvent : IntegrationEvent
 {
     public required Guid ShipmentId { get; init; }
@@ -37,6 +39,7 @@ public sealed record ShipmentShippedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Expédition livrée. Consommé par Notifications / Reviews / Settlement (payout vendeur).</summary>
+[HbaEvent("shipment.delivered")]
 public sealed record ShipmentDeliveredIntegrationEvent : IntegrationEvent
 {
     public required Guid ShipmentId { get; init; }

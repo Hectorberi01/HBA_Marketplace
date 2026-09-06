@@ -20,6 +20,7 @@ namespace HBA.Food.Contracts.IntegrationEvents;
 /// Exactement le raisonnement de DriverVerifiedIntegrationEvent.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("food.restaurant.approved")]
 public sealed record RestaurantApprovedIntegrationEvent : IntegrationEvent
 {
     public required Guid RestaurantId { get; init; }
@@ -38,6 +39,7 @@ public sealed record RestaurantApprovedIntegrationEvent : IntegrationEvent
 /// et les deux s'épuisent. Un refus sans motif n'est pas une décision de
 /// modération, c'est une impasse.
 /// </summary>
+[HbaEvent("food.restaurant.rejected")]
 public sealed record RestaurantRejectedIntegrationEvent : IntegrationEvent
 {
     public required Guid RestaurantId { get; init; }
@@ -51,6 +53,7 @@ public sealed record RestaurantRejectedIntegrationEvent : IntegrationEvent
 /// Le restaurateur doit l'apprendre autrement que par la chute de ses commandes —
 /// il perdrait des jours à chercher une panne qui n'existe pas.
 /// </summary>
+[HbaEvent("food.restaurant.suspended")]
 public sealed record RestaurantSuspendedIntegrationEvent : IntegrationEvent
 {
     public required Guid RestaurantId { get; init; }
@@ -59,6 +62,7 @@ public sealed record RestaurantSuspendedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>La suspension est levée : l'établissement revient dans la vitrine.</summary>
+[HbaEvent("food.restaurant.reopened")]
 public sealed record RestaurantReopenedIntegrationEvent : IntegrationEvent
 {
     public required Guid RestaurantId { get; init; }

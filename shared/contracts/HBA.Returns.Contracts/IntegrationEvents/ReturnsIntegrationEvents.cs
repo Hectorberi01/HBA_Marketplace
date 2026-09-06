@@ -11,6 +11,7 @@ namespace HBA.Returns.Contracts.IntegrationEvents;
 ///
 /// N'engage AUCUNE écriture comptable.
 /// </summary>
+[HbaEvent("return-refund.return.refund.approved")]
 public sealed record ReturnRefundApprovedIntegrationEvent : IntegrationEvent
 {
     public required Guid ReturnRequestId { get; init; }
@@ -31,6 +32,7 @@ public sealed record ReturnRefundApprovedIntegrationEvent : IntegrationEvent
 /// qui faisait qu'un remboursement ne remboursait rien, ne débitait personne, et
 /// n'informait qui que ce soit.
 /// </summary>
+[HbaEvent("return-refund.return.refunded")]
 public sealed record ReturnRefundedIntegrationEvent : IntegrationEvent
 {
     public required Guid ReturnRequestId { get; init; }

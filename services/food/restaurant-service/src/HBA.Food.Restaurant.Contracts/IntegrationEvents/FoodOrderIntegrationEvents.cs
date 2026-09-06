@@ -67,6 +67,7 @@ public static class FoodOrderOrigins
 
     public const string Food = "Food";
 }
+[HbaEvent("food.order.received")]
 public sealed record FoodOrderReceivedIntegrationEvent : IntegrationEvent
 {
     public required Guid FoodOrderId { get; init; }
@@ -94,6 +95,7 @@ public sealed record FoodOrderReceivedIntegrationEvent : IntegrationEvent
 /// <c>EstimatedPreparationMinutes</c> voyage avec : c'est la promesse faite au
 /// client, et l'heure de livraison affichée en dépend.
 /// </summary>
+[HbaEvent("food.order.accepted")]
 public sealed record FoodOrderAcceptedIntegrationEvent : IntegrationEvent
 {
     public required Guid FoodOrderId { get; init; }
@@ -122,6 +124,7 @@ public sealed record FoodOrderAcceptedIntegrationEvent : IntegrationEvent
 /// référencer <c>FoodRejectionReason</c> ferait la dépendance que la frontière du
 /// module interdit.
 /// </summary>
+[HbaEvent("food.order.rejected")]
 public sealed record FoodOrderRejectedIntegrationEvent : IntegrationEvent
 {
     public required Guid FoodOrderId { get; init; }
@@ -135,6 +138,7 @@ public sealed record FoodOrderRejectedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>La cuisine a commencé. Vaut <c>kitchen.ticket.started</c>.</summary>
+[HbaEvent("food.order.preparing")]
 public sealed record FoodOrderPreparingIntegrationEvent : IntegrationEvent
 {
     public required Guid FoodOrderId { get; init; }
@@ -154,6 +158,7 @@ public sealed record FoodOrderPreparingIntegrationEvent : IntegrationEvent
 /// suite, et le raccordement à Delivery est le prochain jalon du module.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("food.order.ready.for.pickup")]
 public sealed record FoodOrderReadyForPickupIntegrationEvent : IntegrationEvent
 {
     public required Guid FoodOrderId { get; init; }
@@ -165,6 +170,7 @@ public sealed record FoodOrderReadyForPickupIntegrationEvent : IntegrationEvent
     public string OrderOrigin { get; init; } = FoodOrderOrigins.Marketplace;
 }
 
+[HbaEvent("food.order.picked.up")]
 public sealed record FoodOrderPickedUpIntegrationEvent : IntegrationEvent
 {
     public required Guid FoodOrderId { get; init; }
@@ -193,6 +199,7 @@ public sealed record FoodOrderPickedUpIntegrationEvent : IntegrationEvent
 /// rappeler son émetteur n'est qu'une notification déguisée.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("food.order.delivered")]
 public sealed record FoodOrderDeliveredIntegrationEvent : IntegrationEvent
 {
     public required Guid FoodOrderId { get; init; }
@@ -211,6 +218,7 @@ public sealed record FoodOrderDeliveredIntegrationEvent : IntegrationEvent
 /// rien ; la même trente minutes plus tard coûte un repas, et c'est ce qui fonde
 /// une éventuelle indemnisation.
 /// </summary>
+[HbaEvent("food.order.cancelled")]
 public sealed record FoodOrderCancelledIntegrationEvent : IntegrationEvent
 {
     public required Guid FoodOrderId { get; init; }

@@ -27,6 +27,7 @@ namespace HBA.Merchants.Contracts.IntegrationEvents;
 /// fonctionner. Il n'y a jamais deux liens vivants pour une même invitation.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("merchant.seller.member.invited")]
 public sealed record SellerMemberInvitedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -76,6 +77,7 @@ public sealed record SellerMemberInvitedIntegrationEvent : IntegrationEvent
 /// lot B′ ; cet événement est ce qui le rend possible.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("merchant.seller.member.joined")]
 public sealed record SellerMemberJoinedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -105,6 +107,7 @@ public sealed record SellerMemberJoinedIntegrationEvent : IntegrationEvent
 /// minutes pendant lesquelles un membre rétrogradé garde ses anciens pouvoirs.
 /// </para>
 /// </summary>
+[HbaEvent("merchant.seller.member.roles.updated")]
 public sealed record SellerMemberRolesUpdatedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -117,6 +120,7 @@ public sealed record SellerMemberRolesUpdatedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Un membre a été affecté à une boutique.</summary>
+[HbaEvent("merchant.seller.member.store.assigned")]
 public sealed record SellerMemberStoreAssignedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -129,6 +133,7 @@ public sealed record SellerMemberStoreAssignedIntegrationEvent : IntegrationEven
 }
 
 /// <summary>Un membre a été retiré d'une boutique.</summary>
+[HbaEvent("merchant.seller.member.store.unassigned")]
 public sealed record SellerMemberStoreUnassignedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -151,6 +156,7 @@ public sealed record SellerMemberStoreUnassignedIntegrationEvent : IntegrationEv
 /// la garantie acquise du seul fait que cet événement existe.
 /// </para>
 /// </summary>
+[HbaEvent("merchant.seller.member.suspended")]
 public sealed record SellerMemberSuspendedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -161,6 +167,7 @@ public sealed record SellerMemberSuspendedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>L'accès d'un membre suspendu est rouvert.</summary>
+[HbaEvent("merchant.seller.member.activated")]
 public sealed record SellerMemberActivatedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -182,6 +189,7 @@ public sealed record SellerMemberActivatedIntegrationEvent : IntegrationEvent
 /// révocation n'est pas le symétrique de l'octroi.
 /// </para>
 /// </summary>
+[HbaEvent("merchant.seller.member.revoked")]
 public sealed record SellerMemberRevokedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -228,6 +236,7 @@ public sealed record SellerMemberRevokedIntegrationEvent : IntegrationEvent
 /// comptes restent membres, les deux gardent le rôle `Seller`.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
+[HbaEvent("merchant.seller.ownership.transferred")]
 public sealed record SellerOwnershipTransferredIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }

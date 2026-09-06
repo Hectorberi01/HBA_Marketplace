@@ -6,6 +6,7 @@ namespace HBA.Catalog.Contracts.IntegrationEvents;
 /// Publié sur le bus quand un produit est créé. Consommé par Search (indexation),
 /// et potentiellement Inventory, Recommendations… de façon découplée.
 /// </summary>
+[HbaEvent("product.created")]
 public sealed record ProductCreatedIntegrationEvent : IntegrationEvent
 {
     public required Guid ProductId { get; init; }

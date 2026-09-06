@@ -3,6 +3,7 @@ using HBA.Shared.IntegrationEvents;
 namespace HBA.Merchants.Contracts.IntegrationEvents;
 
 /// <summary>Un vendeur a été onboardé. Consommé par Notifications, Analytics…</summary>
+[HbaEvent("merchant.seller.registered")]
 public sealed record SellerRegisteredIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -14,6 +15,7 @@ public sealed record SellerRegisteredIntegrationEvent : IntegrationEvent
 /// Un vendeur est devenu actif : il peut publier des produits. Consommé par
 /// Catalog (autorisation), Notifications (e-mail de bienvenue vendeur)…
 /// </summary>
+[HbaEvent("merchant.seller.activated")]
 public sealed record SellerActivatedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -24,6 +26,7 @@ public sealed record SellerActivatedIntegrationEvent : IntegrationEvent
 /// Le vendeur a fermé son compte (suppression partielle). Consommé par Catalog
 /// (retrait des produits de la vente), Notifications…
 /// </summary>
+[HbaEvent("merchant.seller.closed")]
 public sealed record SellerClosedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -39,6 +42,7 @@ public sealed record SellerClosedIntegrationEvent : IntegrationEvent
 /// dans SellerSuspendedIntegrationEvent : le refus et la sanction sont deux
 /// faits distincts, même s'ils partent ensemble.
 /// </summary>
+[HbaEvent("merchant.seller.kyb.rejected")]
 public sealed record SellerKybRejectedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -55,6 +59,7 @@ public sealed record SellerKybRejectedIntegrationEvent : IntegrationEvent
 /// la suspension est infligée et se lève par une décision d'exploitation. Les
 /// confondre ferait qu'un vendeur sanctionné pourrait se rétablir seul.
 /// </summary>
+[HbaEvent("merchant.seller.suspended")]
 public sealed record SellerSuspendedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -63,6 +68,7 @@ public sealed record SellerSuspendedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>La suspension a été levée : le catalogue retiré pour ce motif revient en vente.</summary>
+[HbaEvent("merchant.seller.suspension.lifted")]
 public sealed record SellerSuspensionLiftedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -70,6 +76,7 @@ public sealed record SellerSuspensionLiftedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Le compte fermé du vendeur a été réactivé (validation admin).</summary>
+[HbaEvent("merchant.seller.reactivated")]
 public sealed record SellerReactivatedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -80,6 +87,7 @@ public sealed record SellerReactivatedIntegrationEvent : IntegrationEvent
 /// Le vendeur est supprimé définitivement (admin). Consommé par Catalog (purge :
 /// archivage de tous ses produits).
 /// </summary>
+[HbaEvent("merchant.seller.deleted")]
 public sealed record SellerDeletedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -93,6 +101,7 @@ public sealed record SellerDeletedIntegrationEvent : IntegrationEvent
 /// dans les deux cas les offres de cette boutique quittent la vente. La
 /// distinction vit dans le statut, qui décide qui a le droit de rouvrir.
 /// </summary>
+[HbaEvent("merchant.store.closed")]
 public sealed record StoreClosedIntegrationEvent : IntegrationEvent
 {
     public required Guid StoreId { get; init; }
@@ -105,6 +114,7 @@ public sealed record StoreClosedIntegrationEvent : IntegrationEvent
 /// vente. Celles qu'une suspension de vendeur ou un modérateur avait retirées
 /// restent où elles sont — voir StoreCatalogClosure.
 /// </summary>
+[HbaEvent("merchant.store.opened")]
 public sealed record StoreOpenedIntegrationEvent : IntegrationEvent
 {
     public required Guid StoreId { get; init; }
@@ -123,6 +133,7 @@ public sealed record StoreOpenedIntegrationEvent : IntegrationEvent
 /// Il porte le SellerId en plus du MediaId : un message resté en souffrance doit
 /// dire de QUI est le fichier qui résiste, pas seulement lequel.
 /// </summary>
+[HbaEvent("merchant.kyb.document.removed")]
 public sealed record KybDocumentRemovedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -142,6 +153,7 @@ public sealed record KybDocumentRemovedIntegrationEvent : IntegrationEvent
 /// Consommé par Notifications (accusé de dépôt au vendeur, alerte à la modération)
 /// et par Analytics (délai de traitement des dossiers).
 /// </summary>
+[HbaEvent("merchant.seller.kyb.submitted")]
 public sealed record SellerKybSubmittedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -164,6 +176,7 @@ public sealed record SellerKybSubmittedIntegrationEvent : IntegrationEvent
 /// l'activation exige en plus des coordonnées de reversement, et c'est
 /// `SellerActivatedIntegrationEvent` qui l'annonce.
 /// </summary>
+[HbaEvent("merchant.seller.kyb.approved")]
 public sealed record SellerKybApprovedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerId { get; init; }
@@ -179,6 +192,7 @@ public sealed record SellerKybApprovedIntegrationEvent : IntegrationEvent
 /// consommateur ne pouvait les séparer qu'en lisant un motif en texte libre —
 /// c'est-à-dire pas du tout, de façon fiable.
 /// </summary>
+[HbaEvent("merchant.store.suspended")]
 public sealed record StoreSuspendedIntegrationEvent : IntegrationEvent
 {
     public required Guid StoreId { get; init; }
@@ -192,6 +206,7 @@ public sealed record StoreSuspendedIntegrationEvent : IntegrationEvent
 /// Un consommateur qui a exclu cette boutique d'un classement doit la réintégrer
 /// dans ses règles, sans pour autant la considérer comme ouverte.
 /// </summary>
+[HbaEvent("merchant.store.suspension.lifted")]
 public sealed record StoreSuspensionLiftedIntegrationEvent : IntegrationEvent
 {
     public required Guid StoreId { get; init; }

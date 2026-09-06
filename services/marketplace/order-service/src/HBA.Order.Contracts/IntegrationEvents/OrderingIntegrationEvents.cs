@@ -3,6 +3,7 @@ using HBA.Shared.IntegrationEvents;
 namespace HBA.Orders.Contracts.IntegrationEvents;
 
 /// <summary>Commande placée (stock réservé, en attente de paiement). Consommé par Cart (clôture) / Payments.</summary>
+[HbaEvent("order.placed")]
 public sealed record OrderPlacedIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -35,6 +36,7 @@ public sealed record OrderSellerShare(Guid SellerId, int ItemCount, decimal Amou
 /// l'acheteur et l'identifiant de commande — et c'est exactement pourquoi les
 /// vendeurs n'étaient jamais notifiés.
 /// </summary>
+[HbaEvent("order.confirmed")]
 public sealed record OrderConfirmedIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -99,6 +101,7 @@ public sealed record OrderConfirmedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Commande annulée. Consommé par Notifications / analytics.</summary>
+[HbaEvent("order.cancelled")]
 public sealed record OrderCancelledIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -107,6 +110,7 @@ public sealed record OrderCancelledIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Commande livrée. Consommé par Payments (libération escrow) et Settlement (payout).</summary>
+[HbaEvent("order.delivered")]
 public sealed record OrderDeliveredIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -130,6 +134,7 @@ public sealed record OrderDeliveredIntegrationEvent : IntegrationEvent
 /// par `OrderCancelled` — publié seulement si l'exploitation tranche en ce sens.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("order.under.review")]
 public sealed record OrderUnderReviewIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -151,6 +156,7 @@ public sealed record OrderUnderReviewIntegrationEvent : IntegrationEvent
 /// vendeurs — tout cela a déjà eu lieu, et le rejouer paierait deux fois. Celui-ci
 /// annonce uniquement la levée d'une suspension.
 /// </summary>
+[HbaEvent("order.resumed.after.review")]
 public sealed record OrderResumedAfterReviewIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
@@ -208,6 +214,7 @@ public sealed record SellerOrderRefusedLine(
 /// §19.2 se fera par service, pas par événement isolé.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
+[HbaEvent("order.seller.order.refused")]
 public sealed record SellerOrderRefusedIntegrationEvent : IntegrationEvent
 {
     public required Guid SellerOrderId { get; init; }
