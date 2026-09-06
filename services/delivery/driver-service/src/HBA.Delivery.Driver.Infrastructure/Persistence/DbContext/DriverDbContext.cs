@@ -50,7 +50,10 @@ public sealed class DriverDbContext : ModuleDbContext, IOutboxDbContext
     protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new OutboxConfiguration());
-        modelBuilder.ApplyConfiguration(new ConsumerInboxConfiguration());
+        // PAS D'INBOX : ce service ne consomme aucun evenement d'integration.
+        // La ligne `ApplyConfiguration(new ConsumerInboxConfiguration())` mappait
+        // `consumer_inbox` dans le modele alors qu'aucune migration ne cree cette
+        // table — et `InboxCleanupService` l'interrogeait a chaque tick.
     }
 
     protected override void AjouterAuOutbox(

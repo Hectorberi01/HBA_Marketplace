@@ -401,35 +401,6 @@ namespace HBA.Food.Infrastructure.Migrations
                     b.ToTable("preparation_stations", "food");
                 });
 
-            modelBuilder.Entity("HBA.Food.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
-                {
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ConsumerName")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<DateTime>("ProcessedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("EventId", "ConsumerName");
-
-                    b.HasIndex("ProcessedAtUtc")
-                        .HasDatabaseName("ix_consumer_inbox_processed_at");
-
-                    b.ToTable("consumer_inbox", "food");
-                });
-
             modelBuilder.Entity("HBA.Food.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -473,6 +444,35 @@ namespace HBA.Food.Infrastructure.Migrations
                     b.HasIndex("EntityType", "EntityId", "OccurredOnUtc");
 
                     b.ToTable("audit_entries", "food");
+                });
+
+            modelBuilder.Entity("HBA.Food.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConsumerName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTime>("ProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("EventId", "ConsumerName");
+
+                    b.HasIndex("ProcessedAtUtc")
+                        .HasDatabaseName("ix_consumer_inbox_processed_at");
+
+                    b.ToTable("consumer_inbox", "food");
                 });
 
             modelBuilder.Entity("HBA.Food.Infrastructure.Persistence.Outbox.OutboxMessage", b =>

@@ -5,7 +5,6 @@ using HBA.Communication.Application.Abstractions;
 using HBA.Communication.Domain.Conversations;
 
 using HBA.Communication.Infrastructure.Persistence.Outbox;
-using HBA.Communication.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Communication.Infrastructure.Persistence;
 
@@ -24,7 +23,10 @@ public sealed class MessagingDbContext : ModuleDbContext, IOutboxDbContext, IMes
     protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new OutboxConfiguration());
-        modelBuilder.ApplyConfiguration(new ConsumerInboxConfiguration());
+        // PAS D'INBOX : ce module ne consomme aucun evenement d'integration.
+        // La ligne `ApplyConfiguration(new ConsumerInboxConfiguration())` mappait
+        // `consumer_inbox` dans le schema `messaging` alors qu'aucune migration ne
+        // cree cette table — le module Notifications, lui, la cree dans le sien.
     }
 
     protected override void AjouterAuOutbox(

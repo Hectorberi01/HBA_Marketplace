@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Communication.Infrastructure.Persistence;
-using HBA.Communication.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 
 using HBA.Communication.Infrastructure.Messaging.Kafka.Retry;

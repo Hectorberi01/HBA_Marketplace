@@ -108,7 +108,8 @@ namespace HBA.Deliveries.Infrastructure.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("UpdatedAtUtc");
 
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()
@@ -123,12 +124,17 @@ namespace HBA.Deliveries.Infrastructure.Migrations
                         .HasDatabaseName("ux_deliveries_engaged_driver")
                         .HasFilter("\"AssignedDriverId\" IS NOT NULL AND \"Status\" IN ('DriverAccepted', 'ArrivedAtPickup', 'PickedUp', 'InTransit', 'ArrivedAtDropoff')");
 
-                    b.HasIndex("AssignedDriverId", "CreatedAtUtc")
-                        .HasDatabaseName("ix_deliveries_driver");
+                    b.HasIndex("QuoteId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_deliveries_quote")
+                        .HasFilter("\"QuoteId\" IS NOT NULL");
 
                     b.HasIndex("ScheduledForUtc")
                         .HasDatabaseName("ix_deliveries_scheduled_for")
                         .HasFilter("\"ScheduledForUtc\" IS NOT NULL");
+
+                    b.HasIndex("AssignedDriverId", "CreatedAtUtc")
+                        .HasDatabaseName("ix_deliveries_driver");
 
                     b.HasIndex("PartnerId", "CreatedAtUtc")
                         .HasDatabaseName("ix_deliveries_partner")
@@ -137,11 +143,6 @@ namespace HBA.Deliveries.Infrastructure.Migrations
                     b.HasIndex("Reference", "Source")
                         .IsUnique()
                         .HasDatabaseName("ux_deliveries_reference_source");
-
-                    b.HasIndex("QuoteId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_deliveries_quote")
-                        .HasFilter("\"QuoteId\" IS NOT NULL");
 
                     b.HasIndex("Status", "CreatedAtUtc")
                         .HasDatabaseName("ix_deliveries_awaiting_driver")
@@ -320,35 +321,6 @@ namespace HBA.Deliveries.Infrastructure.Migrations
                     b.ToTable("webhook_deliveries", "deliveries");
                 });
 
-            modelBuilder.Entity("HBA.Deliveries.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
-                {
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ConsumerName")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<DateTime>("ProcessedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("EventId", "ConsumerName");
-
-                    b.HasIndex("ProcessedAtUtc")
-                        .HasDatabaseName("ix_consumer_inbox_processed_at");
-
-                    b.ToTable("consumer_inbox", "deliveries");
-                });
-
             modelBuilder.Entity("HBA.Deliveries.Infrastructure.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -392,6 +364,35 @@ namespace HBA.Deliveries.Infrastructure.Migrations
                     b.HasIndex("EntityType", "EntityId", "OccurredOnUtc");
 
                     b.ToTable("audit_entries", "deliveries");
+                });
+
+            modelBuilder.Entity("HBA.Deliveries.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConsumerName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTime>("ProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("EventId", "ConsumerName");
+
+                    b.HasIndex("ProcessedAtUtc")
+                        .HasDatabaseName("ix_consumer_inbox_processed_at");
+
+                    b.ToTable("consumer_inbox", "deliveries");
                 });
 
             modelBuilder.Entity("HBA.Deliveries.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
@@ -785,7 +786,6 @@ namespace HBA.Deliveries.Infrastructure.Migrations
 
                     b.Navigation("ApiKeys");
                 });
-
 #pragma warning restore 612, 618
         }
     }

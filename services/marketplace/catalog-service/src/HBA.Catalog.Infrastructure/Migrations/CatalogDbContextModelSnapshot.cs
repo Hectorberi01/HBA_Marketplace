@@ -776,6 +776,51 @@ namespace HBA.Catalog.Infrastructure.Migrations
                     b.ToTable("product_review_reasons", "catalog");
                 });
 
+            modelBuilder.Entity("HBA.Catalog.Infrastructure.Auditing.AuditEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime>("OccurredOnUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Operation")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId", "OccurredOnUtc");
+
+                    b.HasIndex("EntityType", "EntityId", "OccurredOnUtc");
+
+                    b.ToTable("audit_entries", "catalog");
+                });
+
             modelBuilder.Entity("HBA.Catalog.Infrastructure.Idempotency.IdempotencyRecord", b =>
                 {
                     b.Property<string>("Key")
@@ -845,51 +890,6 @@ namespace HBA.Catalog.Infrastructure.Migrations
                         .HasDatabaseName("ix_consumer_inbox_processed_at");
 
                     b.ToTable("consumer_inbox", "catalog");
-                });
-
-            modelBuilder.Entity("HBA.Catalog.Infrastructure.Auditing.AuditEntry", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("ActorType")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid?>("ActorUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("EntityId")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<DateTime>("OccurredOnUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Operation")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActorUserId", "OccurredOnUtc");
-
-                    b.HasIndex("EntityType", "EntityId", "OccurredOnUtc");
-
-                    b.ToTable("audit_entries", "catalog");
                 });
 
             modelBuilder.Entity("HBA.Catalog.Infrastructure.Persistence.Outbox.OutboxMessage", b =>

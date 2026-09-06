@@ -161,15 +161,23 @@ while IFS=$'\t' read -r CONTEXTE CSPROJ SORTIE FABRIQUE; do
   PROJET_DIR="$RACINE/$(dirname "$CSPROJ")"
   printf '── %-26s ' "$CONTEXTE"
 
-  ARGS=(--project "$RACINE/$CSPROJ" --context "$CONTEXTE" --output-dir "$SORTIE")
+  # DEUX TABLEAUX, ET C'EST LA CORRECTION D'UN DEFAUT REEL.
+  #
+  # `migrations remove` N'ACCEPTE PAS `--output-dir` : reutiliser le tableau de
+  # `add` faisait echouer TOUS les `remove`, et ce script laissait trente
+  # fichiers derriere lui apres avoir promis que rien ne subsisterait. Un
+  # verificateur qui modifie le depot est pire que pas de verificateur.
+  COMMUN=(--project "$RACINE/$CSPROJ" --context "$CONTEXTE")
 
   # Sans fabrique, il faut un projet de demarrage : l'hote qui monte ce contexte.
   if [[ "$FABRIQUE" == "0" ]]; then
     API="$(cd "$RACINE" && ls -d "$(dirname "$CSPROJ")"/../*.Api 2>/dev/null | head -1)"
     if [[ -n "$API" ]]; then
-      ARGS+=(--startup-project "$RACINE/$API")
+      COMMUN+=(--startup-project "$RACINE/$API")
     fi
   fi
+
+  ARGS=("${COMMUN[@]}" --output-dir "$SORTIE")
 
   JOURNAL="$(mktemp)"
   if ! dotnet ef migrations add "$NOM" "${ARGS[@]}" >"$JOURNAL" 2>&1; then
@@ -215,7 +223,7 @@ PYEOF
   if [[ -z "$CORPS" ]]; then
     echo "diff VIDE — modele et instantane concordent"
     VIDES=$((VIDES + 1))
-    dotnet ef migrations remove "${ARGS[@]}" >/dev/null 2>&1 \
+    dotnet ef migrations remove "${COMMUN[@]}" >/dev/null 2>&1 \
       || echo "      ATTENTION : migrations remove a echoue, retirez $FICHIER a la main"
   else
     echo "diff NON VIDE — le realignement a manque quelque chose"
@@ -225,11 +233,28 @@ PYEOF
     if [[ "$GARDER" == "1" ]]; then
       echo "      conservee : ${FICHIER#$RACINE/}"
     else
-      dotnet ef migrations remove "${ARGS[@]}" >/dev/null 2>&1 \
+      dotnet ef migrations remove "${COMMUN[@]}" >/dev/null 2>&1 \
         || echo "      ATTENTION : migrations remove a echoue, retirez $FICHIER a la main"
     fi
   fi
 done <<< "$INVENTAIRE"
+
+# ── DERNIERE GARDE : LE SCRIPT NE LAISSE RIEN DERRIERE LUI ────────────────────
+#
+# `migrations remove` peut echouer pour d'autres raisons que la mienne. On
+# verifie ce qui reste sur le disque plutot que de croire les codes de retour :
+# c'est la difference entre « j'ai demande le nettoyage » et « le depot est
+# propre ».
+RESTES="$(cd "$RACINE" && find . -name "*_$NOM*" -not -path "*/bin/*" -not -path "*/obj/*" 2>/dev/null)"
+if [[ -n "$RESTES" && "$GARDER" != "1" ]]; then
+  echo
+  echo "❌ DES MIGRATIONS DE VERIFICATION SONT RESTEES SUR LE DISQUE :"
+  echo "$RESTES" | sed 's/^/   /'
+  echo
+  echo "   git checkout -- . && git clean -f -- \"*_$NOM*\""
+  echo "   ramene le depot a son etat d'avant. Ne poussez rien avant."
+  exit 1
+fi
 
 echo
 echo "═══════════════════════════════════════════════════════════════════════════"

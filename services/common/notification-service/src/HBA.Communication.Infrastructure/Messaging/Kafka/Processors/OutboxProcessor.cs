@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Communication.Infrastructure.Persistence;
-using HBA.Communication.Infrastructure.Persistence.Inbox;
 using HBA.Communication.Infrastructure.Persistence.Outbox;
 using System.Diagnostics;
 using System.Text.Json;

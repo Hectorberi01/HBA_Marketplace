@@ -53,12 +53,12 @@ namespace HBA.Commerce.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BuyerId", "Status");
-
                     b.HasIndex("BuyerId")
                         .IsUnique()
                         .HasDatabaseName("ux_carts_active_buyer")
                         .HasFilter("\"Status\" = 'Active'");
+
+                    b.HasIndex("BuyerId", "Status");
 
                     b.ToTable("carts", "cart");
                 });

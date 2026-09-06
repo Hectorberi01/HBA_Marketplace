@@ -167,7 +167,8 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("UpdatedAtUtc");
 
                     b.HasKey("Id");
 
@@ -248,7 +249,8 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("UpdatedAtUtc");
 
                     b.HasKey("Id");
 
@@ -364,10 +366,10 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("Status");
-
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
+
+                    b.HasIndex("Status");
 
                     b.ToTable("customer_withdrawals", "settlement");
                 });
@@ -554,14 +556,14 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
                         .HasDatabaseName("ux_wallet_transactions_driver_earning")
                         .HasFilter("\"ReferenceType\" = 'driver_earning'");
 
-                    b.HasIndex(new[] { "ReferenceType", "ReferenceId" }, "ux_wallet_transactions_customer_refund_credit")
-                        .IsUnique()
-                        .HasFilter("\"ReferenceType\" = 'customer_refund_credit'");
-
                     b.HasIndex("ReferenceType", "ReferenceId", "OwnerId", "Account")
                         .IsUnique()
                         .HasDatabaseName("ux_wallet_transactions_refund_reversal")
                         .HasFilter("\"ReferenceType\" = 'refund'");
+
+                    b.HasIndex(new[] { "ReferenceType", "ReferenceId" }, "ux_wallet_transactions_customer_refund_credit")
+                        .IsUnique()
+                        .HasFilter("\"ReferenceType\" = 'customer_refund_credit'");
 
                     b.ToTable("wallet_transactions", "settlement");
                 });
@@ -617,7 +619,8 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("UpdatedAtUtc");
 
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()
@@ -632,35 +635,6 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("withdrawals", "settlement");
-                });
-
-            modelBuilder.Entity("HBA.Financial.Wallet.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
-                {
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ConsumerName")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<DateTime>("ProcessedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("EventId", "ConsumerName");
-
-                    b.HasIndex("ProcessedAtUtc")
-                        .HasDatabaseName("ix_consumer_inbox_processed_at");
-
-                    b.ToTable("consumer_inbox", "settlement");
                 });
 
             modelBuilder.Entity("HBA.Financial.Wallet.Infrastructure.Auditing.AuditEntry", b =>
@@ -706,6 +680,35 @@ namespace HBA.Financial.Wallet.Infrastructure.Migrations
                     b.HasIndex("EntityType", "EntityId", "OccurredOnUtc");
 
                     b.ToTable("audit_entries", "settlement");
+                });
+
+            modelBuilder.Entity("HBA.Financial.Wallet.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConsumerName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTime>("ProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("EventId", "ConsumerName");
+
+                    b.HasIndex("ProcessedAtUtc")
+                        .HasDatabaseName("ix_consumer_inbox_processed_at");
+
+                    b.ToTable("consumer_inbox", "settlement");
                 });
 
             modelBuilder.Entity("HBA.Financial.Wallet.Infrastructure.Persistence.Outbox.OutboxMessage", b =>

@@ -18,7 +18,6 @@ using HBA.Communication.Infrastructure.Persistence;
 using HBA.Communication.Infrastructure.Caching.Redis;
 using HBA.Communication.Infrastructure.Observability;
 using HBA.Communication.Infrastructure.Persistence.Outbox;
-using HBA.Communication.Infrastructure.Persistence.Inbox;
 namespace HBA.Communication.Infrastructure;
 
 /// <summary>Enregistre le module Messaging : DbContext, repository, handlers, validators, outbox.</summary>
