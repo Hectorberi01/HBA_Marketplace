@@ -6,6 +6,7 @@ using HBA.Engagement.Reviews.Application;
 using HBA.Engagement.Reviews.Application.Abstractions;
 using HBA.Engagement.Reviews.Domain.Reviews;
 
+using HBA.Engagement.Reviews.Infrastructure.Auditing;
 namespace HBA.Engagement.Reviews.Infrastructure.Persistence;
 
 /// <summary>DbContext du module Reviews (schéma « reviews »).</summary>
@@ -49,6 +50,35 @@ public sealed class ReviewsDbContext : ModuleDbContext, IReviewsUnitOfWork
     /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     protected override bool KeepsAuditTrail => true;
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // LE JOURNAL D'AUDIT DE CE SERVICE — L'ENTITE ET SA TABLE LUI APPARTIENNENT.
+    //
+    // Le socle collecte les mutations, resout l'acteur et fixe l'instant unique de
+    // la transaction ; il ne connait plus aucune table d'audit. Ces deux methodes
+    // sont ce qu'il appelle, et elles repondent avec l'entite de `Auditing/`.
+    // ═════════════════════════════════════════════════════════════════════════
+    protected override void ConfigurerLeJournalDAudit(ModelBuilder modelBuilder)
+        => modelBuilder.ApplyConfiguration(new AuditConfiguration());
+
+    protected override void AjouterUneEntreeDAudit(
+        string typeDEntite,
+        string identifiant,
+        AuditOperation operation,
+        Guid? acteur,
+        string typeDActeur,
+        string? correlation,
+        DateTime instantUtc)
+        => Set<AuditEntry>().Add(new AuditEntry
+        {
+            EntityType = typeDEntite,
+            EntityId = identifiant,
+            Operation = operation,
+            ActorUserId = acteur,
+            ActorType = typeDActeur,
+            CorrelationId = correlation,
+            OccurredOnUtc = instantUtc
+        });
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -1,6 +1,7 @@
 using HBA.Merchants.Application.Members;
 using HBA.Shared.Application.Pagination;
-using HBA.Shared.Infrastructure.Audit;
+using HBA.Merchants.Infrastructure.Auditing;
+using HBA.Shared.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace HBA.Merchants.Infrastructure.Persistence;

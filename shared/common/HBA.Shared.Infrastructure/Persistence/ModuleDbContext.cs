@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Application.Context;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Audit;
 using HBA.Shared.Infrastructure.Idempotency;
 using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Outbox;
@@ -62,6 +61,41 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
     /// </remarks>
     protected virtual bool KeepsAuditTrail => false;
 
+    /// <summary>
+    /// Declare la table d'audit DU SERVICE. Vide par defaut.
+    /// </summary>
+    /// <remarks>
+    /// Appele uniquement quand <see cref="KeepsAuditTrail"/> vaut vrai. Un contexte
+    /// qui tient un journal sans surcharger ceci declare une table qu'il ne remplira
+    /// pas : c'est visible au premier `dotnet ef migrations add`, dont le diff serait
+    /// vide.
+    /// </remarks>
+    protected virtual void ConfigurerLeJournalDAudit(ModelBuilder modelBuilder)
+    {
+    }
+
+    /// <summary>
+    /// Ecrit UNE ligne de journal, avec l'entite du service. Vide par defaut.
+    /// </summary>
+    /// <remarks>
+    /// LES PARAMETRES SONT DES PRIMITIFS, ET C'EST DELIBERE. Passer une entite
+    /// partagee remettrait dans le socle le type qu'on vient d'en sortir ; passer un
+    /// enregistrement partage en creerait un nouveau pour la meme raison. Seul
+    /// <see cref="AuditOperation"/> reste commun : il fait partie de cette signature,
+    /// et treize enums distincts pour une meme colonne rendraient deux journaux
+    /// incomparables.
+    /// </remarks>
+    protected virtual void AjouterUneEntreeDAudit(
+        string typeDEntite,
+        string identifiant,
+        AuditOperation operation,
+        Guid? acteur,
+        string typeDActeur,
+        string? correlation,
+        DateTime instantUtc)
+    {
+    }
+
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -71,7 +105,13 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
 
         if (KeepsAuditTrail)
         {
-            modelBuilder.ApplyConfiguration(new AuditConfiguration());
+            // LE SOCLE NE CONNAIT PLUS AUCUNE TABLE D'AUDIT.
+            //
+            // L'entite et sa configuration appartiennent au service : sa table
+            // `audit_entries` est creee par SES migrations. Ce point d'extension
+            // est vide par defaut, et les treize contextes qui tiennent un journal
+            // y repondent avec leur propre `AuditConfiguration`.
+            ConfigurerLeJournalDAudit(modelBuilder);
         }
 
         base.OnModelCreating(modelBuilder);
@@ -206,7 +246,7 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
     }
 
     /// <summary>
-    /// Écrit une ligne de journal par entité mutée. Voir <see cref="AuditEntry"/>
+    /// Écrit une ligne de journal par entité mutée. Voir <see cref="IEntreeDeJournal"/>
     /// pour le raisonnement d'ensemble.
     /// </summary>
     private void RecordAuditTrail()
@@ -252,8 +292,11 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
             // inbox ET confirme une commande écrit toujours la ligne de la commande.
             // Seule la ligne d'infrastructure disparaît.
             // ═════════════════════════════════════════════════════════════════
+            // `IEntreeDeJournal` ET NON `AuditEntry` : L'ENTITE A QUITTE LE SOCLE.
+            // Filtrer sur un nom de classe laisserait un service qui renomme la
+            // sienne retrouver la boucle infinie, en silence. Voir le marqueur.
             .Where(entry => entry.Entity
-                is not AuditEntry
+                is not IEntreeDeJournal
                 and not OutboxMessage
                 and not ConsumerInboxEntry
                 and not IdempotencyRecord)
@@ -300,16 +343,16 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork, IOutboxDbContext
 
         foreach (var mutation in mutations)
         {
-            Set<AuditEntry>().Add(new AuditEntry
-            {
-                EntityType = mutation.Type,
-                EntityId = mutation.Id,
-                Operation = mutation.Operation,
-                ActorUserId = acteur,
-                ActorType = typeActeur,
-                CorrelationId = correlation,
-                OccurredOnUtc = instant
-            });
+            // CE QUI RESTE ICI : LA COLLECTE. CE QUI PART : L'ECRITURE.
+            //
+            // Lire le ChangeTracker, decider ce qui compte comme une mutation,
+            // resoudre l'acteur et fixer un instant unique pour toute la
+            // transaction sont des regles identiques partout. Les dupliquer
+            // treize fois donnerait treize journaux qui ne se comparent plus.
+            // L'ENTITE, elle, appartient au service, comme sa table.
+            AjouterUneEntreeDAudit(
+                mutation.Type, mutation.Id, mutation.Operation,
+                acteur, typeActeur, correlation, instant);
         }
     }
 

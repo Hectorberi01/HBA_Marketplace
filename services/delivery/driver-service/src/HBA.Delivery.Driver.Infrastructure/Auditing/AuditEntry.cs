@@ -1,12 +1,22 @@
-namespace HBA.Shared.Infrastructure.Audit;
+using HBA.Shared.Infrastructure.Persistence;
+// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Shared.Infrastructure.Audit`.
+//
+// La table `audit_entries` de CE service est creee par SES migrations : l'entite
+// qui la decrit lui appartient donc. Le socle ne connait plus aucune table
+// d'audit — il collecte les mutations et appelle `AjouterUneEntreeDAudit`, que le
+// contexte de ce service remplit avec l'entite ci-dessous.
+//
+// A REGENERER : l'instantane de modele des migrations de ce service reference
+// encore « HBA.Shared.Infrastructure.Audit.AuditEntry » sous forme de chaine. Il
+// compile et les migrations s'appliquent toujours — mais le modele et
+// l'instantane divergent jusqu'a un `dotnet ef migrations add`, dont le diff de
+// schema sera VIDE puisque la table ne change pas.
+// ═════════════════════════════════════════════════════════════════════════════
 
-/// <summary>Ce qui est arrivé à une ligne.</summary>
-public enum AuditOperation
-{
-    Created = 0,
-    Updated = 1,
-    Deleted = 2
-}
+namespace HBA.Drivers.Infrastructure.Auditing;
+
+
 
 /// <summary>
 /// ═════════════════════════════════════════════════════════════════════════════
@@ -49,7 +59,7 @@ public enum AuditOperation
 /// RESPONSABILITÉ, pas la restauration.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
-public sealed class AuditEntry
+internal sealed class AuditEntry : IEntreeDeJournal
 {
     public long Id { get; set; }
 

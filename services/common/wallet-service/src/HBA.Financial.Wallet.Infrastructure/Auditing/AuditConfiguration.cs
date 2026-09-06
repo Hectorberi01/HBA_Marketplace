@@ -1,14 +1,30 @@
+using HBA.Shared.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace HBA.Shared.Infrastructure.Audit;
+// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Shared.Infrastructure.Audit`.
+//
+// La table `audit_entries` de CE service est creee par SES migrations : l'entite
+// qui la decrit lui appartient donc. Le socle ne connait plus aucune table
+// d'audit — il collecte les mutations et appelle `AjouterUneEntreeDAudit`, que le
+// contexte de ce service remplit avec l'entite ci-dessous.
+//
+// A REGENERER : l'instantane de modele des migrations de ce service reference
+// encore « HBA.Shared.Infrastructure.Audit.AuditEntry » sous forme de chaine. Il
+// compile et les migrations s'appliquent toujours — mais le modele et
+// l'instantane divergent jusqu'a un `dotnet ef migrations add`, dont le diff de
+// schema sera VIDE puisque la table ne change pas.
+// ═════════════════════════════════════════════════════════════════════════════
+
+namespace HBA.Financial.Wallet.Infrastructure.Auditing;
 
 /// <summary>
 /// Mapping EF du journal d'audit. Chaque module qui l'active l'applique dans son
 /// PROPRE schéma — même règle que l'outbox : pas de table partagée entre modules,
 /// donc pas de dépendance croisée à démêler le jour d'une extraction.
 /// </summary>
-public sealed class AuditConfiguration : IEntityTypeConfiguration<AuditEntry>
+internal sealed class AuditConfiguration : IEntityTypeConfiguration<AuditEntry>
 {
     public void Configure(EntityTypeBuilder<AuditEntry> builder)
     {
