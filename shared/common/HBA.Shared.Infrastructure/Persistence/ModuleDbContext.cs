@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Application.Context;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Idempotency;
 using HBA.Shared.Infrastructure.Serialization;
 
 namespace HBA.Shared.Infrastructure.Persistence;
@@ -316,7 +315,7 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
                 is not IEntreeDeJournal
                 and not IMessageDOutbox
                 and not IEntreeDInbox
-                and not IdempotencyRecord)
+                and not IEnregistrementDIdempotence)
 
             // LES TYPES POSSÉDÉS SONT REPORTÉS SUR LEUR PROPRIÉTAIRE, PAS FILTRÉS.
             //

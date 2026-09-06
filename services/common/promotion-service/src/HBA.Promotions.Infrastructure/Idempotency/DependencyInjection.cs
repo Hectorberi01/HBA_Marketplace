@@ -1,7 +1,24 @@
+using HBA.Shared.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Persistence;
+using HBA.Promotions.Infrastructure.Persistence.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HBA.Shared.Infrastructure.Idempotency;
+// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Shared.Infrastructure.Idempotency`.
+//
+// La table `idempotency_records` de CE service est creee par SES migrations :
+// l'entite qui la decrit lui appartient. Le socle n'en garde que le port,
+// `IIdempotencyStore`, que `IdempotencyEndpointFilter` resout sur chaque route
+// annotee `AllowIdempotency()`.
+//
+// A REGENERER : l'instantane de modele de ce service reference encore le type du
+// socle sous forme de chaine. Il compile et les migrations s'appliquent — mais
+// modele et instantane divergent jusqu'a un `dotnet ef migrations add`, au diff
+// de schema vide.
+// ═════════════════════════════════════════════════════════════════════════════
+
+namespace HBA.Promotions.Infrastructure.Idempotency;
 
 /// <summary>
 /// Pose le magasin d'idempotence ET son purgeur, en un seul geste.
@@ -31,11 +48,10 @@ namespace HBA.Shared.Infrastructure.Idempotency;
 /// </remarks>
 public static class IdempotencyRegistration
 {
-    public static IServiceCollection AddIdempotence<TDbContext>(this IServiceCollection services)
-        where TDbContext : DbContext
+    public static IServiceCollection AjouterIdempotencePromotions(this IServiceCollection services)
     {
-        services.AddScoped<IIdempotencyStore, EfIdempotencyStore<TDbContext>>();
-        services.AddHostedService<IdempotencyPurger<TDbContext>>();
+        services.AddScoped<IIdempotencyStore, EfIdempotencyStore>();
+        services.AddHostedService<IdempotencyPurger>();
 
         return services;
     }

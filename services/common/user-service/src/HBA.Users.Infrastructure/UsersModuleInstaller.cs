@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Users.Infrastructure.Caching.Redis;
 using HBA.Users.Infrastructure.Observability;
+using HBA.Users.Infrastructure.Idempotency;
 namespace HBA.Users.Infrastructure;
 
 /// <summary>
@@ -105,7 +106,7 @@ public sealed class UsersModuleInstaller : IModuleInstaller
         // désormais indissociables — voir `IdempotencyRegistration` pour la
         // raison, qui tient en une phrase : un huitième service qui ne copierait
         // que la première ligne n'aurait jamais de purge, sans rien signaler.
-        services.AddIdempotence<UsersDbContext>();
+        services.AjouterIdempotenceUsers();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
     }

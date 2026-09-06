@@ -29,3 +29,12 @@ public interface IMessageDOutbox
 public interface IEntreeDInbox
 {
 }
+
+/// <summary>
+/// Marque la table d'idempotence d'un service. Voir <see cref="IMessageDOutbox"/>
+/// pour le raisonnement : le socle doit l'exclure du journal d'audit, et il ne
+/// peut plus nommer le type puisqu'il est descendu.
+/// </summary>
+public interface IEnregistrementDIdempotence
+{
+}

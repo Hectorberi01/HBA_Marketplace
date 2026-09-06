@@ -36,6 +36,7 @@ using HBA.Catalog.Infrastructure.Caching.Redis;
 using HBA.Catalog.Infrastructure.Observability;
 using HBA.Catalog.Infrastructure.Persistence.Outbox;
 using HBA.Catalog.Infrastructure.Persistence.Inbox;
+using HBA.Catalog.Infrastructure.Idempotency;
 namespace HBA.Catalog.Infrastructure;
 
 /// <summary>
@@ -116,7 +117,7 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         // désormais indissociables — voir `IdempotencyRegistration` pour la
         // raison, qui tient en une phrase : un huitième service qui ne copierait
         // que la première ligne n'aurait jamais de purge, sans rien signaler.
-        services.AddIdempotence<CatalogDbContext>();
+        services.AjouterIdempotenceCatalog();
 
         // ═════════════════════════════════════════════════════════════════════
         // LE BARÈME DES OFFRES — SOURCE UNIQUE, VALIDÉE AU DÉMARRAGE.

@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Promotions.Infrastructure.Caching.Redis;
 using HBA.Promotions.Infrastructure.Observability;
+using HBA.Promotions.Infrastructure.Idempotency;
 namespace HBA.Promotions.Infrastructure;
 
 /// <summary>
@@ -76,7 +77,7 @@ public sealed class PromotionsModuleInstaller : IModuleInstaller
         // désormais indissociables — voir `IdempotencyRegistration` pour la
         // raison, qui tient en une phrase : un huitième service qui ne copierait
         // que la première ligne n'aurait jamais de purge, sans rien signaler.
-        services.AddIdempotence<PromotionsDbContext>();
+        services.AjouterIdempotencePromotions();
 
         // ═════════════════════════════════════════════════════════════════════
         // TROIS LIGNES SANS LESQUELLES LES ÉVÉNEMENTS NE SORTENT PAS.

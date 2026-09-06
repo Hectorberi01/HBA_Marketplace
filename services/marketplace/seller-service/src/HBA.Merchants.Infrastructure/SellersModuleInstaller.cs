@@ -33,6 +33,7 @@ using HBA.Merchants.Infrastructure.Caching.Redis;
 using HBA.Merchants.Infrastructure.Observability;
 using HBA.Merchants.Infrastructure.Persistence.Outbox;
 using HBA.Merchants.Infrastructure.Persistence.Inbox;
+using HBA.Merchants.Infrastructure.Idempotency;
 namespace HBA.Merchants.Infrastructure;
 
 /// <summary>
@@ -234,7 +235,7 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         // désormais indissociables — voir `IdempotencyRegistration` pour la
         // raison, qui tient en une phrase : un huitième service qui ne copierait
         // que la première ligne n'aurait jamais de purge, sans rien signaler.
-        services.AddIdempotence<SellersDbContext>();
+        services.AjouterIdempotenceMerchants();
 
         // Les gestionnaires d'evenements sont enregistres par le module de
         // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.

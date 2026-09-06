@@ -1,9 +1,26 @@
+using HBA.Shared.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Persistence;
+using HBA.Catalog.Infrastructure.Persistence.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace HBA.Shared.Infrastructure.Idempotency;
+// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Shared.Infrastructure.Idempotency`.
+//
+// La table `idempotency_records` de CE service est creee par SES migrations :
+// l'entite qui la decrit lui appartient. Le socle n'en garde que le port,
+// `IIdempotencyStore`, que `IdempotencyEndpointFilter` resout sur chaque route
+// annotee `AllowIdempotency()`.
+//
+// A REGENERER : l'instantane de modele de ce service reference encore le type du
+// socle sous forme de chaine. Il compile et les migrations s'appliquent — mais
+// modele et instantane divergent jusqu'a un `dotnet ef migrations add`, au diff
+// de schema vide.
+// ═════════════════════════════════════════════════════════════════════════════
+
+namespace HBA.Catalog.Infrastructure.Idempotency;
 
 /// <summary>
 /// Efface les réservations d'idempotence dont l'échéance est passée.
@@ -52,8 +69,7 @@ namespace HBA.Shared.Infrastructure.Idempotency;
 /// <c>TryBeginAsync</c>, pas une ligne à conserver ici.
 /// </para>
 /// </summary>
-public sealed class IdempotencyPurger<TDbContext> : BackgroundService
-    where TDbContext : DbContext
+public sealed class IdempotencyPurger : BackgroundService
 {
     /// <summary>
     /// Une passe par heure, comme l'outbox. La purge n'est pas urgente : la
@@ -71,11 +87,11 @@ public sealed class IdempotencyPurger<TDbContext> : BackgroundService
     private const int TaillePasse = 5_000;
 
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<IdempotencyPurger<TDbContext>> _logger;
+    private readonly ILogger<IdempotencyPurger> _logger;
 
     public IdempotencyPurger(
         IServiceScopeFactory scopeFactory,
-        ILogger<IdempotencyPurger<TDbContext>> logger)
+        ILogger<IdempotencyPurger> logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
@@ -83,7 +99,7 @@ public sealed class IdempotencyPurger<TDbContext> : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var module = typeof(TDbContext).Name.Replace("DbContext", string.Empty);
+        var module = typeof(CatalogDbContext).Name.Replace("DbContext", string.Empty);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -151,7 +167,7 @@ public sealed class IdempotencyPurger<TDbContext> : BackgroundService
         while (!cancellationToken.IsCancellationRequested)
         {
             using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<TDbContext>();
+            var dbContext = scope.ServiceProvider.GetRequiredService();
 
             // MAINTENANT EST RELU À CHAQUE TRANCHE, et non figé avant la boucle :
             // une purge longue ne doit pas laisser derrière elle les lignes qui ont

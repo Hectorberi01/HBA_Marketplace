@@ -1,7 +1,24 @@
+using HBA.Shared.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Persistence;
+using HBA.Promotions.Infrastructure.Persistence.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace HBA.Shared.Infrastructure.Idempotency;
+// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Shared.Infrastructure.Idempotency`.
+//
+// La table `idempotency_records` de CE service est creee par SES migrations :
+// l'entite qui la decrit lui appartient. Le socle n'en garde que le port,
+// `IIdempotencyStore`, que `IdempotencyEndpointFilter` resout sur chaque route
+// annotee `AllowIdempotency()`.
+//
+// A REGENERER : l'instantane de modele de ce service reference encore le type du
+// socle sous forme de chaine. Il compile et les migrations s'appliquent — mais
+// modele et instantane divergent jusqu'a un `dotnet ef migrations add`, au diff
+// de schema vide.
+// ═════════════════════════════════════════════════════════════════════════════
+
+namespace HBA.Promotions.Infrastructure.Idempotency;
 
 /// <summary>Mapping EF de la table <c>idempotency_keys</c>, locale au service.</summary>
 public sealed class IdempotencyConfiguration : IEntityTypeConfiguration<IdempotencyRecord>

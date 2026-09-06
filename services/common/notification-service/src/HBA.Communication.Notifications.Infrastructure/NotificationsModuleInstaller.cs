@@ -42,6 +42,7 @@ using FcmOptions = HBA.Communication.Notifications.Infrastructure.Push.FcmOption
 
 using HBA.Communication.Notifications.Infrastructure.Caching.Redis;
 using HBA.Communication.Notifications.Infrastructure.Observability;
+using HBA.Communication.Notifications.Infrastructure.Idempotency;
 namespace HBA.Communication.Notifications.Infrastructure;
 
 /// <summary>Enregistre le module Notifications : DbContext, repository, dispatcher et consumers fan-out.</summary>
@@ -103,7 +104,7 @@ public sealed class NotificationsModuleInstaller : IModuleInstaller
         // désormais indissociables — voir `IdempotencyRegistration` pour la
         // raison, qui tient en une phrase : un huitième service qui ne copierait
         // que la première ligne n'aurait jamais de purge, sans rien signaler.
-        services.AddIdempotence<NotificationsDbContext>();
+        services.AjouterIdempotenceCommunicationNotifications();
         services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
         services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
         services.AddScoped<NotificationDispatcher>();

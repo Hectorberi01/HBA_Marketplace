@@ -10,6 +10,7 @@ using HBA.Identity.Domain.Users;
 using HBA.Identity.Infrastructure.Auditing;
 using HBA.Identity.Infrastructure.Persistence.Outbox;
 using HBA.Identity.Infrastructure.Persistence.Inbox;
+using HBA.Identity.Infrastructure.Idempotency;
 namespace HBA.Identity.Infrastructure.Persistence;
 
 /// <summary>

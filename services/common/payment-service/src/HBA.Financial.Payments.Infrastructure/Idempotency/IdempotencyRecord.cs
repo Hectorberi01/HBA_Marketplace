@@ -1,4 +1,21 @@
-namespace HBA.Shared.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Idempotency;
+using HBA.Shared.Infrastructure.Persistence;
+using HBA.Financial.Payments.Infrastructure.Persistence.DbContext;
+// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Shared.Infrastructure.Idempotency`.
+//
+// La table `idempotency_records` de CE service est creee par SES migrations :
+// l'entite qui la decrit lui appartient. Le socle n'en garde que le port,
+// `IIdempotencyStore`, que `IdempotencyEndpointFilter` resout sur chaque route
+// annotee `AllowIdempotency()`.
+//
+// A REGENERER : l'instantane de modele de ce service reference encore le type du
+// socle sous forme de chaine. Il compile et les migrations s'appliquent — mais
+// modele et instantane divergent jusqu'a un `dotnet ef migrations add`, au diff
+// de schema vide.
+// ═════════════════════════════════════════════════════════════════════════════
+
+namespace HBA.Financial.Payments.Infrastructure.Idempotency;
 
 /// <summary>
 /// Résultat mémorisé d'une requête portant un en-tête <c>Idempotency-Key</c> (§5).
@@ -20,7 +37,7 @@ namespace HBA.Shared.Infrastructure.Idempotency;
 /// rendre 409 CONFLICT, jamais la réponse mémorisée d'une autre requête.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
-public sealed class IdempotencyRecord
+internal sealed class IdempotencyRecord : IEnregistrementDIdempotence
 {
     /// <summary>Valeur de l'en-tête <c>Idempotency-Key</c> fournie par le client.</summary>
     public string Key { get; init; } = default!;

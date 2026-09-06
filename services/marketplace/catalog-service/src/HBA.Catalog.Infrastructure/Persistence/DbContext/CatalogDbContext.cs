@@ -15,6 +15,7 @@ using HBA.Catalog.Domain.Reviews;
 using HBA.Catalog.Infrastructure.Auditing;
 using HBA.Catalog.Infrastructure.Persistence.Outbox;
 using HBA.Catalog.Infrastructure.Persistence.Inbox;
+using HBA.Catalog.Infrastructure.Idempotency;
 namespace HBA.Catalog.Infrastructure.Persistence;
 
 /// <summary>

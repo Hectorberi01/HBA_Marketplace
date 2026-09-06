@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 using HBA.Users.Infrastructure.Persistence.Outbox;
 using HBA.Users.Infrastructure.Persistence.Inbox;
+using HBA.Users.Infrastructure.Idempotency;
 namespace HBA.Users.Infrastructure.Persistence;
 
 /// <summary>

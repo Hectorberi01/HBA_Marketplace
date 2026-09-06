@@ -28,6 +28,7 @@ using System.Reflection;
 
 using HBA.Identity.Infrastructure.Caching.Redis;
 using HBA.Identity.Infrastructure.Observability;
+using HBA.Identity.Infrastructure.Idempotency;
 namespace HBA.Identity.Infrastructure;
 
 /// <summary>
@@ -81,7 +82,7 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
         // désormais indissociables — voir `IdempotencyRegistration` pour la
         // raison, qui tient en une phrase : un huitième service qui ne copierait
         // que la première ligne n'aurait jamais de purge, sans rien signaler.
-        services.AddIdempotence<IdentityDbContext>();
+        services.AjouterIdempotenceIdentity();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IIdentityModuleApi, IdentityModuleApi>();
         services.AddScoped<AuthTokenIssuer>();

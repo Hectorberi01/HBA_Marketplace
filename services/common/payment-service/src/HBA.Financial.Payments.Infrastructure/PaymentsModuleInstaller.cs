@@ -29,6 +29,7 @@ using HBA.Financial.Payments.Infrastructure.Public;
 
 using HBA.Financial.Payments.Infrastructure.Caching.Redis;
 using HBA.Financial.Payments.Infrastructure.Observability;
+using HBA.Financial.Payments.Infrastructure.Idempotency;
 namespace HBA.Financial.Payments.Infrastructure;
 
 /// <summary>Enregistre le module Payments : DbContext, repository, API publique, handlers, validators, outbox.</summary>
@@ -86,7 +87,7 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         // désormais indissociables — voir `IdempotencyRegistration` pour la
         // raison, qui tient en une phrase : un huitième service qui ne copierait
         // que la première ligne n'aurait jamais de purge, sans rien signaler.
-        services.AddIdempotence<PaymentsDbContext>();
+        services.AjouterIdempotenceFinancialPayments();
         services.AddScoped<ISavedPaymentMethodRepository, SavedPaymentMethodRepository>();
         services.AddScoped<IPaymentsModuleApi, PaymentsModuleApi>();
 
