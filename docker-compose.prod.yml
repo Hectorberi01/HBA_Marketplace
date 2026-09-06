@@ -224,15 +224,20 @@ services:
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-user-service
       KAFKA__PRODUCER: user-service
-      SERVICES__IDENTITY: http://identity-service:9090
+      # SERVICES__IDENTITY A ETE RETIREE : user-service n'appelle plus identity.
+      # Le nom de famille voyage dans UserRegisteredIntegrationEvent depuis
+      # fd339ec. Laisser l'adresse ferait croire a un lien qui n'existe plus.
     depends_on:
       # postgres : retire — la base vit sur un second VPS, jointe par le tunnel.
       redis:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      identity-service:
-        condition: service_started
+      # identity-service : RETIRE de depends_on.
+      #
+      # user-service ne l'appelle plus. Le garder empechait de demarrer
+      # user-service seul — donc de le deployer seul, ce qui est le but.
+      # Kafka reste : sans lui le service demarre mais ne consomme rien.
     networks: [hba-backend]
 
     restart: unless-stopped
