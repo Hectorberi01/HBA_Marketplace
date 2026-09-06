@@ -11,6 +11,7 @@ using Proto = HBA.FoodOrders.Grpc.V1;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
+using ContratsFoodOrders = HBA.FoodOrders.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.FoodOrders.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
 //
@@ -32,13 +33,13 @@ using System.Runtime.CompilerServices;
 
 namespace HBA.Communication.Notifications.Infrastructure.Grpc.Clients;
 
-internal sealed class FoodOrderGrpcClient : Contracts.IMealOrderModuleApi
+internal sealed class FoodOrderGrpcClient : ContratsFoodOrders.IMealOrderModuleApi
 {
     private readonly Proto.FoodOrderApi.FoodOrderApiClient _client;
 
     public FoodOrderGrpcClient(Proto.FoodOrderApi.FoodOrderApiClient client) => _client = client;
 
-    public async Task<Contracts.MealOrderSummary?> GetOrderAsync(
+    public async Task<ContratsFoodOrders.MealOrderSummary?> GetOrderAsync(
         Guid orderId, CancellationToken cancellationToken = default)
     {
         var reponse = await _client.GetOrderAsync(
@@ -52,7 +53,7 @@ internal sealed class FoodOrderGrpcClient : Contracts.IMealOrderModuleApi
 
         var o = reponse.Order;
 
-        return new Contracts.MealOrderSummary(
+        return new ContratsFoodOrders.MealOrderSummary(
             OrderId: ParseGuid(o.OrderId),
             BuyerId: ParseGuid(o.BuyerId),
             RestaurantId: ParseGuid(o.RestaurantId),
@@ -66,7 +67,7 @@ internal sealed class FoodOrderGrpcClient : Contracts.IMealOrderModuleApi
             CustomerNote: string.IsNullOrEmpty(o.CustomerNote) ? null : o.CustomerNote,
             CreatedOnUtc: ParseDate(o.CreatedOnUtc),
             Lines: o.Lines
-                .Select(l => new Contracts.MealOrderLineSummary(
+                .Select(l => new ContratsFoodOrders.MealOrderLineSummary(
                     ParseGuid(l.LineId),
                     ParseGuid(l.MenuItemId),
                     l.Name,
@@ -76,7 +77,7 @@ internal sealed class FoodOrderGrpcClient : Contracts.IMealOrderModuleApi
                     l.Currency,
                     string.IsNullOrEmpty(l.Notes) ? null : l.Notes,
                     l.Options
-                        .Select(op => new Contracts.MealOrderLineOptionSummary(
+                        .Select(op => new ContratsFoodOrders.MealOrderLineOptionSummary(
                             ParseGuid(op.OptionGroupId), ParseGuid(op.OptionId)))
                         .ToList()))
                 .ToList(),
@@ -95,10 +96,10 @@ internal sealed class FoodOrderGrpcClient : Contracts.IMealOrderModuleApi
     /// côté domaine (`food_ordering.shipping_address_required`) : s'il est vide,
     /// il n'y a rien d'exploitable, quoi que portent les autres champs.
     /// </summary>
-    private static Contracts.MealOrderShippingAddressSummary? LireAdresse(Proto.MealOrderView o)
+    private static ContratsFoodOrders.MealOrderShippingAddressSummary? LireAdresse(Proto.MealOrderView o)
         => string.IsNullOrEmpty(o.ShipToLandmark)
             ? null
-            : new Contracts.MealOrderShippingAddressSummary(
+            : new ContratsFoodOrders.MealOrderShippingAddressSummary(
                 Recipient: string.IsNullOrEmpty(o.ShipToRecipient) ? null : o.ShipToRecipient,
                 Phone: string.IsNullOrEmpty(o.ShipToPhone) ? null : o.ShipToPhone,
                 CommuneName: string.IsNullOrEmpty(o.ShipToCommuneName) ? null : o.ShipToCommuneName,
@@ -178,7 +179,7 @@ internal static class FoodOrdersGrpcRegistration
                 options.Address = new UriBuilder(address) { Port = grpcPort }.Uri)
             .AjouterLesInterceptionsInternes();
 
-        services.AddScoped<Contracts.IMealOrderModuleApi, FoodOrderGrpcClient>();
+        services.AddScoped<ContratsFoodOrders.IMealOrderModuleApi, FoodOrderGrpcClient>();
 
         return services;
     }

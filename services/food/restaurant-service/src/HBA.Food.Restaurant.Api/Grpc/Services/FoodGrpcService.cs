@@ -10,6 +10,7 @@ using Proto = HBA.Food.Grpc.V1;
 using System.Runtime.CompilerServices;
 
 using HBA.Food.Contracts;
+using ContratsFood = HBA.Food.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Food.Contracts.Grpc` (lot B de la migration gRPC).
 //
@@ -31,9 +32,9 @@ namespace HBA.Food.Api.Grpc.Services;
 
 internal sealed class FoodGrpcService : Proto.FoodApi.FoodApiBase
 {
-    private readonly Contracts.IFoodModuleApi _food;
+    private readonly ContratsFood.IFoodModuleApi _food;
 
-    public FoodGrpcService(Contracts.IFoodModuleApi food) => _food = food;
+    public FoodGrpcService(ContratsFood.IFoodModuleApi food) => _food = food;
 
     public override async Task<Proto.GetRestaurantResponse> GetRestaurant(
         Proto.GetRestaurantRequest request, ServerCallContext context)
@@ -203,7 +204,7 @@ internal sealed class FoodGrpcService : Proto.FoodApi.FoodApiBase
         return new Proto.GetMenuItemResponse { Found = true, Item = message };
     }
 
-    private static Proto.RestaurantSummary ToProto(Contracts.RestaurantSummary restaurant)
+    private static Proto.RestaurantSummary ToProto(ContratsFood.RestaurantSummary restaurant)
     {
         var message = new Proto.RestaurantSummary
         {

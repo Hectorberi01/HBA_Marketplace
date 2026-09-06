@@ -10,6 +10,7 @@ using Proto = HBA.Food.Grpc.V1;
 
 using System.Runtime.CompilerServices;
 
+using ContratsFood = HBA.Food.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Food.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
 //
@@ -31,13 +32,13 @@ using System.Runtime.CompilerServices;
 
 namespace HBA.FoodOrders.Infrastructure.Grpc.Clients;
 
-internal sealed class FoodGrpcClient : Contracts.IFoodModuleApi
+internal sealed class FoodGrpcClient : ContratsFood.IFoodModuleApi
 {
     private readonly Proto.FoodApi.FoodApiClient _client;
 
     public FoodGrpcClient(Proto.FoodApi.FoodApiClient client) => _client = client;
 
-    public async Task<Contracts.RestaurantSummary?> GetRestaurantAsync(
+    public async Task<ContratsFood.RestaurantSummary?> GetRestaurantAsync(
         Guid restaurantId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetRestaurantAsync(
@@ -57,7 +58,7 @@ internal sealed class FoodGrpcClient : Contracts.IFoodModuleApi
     //
     // Un bouchon silencieux ne se découvre qu'en regardant une donnée absente.
 
-    public async Task<Contracts.RestaurantSummary?> GetRestaurantByOwnerAsync(
+    public async Task<ContratsFood.RestaurantSummary?> GetRestaurantByOwnerAsync(
         Guid ownerUserId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetRestaurantByOwnerAsync(
@@ -67,7 +68,7 @@ internal sealed class FoodGrpcClient : Contracts.IFoodModuleApi
         return response.Found ? ToContract(response.Restaurant) : null;
     }
 
-    public async Task<Contracts.FoodStaffMembership?> GetStaffMembershipAsync(
+    public async Task<ContratsFood.FoodStaffMembership?> GetStaffMembershipAsync(
         Guid userId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetStaffMembershipAsync(
@@ -81,7 +82,7 @@ internal sealed class FoodGrpcClient : Contracts.IFoodModuleApi
 
         var m = response.Membership;
 
-        return new Contracts.FoodStaffMembership(
+        return new ContratsFood.FoodStaffMembership(
             ParseGuid(m.RestaurantId),
             ParseGuid(m.StaffId),
             ParseGuid(m.UserId),
@@ -91,7 +92,7 @@ internal sealed class FoodGrpcClient : Contracts.IFoodModuleApi
             m.Permissions.ToList());
     }
 
-    public async Task<Contracts.FoodOrderRef?> GetOrderAsync(
+    public async Task<ContratsFood.FoodOrderRef?> GetOrderAsync(
         Guid foodOrderId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetFoodOrderAsync(
@@ -105,7 +106,7 @@ internal sealed class FoodGrpcClient : Contracts.IFoodModuleApi
 
         var o = response.Order;
 
-        return new Contracts.FoodOrderRef(
+        return new ContratsFood.FoodOrderRef(
             ParseGuid(o.FoodOrderId),
             ParseGuid(o.OrderId),
             ParseGuid(o.RestaurantId),
@@ -114,11 +115,11 @@ internal sealed class FoodGrpcClient : Contracts.IFoodModuleApi
             // Vide chez un producteur d'avant le lot 6.4 : on retombe alors sur
             // « Marketplace », qui décrit exactement les tickets de cette époque.
             string.IsNullOrEmpty(o.Origin)
-                ? Contracts.IntegrationEvents.FoodOrderOrigins.Marketplace
+                ? ContratsFood.IntegrationEvents.FoodOrderOrigins.Marketplace
                 : o.Origin);
     }
 
-    public async Task<Contracts.MenuItemView?> GetMenuItemAsync(
+    public async Task<ContratsFood.MenuItemView?> GetMenuItemAsync(
         Guid restaurantId, Guid menuItemId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetMenuItemAsync(
@@ -136,7 +137,7 @@ internal sealed class FoodGrpcClient : Contracts.IFoodModuleApi
 
         var i = response.Item;
 
-        return new Contracts.MenuItemView(
+        return new ContratsFood.MenuItemView(
             Id: ParseGuid(i.MenuItemId),
             Name: i.Name,
             Description: null,
@@ -160,20 +161,20 @@ internal sealed class FoodGrpcClient : Contracts.IFoodModuleApi
             HasImage: i.HasImageUrl,
             BackAtUtc: null,
             OptionGroups: i.OptionGroups
-                .Select(g => new Contracts.OptionGroupView(
+                .Select(g => new ContratsFood.OptionGroupView(
                     ParseGuid(g.OptionGroupId),
                     g.Name,
                     g.MinSelections,
                     g.MaxSelections,
                     g.IsRequired,
                     g.Options
-                        .Select(o => new Contracts.OptionView(
+                        .Select(o => new ContratsFood.OptionView(
                             ParseGuid(o.OptionId), o.Name, ParseDecimal(o.PriceDelta), o.IsAvailable))
                         .ToList()))
                 .ToList());
     }
 
-    private static Contracts.RestaurantSummary ToContract(Proto.RestaurantSummary restaurant)
+    private static ContratsFood.RestaurantSummary ToContract(Proto.RestaurantSummary restaurant)
         => new(
             Id: ParseGuid(restaurant.RestaurantId),
             OwnerUserId: ParseGuid(restaurant.OwnerUserId),
@@ -228,7 +229,7 @@ internal static class FoodGrpcRegistration
                 options.Address = new UriBuilder(address) { Port = grpcPort }.Uri)
             .AjouterLesInterceptionsInternes();
 
-        services.AddScoped<Contracts.IFoodModuleApi, FoodGrpcClient>();
+        services.AddScoped<ContratsFood.IFoodModuleApi, FoodGrpcClient>();
 
         return services;
     }

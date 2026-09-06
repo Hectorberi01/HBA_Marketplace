@@ -12,6 +12,7 @@ using ProtoCreate = HBA.Deliveries.Grpc.V1.CreateDeliveryRequest;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
+using ContratsDeliveries = HBA.Deliveries.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Deliveries.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
 //
@@ -55,7 +56,7 @@ namespace HBA.FoodOrders.Infrastructure.Grpc.Clients;
 /// légitimement accessible.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
-internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contracts.IDeliveryDispatchApi
+internal sealed class DeliveryGrpcClient : ContratsDeliveries.IDeliveryModuleApi, ContratsDeliveries.IDeliveryDispatchApi
 {
     private readonly DeliveryApi.DeliveryApiClient _client;
 
@@ -63,7 +64,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
 
     // ── Lecture ────────────────────────────────────────────────────────────
 
-    public async Task<Contracts.DeliverySummary?> GetAsync(
+    public async Task<ContratsDeliveries.DeliverySummary?> GetAsync(
         Guid deliveryId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetDeliveryAsync(
@@ -73,7 +74,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
         return FromProto(response);
     }
 
-    public async Task<Contracts.DeliverySummary?> GetByReferenceAsync(
+    public async Task<ContratsDeliveries.DeliverySummary?> GetByReferenceAsync(
         string reference, string source, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetDeliveryByReferenceAsync(
@@ -83,7 +84,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
         return FromProto(response);
     }
 
-    public async Task<Contracts.DeliveryTracking?> GetTrackingAsync(
+    public async Task<ContratsDeliveries.DeliveryTracking?> GetTrackingAsync(
         Guid deliveryId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetTrackingAsync(
@@ -95,7 +96,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
             return null;
         }
 
-        return new Contracts.DeliveryTracking(
+        return new ContratsDeliveries.DeliveryTracking(
             deliveryId,
             response.Status,
             response.HasDriverLatitude ? response.DriverLatitude : null,
@@ -105,7 +106,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
             Vide(response.DriverPhone));
     }
 
-    public async Task<Contracts.DriverAccount?> GetDriverAccountAsync(
+    public async Task<ContratsDeliveries.DriverAccount?> GetDriverAccountAsync(
         Guid driverId, CancellationToken cancellationToken = default)
     {
         var response = await _client.ResolveDriverAsync(
@@ -113,7 +114,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
             cancellationToken: cancellationToken);
 
         return response.Found
-            ? new Contracts.DriverAccount(
+            ? new ContratsDeliveries.DriverAccount(
                 ToGuid(response.DriverId), ToGuid(response.UserId), response.FullName)
             : null;
     }
@@ -132,8 +133,8 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
     // `DeliveryQuoteLookupClient`, dans `HBA.DeliveryPricing.Contracts.Grpc`.
     // ═════════════════════════════════════════════════════════════════════════
 
-    public async Task<Contracts.DeliveryCreationResult> CreateAsync(
-        Contracts.CreateDeliveryRequest request, CancellationToken cancellationToken = default)
+    public async Task<ContratsDeliveries.DeliveryCreationResult> CreateAsync(
+        ContratsDeliveries.CreateDeliveryRequest request, CancellationToken cancellationToken = default)
     {
         var message = new ProtoCreate
         {
@@ -180,7 +181,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
 
         var response = await _client.CreateDeliveryAsync(message, cancellationToken: cancellationToken);
 
-        return new Contracts.DeliveryCreationResult(
+        return new ContratsDeliveries.DeliveryCreationResult(
             response.Succeeded,
             ToGuid(response.DeliveryId),
             Vide(response.Reason),
@@ -197,7 +198,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
     /// qu'une course n'existe. Le serveur rend `found = false`, et l'appelant
     /// n'a rien à faire — c'est le cas normal, pas un incident.
     /// </remarks>
-    public async Task<Contracts.DeliveryCancellationResult> CancelByReferenceAsync(
+    public async Task<ContratsDeliveries.DeliveryCancellationResult> CancelByReferenceAsync(
         string reference, string source, string? reason, CancellationToken cancellationToken = default)
     {
         var message = new CancelDeliveryRequest { Reference = reference, Source = source };
@@ -209,13 +210,13 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
 
         var response = await _client.CancelDeliveryAsync(message, cancellationToken: cancellationToken);
 
-        return new Contracts.DeliveryCancellationResult(
+        return new ContratsDeliveries.DeliveryCancellationResult(
             response.Found, response.Cancelled, Vide(response.Reason), Vide(response.ReasonCode));
     }
 
     // ── Conversions ────────────────────────────────────────────────────────
 
-    private static DeliveryStop ToProto(Contracts.DeliveryStopRequest stop)
+    private static DeliveryStop ToProto(ContratsDeliveries.DeliveryStopRequest stop)
     {
         var message = new DeliveryStop
         {
@@ -240,7 +241,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
         return message;
     }
 
-    private static Contracts.DeliverySummary? FromProto(GetDeliveryResponse response)
+    private static ContratsDeliveries.DeliverySummary? FromProto(GetDeliveryResponse response)
     {
         if (!response.Found || response.Delivery is null)
         {
@@ -249,7 +250,7 @@ internal sealed class DeliveryGrpcClient : Contracts.IDeliveryModuleApi, Contrac
 
         var d = response.Delivery;
 
-        return new Contracts.DeliverySummary(
+        return new ContratsDeliveries.DeliverySummary(
             ToGuid(d.DeliveryId),
             d.Reference,
             d.Source,
@@ -315,8 +316,8 @@ internal static class DeliveryGrpcRegistration
             .AjouterLesInterceptionsInternes();
 
         services.AddScoped<DeliveryGrpcClient>();
-        services.AddScoped<Contracts.IDeliveryModuleApi>(sp => sp.GetRequiredService<DeliveryGrpcClient>());
-        services.AddScoped<Contracts.IDeliveryDispatchApi>(sp => sp.GetRequiredService<DeliveryGrpcClient>());
+        services.AddScoped<ContratsDeliveries.IDeliveryModuleApi>(sp => sp.GetRequiredService<DeliveryGrpcClient>());
+        services.AddScoped<ContratsDeliveries.IDeliveryDispatchApi>(sp => sp.GetRequiredService<DeliveryGrpcClient>());
 
         return services;
     }

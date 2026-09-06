@@ -16,6 +16,7 @@ using ProtoMedia = HBA.Media.Grpc.V1.MediaView;
 using ProtoVariant = HBA.Media.Grpc.V1.MediaVariantView;
 
 
+using ContratsMedia = HBA.Media.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Media.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
 //
@@ -65,7 +66,7 @@ internal sealed class MediaGrpcClient : IMediaModuleApi
 
     public MediaGrpcClient(MediaApi.MediaApiClient client) => _client = client;
 
-    public async Task<MediaView?> GetAsync(Guid mediaId, CancellationToken cancellationToken = default)
+    public async Task<ContratsMedia.MediaView?> GetAsync(Guid mediaId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetAsync(
             new GetMediaRequest { MediaId = mediaId.ToString() },
@@ -74,7 +75,7 @@ internal sealed class MediaGrpcClient : IMediaModuleApi
         return response.Found ? response.Media.ToContract() : null;
     }
 
-    public async Task<IReadOnlyList<MediaView>> GetManyAsync(
+    public async Task<IReadOnlyList<ContratsMedia.MediaView>> GetManyAsync(
         IReadOnlyList<Guid> mediaIds, CancellationToken cancellationToken = default)
     {
         // Un lot vide ne justifie pas un aller-retour réseau. Le monolithe rendait
@@ -93,7 +94,7 @@ internal sealed class MediaGrpcClient : IMediaModuleApi
         return response.Items.Select(item => item.ToContract()).ToList();
     }
 
-    public async Task<IReadOnlyList<MediaView>> ListByOwnerAsync(
+    public async Task<IReadOnlyList<ContratsMedia.MediaView>> ListByOwnerAsync(
         string ownerType, Guid ownerId, CancellationToken cancellationToken = default)
     {
         var response = await _client.ListByOwnerAsync(

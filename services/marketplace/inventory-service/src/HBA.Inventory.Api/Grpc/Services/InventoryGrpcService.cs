@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 
 using HBA.Inventory.Contracts;
+using ContratsInventory = HBA.Inventory.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Inventory.Contracts.Grpc` (lot B de la migration gRPC).
 //
@@ -30,9 +31,9 @@ namespace HBA.Inventory.Api.Grpc.Services;
 
 internal sealed class InventoryGrpcService : InventoryApi.InventoryApiBase
 {
-    private readonly Contracts.IInventoryModuleApi _inventory;
+    private readonly ContratsInventory.IInventoryModuleApi _inventory;
 
-    public InventoryGrpcService(Contracts.IInventoryModuleApi inventory) => _inventory = inventory;
+    public InventoryGrpcService(ContratsInventory.IInventoryModuleApi inventory) => _inventory = inventory;
 
     public override async Task<GetAvailabilityResponse> GetAvailability(
         GetAvailabilityRequest request, ServerCallContext context)

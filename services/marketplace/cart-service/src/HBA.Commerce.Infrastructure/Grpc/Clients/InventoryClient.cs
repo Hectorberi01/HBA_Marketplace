@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 
+using ContratsInventory = HBA.Inventory.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Inventory.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
 //
@@ -30,20 +31,20 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace HBA.Commerce.Infrastructure.Grpc.Clients;
 
-internal sealed class InventoryGrpcClient : Contracts.IInventoryModuleApi
+internal sealed class InventoryGrpcClient : ContratsInventory.IInventoryModuleApi
 {
     private readonly InventoryApi.InventoryApiClient _client;
 
     public InventoryGrpcClient(InventoryApi.InventoryApiClient client) => _client = client;
 
-    public async Task<Contracts.AvailabilitySummary> GetAvailabilityAsync(
+    public async Task<ContratsInventory.AvailabilitySummary> GetAvailabilityAsync(
         string sku, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetAvailabilityAsync(
             new GetAvailabilityRequest { Sku = sku },
             cancellationToken: cancellationToken);
 
-        return new Contracts.AvailabilitySummary(response.Sku, response.Available);
+        return new ContratsInventory.AvailabilitySummary(response.Sku, response.Available);
     }
 
     /// <summary>
@@ -58,7 +59,7 @@ internal sealed class InventoryGrpcClient : Contracts.IInventoryModuleApi
     /// Un bouchon silencieux est pire qu'une exception `NotImplementedException` :
     /// celle-ci se voit au premier appel.
     /// </summary>
-    public async Task<Contracts.FulfillmentLocationSummary?> GetLocationAsync(
+    public async Task<ContratsInventory.FulfillmentLocationSummary?> GetLocationAsync(
         Guid locationId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetLocationAsync(
@@ -72,7 +73,7 @@ internal sealed class InventoryGrpcClient : Contracts.IInventoryModuleApi
 
         var l = response.Location;
 
-        return new Contracts.FulfillmentLocationSummary(
+        return new ContratsInventory.FulfillmentLocationSummary(
             Guid.TryParse(l.LocationId, out var id) ? id : Guid.Empty,
             l.Type,
             Guid.TryParse(l.OwnerId, out var owner) ? owner : null,
@@ -160,7 +161,7 @@ internal static class InventoryGrpcRegistration
                 options.Address = new UriBuilder(address) { Port = grpcPort }.Uri)
             .AjouterLesInterceptionsInternes();
 
-        services.AddScoped<Contracts.IInventoryModuleApi, InventoryGrpcClient>();
+        services.AddScoped<ContratsInventory.IInventoryModuleApi, InventoryGrpcClient>();
 
         return services;
     }

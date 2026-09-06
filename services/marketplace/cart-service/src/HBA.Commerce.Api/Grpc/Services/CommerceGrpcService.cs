@@ -11,6 +11,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using HBA.Commerce.Contracts;
+using ContratsCommerce = HBA.Commerce.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Commerce.Contracts.Grpc` (lot B de la migration gRPC).
 //
@@ -54,9 +55,9 @@ namespace HBA.Commerce.Api.Grpc.Services;
 /// </remarks>
 internal sealed class CommerceGrpcService : CommerceApi.CommerceApiBase
 {
-    private readonly Contracts.ICartModuleApi _carts;
+    private readonly ContratsCommerce.ICartModuleApi _carts;
 
-    public CommerceGrpcService(Contracts.ICartModuleApi carts) => _carts = carts;
+    public CommerceGrpcService(ContratsCommerce.ICartModuleApi carts) => _carts = carts;
 
     public override async Task<GetCartResponse> GetActiveCart(
         GetActiveCartRequest request, ServerCallContext context)
@@ -88,12 +89,12 @@ internal sealed class CommerceGrpcService : CommerceApi.CommerceApiBase
     // parfaitement normal — un acheteur qui n'a rien mis dans son panier. Le
     // drapeau `found` distingue « pas de panier » de « le service n'a pas
     // répondu », et seule la seconde situation mérite une exception.
-    private static GetCartResponse Respond(Contracts.CartSummary? cart)
+    private static GetCartResponse Respond(ContratsCommerce.CartSummary? cart)
         => cart is null
             ? new GetCartResponse { Found = false }
             : new GetCartResponse { Found = true, Cart = ToProto(cart) };
 
-    private static CartView ToProto(Contracts.CartSummary cart)
+    private static CartView ToProto(ContratsCommerce.CartSummary cart)
     {
         var view = new CartView
         {

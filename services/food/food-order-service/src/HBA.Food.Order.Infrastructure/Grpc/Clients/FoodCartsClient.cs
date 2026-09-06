@@ -11,6 +11,7 @@ using Proto = HBA.FoodCarts.Grpc.V1;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
+using ContratsFoodCarts = HBA.FoodCarts.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.FoodCarts.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
 //
@@ -32,13 +33,13 @@ using System.Runtime.CompilerServices;
 
 namespace HBA.FoodOrders.Infrastructure.Grpc.Clients;
 
-internal sealed class FoodCartGrpcClient : Contracts.IFoodCartModuleApi
+internal sealed class FoodCartGrpcClient : ContratsFoodCarts.IFoodCartModuleApi
 {
     private readonly Proto.FoodCartApi.FoodCartApiClient _client;
 
     public FoodCartGrpcClient(Proto.FoodCartApi.FoodCartApiClient client) => _client = client;
 
-    public async Task<Contracts.FoodCartSummary?> GetActiveCartAsync(
+    public async Task<ContratsFoodCarts.FoodCartSummary?> GetActiveCartAsync(
         Guid buyerId, CancellationToken cancellationToken = default)
     {
         var reponse = await _client.GetActiveCartAsync(
@@ -48,7 +49,7 @@ internal sealed class FoodCartGrpcClient : Contracts.IFoodCartModuleApi
         return reponse.Found ? Lire(reponse.Cart) : null;
     }
 
-    public async Task<Contracts.FoodCartSummary?> GetCartAsync(
+    public async Task<ContratsFoodCarts.FoodCartSummary?> GetCartAsync(
         Guid cartId, CancellationToken cancellationToken = default)
     {
         var reponse = await _client.GetCartAsync(
@@ -58,7 +59,7 @@ internal sealed class FoodCartGrpcClient : Contracts.IFoodCartModuleApi
         return reponse.Found ? Lire(reponse.Cart) : null;
     }
 
-    private static Contracts.FoodCartSummary Lire(Proto.FoodCartView vue)
+    private static ContratsFoodCarts.FoodCartSummary Lire(Proto.FoodCartView vue)
         => new(
             CartId: ParseGuid(vue.CartId),
             BuyerId: ParseGuid(vue.BuyerId),
@@ -66,7 +67,7 @@ internal sealed class FoodCartGrpcClient : Contracts.IFoodCartModuleApi
             Currency: vue.Currency,
             Status: vue.Status,
             Lines: vue.Lines
-                .Select(l => new Contracts.FoodCartLineSummary(
+                .Select(l => new ContratsFoodCarts.FoodCartLineSummary(
                     ParseGuid(l.LineId),
                     ParseGuid(l.MenuItemId),
                     l.Name,
@@ -79,7 +80,7 @@ internal sealed class FoodCartGrpcClient : Contracts.IFoodCartModuleApi
                     l.Currency,
                     string.IsNullOrEmpty(l.Notes) ? null : l.Notes,
                     l.Options
-                        .Select(o => new Contracts.FoodCartLineOptionSummary(
+                        .Select(o => new ContratsFoodCarts.FoodCartLineOptionSummary(
                             ParseGuid(o.OptionGroupId), ParseGuid(o.OptionId)))
                         .ToList()))
                 .ToList(),
@@ -132,7 +133,7 @@ internal static class FoodCartsGrpcRegistration
                 options.Address = new UriBuilder(address) { Port = grpcPort }.Uri)
             .AjouterLesInterceptionsInternes();
 
-        services.AddScoped<Contracts.IFoodCartModuleApi, FoodCartGrpcClient>();
+        services.AddScoped<ContratsFoodCarts.IFoodCartModuleApi, FoodCartGrpcClient>();
 
         return services;
     }

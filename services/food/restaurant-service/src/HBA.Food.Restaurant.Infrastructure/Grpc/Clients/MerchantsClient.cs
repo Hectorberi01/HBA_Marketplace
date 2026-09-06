@@ -11,6 +11,7 @@ using Proto = HBA.Merchants.Grpc.V1;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
+using ContratsMerchants = HBA.Merchants.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Merchants.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
 //
@@ -32,13 +33,13 @@ using System.Runtime.CompilerServices;
 
 namespace HBA.Food.Infrastructure.Grpc.Clients;
 
-internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contracts.IMerchantAccessApi
+internal sealed class MerchantsGrpcClient : ContratsMerchants.ISellerModuleApi, ContratsMerchants.IMerchantAccessApi
 {
     private readonly Proto.MerchantApi.MerchantApiClient _client;
 
     public MerchantsGrpcClient(Proto.MerchantApi.MerchantApiClient client) => _client = client;
 
-    public async Task<Contracts.SellerSummary?> GetSellerAsync(
+    public async Task<ContratsMerchants.SellerSummary?> GetSellerAsync(
         Guid sellerId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetSellerAsync(
@@ -48,7 +49,7 @@ internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contract
         return response.Found ? ToContract(response.Seller) : null;
     }
 
-    public async Task<Contracts.SellerSummary?> GetSellerByUserIdAsync(
+    public async Task<ContratsMerchants.SellerSummary?> GetSellerByUserIdAsync(
         Guid userId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetSellerByUserAsync(
@@ -67,7 +68,7 @@ internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contract
         return response.Valid;
     }
 
-    public async Task<Contracts.StoreSummary?> GetStoreAsync(
+    public async Task<ContratsMerchants.StoreSummary?> GetStoreAsync(
         Guid storeId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetStoreAsync(
@@ -77,7 +78,7 @@ internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contract
         return response.Found ? ToContract(response.Store) : null;
     }
 
-    public async Task<IReadOnlyList<Contracts.StoreSummary>> ListStoresBySellerAsync(
+    public async Task<IReadOnlyList<ContratsMerchants.StoreSummary>> ListStoresBySellerAsync(
         Guid sellerId, CancellationToken cancellationToken = default)
     {
         var response = await _client.ListSellerStoresAsync(
@@ -91,14 +92,14 @@ internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contract
     /// ═════════════════════════════════════════════════════════════════════════
     /// LE COMPTE DE REVERSEMENT — LA SEULE LECTURE QUI DISE LA VÉRITÉ À DISTANCE.
     ///
-    /// VOIR `ToContract` PLUS BAS AVANT DE LIRE `SellerSummary.Payout`.
+    /// VOIR `ToContract` PLUS BAS AVANT DE LIRE `ContratsMerchants.SellerSummary.Payout`.
     ///
     /// Ce champ-là vaut `null` pour tout le monde ici, faute d'être transporté.
     /// wallet-service l'a lu, et plus aucun vendeur de la plateforme ne pouvait
     /// sortir son argent.
     /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
-    public async Task<Contracts.SellerPayout> GetSellerPayoutAsync(
+    public async Task<ContratsMerchants.SellerPayout> GetSellerPayoutAsync(
         Guid sellerId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetSellerPayoutAsync(
@@ -107,15 +108,15 @@ internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contract
 
         if (!response.Found)
         {
-            return Contracts.SellerPayout.Unknown;
+            return ContratsMerchants.SellerPayout.Unknown;
         }
 
         if (!response.Configured || response.Payout is null)
         {
-            return Contracts.SellerPayout.NotConfigured;
+            return ContratsMerchants.SellerPayout.NotConfigured;
         }
 
-        return Contracts.SellerPayout.Of(new Contracts.PayoutAccountSummary(
+        return ContratsMerchants.SellerPayout.Of(new ContratsMerchants.PayoutAccountSummary(
             response.Payout.Provider,
             response.Payout.AccountNumber,
             response.Payout.AccountName));
@@ -145,16 +146,16 @@ internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contract
     /// configuré » avec son numéro MTN sous les yeux (D21).
     ///
     /// La sortie n'était pas de mieux commenter ce mappeur : c'était de SÉPARER LES
-    /// CONTRATS (D24). `SellerSummary` ne porte plus que ce qui voyage ; la fiche
+    /// CONTRATS (D24). `ContratsMerchants.SellerSummary` ne porte plus que ce qui voyage ; la fiche
     /// riche vit dans `SellerDetail`, côté Application, et ne sort jamais du
     /// service. Il n'y a donc plus de champ à remplir faute de mieux — le
     /// compilateur interdit ce que ce commentaire se contentait d'avertir.
     ///
-    /// CE QUI RESTE À SAVOIR : ajouter un champ à `SellerSummary` sans l'ajouter
+    /// CE QUI RESTE À SAVOIR : ajouter un champ à `ContratsMerchants.SellerSummary` sans l'ajouter
     /// au proto rouvrirait le trou à l'identique. Les deux se modifient ensemble.
     /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
-    private static Contracts.SellerSummary ToContract(Proto.SellerSummary seller)
+    private static ContratsMerchants.SellerSummary ToContract(Proto.SellerSummary seller)
         => new(
             Id: ParseGuid(seller.SellerId),
             UserId: ParseGuid(seller.UserId),
@@ -165,7 +166,7 @@ internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contract
             KybStatus: seller.KybStatus,
             CommissionRate: ParseDecimal(seller.CommissionRate));
 
-    private static Contracts.StoreSummary ToContract(Proto.StoreSummary store)
+    private static ContratsMerchants.StoreSummary ToContract(Proto.StoreSummary store)
         => new(
             Id: ParseGuid(store.StoreId),
             SellerId: ParseGuid(store.SellerId),
@@ -197,7 +198,7 @@ internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contract
     /// gRPC par requête ; c'est le prix d'une révocation qui prend effet
     /// immédiatement partout, et c'est le bon.
     /// </summary>
-    public async Task<Contracts.MerchantAccess?> GetAccessAsync(
+    public async Task<ContratsMerchants.MerchantAccess?> GetAccessAsync(
         Guid userId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetMemberAccessAsync(
@@ -209,7 +210,7 @@ internal sealed class MerchantsGrpcClient : Contracts.ISellerModuleApi, Contract
             return null;
         }
 
-        return new Contracts.MerchantAccess(
+        return new ContratsMerchants.MerchantAccess(
             ParseGuid(response.SellerId),
             ParseGuid(response.MemberId),
             userId,
@@ -293,7 +294,7 @@ internal static class MerchantsGrpcRegistration
                 options.Address = new UriBuilder(address) { Port = grpcPort }.Uri)
             .AjouterLesInterceptionsInternes();
 
-        services.AddScoped<Contracts.ISellerModuleApi, MerchantsGrpcClient>();
+        services.AddScoped<ContratsMerchants.ISellerModuleApi, MerchantsGrpcClient>();
 
         // DEUX INTERFACES, UNE SEULE INSTANCE — ET NON DEUX ENREGISTREMENTS
         // INDÉPENDANTS DE LA MÊME CLASSE.
@@ -303,8 +304,8 @@ internal static class MerchantsGrpcRegistration
         // aujourd'hui, mais c'est exactement le genre de duplication qui devient
         // un défaut le jour où le client portera un état — un jeton, un compteur,
         // un disjoncteur.
-        services.AddScoped<Contracts.IMerchantAccessApi>(sp =>
-            (MerchantsGrpcClient)sp.GetRequiredService<Contracts.ISellerModuleApi>());
+        services.AddScoped<ContratsMerchants.IMerchantAccessApi>(sp =>
+            (MerchantsGrpcClient)sp.GetRequiredService<ContratsMerchants.ISellerModuleApi>());
 
         return services;
     }

@@ -11,6 +11,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using HBA.FoodOrders.Contracts;
+using ContratsFoodOrders = HBA.FoodOrders.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.FoodOrders.Contracts.Grpc` (lot B de la migration gRPC).
 //
@@ -32,9 +33,9 @@ namespace HBA.FoodOrders.Api.Grpc.Services;
 
 internal sealed class FoodOrderGrpcService : Proto.FoodOrderApi.FoodOrderApiBase
 {
-    private readonly Contracts.IMealOrderModuleApi _orders;
+    private readonly ContratsFoodOrders.IMealOrderModuleApi _orders;
 
-    public FoodOrderGrpcService(Contracts.IMealOrderModuleApi orders) => _orders = orders;
+    public FoodOrderGrpcService(ContratsFoodOrders.IMealOrderModuleApi orders) => _orders = orders;
 
     public override async Task<Proto.GetMealOrderResponse> GetOrder(
         Proto.GetMealOrderRequest request, ServerCallContext context)

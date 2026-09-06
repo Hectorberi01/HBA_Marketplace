@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
+using ContratsCommerce = HBA.Commerce.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Commerce.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
 //
@@ -33,13 +34,13 @@ using System.Runtime.CompilerServices;
 namespace HBA.Orders.Infrastructure.Grpc.Clients;
 
 /// <summary>Côté order-service : `ICartModuleApi`, mais sur le réseau.</summary>
-internal sealed class CommerceGrpcClient : Contracts.ICartModuleApi
+internal sealed class CommerceGrpcClient : ContratsCommerce.ICartModuleApi
 {
     private readonly CommerceApi.CommerceApiClient _client;
 
     public CommerceGrpcClient(CommerceApi.CommerceApiClient client) => _client = client;
 
-    public async Task<Contracts.CartSummary?> GetActiveCartAsync(
+    public async Task<ContratsCommerce.CartSummary?> GetActiveCartAsync(
         Guid buyerId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetActiveCartAsync(
@@ -49,7 +50,7 @@ internal sealed class CommerceGrpcClient : Contracts.ICartModuleApi
         return FromProto(response);
     }
 
-    public async Task<Contracts.CartSummary?> GetCartAsync(
+    public async Task<ContratsCommerce.CartSummary?> GetCartAsync(
         Guid cartId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetCartAsync(
@@ -59,7 +60,7 @@ internal sealed class CommerceGrpcClient : Contracts.ICartModuleApi
         return FromProto(response);
     }
 
-    private static Contracts.CartSummary? FromProto(GetCartResponse response)
+    private static ContratsCommerce.CartSummary? FromProto(GetCartResponse response)
     {
         if (!response.Found || response.Cart is null)
         {
@@ -69,7 +70,7 @@ internal sealed class CommerceGrpcClient : Contracts.ICartModuleApi
         var cart = response.Cart;
 
         var lines = cart.Lines
-            .Select(line => new Contracts.CartLineSummary(
+            .Select(line => new ContratsCommerce.CartLineSummary(
                 ToGuid(line.LineId),
                 line.Kind,
                 ToGuid(line.OfferId),
@@ -97,12 +98,12 @@ internal sealed class CommerceGrpcClient : Contracts.ICartModuleApi
                 string.IsNullOrEmpty(line.Notes) ? null : line.Notes,
 
                 line.Options
-                    .Select(option => new Contracts.CartLineOptionSummary(
+                    .Select(option => new ContratsCommerce.CartLineOptionSummary(
                         ToGuid(option.OptionGroupId), ToGuid(option.OptionId)))
                     .ToList()))
             .ToList();
 
-        return new Contracts.CartSummary(
+        return new ContratsCommerce.CartSummary(
             ToGuid(cart.CartId),
             ToGuid(cart.BuyerId),
             cart.Currency,
@@ -159,7 +160,7 @@ internal static class CommerceGrpcRegistration
                 options.Address = new UriBuilder(address) { Port = grpcPort }.Uri)
             .AjouterLesInterceptionsInternes();
 
-        services.AddScoped<Contracts.ICartModuleApi, CommerceGrpcClient>();
+        services.AddScoped<ContratsCommerce.ICartModuleApi, CommerceGrpcClient>();
 
         return services;
     }

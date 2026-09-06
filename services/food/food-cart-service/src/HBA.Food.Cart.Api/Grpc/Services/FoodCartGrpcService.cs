@@ -11,6 +11,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using HBA.FoodCarts.Contracts;
+using ContratsFoodCarts = HBA.FoodCarts.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.FoodCarts.Contracts.Grpc` (lot B de la migration gRPC).
 //
@@ -43,9 +44,9 @@ namespace HBA.FoodCarts.Api.Grpc.Services;
 /// </summary>
 internal sealed class FoodCartGrpcService : Proto.FoodCartApi.FoodCartApiBase
 {
-    private readonly Contracts.IFoodCartModuleApi _carts;
+    private readonly ContratsFoodCarts.IFoodCartModuleApi _carts;
 
-    public FoodCartGrpcService(Contracts.IFoodCartModuleApi carts) => _carts = carts;
+    public FoodCartGrpcService(ContratsFoodCarts.IFoodCartModuleApi carts) => _carts = carts;
 
     public override async Task<Proto.GetFoodCartResponse> GetActiveCart(
         Proto.GetActiveFoodCartRequest request, ServerCallContext context)
@@ -80,7 +81,7 @@ internal sealed class FoodCartGrpcService : Proto.FoodCartApi.FoodCartApiBase
     /// `CartId` nul, sans restaurant, sans ligne — et la commande partirait à
     /// zéro franc au lieu d'être refusée.
     /// </summary>
-    private static Proto.GetFoodCartResponse Repondre(Contracts.FoodCartSummary? cart)
+    private static Proto.GetFoodCartResponse Repondre(ContratsFoodCarts.FoodCartSummary? cart)
     {
         if (cart is null || cart.CartId == Guid.Empty)
         {

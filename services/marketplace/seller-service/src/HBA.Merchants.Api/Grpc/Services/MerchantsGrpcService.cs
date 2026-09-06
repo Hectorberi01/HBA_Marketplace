@@ -11,6 +11,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using HBA.Merchants.Contracts;
+using ContratsMerchants = HBA.Merchants.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Merchants.Contracts.Grpc` (lot B de la migration gRPC).
 //
@@ -32,11 +33,11 @@ namespace HBA.Merchants.Api.Grpc.Services;
 
 internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
 {
-    private readonly Contracts.ISellerModuleApi _sellers;
-    private readonly Contracts.IMerchantAccessApi _access;
+    private readonly ContratsMerchants.ISellerModuleApi _sellers;
+    private readonly ContratsMerchants.IMerchantAccessApi _access;
 
     public MerchantsGrpcService(
-        Contracts.ISellerModuleApi sellers, Contracts.IMerchantAccessApi access)
+        ContratsMerchants.ISellerModuleApi sellers, ContratsMerchants.IMerchantAccessApi access)
     {
         _sellers = sellers;
         _access = access;
@@ -278,7 +279,7 @@ internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
         };
     }
 
-    private static Proto.SellerSummary ToProto(Contracts.SellerSummary seller)
+    private static Proto.SellerSummary ToProto(ContratsMerchants.SellerSummary seller)
     {
         var message = new Proto.SellerSummary
         {
@@ -303,7 +304,7 @@ internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
         return message;
     }
 
-    private static Proto.StoreSummary ToProto(Contracts.StoreSummary store)
+    private static Proto.StoreSummary ToProto(ContratsMerchants.StoreSummary store)
     {
         var message = new Proto.StoreSummary
         {

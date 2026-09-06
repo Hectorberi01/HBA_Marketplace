@@ -12,6 +12,7 @@ using Proto = HBA.Catalog.Grpc.V1;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
+using ContratsProducts = HBA.Products.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
 // ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Products.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
 //
@@ -33,13 +34,13 @@ using System.Runtime.CompilerServices;
 
 namespace HBA.Orders.Infrastructure.Grpc.Clients;
 
-internal sealed class ProductsGrpcClient : Contracts.IProductsModuleApi
+internal sealed class ProductsGrpcClient : ContratsProducts.IProductsModuleApi
 {
     private readonly Proto.CatalogApi.CatalogApiClient _client;
 
     public ProductsGrpcClient(Proto.CatalogApi.CatalogApiClient client) => _client = client;
 
-    public async Task<Contracts.ProductSummary?> GetProductAsync(
+    public async Task<ContratsProducts.ProductSummary?> GetProductAsync(
         Guid productId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetProductAsync(
@@ -75,7 +76,7 @@ internal sealed class ProductsGrpcClient : Contracts.IProductsModuleApi
     // silencieusement, parce que `IsPurchasable` vient du serveur et non du prix.
     // ═════════════════════════════════════════════════════════════════════════
 
-    public async Task<Contracts.OfferSummary?> GetOfferAsync(
+    public async Task<ContratsProducts.OfferSummary?> GetOfferAsync(
         Guid offerId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetOfferAsync(
@@ -85,12 +86,12 @@ internal sealed class ProductsGrpcClient : Contracts.IProductsModuleApi
         return response.Found ? ToContract(response.Offer) : null;
     }
 
-    public async Task<IReadOnlyDictionary<Guid, Contracts.OfferSummary>> GetOffersAsync(
+    public async Task<IReadOnlyDictionary<Guid, ContratsProducts.OfferSummary>> GetOffersAsync(
         IReadOnlyCollection<Guid> offerIds, CancellationToken cancellationToken = default)
     {
         if (offerIds.Count == 0)
         {
-            return new Dictionary<Guid, Contracts.OfferSummary>();
+            return new Dictionary<Guid, ContratsProducts.OfferSummary>();
         }
 
         var request = new Proto.GetOffersRequest();
@@ -104,7 +105,7 @@ internal sealed class ProductsGrpcClient : Contracts.IProductsModuleApi
             .ToDictionary(offer => offer.Id);
     }
 
-    public async Task<IReadOnlyList<Contracts.OfferSummary>> ListPurchasableOffersAsync(
+    public async Task<IReadOnlyList<ContratsProducts.OfferSummary>> ListPurchasableOffersAsync(
         Guid productId, CancellationToken cancellationToken = default)
     {
         var response = await _client.ListPurchasableOffersAsync(
@@ -114,7 +115,7 @@ internal sealed class ProductsGrpcClient : Contracts.IProductsModuleApi
         return response.Offers.Select(ToContract).ToList();
     }
 
-    public async Task<IReadOnlyList<Contracts.OfferSummary>> ListOffersBySkuAsync(
+    public async Task<IReadOnlyList<ContratsProducts.OfferSummary>> ListOffersBySkuAsync(
         string sku, CancellationToken cancellationToken = default)
     {
         var response = await _client.ListOffersBySkuAsync(
@@ -124,7 +125,7 @@ internal sealed class ProductsGrpcClient : Contracts.IProductsModuleApi
         return response.Offers.Select(ToContract).ToList();
     }
 
-    private static Contracts.OfferSummary ToContract(Proto.OfferSummary o)
+    private static ContratsProducts.OfferSummary ToContract(Proto.OfferSummary o)
         => new(
             Id: ParseGuid(o.OfferId),
             ProductId: ParseGuid(o.ProductId),
@@ -167,7 +168,7 @@ internal sealed class ProductsGrpcClient : Contracts.IProductsModuleApi
             : DateTime.TryParse(value, CultureInfo.InvariantCulture,
                 DateTimeStyles.RoundtripKind, out var date) ? date : null;
 
-    private static Contracts.ProductSummary ToContract(Proto.ProductSummary product)
+    private static ContratsProducts.ProductSummary ToContract(Proto.ProductSummary product)
         => new(
             Id: ParseGuid(product.ProductId),
             SellerId: ParseGuid(product.SellerId),
@@ -220,7 +221,7 @@ internal static class ProductsGrpcRegistration
                 options.Address = new UriBuilder(address) { Port = grpcPort }.Uri)
             .AjouterLesInterceptionsInternes();
 
-        services.AddScoped<Contracts.IProductsModuleApi, ProductsGrpcClient>();
+        services.AddScoped<ContratsProducts.IProductsModuleApi, ProductsGrpcClient>();
 
         return services;
     }
