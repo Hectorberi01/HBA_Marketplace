@@ -42,7 +42,7 @@ public sealed class User : AggregateRoot<UserId>
         EmailVerificationExpiresOnUtc = emailVerificationExpiresOnUtc;
         CreatedOnUtc = DateTime.UtcNow;
 
-        Raise(new UserRegisteredDomainEvent(id.Value, email.Value, firstName));
+        Raise(new UserRegisteredDomainEvent(id.Value, email.Value, firstName, lastName));
     }
 
     public string FirstName { get; private set; } = default!;

@@ -1,4 +1,3 @@
-using HBA.Identity.Contracts.Grpc;
 using HBA.Users.Api.Endpoints;
 using HBA.Users.Infrastructure.Messaging.Kafka;
 using HBA.Shared.Hosting;
@@ -12,20 +11,27 @@ builder.AddHbaService<UsersDbContext>(new UsersModuleInstaller());
 builder.AddHbaGrpc();
 
 // ═════════════════════════════════════════════════════════════════════════
-// LE PONT IDENTITY → USER, ET IL N'EXISTE QU'ICI.
+// LE CLIENT gRPC VERS identity-service A ÉTÉ RETIRÉ.
 //
-// IL AVAIT ÉTÉ PERDU À L'EXTRACTION.
+// Il servait UN SEUL APPEL : relire le compte pour obtenir le nom de famille,
+// que `UserRegisteredIntegrationEvent` ne portait pas. Cet appel synchrone,
+// fait depuis un consommateur Kafka, rendait ce service dépendant de la
+// disponibilité — et de la clé de signature — d'un autre.
 //
-// identity-service publiait `UserRegisteredIntegrationEvent` et personne ne
-// l'écoutait : un compte se créait dans `identity.users`, aucune ligne
-// n'apparaissait dans `users.profiles`. Aucune erreur, aucun journal — un
-// événement sans destinataire ne se plaint pas.
+// CE QU'IL A COÛTÉ. `Internal:PrivateKey` en SEC1 au lieu de PKCS#8 : signature
+// impossible, appel impossible, profil jamais créé, et aucune trace ailleurs
+// que dans un journal de consommateur. L'événement porte désormais le champ.
 //
-// L'enregistrement est fait dans le composition root, PAS dans
-// `UsersModuleInstaller` : celui-ci vit dans Infrastructure, à qui
-// `UsersBoundaryTests` interdit de connaître Identity.
+// CE QUE ÇA CHANGE POUR LE DÉPLOIEMENT. user-service n'ouvre plus aucun canal
+// sortant vers identity-service : il se déploie, démarre et traite ses
+// événements sans lui. Il SERT toujours du gRPC (`UsersGrpcService`), et a donc
+// toujours besoin de ses clés — mais pour VÉRIFIER des appels entrants, pas
+// pour en signer.
+//
+// CE QUE ÇA NE CHANGE PAS. Le projet référence encore
+// `HBA.Identity.Contracts` : les types d'événements qu'il consomme y vivent.
+// Un contrat partagé n'est pas un appel réseau.
 // ═════════════════════════════════════════════════════════════════════════
-builder.Services.AddIdentityGrpcClient(builder.Configuration);
 
 // ═════════════════════════════════════════════════════════════════════════
 // TOUT CE QUE CE SERVICE ÉCOUTE EST DÉCLARÉ DANS SON PROPRE MODULE.

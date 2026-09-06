@@ -19,7 +19,8 @@ public sealed class UserRegisteredDomainEventHandler : IDomainEventHandler<UserR
             {
                 UserId = domainEvent.UserId,
                 Email = domainEvent.Email,
-                FirstName = domainEvent.FirstName
+                FirstName = domainEvent.FirstName,
+                LastName = domainEvent.LastName
             },
             cancellationToken);
 }

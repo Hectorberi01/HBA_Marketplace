@@ -3,7 +3,16 @@ using HBA.Shared.Domain.Events;
 namespace HBA.Identity.Domain.Users.Events;
 
 /// <summary>Un compte vient d'être créé (en attente de vérification).</summary>
-public sealed record UserRegisteredDomainEvent(Guid UserId, string Email, string FirstName) : DomainEvent;
+/// <summary>
+/// LE NOM DE FAMILLE A ÉTÉ AJOUTÉ, ET CE N'EST PAS UN CONFORT.
+///
+/// L'agrégat le connaît depuis toujours et le laissait tomber ici. Le seul
+/// consommateur qui en a besoin — la création du profil dans user-service — le
+/// relisait donc par un appel gRPC synchrone vers identity-service, DEPUIS UN
+/// GESTIONNAIRE D'ÉVÉNEMENT. Voir `CreateUserProfileOnUserRegisteredHandler`
+/// pour ce que cet appel a coûté en production.
+/// </summary>
+public sealed record UserRegisteredDomainEvent(Guid UserId, string Email, string FirstName, string LastName) : DomainEvent;
 
 /// <summary>L'e-mail d'un compte a été confirmé.</summary>
 public sealed record UserEmailConfirmedDomainEvent(Guid UserId, string Email) : DomainEvent;

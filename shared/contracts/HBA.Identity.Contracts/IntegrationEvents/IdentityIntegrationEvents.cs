@@ -2,13 +2,47 @@ using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Identity.Contracts.IntegrationEvents;
 
-/// <summary>Un compte a été créé. Consommé par Notifications (bienvenue), Analytics…</summary>
+/// <summary>
+/// Un compte a été créé. Consommé par Notifications (bienvenue), Analytics, et par
+/// user-service qui en crée le profil.
+///
+/// ═════════════════════════════════════════════════════════════════════════════
+/// `LastName` A ÉTÉ AJOUTÉ POUR SUPPRIMER UN APPEL SYNCHRONE ENTRE SERVICES.
+///
+/// L'événement ne portait que le prénom : il avait été taillé pour Notifications,
+/// qui n'a besoin que de « Bonjour Awa ». user-service, lui, relisait le compte
+/// par gRPC pour obtenir le nom de famille — un appel SYNCHRONE vers
+/// identity-service, DEPUIS UN CONSOMMATEUR KAFKA.
+///
+/// CE QUE CET APPEL A COÛTÉ. `Internal:PrivateKey` était encodée en SEC1 au lieu
+/// de PKCS#8 ; la signature de l'appel sortant échouait ; le gestionnaire levait ;
+/// le consommateur abandonnait l'événement après ses tentatives. Résultat visible :
+/// `identity.users` se remplissait, `users.user_profiles` restait VIDE, et rien
+/// dans l'interface ne le disait. Une panne de signature côté un service a rendu
+/// un AUTRE service inopérant, en silence.
+///
+/// LE CHAMP EST NULLABLE, ET NON `required`. Les messages publiés avant cet ajout
+/// sont encore sur le sujet, dans la rétention. Les rendre indéserialisables
+/// casserait précisément le rejeu qui doit rattraper les profils manquants. Un
+/// profil créé depuis un ancien message n'aura donc pas de nom de famille — le
+/// premier changement de nom le remplira, via `UserProfileUpdated`.
+///
+/// CE QUE CET AJOUT N'AUTORISE PAS. Ce n'est pas une porte ouverte à charger
+/// l'agrégat dans l'événement. La règle reste : un événement porte ce que ses
+/// consommateurs traitent, pas ce qu'ils pourraient vouloir. Ici l'identité était
+/// déjà à moitié transportée — prénom et e-mail — et le champ manquant obligeait à
+/// un aller-retour réseau. C'est ce déséquilibre qu'on corrige, rien d'autre.
+/// ═════════════════════════════════════════════════════════════════════════════
+/// </summary>
 [HbaEvent("identity", "user", "registered", Version = 1, AggregateType = "User")]
 public sealed record UserRegisteredIntegrationEvent : IntegrationEvent
 {
     public required Guid UserId { get; init; }
     public required string Email { get; init; }
     public required string FirstName { get; init; }
+
+    /// <summary>Null pour les messages publiés avant l'ajout du champ. Voir plus haut.</summary>
+    public string? LastName { get; init; }
 }
 
 /// <summary>

@@ -1,4 +1,3 @@
-using HBA.Identity.Contracts;
 using HBA.Identity.Contracts.IntegrationEvents;
 using HBA.Shared.Application.Context;
 using HBA.Shared.Infrastructure.Inbox;
@@ -6,6 +5,7 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Users.Application.Abstractions;
 using HBA.Users.Application.Profiles;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace HBA.Users.Infrastructure.Messaging.Kafka.Consumers;
 
@@ -25,33 +25,51 @@ namespace HBA.Users.Infrastructure.Messaging.Kafka.Consumers;
 /// dans `users.profiles`. Rien n'échoue, rien ne journalise — l'événement part,
 /// se pose sur le sujet, et n'a pas de destinataire.
 ///
-/// IL VIT DANS LE PROJET Api, ET NON DANS Application.
+/// IL VIT DANS `Infrastructure/Messaging/Kafka/Consumers/`.
 ///
-/// Il connaît les DEUX mondes. `UsersBoundaryTests` interdit au module User de
-/// dépendre d'Identity, Contracts compris, et le motif est écrit dans ce test :
-/// « un appel à IIdentityModuleApi pour vérifier que l'utilisateur existe
-/// paraîtrait raisonnable et recréerait pourtant le couplage que ce déplacement
-/// vient de défaire ».
+/// Il vivait dans le composition root (`Api/Integration`), au motif d'une
+/// frontière `UsersBoundaryTests` qui interdisait au module User de connaître
+/// Identity. CE TEST N'EXISTE PAS DANS LE DÉPÔT : la garde était un commentaire.
+/// Le couplage est désormais assumé, et confiné à ce dossier.
 ///
-/// La composition root, elle, a le droit de tout connaître. Le couplage existe —
-/// il faut bien que quelqu'un relie l'inscription au profil — mais il est ISOLÉ
-/// dans un fichier qu'on supprime pour détacher les deux mondes.
+/// ═════════════════════════════════════════════════════════════════════════════
+/// IL NE RELIT PLUS LE COMPTE PAR gRPC. LE RAISONNEMENT PRÉCÉDENT ÉTAIT JUSTE, ET
+///     LE VERDICT ÉTAIT FAUX.
 ///
-/// L'ÉVÉNEMENT NE PORTE PAS LE NOM DE FAMILLE. ON RELIT LE COMPTE.
+/// Ce commentaire disait : « Élargir un événement d'intégration pour le confort
+/// d'un consommateur est le premier pas vers un événement qui transporte tout
+/// l'agrégat […] Une lecture de plus à l'inscription — opération rare s'il en
+/// est — coûte infiniment moins cher. »
 ///
-/// `UserRegisteredIntegrationEvent` transporte l'identifiant, l'e-mail et le
-/// PRÉNOM — il a été taillé pour Notifications, qui n'a besoin que du prénom
-/// pour dire « Bonjour Awa ».
+/// L'argument sur la discipline des contrats reste bon. Le calcul du coût, lui,
+/// ne comptait que le temps de la lecture. Il manquait le reste :
 ///
-/// Deux réponses possibles : élargir l'événement, ou relire le compte. On relit.
-/// Élargir un événement d'intégration pour le confort d'un consommateur est le
-/// premier pas vers un événement qui transporte tout l'agrégat, et chaque champ
-/// ajouté devient un engagement envers tous les autres consommateurs, présents
-/// et futurs. Une lecture de plus à l'inscription — opération rare s'il en est —
-/// coûte infiniment moins cher.
+///   - Un APPEL SYNCHRONE DANS UN CONSOMMATEUR fait dépendre le traitement d'un
+///     événement de la disponibilité d'un AUTRE service. L'asynchrone existait
+///     précisément pour découpler les deux ; l'appel le rétablit à l'intérieur.
+///   - L'échec est INVISIBLE. Une route HTTP qui échoue rend 500 et se voit. Ici,
+///     le gestionnaire lève, le consommateur réessaie, puis journalise
+///     « ÉVÉNEMENT ABANDONNÉ » dans un flux que personne ne regarde.
+///   - CE N'EST PAS UNE HYPOTHÈSE. `Internal:PrivateKey` encodée en SEC1 au lieu
+///     de PKCS#8 : la signature échouait, l'appel échouait, le profil n'était
+///     jamais créé. `identity.users` avait deux lignes, `users.user_profiles`
+///     zéro, et l'interface d'administration ne montrait rien d'anormal.
 ///
-/// La relecture passe désormais par gRPC et non par la mémoire : c'est la seule
-/// différence avec la version monolithique.
+/// `UserRegisteredIntegrationEvent` porte maintenant `LastName`. Ce service ne
+/// signe plus aucun appel sortant vers identity-service, et peut donc traiter une
+/// inscription pendant qu'identity-service redémarre, ou est en panne.
+///
+/// CE QU'ON A PERDU, ET IL FAUT LE SAVOIR. L'ancienne relecture servait aussi de
+/// garde : un compte supprimé entre la publication et la consommation rendait
+/// `null`, et on s'abstenait de créer un profil orphelin. Cette garde n'existe
+/// plus. Un profil peut donc naître pour un compte déjà parti ;
+/// `UserAnonymized` le purge derrière, mais l'ordre des deux événements n'est
+/// garanti que par la clé de partition, pas par le code.
+///
+/// `LastName` EST NULLABLE. Les messages déjà sur le sujet n'en portent pas : le
+/// rejeu prévu pour rattraper les profils manquants créera des profils sans nom
+/// de famille. C'est le prix du rattrapage, et il est préférable à un profil
+/// absent.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public sealed class CreateUserProfileOnUserRegisteredHandler: IIntegrationEventHandler<UserRegisteredIntegrationEvent>
@@ -60,20 +78,17 @@ public sealed class CreateUserProfileOnUserRegisteredHandler: IIntegrationEventH
     private const string ConsumerName = "user-service.identity-user-registered";
 
     private readonly ISender _sender;
-    private readonly IIdentityModuleApi _identity;
     private readonly IConsumerInbox _inbox;
     private readonly IUsersUnitOfWork _unitOfWork;
     private readonly ILogger<CreateUserProfileOnUserRegisteredHandler> _logger;
 
     public CreateUserProfileOnUserRegisteredHandler(
         ISender sender,
-        IIdentityModuleApi identity,
         IConsumerInbox inbox,
         IUsersUnitOfWork unitOfWork,
         ILogger<CreateUserProfileOnUserRegisteredHandler> logger)
     {
         _sender = sender;
-        _identity = identity;
         _inbox = inbox;
         _unitOfWork = unitOfWork;
         _logger = logger;
@@ -107,28 +122,15 @@ public sealed class CreateUserProfileOnUserRegisteredHandler: IIntegrationEventH
             return;
         }
 
-        var compte = await _identity.GetUserAsync(integrationEvent.UserId, cancellationToken);
-
-        if (compte is null)
-        {
-            // Le compte a disparu entre la publication et la consommation — une
-            // suppression immédiate, ou une base restaurée entre-temps. On ne
-            // crée pas un profil orphelin : il réapparaîtrait dans les listes
-            // d'administration sans compte derrière.
-            _logger.LogWarning(
-                "Profil non créé pour le compte {UserId} : compte introuvable à la consommation "
-                + "de UserRegistered.",
-                integrationEvent.UserId);
-
-            return;
-        }
-
         // La commande est IDEMPOTENTE : Kafka livre au moins une fois, et un
         // rejeu après redémarrage rappellerait ce gestionnaire. Un profil déjà
         // présent n'est PAS écrasé — sans quoi le rejeu annulerait toute
         // correction de nom faite depuis.
         var result = await _sender.Send(
-            new CreateUserProfileCommand(compte.Id, compte.FirstName, compte.LastName),
+            new CreateUserProfileCommand(
+                integrationEvent.UserId,
+                integrationEvent.FirstName,
+                integrationEvent.LastName),
             cancellationToken);
 
         if (result.IsFailure)
