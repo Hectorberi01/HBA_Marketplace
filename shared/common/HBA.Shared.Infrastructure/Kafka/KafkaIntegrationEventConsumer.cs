@@ -315,7 +315,12 @@ public sealed class KafkaIntegrationEventConsumer : BackgroundService
             var entetes = new Headers();
             foreach (var entete in result.Message.Headers)
             {
-                entetes.Add(entete);
+                // `Headers.Add` NE PREND PAS UN `IHeader`, ET L'ITERATION EN REND UN.
+                //
+                // Les surcharges sont `(string, byte[])` et `(Header)` — un type
+                // concret. Parcourir `Message.Headers` donne des `IHeader` : il faut
+                // donc redonner la cle et les octets, pas repasser l'objet.
+                entetes.Add(entete.Key, entete.GetValueBytes());
             }
 
             entetes.Add("dlq-sujet-origine", Encoding.UTF8.GetBytes(result.Topic));
