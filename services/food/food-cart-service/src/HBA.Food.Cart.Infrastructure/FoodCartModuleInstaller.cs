@@ -103,46 +103,6 @@ public sealed class FoodCartModuleInstaller : IModuleInstaller
 
     }
 
-    /// <summary>
-    /// Refuse le démarrage en production tant que la tarification du panier de
-    /// repas est neutre ; l'annonce bruyamment partout ailleurs.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// MÊME RÈGLE QUE `PaymentsModuleInstaller` ET `ReturnRefundModuleInstaller`,
-    /// MÊME RAISON.
-    ///
-    /// La tarification neutre d'avant le 29/08/2026 ne MENTAIT pas — elle rendait
-    /// le prix de base et refusait
-    /// franchement les codes, ce qui est fail-closed. Ce qu'il fait, c'est
-    /// PROMETTRE une fonctionnalité qui n'existe pas : le §11 décrit un checkout de
-    /// restauration avec code promo, l'application affiche le champ,
-    /// `PromotionScope.Food` existe dans le domaine de promotion — et rien ne
-    /// l'appelle. Un exploitant croit donc livrer des campagnes food, et le seul
-    /// symptôme est commercial : « pourquoi nos codes ne marchent-ils jamais ? ».
-    ///
-    /// C'est exactement ce qu'ISSUE-033 décrit, et exactement ce qui a permis à ce
-    /// bouchon de vivre : un panier sans remise ressemble à un panier sans coupon.
-    ///
-    /// CE QUE CE REFUS COÛTE, ET POURQUOI IL EST ACCEPTABLE AUJOURD'HUI.
-    ///
-    /// Il empêche food-cart-service de démarrer en production. Ce n'est pas
-    /// théorique : c'est une décision de déploiement. Elle est prise en connaissance
-    /// de cause parce que ce service n'est PAS dans `k8s/base/services/` — il n'a
-    /// aujourd'hui aucun chemin vers la production, et le refus force donc à
-    /// trancher le branchement AVANT le premier déploiement plutôt qu'après.
-    ///
-    /// Si la restauration doit partir en production sans promotions, ce n'est pas ce
-    /// garde-fou qu'il faut assouplir : c'est la décision « pas de codes promo sur
-    /// les repas » qu'il faut écrire, et retirer le champ de l'application.
-    ///
-    /// PAS DE DRAPEAU DE CONFIGURATION POUR PASSER OUTRE.
-    ///
-    /// C'est exactement la variable qu'on recopie d'un fichier d'environnement de
-    /// recette vers celui de production. Et il n'y aurait rien à assumer : brancher
-    /// promotion sur ce panier est une demi-journée de travail, pas un arbitrage.
-    /// ═════════════════════════════════════════════════════════════════════════
-
     // ═══════════════════════════════════════════════════════════════════════════
     // `GuardNeutralPricing` A ÉTÉ RETIRÉ LE 29 AOÛT 2026, ET C'EST LE BON GESTE.
     //

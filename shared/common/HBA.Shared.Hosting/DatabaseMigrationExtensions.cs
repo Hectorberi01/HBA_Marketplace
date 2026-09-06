@@ -43,6 +43,7 @@ public sealed class DatabaseOptions
     /// protège de rien si DEUX Jobs tournent en même temps : c'est le verrou
     /// consultatif d'EF qui évite la corruption, pas ce réglage.
     /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
     public bool MigrateOnly { get; set; }
 }
 

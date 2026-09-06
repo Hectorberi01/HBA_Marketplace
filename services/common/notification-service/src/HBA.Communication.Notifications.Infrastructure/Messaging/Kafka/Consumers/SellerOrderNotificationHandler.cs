@@ -41,6 +41,7 @@ namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consume
 /// La confirmation signifie « l'argent est encaissé ». C'est le seul moment où
 /// l'alerte est actionnable.
 /// </para>
+/// </summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
 //
 // `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce

@@ -26,7 +26,7 @@ namespace HBA.Deliveries.Infrastructure.Persistence.Outbox;
 /// Publisher d'events d'intégration via l'Outbox. « Publier » = écrire une ligne
 /// dans la table outbox du module, dans la même unité de travail que le
 /// changement d'état. Aucun appel direct à un autre module : la livraison réelle
-/// est faite plus tard par <see cref="OutboxProcessor{DeliveriesDbContext}"/>.
+/// est faite plus tard par <see cref="OutboxProcessor"/>.
 /// </summary>
 public sealed class OutboxIntegrationEventPublisher : IIntegrationEventPublisher
 {

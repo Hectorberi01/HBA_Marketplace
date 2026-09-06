@@ -32,6 +32,7 @@ namespace HBA.Catalog.Application;
 /// personne ; un prix périmé de cinq minutes est une promesse commerciale que l'on
 /// ne tient pas.
 /// </para>
+/// </summary>
 public static class CatalogCacheKeys
 {
     /// <summary>
