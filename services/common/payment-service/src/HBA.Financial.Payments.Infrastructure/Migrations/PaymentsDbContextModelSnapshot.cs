@@ -219,7 +219,7 @@ namespace HBA.Financial.Payments.Infrastructure.Migrations
                     b.ToTable("payment_refunds", "payments");
                 });
 
-            modelBuilder.Entity("HBA.Financial.Payments.Infrastructure.Idempotency.IdempotencyRecord", b =>
+            modelBuilder.Entity("HBA.Shared.Infrastructure.Idempotency.IdempotencyRecord", b =>
                 {
                     b.Property<string>("Key")
                         .HasMaxLength(120)
@@ -261,7 +261,7 @@ namespace HBA.Financial.Payments.Infrastructure.Migrations
                     b.ToTable("idempotency_keys", "payments");
                 });
 
-            modelBuilder.Entity("HBA.Financial.Payments.Infrastructure.Persistence.Inbox.ConsumerInboxEntry", b =>
+            modelBuilder.Entity("HBA.Shared.Infrastructure.Inbox.ConsumerInboxEntry", b =>
                 {
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
@@ -290,7 +290,7 @@ namespace HBA.Financial.Payments.Infrastructure.Migrations
                     b.ToTable("consumer_inbox", "payments");
                 });
 
-            modelBuilder.Entity("HBA.Financial.Payments.Infrastructure.Auditing.AuditEntry", b =>
+            modelBuilder.Entity("HBA.Shared.Infrastructure.Audit.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -335,7 +335,7 @@ namespace HBA.Financial.Payments.Infrastructure.Migrations
                     b.ToTable("audit_entries", "payments");
                 });
 
-            modelBuilder.Entity("HBA.Financial.Payments.Infrastructure.Persistence.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("HBA.Shared.Infrastructure.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
