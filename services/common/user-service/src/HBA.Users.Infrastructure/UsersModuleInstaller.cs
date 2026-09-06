@@ -56,6 +56,29 @@ public sealed class UsersModuleInstaller : IModuleInstaller
         services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
         services.AddScoped<IUsersModuleApi, UsersModuleApi>();
 
+        // ═════════════════════════════════════════════════════════════════════
+        // LA PLOMBERIE TRANSACTIONNELLE RESTE ICI, PAS DANS `Messaging/Kafka/`.
+        //
+        // Le module Kafka du service porte les producteurs, les consommateurs et
+        // la liste des sujets. Il ne porte PAS les trois enregistrements
+        // ci-dessous, et c'est une décision, pas un oubli.
+        //
+        // La raison tient à ce qu'est réellement l'outbox : une TABLE, écrite par
+        // `ModuleDbContext.SaveChangesAsync` dans la transaction métier, même
+        // quand Kafka est éteint. Elle appartient au DbContext qui la persiste —
+        // ses `DbSet` et ses `IEntityTypeConfiguration` sont dans
+        // `UsersDbContext`, ses colonnes dans les migrations du service. Un
+        // « module Kafka » qui prétendrait la posséder mentirait : on ne peut pas
+        // le retirer sans casser une migration.
+        //
+        // CE QUE CE CHOIX NE COUVRE PAS. Il laisse ces lignes copiables — et donc
+        // oubliables — dans les dix-huit autres installeurs. Un service qui
+        // omettrait `AddOutboxProcessor` compilerait, démarrerait, écrirait dans
+        // l'outbox, et n'enverrait jamais rien : la panne serait silencieuse,
+        // exactement celle qui a laissé `user_profiles` vide. La seule vraie
+        // parade serait une vérification au démarrage, pas un rangement.
+        // ═════════════════════════════════════════════════════════════════════
+
         // Socle du §5 et du §19.5. Sans ces deux enregistrements, le filtre
         // d'idempotence laisse passer en journalisant une erreur et les consumers
         // n'ont aucune garde contre le double traitement : les tables existent, et
@@ -73,9 +96,19 @@ public sealed class UsersModuleInstaller : IModuleInstaller
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        // Le module n'émet encore aucun événement d'intégration, mais la table outbox
-        // existe (elle vient de ModuleDbContext) et le processeur doit tourner dès
-        // maintenant : le jour où « AddressAdded » sera publié, rien à rebrancher.
+        // CE COMMENTAIRE DISAIT LE CONTRAIRE DE LA VÉRITÉ, ET PERSONNE NE POUVAIT
+        //     LE SAVOIR.
+        //
+        // Il affirmait que « le module n'émet encore aucun événement
+        // d'intégration ». Le service en publie TROIS —
+        // `UserProfileChangedIntegrationEvent`, `UserAddressCreatedIntegrationEvent`
+        // et `UserDeviceRegisteredIntegrationEvent` — depuis `Application`, via
+        // `IIntegrationEventPublisher`. La liste tenue à jour est dans
+        // `Messaging/Kafka/Producers/EvenementsPublies.cs` ; c'est elle qui fait
+        // foi désormais, parce qu'elle échoue au démarrage quand elle a tort.
+        //
+        // Le processeur n'est donc pas là « en prévision » : il est le seul chemin
+        // par lequel ces trois événements quittent la base.
         services.AddOutboxProcessor<UsersDbContext>();
     }
 }

@@ -44,6 +44,34 @@ namespace HBA.Users.Infrastructure.Messaging.Kafka.Configuration;
 /// supprimant ce dossier. Si la frontière doit redevenir opposable, c'est un
 /// TEST D'ARCHITECTURE qu'il faut écrire — un commentaire ne retient rien, et
 /// celui-là ne retenait déjà plus rien.
+///
+/// CE QUE CE MODULE NE CONTIENT PAS, ET QUI EST LE MODÈLE POUR LES AUTRES
+///     SERVICES.
+///
+/// Trois choses restent volontairement dehors, et un dossier reste volontairement
+/// absent :
+///
+/// `AddOutboxProcessor`, `IConsumerInbox` et `AddIdempotence` restent dans
+/// `UsersModuleInstaller`. Outbox et inbox sont des TABLES, écrites dans la
+/// transaction métier par `ModuleDbContext.SaveChangesAsync` ; leurs `DbSet`,
+/// leurs configurations EF et leurs colonnes appartiennent à `UsersDbContext` et
+/// à ses migrations. L'idempotence sert en plus les routes HTTP annotées
+/// `AllowIdempotency()`, qui n'ont rien à voir avec Kafka. Déplacer ces lignes
+/// ici aurait donné un module qu'on ne peut pas retirer sans casser une
+/// migration — la frontière aurait été fausse.
+///
+/// Les APPELS À `PublishAsync` restent dans `Application`, pour la raison
+/// détaillée dans `Producers/EvenementsPublies.cs` : sortis de la transaction,
+/// ils perdent la garantie que l'outbox existe pour donner.
+///
+/// `Serialization/` n'existe pas dans ce service. La forme de dossier convenue
+/// le prévoit, mais user-service n'a aucun convertisseur propre : il utilise
+/// celui de `HBA.Shared.Infrastructure.Kafka`. Un dossier vide se lirait comme
+/// une promesse tenue ailleurs ; il n'est créé que par le premier service qui a
+/// vraiment un convertisseur à y mettre.
+///
+/// LA FRONTIÈRE EST DONC : CE QUI PARLE LE PROTOCOLE ENTRE ICI, CE QUI TOUCHE LA
+/// BASE RESTE DEHORS. Les dix-huit services suivants se copient sur cette ligne.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public static class MessagerieUsers
