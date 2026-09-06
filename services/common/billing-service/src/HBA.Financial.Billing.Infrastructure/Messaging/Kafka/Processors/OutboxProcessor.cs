@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Financial.Billing.Infrastructure.Persistence;
-using HBA.Financial.Billing.Infrastructure.Persistence.Inbox;
 using HBA.Financial.Billing.Infrastructure.Persistence.Outbox;
 using System.Diagnostics;
 using System.Text.Json;

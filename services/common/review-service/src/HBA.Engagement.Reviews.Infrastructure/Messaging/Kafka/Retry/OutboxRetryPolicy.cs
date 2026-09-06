@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Engagement.Reviews.Infrastructure.Persistence;
-using HBA.Engagement.Reviews.Infrastructure.Persistence.Inbox;
 using HBA.Engagement.Reviews.Infrastructure.Persistence.Outbox;
 using HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════

@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Inbox;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Outbox;
 using System.Diagnostics;
 using System.Text.Json;

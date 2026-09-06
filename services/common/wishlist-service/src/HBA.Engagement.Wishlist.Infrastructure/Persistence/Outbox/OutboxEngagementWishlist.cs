@@ -2,7 +2,6 @@ using HBA.Engagement.Wishlist.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Engagement.Wishlist.Infrastructure.Persistence.Outbox;
-using HBA.Engagement.Wishlist.Infrastructure.Persistence.Inbox;
 using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Outbox;

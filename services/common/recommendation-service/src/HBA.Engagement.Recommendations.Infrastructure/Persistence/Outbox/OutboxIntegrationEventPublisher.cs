@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence;
-using HBA.Engagement.Recommendations.Infrastructure.Persistence.Inbox;
 using System.Text.Json;
 using HBA.Shared.Infrastructure.Serialization;
 using HBA.Shared.IntegrationEvents;

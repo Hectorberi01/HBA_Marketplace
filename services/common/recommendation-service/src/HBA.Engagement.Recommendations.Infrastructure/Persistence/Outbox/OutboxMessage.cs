@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence;
-using HBA.Engagement.Recommendations.Infrastructure.Persistence.Inbox;
 using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════

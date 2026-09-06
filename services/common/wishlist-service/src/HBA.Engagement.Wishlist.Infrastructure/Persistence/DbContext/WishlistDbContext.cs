@@ -5,7 +5,6 @@ using HBA.Engagement.Wishlist.Application.Abstractions;
 using WishlistAggregate = HBA.Engagement.Wishlist.Domain.Wishlists.Wishlist;
 
 using HBA.Engagement.Wishlist.Infrastructure.Persistence.Outbox;
-using HBA.Engagement.Wishlist.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Engagement.Wishlist.Infrastructure.Persistence;
 

@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

@@ -2,7 +2,6 @@ using HBA.Delivery.Pricing.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Delivery.Pricing.Infrastructure.Persistence.Outbox;
-using HBA.Delivery.Pricing.Infrastructure.Persistence.Inbox;
 using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Outbox;

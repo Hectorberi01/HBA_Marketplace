@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 using HBA.Delivery.Pricing.Infrastructure.Auditing;
 using HBA.Delivery.Pricing.Infrastructure.Persistence.Outbox;
-using HBA.Delivery.Pricing.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Delivery.Pricing.Infrastructure.Persistence;
 

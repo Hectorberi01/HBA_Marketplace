@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Design;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence.Outbox;
-using HBA.Engagement.Recommendations.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Engagement.Recommendations.Infrastructure.Persistence;
 

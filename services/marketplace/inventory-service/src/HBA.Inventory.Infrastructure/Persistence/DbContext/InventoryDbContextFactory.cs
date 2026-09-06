@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Design;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Inventory.Infrastructure.Persistence.Outbox;
-using HBA.Inventory.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Inventory.Infrastructure.Persistence;
 

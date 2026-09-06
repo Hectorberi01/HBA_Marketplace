@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Engagement.Wishlist.Infrastructure.Persistence;
-using HBA.Engagement.Wishlist.Infrastructure.Persistence.Inbox;
 using System.Text.Json;
 using HBA.Shared.Infrastructure.Serialization;
 using HBA.Shared.IntegrationEvents;

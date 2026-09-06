@@ -25,7 +25,6 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Caching.Redis;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Observability;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Outbox;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Inbox;
 namespace HBA.Marketplace.ReturnRefund.Infrastructure;
 
 public sealed class ReturnRefundModuleInstaller : IModuleInstaller

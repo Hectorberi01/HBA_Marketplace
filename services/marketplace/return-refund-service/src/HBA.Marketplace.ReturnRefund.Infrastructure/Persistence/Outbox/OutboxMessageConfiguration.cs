@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

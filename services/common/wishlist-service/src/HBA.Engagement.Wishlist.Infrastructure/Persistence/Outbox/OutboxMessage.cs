@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Engagement.Wishlist.Infrastructure.Persistence;
-using HBA.Engagement.Wishlist.Infrastructure.Persistence.Inbox;
 using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════

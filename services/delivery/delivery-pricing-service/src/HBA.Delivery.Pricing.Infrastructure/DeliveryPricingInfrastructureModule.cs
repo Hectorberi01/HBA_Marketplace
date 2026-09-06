@@ -11,7 +11,6 @@ using Microsoft.Extensions.Options;
 using HBA.Delivery.Pricing.Infrastructure.Caching.Redis;
 using HBA.Delivery.Pricing.Infrastructure.Observability;
 using HBA.Delivery.Pricing.Infrastructure.Persistence.Outbox;
-using HBA.Delivery.Pricing.Infrastructure.Persistence.Inbox;
 namespace HBA.Delivery.Pricing.Infrastructure;
 
 public static class DeliveryPricingInfrastructureModule

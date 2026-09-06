@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 using HBA.Marketplace.ReturnRefund.Infrastructure.Auditing;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Outbox;
-using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Marketplace.ReturnRefund.Infrastructure.Persistence;
 

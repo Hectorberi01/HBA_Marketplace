@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Financial.Billing.Infrastructure.Persistence;
-using HBA.Financial.Billing.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 
 using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Retry;

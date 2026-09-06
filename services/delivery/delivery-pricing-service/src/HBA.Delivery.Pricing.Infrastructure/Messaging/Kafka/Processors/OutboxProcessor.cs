@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Delivery.Pricing.Infrastructure.Persistence;
-using HBA.Delivery.Pricing.Infrastructure.Persistence.Inbox;
 using HBA.Delivery.Pricing.Infrastructure.Persistence.Outbox;
 using System.Diagnostics;
 using System.Text.Json;

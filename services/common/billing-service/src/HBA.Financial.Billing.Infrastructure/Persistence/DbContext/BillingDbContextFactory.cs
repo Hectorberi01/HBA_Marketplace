@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Design;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Financial.Billing.Infrastructure.Persistence.Outbox;
-using HBA.Financial.Billing.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Financial.Billing.Infrastructure.Persistence;
 

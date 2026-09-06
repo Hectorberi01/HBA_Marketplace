@@ -2,7 +2,6 @@ using HBA.Financial.Billing.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Financial.Billing.Infrastructure.Persistence.Outbox;
-using HBA.Financial.Billing.Infrastructure.Persistence.Inbox;
 using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Outbox;

@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Engagement.Reviews.Infrastructure.Persistence;
-using HBA.Engagement.Reviews.Infrastructure.Persistence.Inbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

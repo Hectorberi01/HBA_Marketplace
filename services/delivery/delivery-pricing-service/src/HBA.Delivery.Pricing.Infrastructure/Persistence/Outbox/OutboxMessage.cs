@@ -1,6 +1,5 @@
 using HBA.Shared.Infrastructure.Persistence;
 using HBA.Delivery.Pricing.Infrastructure.Persistence;
-using HBA.Delivery.Pricing.Infrastructure.Persistence.Inbox;
 using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Processors;
 // ═════════════════════════════════════════════════════════════════════════════
