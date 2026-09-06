@@ -1,4 +1,5 @@
 using HBA.Deliveries.Api.Endpoints;
+using HBA.Delivery.Core.Infrastructure.Messaging.Kafka;
 using HBA.Deliveries.Api.Grpc;
 using HBA.Deliveries.Infrastructure;
 using HBA.Deliveries.Infrastructure.Persistence;
@@ -8,6 +9,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<DeliveriesDbContext>(new DeliveriesModuleInstaller());
 builder.AddHbaGrpc();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieDeliveryCore();
 
 var app = builder.Build();
 

@@ -1,4 +1,7 @@
 using HBA.Engagement.Api.Endpoints;
+using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka;
+using HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka;
+using HBA.Engagement.Recommendations.Infrastructure.Messaging.Kafka;
 using HBA.Engagement.Recommendations.Application.Recommendations;
 using HBA.Engagement.Recommendations.Infrastructure.Persistence;
 using HBA.Engagement.Recommendations.Infrastructure;
@@ -34,6 +37,33 @@ builder.Services.AddMediatR(m => m.RegisterServicesFromAssembly(typeof(UpsertRec
 builder.Services.AddMediatR(m => m.RegisterServicesFromAssembly(typeof(AddToWishlistCommand).Assembly));
 new RecommendationsModuleInstaller().Install(builder.Services, builder.Configuration);
 new WishlistModuleInstaller().Install(builder.Services, builder.Configuration);
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieEngagementRecommendations();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieEngagementReviews();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieEngagementWishlist();
 
 var app = builder.Build();
 

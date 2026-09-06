@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Food.Order.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Financial.Payments.Contracts.IntegrationEvents;
@@ -6,6 +7,7 @@ using HBA.Food.Contracts.IntegrationEvents;
 using HBA.FoodOrders.Application.Abstractions;
 using HBA.FoodOrders.Application.Orders.Commands;
 using HBA.FoodOrders.Application.Orders.EventHandlers;
+using HBA.Food.Order.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.FoodOrders.Contracts;
 using HBA.FoodOrders.Domain.Orders;
 using HBA.FoodOrders.Domain.Orders.Events;
@@ -13,9 +15,7 @@ using HBA.FoodOrders.Infrastructure.Persistence;
 using HBA.FoodOrders.Infrastructure.Public;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -38,6 +38,14 @@ public sealed class MealOrderingModuleInstaller : IModuleInstaller
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieFoodOrder()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddDbContext<MealOrderingDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", MealOrderingDbContext.SchemaName)));
@@ -49,7 +57,6 @@ public sealed class MealOrderingModuleInstaller : IModuleInstaller
         // Cinq gestionnaires d'intégration écoutent ici le paiement et la cuisine.
         // Sans cette ligne, le dispatcher les appelle SANS garde d'idempotence et
         // se contente de le journaliser.
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<MealOrderingDbContext>>();
         services.AddScoped<IMealOrderModuleApi, MealOrderModuleApi>();
 
         // ── Ce que la commande annonce ──────────────────────────────────────
@@ -74,45 +81,12 @@ public sealed class MealOrderingModuleInstaller : IModuleInstaller
             IDomainEventHandler<MealOrderResumedAfterReviewDomainEvent>,
             MealOrderResumedAfterReviewDomainEventHandler>();
 
-        // ── Ce que la commande écoute : le paiement ─────────────────────────
-        services.AddScoped<
-            IIntegrationEventHandler<PaymentCapturedIntegrationEvent>,
-            ConfirmMealOrderOnPaymentCapturedHandler>();
-        services.AddScoped<
-            IIntegrationEventHandler<PaymentFailedIntegrationEvent>,
-            CancelMealOrderOnPaymentFailedHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-        // ── Ce que la commande écoute : la cuisine ──────────────────────────
-        //
-        // Refus et annulation amènent au même endroit par deux chemins distincts
-        // — voir `KitchenOutcomeHandlers`. La remise du repas est celle qui
-        // manquait le plus : sans elle, une commande de repas ne se terminait
-        // JAMAIS, l'escrow n'était pas levé, et le restaurateur n'était pas payé.
-        services.AddScoped<
-            IIntegrationEventHandler<FoodOrderRejectedIntegrationEvent>,
-            CancelMealOrderOnKitchenRejectionHandler>();
-        services.AddScoped<
-            IIntegrationEventHandler<FoodOrderCancelledIntegrationEvent>,
-            CancelMealOrderOnKitchenCancellationHandler>();
-        services.AddScoped<
-            IIntegrationEventHandler<FoodOrderDeliveredIntegrationEvent>,
-            MarkMealOrderDeliveredOnKitchenDeliveryHandler>();
 
-        // ═════════════════════════════════════════════════════════════════════
-        // LA PORTE D'ENTRÉE DE L'ARBITRAGE, QUI N'EXISTAIT PAS (ISSUE-061).
-        //
-        // `PutMealOrderUnderReviewCommand`, son gestionnaire, `MarkUnderReview`
-        // et ses quatre gardes, la colonne `ReviewReason` et son index partiel :
-        // tout était écrit, et RIEN n'envoyait jamais cette commande. Les deux
-        // routes d'administration qui SORTENT de l'arbitrage répondaient donc 409
-        // à tous les coups. Voir `HoldMealOrderOnDeliveryCancelledHandler`.
-        // ═════════════════════════════════════════════════════════════════════
-        services.AddScoped<
-            IIntegrationEventHandler<DeliveryCancelledIntegrationEvent>,
-            HoldMealOrderOnDeliveryCancelledHandler>();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<MealOrderingDbContext>();
     }
 }

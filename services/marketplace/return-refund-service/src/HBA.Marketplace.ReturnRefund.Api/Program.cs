@@ -1,4 +1,5 @@
 using HBA.Media.Contracts.Grpc;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka;
 using HBA.Marketplace.ReturnRefund.Api.Endpoints;
 using HBA.Marketplace.ReturnRefund.Infrastructure;
 using HBA.Marketplace.ReturnRefund.Infrastructure.Persistence;
@@ -36,6 +37,15 @@ builder.Services.AddMerchantsGrpcClient(builder.Configuration);
 // `AddMediaGrpcClient` lève si `Services:Media` est absent : le service ne
 // démarre pas plutôt que de valider des preuves sans les regarder.
 builder.Services.AddMediaGrpcClient(builder.Configuration);
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieMarketplaceReturnRefund();
 
 var app = builder.Build();
 

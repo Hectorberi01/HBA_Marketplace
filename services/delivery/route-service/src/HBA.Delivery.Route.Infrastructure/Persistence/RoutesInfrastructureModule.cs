@@ -1,4 +1,5 @@
 using HBA.Routes.Application;
+using HBA.Delivery.Route.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,13 @@ public static class RoutesInfrastructureModule
 {
     public static IServiceCollection AddRoutesInfrastructure(this IServiceCollection services)
     {
+        // L'outbox et les abonnements sont descendus dans `Messaging/Kafka/`, donc
+        // hors de ce module d'infrastructure : ils sont enregistres par
+        // `AjouterMessagerieRoute()`, que le composition root peut oublier. Un
+        // oubli ne casserait rien de visible. Cette garde, elle, est enregistree
+        // ici : elle doit exister quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddSingleton<RouteStore>();
         // ═════════════════════════════════════════════════════════════════
         // CE SERVICE PUBLIE 3 ÉVÉNEMENTS DANS LE VIDE. ISSUE-007, CRITICAL.

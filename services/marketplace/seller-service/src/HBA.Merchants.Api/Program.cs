@@ -1,4 +1,5 @@
 using HBA.Identity.Contracts.Grpc;
+using HBA.Merchants.Infrastructure.Messaging.Kafka;
 using HBA.Inventory.Contracts.Grpc;
 using HBA.Media.Contracts.Grpc;
 using HBA.Ordering.Contracts.Grpc;
@@ -47,6 +48,15 @@ builder.Services.AddInventoryGrpcClient(builder.Configuration);
 // au premier rejeu — et Kafka livre au moins une fois.
 // ═════════════════════════════════════════════════════════════════════════
 builder.Services.AddOrderingGrpcClient(builder.Configuration);
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieMerchants();
 
 var app = builder.Build();
 

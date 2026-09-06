@@ -4,6 +4,7 @@ using HBA.Financial.Payments.Contracts;
 using HBA.Merchants.Contracts;
 using HBA.Financial.Wallet.Application.Abstractions;
 using HBA.Financial.Wallet.Application.Earnings;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Financial.Wallet.Contracts;
 using HBA.Financial.Wallet.Domain.Wallets;
 using Microsoft.Extensions.Logging;

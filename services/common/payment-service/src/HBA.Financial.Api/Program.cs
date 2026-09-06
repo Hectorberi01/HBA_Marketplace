@@ -1,4 +1,7 @@
 using HBA.Financial.Api.Endpoints;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka;
+using HBA.Financial.Payments.Infrastructure.Messaging.Kafka;
+using HBA.Financial.Billing.Infrastructure.Messaging.Kafka;
 using HBA.Financial.Api.GrpcServices;
 using HBA.Financial.Billing.Application.Commissions;
 using HBA.Financial.Billing.Infrastructure.Persistence;
@@ -46,6 +49,33 @@ builder.Services.AddMediatR(m => m.RegisterServicesFromAssembly(typeof(CreateCom
 builder.Services.AddMediatR(m => m.RegisterServicesFromAssembly(typeof(RunSettlementCommand).Assembly));
 new BillingModuleInstaller().Install(builder.Services, builder.Configuration);
 new WalletModuleInstaller().Install(builder.Services, builder.Configuration);
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieFinancialBilling();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieFinancialPayments();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieFinancialWallet();
 
 var app = builder.Build();
 

@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using HBA.Food.Application.Abstractions;
 using HBA.Food.Application.Orders;
@@ -15,9 +16,7 @@ using HBA.Shared.Domain.Events;
 using HBA.Food.Infrastructure.Persistence;
 using HBA.Food.Infrastructure.Public;
 using HBA.Shared.Application.Abstractions;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +48,14 @@ public sealed class FoodModuleInstaller : IModuleInstaller
     {
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
+
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieFoodRestaurant()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<FoodDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -88,7 +95,6 @@ public sealed class FoodModuleInstaller : IModuleInstaller
         // Lié à `FoodDbContext` À DESSEIN : la trace n'a de valeur que si elle
         // part dans le même `SaveChangesAsync` que le ticket qu'elle protège.
         // ─────────────────────────────────────────────────────────────────────
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<FoodDbContext>>();
 
         // SANS CET ENREGISTREMENT, L'ÉVÉNEMENT DE VALIDATION MOURAIT DANS
         // L'AGRÉGAT — et le rôle FoodPartner ne serait jamais attribué.
@@ -126,6 +132,5 @@ public sealed class FoodModuleInstaller : IModuleInstaller
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<FoodDbContext>();
     }
 }

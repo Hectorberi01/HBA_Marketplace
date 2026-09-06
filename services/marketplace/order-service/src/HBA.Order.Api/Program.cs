@@ -1,9 +1,10 @@
 using HBA.DeliveryPricing.Contracts.Grpc;
+using HBA.Order.Infrastructure.Messaging.Kafka;
 using HBA.Commerce.Contracts.Grpc;
 using HBA.Deliveries.Contracts.Grpc;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Food.Contracts.Grpc;
-using HBA.Orders.Api.Integration;
+using HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using HBA.Inventory.Contracts.Grpc;
@@ -95,31 +96,20 @@ builder.Services.AddScoped<
     IIntegrationEventHandler<OrderConfirmedIntegrationEvent>>(
     sp => sp.GetRequiredService<CreateDeliveryOnOrderConfirmedHandler>());
 
-// ═════════════════════════════════════════════════════════════════════════
-// LES DEUX SENS DE LA COURSE, ENFIN BRANCHÉS.
-//
-// `DeliveryCancelled` N'AVAIT QU'UN CONSOMMATEUR, INTERNE À DELIVERY.
-//
-// Le webhook partenaire. Rien ne remontait ici : une course annulée laissait la
-// commande `Confirmed` POUR TOUJOURS — payée, stock décrémenté, escrow gelé, et
-// un acheteur qui attend un colis que personne n'apportera.
-//
-// ET LA RÉCIPROQUE MANQUAIT AUSSI : une commande annulée laissait sa course
-// vivante, et un livreur partait chercher un colis que le vendeur ne remettrait
-// pas.
-//
-// Les deux se répondent, d'où le garde-fou anti-boucle documenté dans
-// `OrderDeliveryCancellation`.
-// ═════════════════════════════════════════════════════════════════════════
-builder.Services.AddScoped<
-    IIntegrationEventHandler<DeliveryCancelledIntegrationEvent>,
-    HoldOrderOnDeliveryCancelledHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-builder.Services.AddScoped<
-    IIntegrationEventHandler<OrderCancelledIntegrationEvent>,
-    CancelDeliveryOnOrderCancelledHandler>();
 
 builder.AddHbaGrpc();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieOrder();
 
 var app = builder.Build();
 

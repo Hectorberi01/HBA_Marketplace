@@ -38,6 +38,10 @@
     <!-- Détourage local : aplatissement sur blanc + encodage JPEG (RembgImageProcessor). -->
     <PackageReference Include="SkiaSharp" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+    <!-- Requis par `Messaging/Kafka/Configuration/GardeDeCablage.cs` (IHostedService).
+         Le paquet arrivait de facon transitive ; une dependance transitive
+         disparaît sans prevenir quand le projet amont change. Declaree, donc. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
   </ItemGroup>
 
 </Project>

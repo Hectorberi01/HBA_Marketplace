@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Promotions.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Promotions.Application.Promotions;
 using HBA.Promotions.Infrastructure.BackgroundJobs;
 using HBA.Promotions.Contracts;
@@ -8,9 +9,7 @@ using HBA.Promotions.Infrastructure.Persistence;
 using HBA.Promotions.Infrastructure.Public;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Infrastructure.Idempotency;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +38,14 @@ public sealed class PromotionsModuleInstaller : IModuleInstaller
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessageriePromotions()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddDbContext<PromotionsDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", PromotionsDbContext.SchemaName)));
@@ -50,7 +57,6 @@ public sealed class PromotionsModuleInstaller : IModuleInstaller
 
         // Inbox de consommation (§19.5) et idempotence HTTP (§5), dans le schéma
         // du service — voir l'encadré de `PromotionsDbContext`.
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<PromotionsDbContext>>();
         // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
         //
         // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
@@ -78,7 +84,6 @@ public sealed class PromotionsModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<PromotionExhaustedDomainEvent>, PromotionExhaustedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<CouponUsedDomainEvent>, CouponUsedDomainEventHandler>();
 
-        services.AddOutboxProcessor<PromotionsDbContext>();
 
         // ═════════════════════════════════════════════════════════════════════
         // LE BALAYEUR DE BUDGET (ISSUE-053). SANS CETTE LIGNE, RIEN NE REND

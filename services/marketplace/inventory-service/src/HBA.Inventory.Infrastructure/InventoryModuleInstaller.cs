@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Inventory.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -6,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Inventory.Application.Abstractions;
 using HBA.Inventory.Application.Stock.Commands;
 using HBA.Inventory.Application.Stock.EventHandlers;
@@ -32,6 +32,14 @@ public sealed class InventoryModuleInstaller : IModuleInstaller
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieInventory()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddDbContext<InventoryDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", InventoryDbContext.SchemaName)));
@@ -53,7 +61,6 @@ public sealed class InventoryModuleInstaller : IModuleInstaller
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<InventoryDbContext>();
 
         // ═════════════════════════════════════════════════════════════════════
         // LE BALAYAGE D'EXPIRATION DES RÉSERVATIONS (ISSUE-031).

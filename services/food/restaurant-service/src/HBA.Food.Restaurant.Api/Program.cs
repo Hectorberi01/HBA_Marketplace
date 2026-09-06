@@ -1,7 +1,8 @@
 using HBA.Deliveries.Contracts.Grpc;
+using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Food.Api.Endpoints;
-using HBA.Food.Api.Integration;
+using HBA.Food.Restaurant.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Food.Contracts.Grpc;
 using HBA.FoodOrders.Contracts.Grpc;
 using HBA.Food.Contracts.IntegrationEvents;
@@ -78,45 +79,21 @@ builder.Services.AddScoped<LecteurDeCommandeALivrer>();
 // ═════════════════════════════════════════════════════════════════════════
 builder.Services.AddMerchantsGrpcClient(builder.Configuration);
 
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
+
+
+
+
+
 // ═════════════════════════════════════════════════════════════════════════
-// DEUX AMONTS POUR UNE SEULE PORTE D'ENTRÉE — ET C'EST DÉLIBÉRÉ.
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
 //
-// `MealOrderConfirmed` vient de food-order-service, `OrderConfirmed` de la
-// marketplace. Personne ne consommait le premier : une commande passée par le
-// parcours food traversait le paiement sans qu'aucun ticket ne s'ouvre — client
-// débité, aucune cuisine servie, et rien pour le dire puisqu'un événement sans
-// consommateur se consomme en silence.
-//
-// L'ancien reste enregistré LE TEMPS DE LA BASCULE. Tant que le chemin
-// marketplace→food peut porter une commande de repas, le retirer rouvrirait la
-// panne symétrique. Les deux ouvrent le ticket par la MÊME commande applicative,
-// idempotente sur `OrderId` : aucun doublon n'en sort.
-//
-// Il s'enlèvera quand le contrat de confirmation commun sera DÉPLACÉ chez son
-// propriétaire unique — le lot suivant, décrit dans `MealOrderIntegrationEvents`.
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
 // ═════════════════════════════════════════════════════════════════════════
-builder.Services.AddScoped<
-    IIntegrationEventHandler<MealOrderConfirmedIntegrationEvent>,
-    ReceiveFoodOrderOnMealOrderConfirmedHandler>();
-
-builder.Services.AddScoped<
-    IIntegrationEventHandler<OrderConfirmedIntegrationEvent>,
-    ReceiveFoodOrderOnOrderConfirmedHandler>();
-
-builder.Services.AddScoped<
-    IIntegrationEventHandler<FoodOrderReadyForPickupIntegrationEvent>,
-    CreateDeliveryOnFoodOrderReadyHandler>();
-
-// CES DEUX-LÀ VONT ENSEMBLE. La remise exige l'état « enlevée » (§20) :
-// n'enregistrer que la seconde produirait un conflit sur chaque commande, et la
-// chaîne resterait rompue au même endroit.
-builder.Services.AddScoped<
-    IIntegrationEventHandler<DeliveryPickedUpIntegrationEvent>,
-    MarkFoodOrderPickedUpOnDeliveryPickedUpHandler>();
-
-builder.Services.AddScoped<
-    IIntegrationEventHandler<DeliveryCompletedIntegrationEvent>,
-    MarkFoodOrderDeliveredOnDeliveryCompletedHandler>();
+builder.Services.AjouterMessagerieFoodRestaurant();
 
 var app = builder.Build();
 

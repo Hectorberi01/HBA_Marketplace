@@ -1,4 +1,5 @@
 using HBA.Communication.Api.Endpoints;
+using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka;
 using HBA.Communication.Infrastructure;
 using HBA.Communication.Infrastructure.Persistence;
 using HBA.Communication.Notifications.Application.Notifications.Queries;
@@ -21,6 +22,7 @@ using HBA.Ordering.Contracts.Grpc;
 using HBA.Communication.Notifications.Infrastructure.Persistence;
 using HBA.FoodOrders.Contracts.Grpc;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
+using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Shared.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -86,6 +88,15 @@ builder.Services.AddScoped<AcheteurDuTicket>();
 builder.Services.AddDeliveryGrpcClient(builder.Configuration);
 
 new NotificationsModuleInstaller().Install(builder.Services, builder.Configuration);
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieCommunicationNotifications();
 
 var app = builder.Build();
 

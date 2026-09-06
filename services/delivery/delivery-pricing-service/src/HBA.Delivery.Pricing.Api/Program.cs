@@ -1,4 +1,5 @@
 using HBA.Delivery.Pricing.Api.Endpoints;
+using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka;
 using HBA.Delivery.Pricing.Api.GrpcServices;
 using HBA.Delivery.Pricing.Infrastructure;
 using HBA.Delivery.Pricing.Infrastructure.Persistence;
@@ -82,6 +83,15 @@ builder.Services
     .AddDbContextCheck<DeliveryPricingDbContext>("database", tags: ["ready"]);
 
 builder.AddHbaGrpc();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieDeliveryPricing();
 
 var app = builder.Build();
 

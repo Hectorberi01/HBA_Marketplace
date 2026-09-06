@@ -1,4 +1,5 @@
 using HBA.Commerce.Api.Endpoints;
+using HBA.Commerce.Infrastructure.Messaging.Kafka;
 using HBA.Commerce.Contracts.Grpc;
 using HBA.Commerce.Infrastructure;
 using HBA.Commerce.Infrastructure.Persistence;
@@ -40,6 +41,15 @@ builder.Services.AddOrderingGrpcClient(builder.Configuration);
 builder.Services.AddPromotionGrpcClient(builder.Configuration);
 
 builder.AddHbaGrpc();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieCommerce();
 
 var app = builder.Build();
 

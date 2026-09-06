@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Catalog.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -8,7 +9,6 @@ using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Idempotency;
 using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Inventory.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using HBA.Merchants.Contracts.IntegrationEvents;
@@ -28,7 +28,7 @@ using HBA.Catalog.Domain.Offers;
 using HBA.Catalog.Domain.Products;
 using HBA.Catalog.Domain.Reviews;
 using HBA.Catalog.Domain.Products.Events;
-using HBA.Catalog.Infrastructure.Integration;
+using HBA.Catalog.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Catalog.Infrastructure.Media;
 using HBA.Catalog.Infrastructure.Persistence;
 using HBA.Catalog.Infrastructure.Public;
@@ -51,6 +51,14 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
     {
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
+
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieCatalog()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<CatalogDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -88,7 +96,6 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         // protection contre le rejeu. C'est le pire des cas — la route a l'air
         // protégée, le filtre est posé, et un double appel crée deux produits.
         // ═════════════════════════════════════════════════════════════════════
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<CatalogDbContext>>();
         // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
         //
         // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
@@ -262,58 +269,16 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<BrandCreatedDomainEvent>, BrandCreatedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<CategoryCreatedDomainEvent>, CategoryCreatedDomainEventHandler>();
 
-        // Handlers d'events d'intégration venus du module Sellers : Catalog réagit au
-        // cycle de vie du compte vendeur (fermeture -> dépublication, suppression ->
-        // archivage des produits).
-        services.AddScoped<IIntegrationEventHandler<SellerClosedIntegrationEvent>, SellerClosedProductInvalidationHandler>();
-        services.AddScoped<IIntegrationEventHandler<SellerDeletedIntegrationEvent>, SellerDeletedProductPurgeHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-        // SANS CES DEUX LIGNES, SUSPENDRE UN VENDEUR NE RETIRE RIEN (ISSUE-025).
-        //
-        // Le répartiteur d'événements d'intégration résout PARESSEUSEMENT : un
-        // événement sans gestionnaire enregistré ne provoque aucune erreur, aucun
-        // avertissement. Il est marqué traité et disparaît. C'est exactement ce qui
-        // arrivait à `SellerSuspendedIntegrationEvent` — publié depuis le premier
-        // jour, y compris sur refus de dossier KYB, et consommé par personne d'autre
-        // qu'une notification.
-        services.AddScoped<IIntegrationEventHandler<SellerSuspendedIntegrationEvent>, SellerSuspendedOfferWithdrawalHandler>();
-        services.AddScoped<IIntegrationEventHandler<SellerSuspensionLiftedIntegrationEvent>, SellerSuspensionLiftedOfferReinstatementHandler>();
 
-        // ET SANS CES TROIS-CI, FERMER UNE BOUTIQUE NE RETIRE RIEN (ISSUE-041).
-        //
-        // Même mécanique, un cran plus bas en granularité : seller-service publiait
-        // les quatre événements du cycle de vie d'une boutique, catalog écoutait le
-        // topic, et `SuspendStoreCatalogCommand` n'avait aucun appelant.
-        //
-        // Il n'y en a pas pour `StoreSuspensionLiftedIntegrationEvent` : lever la
-        // sanction repasse la boutique en `Closed`, pas en `Open`. Les offres
-        // doivent rester retirées jusqu'à ce que le vendeur rouvre.
-        services.AddScoped<IIntegrationEventHandler<StoreClosedIntegrationEvent>, StoreClosedOfferWithdrawalHandler>();
-        services.AddScoped<IIntegrationEventHandler<StoreSuspendedIntegrationEvent>, StoreSuspendedOfferWithdrawalHandler>();
-        services.AddScoped<IIntegrationEventHandler<StoreOpenedIntegrationEvent>, StoreOpenedOfferReinstatementHandler>();
 
-        // ═════════════════════════════════════════════════════════════════════
-        // ET SANS CES DEUX-CI, LE STOCK NE DÉCIDE DE RIEN (ISSUE-047).
-        //
-        // Aucune offre n'est jamais passée `OutOfStock`, ni n'est jamais revenue
-        // en vente. `MarkOfferOutOfStockCommand` existait sans émetteur ;
-        // `ListBySkuAsync` avait été écrite POUR ce cas — « Inventory s'en sert
-        // pour signaler une rupture », dit son commentaire ; le contrat
-        // d'inventaire annonçait « consommé par Offers ». Cinq fichiers
-        // décrivaient un chemin que rien ne parcourait.
-        //
-        // Conséquence dans les deux sens : une offre en rupture restait
-        // ACHETABLE — l'acheteur découvrait l'indisponibilité au checkout, après
-        // avoir choisi son adresse — et un réassort ne remettait rien en vente.
-        // ═════════════════════════════════════════════════════════════════════
-        services.AddScoped<IIntegrationEventHandler<StockDepletedIntegrationEvent>, WithdrawOffersOnStockDepletedHandler>();
-        services.AddScoped<IIntegrationEventHandler<StockReplenishedIntegrationEvent>, ReactivateOffersOnStockReplenishedHandler>();
 
         // Validators FluentValidation du module.
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
         // Processeur d'outbox dédié au DbContext du module.
-        services.AddOutboxProcessor<CatalogDbContext>();
     }
 
     /// <summary>

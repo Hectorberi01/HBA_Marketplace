@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Delivery.Driver.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Delivery.Driver.Domain.Events;
 using HBA.Delivery.Driver.Domain.Repositories;
 using HBA.Drivers.Application.Abstractions;
@@ -8,7 +9,6 @@ using HBA.Drivers.Infrastructure.Persistence;
 using HBA.Drivers.Infrastructure.Persistence.Repositories;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +42,14 @@ public sealed class DriversModuleInstaller : IModuleInstaller
     {
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
+
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieDeliveryDriver()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<DriverDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -94,6 +102,5 @@ public sealed class DriversModuleInstaller : IModuleInstaller
         // sans base ni outbox. Ce lot ne les touche pas — décider de leur schéma
         // demande de décider de leur métier, ce qui n'est pas corriger un défaut.
         // ═════════════════════════════════════════════════════════════════════
-        services.AddOutboxProcessor<DriverDbContext>();
     }
 }

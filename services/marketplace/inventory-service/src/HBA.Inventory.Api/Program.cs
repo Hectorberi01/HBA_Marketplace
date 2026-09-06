@@ -1,4 +1,5 @@
 using HBA.Inventory.Api.Endpoints;
+using HBA.Inventory.Infrastructure.Messaging.Kafka;
 using HBA.Inventory.Contracts.Grpc;
 using HBA.Inventory.Infrastructure;
 using HBA.Inventory.Infrastructure.Persistence;
@@ -23,6 +24,15 @@ builder.AddHbaGrpc();
 // port de l'URL par `Hosting:GrpcPort` : le `:9090` qu'on y lit est décoratif.
 // ═════════════════════════════════════════════════════════════════════════
 builder.Services.AddMerchantsGrpcClient(builder.Configuration);
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieInventory();
 
 var app = builder.Build();
 

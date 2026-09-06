@@ -1,8 +1,9 @@
 using HBA.Food.Contracts.IntegrationEvents;
+using HBA.Promotions.Infrastructure.Messaging.Kafka;
 using HBA.Merchants.Contracts.Grpc;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Promotions.Api.Endpoints;
-using HBA.Promotions.Api.Integration;
+using HBA.Promotions.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Promotions.Contracts.Grpc;
 using HBA.Promotions.Infrastructure;
 using HBA.Promotions.Infrastructure.Persistence;
@@ -45,31 +46,18 @@ builder.AddHbaGrpc();
 // ═════════════════════════════════════════════════════════════════════════════
 builder.Services.AddMerchantsGrpcClient(builder.Configuration);
 
-// ═════════════════════════════════════════════════════════════════════════════
-// LES DEUX COMPENSATIONS DU §10.16.
-//
-// INSCRITES DANS LE COMPOSITION ROOT, PAS DANS L'INSTALLEUR DU MODULE.
-//
-// `PromotionsModuleInstaller` vit dans Infrastructure, à qui l'on interdit de
-// connaître les contrats d'un autre service. C'est cette frontière qui permet à
-// la persistance de promotion d'ignorer ce qu'est une cuisine ou un panier
-// marketplace, et de rester redéployable seule.
-//
-// SANS CES DEUX LIGNES, LE BUDGET NE REVIENT JAMAIS.
-//
-// L'annulation d'une commande payée laisserait la remise engagée : la campagne se
-// viderait sur des commandes qui n'existent plus, et le client resterait bloqué
-// sur son plafond pour un achat qu'il n'a jamais reçu. Rien ne le signalerait —
-// un événement sans destinataire ne se plaint pas. C'est exactement ainsi que le
-// pont identity → user avait été perdu à l'extraction.
-// ═════════════════════════════════════════════════════════════════════════════
-builder.Services.AddScoped<
-    IIntegrationEventHandler<OrderCancelledIntegrationEvent>,
-    ReleaseCouponsOnOrderCancelledHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-builder.Services.AddScoped<
-    IIntegrationEventHandler<FoodOrderCancelledIntegrationEvent>,
-    ReleaseCouponsOnFoodOrderCancelledHandler>();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessageriePromotions();
 
 var app = builder.Build();
 

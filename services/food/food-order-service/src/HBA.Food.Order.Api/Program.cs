@@ -1,4 +1,5 @@
 using HBA.DeliveryPricing.Contracts.Grpc;
+using HBA.Food.Order.Infrastructure.Messaging.Kafka;
 using HBA.Deliveries.Contracts.Grpc;
 using HBA.Food.Contracts.Grpc;
 using HBA.FoodCarts.Contracts.Grpc;
@@ -42,6 +43,15 @@ builder.Services.AddDeliveryGrpcClient(builder.Configuration);
 builder.Services.AddDeliveryPricingGrpcClient(builder.Configuration);
 
 builder.AddHbaGrpc();
+
+// ═════════════════════════════════════════════════════════════════════════
+// TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
+//
+// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
+// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
+// l'installeur, refuse le demarrage dans ce cas.
+// ═════════════════════════════════════════════════════════════════════════
+builder.Services.AjouterMessagerieFoodOrder();
 
 var app = builder.Build();
 

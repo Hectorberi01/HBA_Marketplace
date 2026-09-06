@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Merchants.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -9,7 +10,6 @@ using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Idempotency;
 using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using HBA.Identity.Contracts.IntegrationEvents;
 using HBA.Engagement.Reviews.Contracts.IntegrationEvents;
@@ -47,6 +47,14 @@ public sealed class SellersModuleInstaller : IModuleInstaller
     {
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
+
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieMerchants()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<SellersDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -207,7 +215,6 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         // PASSER : il journalise en Erreur puis exécute la requête SANS protection
         // contre le rejeu. C'est le pire des cas — la route a l'air protégée.
         // ═════════════════════════════════════════════════════════════════════
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<SellersDbContext>>();
         // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
         //
         // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
@@ -218,40 +225,13 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         // que la première ligne n'aurait jamais de purge, sans rien signaler.
         services.AddIdempotence<SellersDbContext>();
 
-        // ═════════════════════════════════════════════════════════════════════
-        // LE DROIT À L'EFFACEMENT S'ARRÊTAIT À IDENTITY.
-        //
-        // `UserAnonymizedIntegrationEvent` n'était consommé que par user-service.
-        // seller-service détient pourtant ce que la plateforme a de plus sensible :
-        // cartes d'identité, registres de commerce, documents fiscaux. Sans ce
-        // consommateur, ils survivaient à l'effacement du compte — sans plus rien
-        // pour les relier à une personne, donc sans moyen de les retrouver.
-        // ═════════════════════════════════════════════════════════════════════
-        services.AddScoped<IIntegrationEventHandler<UserAnonymizedIntegrationEvent>,
-            UserAnonymizedSellerPurgeHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-        // ═════════════════════════════════════════════════════════════════════
-        // LES DEUX COMPTEURS DE LA VITRINE, QUI VALAIENT ZÉRO POUR TOUT LE MONDE.
-        //
-        // `Rating` et `SalesCount` étaient persistés, projetés, affichés — et
-        // n'avaient AUCUN alimenteur : `Seller.UpdateRating` n'avait pas un seul
-        // appelant dans le dépôt, et rien n'incrémentait `SalesCount`. Un vendeur
-        // ayant écoulé trois cents commandes était présenté comme n'ayant jamais
-        // rien vendu.
-        //
-        // Les deux gestionnaires POSENT une valeur recalculée depuis la source, ils
-        // n'accumulent pas : c'est ce qui les rend idempotents face à un rejeu, et
-        // c'est la règle que `Seller.SetSalesCount` écrit lui-même.
-        // ═════════════════════════════════════════════════════════════════════
-        services.AddScoped<IIntegrationEventHandler<SellerRatingRecomputedIntegrationEvent>,
-            SellerRatingHandler>();
 
-        services.AddScoped<IIntegrationEventHandler<OrderConfirmedIntegrationEvent>,
-            SellerSalesCountHandler>();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<SellersDbContext>();
     }
 
 }

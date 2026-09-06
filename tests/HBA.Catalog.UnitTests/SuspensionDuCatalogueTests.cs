@@ -2,7 +2,7 @@ using HBA.Catalog.Application.Abstractions;
 using HBA.Catalog.Application.Offers;
 using HBA.Catalog.Domain.Offers;
 using HBA.Catalog.Domain.Products;
-using HBA.Catalog.Infrastructure.Integration;
+using HBA.Catalog.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Merchants.Contracts.IntegrationEvents;
 using HBA.Shared.Infrastructure.Inbox;
 using Microsoft.Extensions.Logging.Abstractions;

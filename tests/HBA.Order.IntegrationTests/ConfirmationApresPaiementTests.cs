@@ -74,7 +74,7 @@ public sealed class ConfirmationApresPaiementTests
     /// d'IDE — d'où le littéral.
     /// </remarks>
     private const string ConsommateurCapture =
-        "HBA.Orders.Application.Orders.EventHandlers.ConfirmOrderOnPaymentCapturedHandler";
+        "HBA.Order.Infrastructure.Messaging.Kafka.Consumers.ConfirmOrderOnPaymentCapturedHandler";
 
     /// <summary>`OrderConfirmedIntegrationEvent` → `order.confirmed`. Même règle.</summary>
     private const string TypeConfirmation = "order.confirmed";

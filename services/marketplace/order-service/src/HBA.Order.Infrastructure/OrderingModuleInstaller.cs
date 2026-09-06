@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Order.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -7,11 +8,11 @@ using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Application.Abstractions;
 using HBA.Orders.Application.Orders.Commands.PlaceOrder;
 using HBA.Orders.Application.Orders.EventHandlers;
+using HBA.Order.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Orders.Contracts;
 using HBA.Orders.Domain.Orders;
 using HBA.Orders.Domain.Orders.Events;
@@ -37,6 +38,14 @@ public sealed class OrderingModuleInstaller : IModuleInstaller
     {
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
+
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieOrder()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<OrderingDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -68,7 +77,6 @@ public sealed class OrderingModuleInstaller : IModuleInstaller
         // Le dispatcher résout `IConsumerInbox` en OPTIONNEL : sans enregistrement,
         // le service démarre et consomme sans garde, avec un simple avertissement
         // au premier message. La trace atterrit dans `ordering.consumer_inbox`.
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<OrderingDbContext>>();
 
         services.AddScoped<IDomainEventHandler<OrderPlacedDomainEvent>, OrderPlacedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<OrderConfirmedDomainEvent>, OrderConfirmedDomainEventHandler>();
@@ -109,58 +117,14 @@ public sealed class OrderingModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<SellerOrderRefusedDomainEvent>, SellerOrderRefusedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<OrderCancelledDomainEvent>, CancelSellerOrdersOnOrderCancelledHandler>();
 
-        // Suite du Saga : réactions aux résultats de paiement.
-        services.AddScoped<IIntegrationEventHandler<PaymentCapturedIntegrationEvent>, ConfirmOrderOnPaymentCapturedHandler>();
-        services.AddScoped<IIntegrationEventHandler<PaymentFailedIntegrationEvent>, CancelOrderOnPaymentFailedHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-        // Étape finale du Saga : la course terminée clôt la commande (déclenche
-        // escrow + payout vendeur).
-        //
-        // C'EST DELIVERY QUI L'ANNONCE, PLUS SHIPPING.
-        //
-        // Le module Shipping n'a pas été extrait du monolithe. L'ancien
-        // gestionnaire réclamait `IShippingModuleApi`, que personne ne fournit :
-        // la validation du conteneur refusait de démarrer le service. Voir
-        // `MarkOrderDeliveredOnDeliveryCompletedHandler` pour ce que la bascule
-        // coûte — le multi-colis.
-        services.AddScoped<IIntegrationEventHandler<DeliveryCompletedIntegrationEvent>, MarkOrderDeliveredOnDeliveryCompletedHandler>();
 
-        // LE RESTAURANT REFUSE → LA COMMANDE EST ANNULÉE.
-        //
-        // Sans ces deux lignes, le ticket passe « refusé » et la commande reste
-        // « confirmée » : le client est débité pour un repas qui n'existera
-        // jamais, et rien ne relie les deux faits.
-        //
-        // L'annulation publie `OrderCancelled` ; c'est financial-service qui
-        // rembourse en la consommant. order-service annonce, il n'ordonne pas.
-        services.AddScoped<IIntegrationEventHandler<FoodOrderRejectedIntegrationEvent>, CancelOrderOnFoodOrderRejectedHandler>();
-        services.AddScoped<IIntegrationEventHandler<FoodOrderCancelledIntegrationEvent>, CancelOrderOnFoodOrderCancelledHandler>();
 
-        // LE REPAS EST REMIS AU CLIENT → LA COMMANDE EST LIVRÉE.
-        //
-        // Sans cette ligne, une commande de repas ne se terminait JAMAIS : elle
-        // restait « confirmée », `OrderDelivered` n'était jamais publié, l'escrow
-        // n'était pas levé et le gain du restaurateur restait bloqué en « à
-        // venir ». Le repas était remis au client et le restaurateur n'était
-        // jamais payé.
-        //
-        // Le gestionnaire au-dessus, branché sur la fin de course, ne pouvait pas
-        // s'en charger : il ne lit que « ORDER- », et le GUID d'une référence
-        // « FOOD- » est celui du TICKET, inconnu de cette base. C'est food-service
-        // qui traduit, en publiant `FoodOrderDelivered` avec l'`OrderId`.
-        services.AddScoped<IIntegrationEventHandler<FoodOrderDeliveredIntegrationEvent>, MarkOrderDeliveredOnFoodOrderDeliveredHandler>();
 
-        // SANS CETTE LIGNE, LA COMMANDE N'APPREND JAMAIS QU'UN ARTICLE EST REVENU.
-        //
-        // `GetOrderReturnContextAsync` répondait `AlreadyReturnedQuantity: 0` et
-        // `AlreadyRefundedAmount: 0m` en dur (ISSUE-014). Ce gestionnaire est la
-        // seule source d'order-service sur les retours : non enregistré, il ne
-        // manque rien au démarrage, aucune erreur n'apparaît, et le même
-        // exemplaire se rembourse autant de fois qu'on ouvre de dossiers.
-        services.AddScoped<IIntegrationEventHandler<ReturnRefundedIntegrationEvent>, RecordReturnSettlementOnRefundHandler>();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<OrderingDbContext>();
     }
 }

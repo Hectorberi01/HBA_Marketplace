@@ -9,6 +9,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <!-- Requis par `Messaging/Kafka/Configuration/GardeDeCablage.cs` (IHostedService).
+         Le paquet arrivait de facon transitive ; une dependance transitive
+         disparaît sans prevenir quand le projet amont change. Declaree, donc. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
   </ItemGroup>
 
 </Project>

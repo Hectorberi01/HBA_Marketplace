@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -7,8 +8,6 @@ using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Modularity;
 using HBA.Shared.Infrastructure.Configuration;
-using HBA.Shared.Infrastructure.Inbox;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
@@ -18,6 +17,7 @@ using HBA.Financial.Wallet.Application.Abstractions;
 using HBA.Financial.Wallet.Application.Batches;
 using HBA.Financial.Wallet.Application.Batches.EventHandlers;
 using HBA.Financial.Wallet.Application.Earnings;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Financial.Wallet.Application.Pricing;
 using HBA.Financial.Wallet.Application.Wallets;
 using HBA.Financial.Wallet.Domain.Batches;
@@ -57,6 +57,14 @@ public sealed class WalletModuleInstaller : IModuleInstaller
             ProviderFeeRate = bareme.ProviderFeeRate,
             FoodCommissionRate = bareme.FoodCommissionRate
         };
+
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieFinancialWallet()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
 
         services.AddSingleton(pricingOptions);
 
@@ -98,7 +106,6 @@ public sealed class WalletModuleInstaller : IModuleInstaller
         // module, et l'ordre des installeurs dans `Program.cs` cesse de décider qui
         // l'est. Voir son encadré.
         // ═══════════════════════════════════════════════════════════════════
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<WalletDbContext>>();
 
         services.AddScoped<ISellerEarningRepository, SellerEarningRepository>();
         services.AddScoped<ISettlementBatchRepository, SettlementBatchRepository>();
@@ -162,51 +169,15 @@ public sealed class WalletModuleInstaller : IModuleInstaller
         // marqué « payé » et le vendeur débité, sans jamais avoir reçu son argent.
         services.AddHostedService<Reconciliation.WithdrawalReconciliationService>();
 
-        // Chorégraphie : alimentation du grand livre des gains à la confirmation de commande.
-        //
-        // CE HANDLER EXIGE `ICommissionModuleApi`, ENREGISTRÉ PAR BILLING.
-        //
-        // Le taux prélevé ne vient plus de `PricingOptions` mais du moteur de
-        // règles. Les deux modules vivent dans le même service et le même
-        // conteneur (voir HBA.Financial.Api/Program.cs, qui installe les deux) :
-        // l'appel est en processus, sans réseau.
-        //
-        // Installer Settlement SANS Billing ferait échouer la résolution de ce
-        // handler au premier message — et non au démarrage. Si les deux modules
-        // devaient un jour être séparés, c'est ici que la dépendance se voit.
-        services.AddScoped<IIntegrationEventHandler<OrderConfirmedIntegrationEvent>, AccrueEarningsOnOrderConfirmedHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-        // CONTRE-PASSATION. Sans ce handler, l'événement « retour remboursé » était
-        // publié dans le vide : le vendeur gardait son gain sur un article qui nous
-        // revenait, et la plateforme payait deux fois — le client ET le vendeur.
-        services.AddScoped<IIntegrationEventHandler<ReturnRefundedIntegrationEvent>, ReverseEarningsOnReturnRefundedHandler>();
 
-        // SANS CELUI-CI, UN REPAS REFUSÉ LAISSE SON GAIN AU GRAND LIVRE.
-        //
-        // La restauration comptabilise à la CONFIRMATION, puis le restaurant peut
-        // refuser. Ce refus rembourse le client sans passer par un retour : rien
-        // n'écoutait, et le solde à venir du restaurateur restait gonflé pour un
-        // repas jamais servi, commission et frais encaissés compris.
-        services.AddScoped<IIntegrationEventHandler<OrderCancelledIntegrationEvent>, ReverseEarningsOnOrderCancelledHandler>();
 
-        // Libération des gains (escrow levé) à la livraison confirmée → payables.
-        services.AddScoped<IIntegrationEventHandler<OrderDeliveredIntegrationEvent>, ReleaseEarningsOnOrderDeliveredHandler>();
 
-        // Affinage multi-vendeur : libération des gains d'un vendeur dès SA livraison.
-        services.AddScoped<IIntegrationEventHandler<ShipmentDeliveredIntegrationEvent>, ReleaseSellerEarningsOnShipmentDeliveredHandler>();
 
-        // SANS CETTE LIGNE, LE LIVREUR N'EST JAMAIS PAYÉ.
-        //
-        // Tout existait sauf le fil : le gain était calculé à la remise, porté par
-        // `DeliveryCompletedIntegrationEvent`, et `CreditDriverEarningCommand`
-        // savait créditer — mais personne ne l'appelait. Cette liste enregistrait
-        // cinq événements de commande, d'expédition et de retour, et pas la fin de
-        // course. Le portefeuille du livreur restait à zéro à vie, et l'écran
-        // « Revenus » de son application lisait un solde que rien ne faisait bouger.
-        services.AddScoped<IIntegrationEventHandler<DeliveryCompletedIntegrationEvent>, CreditDriverOnDeliveryCompletedHandler>();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<WalletDbContext>();
     }
 }

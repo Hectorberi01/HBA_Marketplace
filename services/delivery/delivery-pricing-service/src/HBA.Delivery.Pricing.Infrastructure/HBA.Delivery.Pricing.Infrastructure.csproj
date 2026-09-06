@@ -24,6 +24,10 @@
       Pas d'attribut Version : la gestion centralisée le refuserait (NU1008).
     -->
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <!-- Requis par `Messaging/Kafka/Configuration/GardeDeCablage.cs` (IHostedService).
+         Le paquet arrivait de facon transitive ; une dependance transitive
+         disparaît sans prevenir quand le projet amont change. Declaree, donc. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
   </ItemGroup>
 
 </Project>

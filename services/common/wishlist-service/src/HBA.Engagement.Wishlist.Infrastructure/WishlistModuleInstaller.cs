@@ -1,11 +1,11 @@
 using System.Reflection;
+using HBA.Engagement.Wishlist.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Engagement.Wishlist.Application.Abstractions;
 using HBA.Engagement.Wishlist.Application.Wishlists;
 using HBA.Engagement.Wishlist.Domain.Wishlists;
@@ -25,6 +25,14 @@ public sealed class WishlistModuleInstaller : IModuleInstaller
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieEngagementWishlist()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddDbContext<WishlistDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", WishlistDbContext.SchemaName)));
@@ -35,6 +43,5 @@ public sealed class WishlistModuleInstaller : IModuleInstaller
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<WishlistDbContext>();
     }
 }

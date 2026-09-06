@@ -37,6 +37,10 @@
 
     <!-- FCM : SDK officiel Google, requis par FcmPushSender. -->
     <PackageReference Include="FirebaseAdmin" />
+    <!-- Requis par `Messaging/Kafka/Configuration/GardeDeCablage.cs` (IHostedService).
+         Le paquet arrivait de facon transitive ; une dependance transitive
+         disparaît sans prevenir quand le projet amont change. Declaree, donc. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
   </ItemGroup>
 
 </Project>

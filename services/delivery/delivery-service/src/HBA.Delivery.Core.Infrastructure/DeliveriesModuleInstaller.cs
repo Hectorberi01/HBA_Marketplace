@@ -1,10 +1,11 @@
 using System.Reflection;
+using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using HBA.Deliveries.Application.Abstractions;
 using HBA.Deliveries.Application.Deliveries.Commands;
 using HBA.Deliveries.Application.Deliveries.EventHandlers;
 using HBA.Deliveries.Application.Drivers;
-using HBA.Deliveries.Application.Webhooks;
+using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using HBA.Deliveries.Contracts;
@@ -24,9 +25,7 @@ using HBA.Deliveries.Infrastructure.Webhooks;
 using HBA.DeliveryPricing.Contracts.Grpc;
 using HBA.Drivers.Contracts.IntegrationEvents;
 using HBA.Shared.Application.Abstractions;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,6 +47,14 @@ public sealed class DeliveriesModuleInstaller : IModuleInstaller
     {
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
+
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieDeliveryCore()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<DeliveriesDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -74,7 +81,6 @@ public sealed class DeliveriesModuleInstaller : IModuleInstaller
         // deux fois « delivery.completed » pour la même course — et facture deux
         // fois la livraison qu'il n'a faite qu'une.
         // ─────────────────────────────────────────────────────────────────────
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<DeliveriesDbContext>>();
 
         // ─────────────────────────────────────────────────────────────────────
         // LE TAUX DE PARTAGE EST VALIDÉ AU DÉMARRAGE, PAS À LA PREMIÈRE REMISE.
@@ -122,37 +128,11 @@ public sealed class DeliveriesModuleInstaller : IModuleInstaller
 
         RegisterWebhooks(services);
 
-        // ═════════════════════════════════════════════════════════════════════
-        // SANS CETTE LIGNE, LA TABLE `deliveries.drivers` RESTE VIDE POUR
-        //    TOUJOURS — ET ELLE L'ÉTAIT (lot 5.2).
-        //
-        // `IDriverRepository.AddAsync` n'avait aucun appelant : rien, nulle part,
-        // ne créait de livreur dans ce module. Le dispatch lisait donc une table
-        // que personne ne remplissait, et `RegisterDriverCommandHandler` — cité
-        // par `DriverConfiguration` — n'a jamais existé.
-        //
-        // La ligne arrive désormais du DOSSIER tenu par driver-service, par
-        // l'événement `driver.dossier-verified`. C'est la forme que D34 exige
-        // entre deux propriétaires : un contrat ou un événement, jamais une
-        // référence de projet vers le domaine du voisin.
-        //
-        // LA SUSPENSION EST BRANCHÉE DEPUIS, ET IL LE FALLAIT.
-        //
-        // `DriverSuspendedIntegrationEvent` était publié par driver-service et
-        // personne ne l'écoutait : un livreur suspendu dans son dossier restait
-        // dispatchable ici, et continuait d'aller chez les clients. Suspendre
-        // quelqu'un et le laisser travailler, ce n'est pas une suspension.
-        //
-        // Reste une limite, écrite dans le gestionnaire : la course DÉJÀ EN COURS
-        // n'est ni réaffectée ni annulée — c'est une décision d'exploitation, pas
-        // une conséquence automatique. Le cas est journalisé en `Critical`.
-        // ═════════════════════════════════════════════════════════════════════
-        services.AddScoped<IIntegrationEventHandler<DriverDossierVerifiedIntegrationEvent>, ProjectDriverOnDossierVerified>();
-        services.AddScoped<IIntegrationEventHandler<DriverSuspendedIntegrationEvent>, WithdrawDriverOnDossierSuspended>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<DeliveriesDbContext>();
 
         // La boucle de dispatch : sans elle, une course est créée, passe en
         // « recherche de livreur » et y reste indéfiniment. Un seul processus la
@@ -182,14 +162,6 @@ public sealed class DeliveriesModuleInstaller : IModuleInstaller
     /// </summary>
     private static void RegisterWebhooks(IServiceCollection services)
     {
-        services.AddScoped<DeliveryWebhookEnqueuer>();
-
-        services.AddScoped<IIntegrationEventHandler<DeliveryCreatedIntegrationEvent>, WebhookOnDeliveryCreated>();
-        services.AddScoped<IIntegrationEventHandler<DeliveryAcceptedIntegrationEvent>, WebhookOnDeliveryAccepted>();
-        services.AddScoped<IIntegrationEventHandler<DeliveryPickedUpIntegrationEvent>, WebhookOnDeliveryPickedUp>();
-        services.AddScoped<IIntegrationEventHandler<DeliveryCompletedIntegrationEvent>, WebhookOnDeliveryCompleted>();
-        services.AddScoped<IIntegrationEventHandler<DeliveryCancelledIntegrationEvent>, WebhookOnDeliveryCancelled>();
-        services.AddScoped<IIntegrationEventHandler<DeliveryNoDriverAvailableIntegrationEvent>, WebhookOnDeliveryNoDriver>();
 
         services.AddHttpClient(WebhookDispatchService.HttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler

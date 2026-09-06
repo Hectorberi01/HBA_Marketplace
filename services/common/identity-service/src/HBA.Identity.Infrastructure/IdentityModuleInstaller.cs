@@ -1,4 +1,4 @@
-using HBA.Shared.Infrastructure.Inbox;
+using HBA.Identity.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Shared.Infrastructure.Idempotency;
 using HBA.Identity.Domain.Mfa;
 using FluentValidation;
@@ -7,6 +7,7 @@ using HBA.Food.Contracts.IntegrationEvents;
 using HBA.Identity.Application.Abstractions;
 using HBA.Identity.Application.Users.Commands.RegisterUser;
 using HBA.Identity.Application.Users.EventHandlers;
+using HBA.Identity.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Identity.Application.Users;
 using HBA.Identity.Contracts;
 using HBA.Identity.Domain.Roles;
@@ -19,7 +20,6 @@ using HBA.Merchants.Contracts.IntegrationEvents;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -44,6 +44,14 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieIdentity()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddDbContext<IdentityDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", IdentityDbContext.SchemaName)));
@@ -54,7 +62,6 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
         services.AddScoped<IMfaChallengeRepository, MfaChallengeRepository>();
 
         // Socle du §5 et du §19.5.
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<IdentityDbContext>>();
         // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
         //
         // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
@@ -84,51 +91,15 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
         // Handlers de domain events.
         services.AddScoped<IDomainEventHandler<UserRegisteredDomainEvent>, UserRegisteredDomainEventHandler>();
 
-        // ═════════════════════════════════════════════════════════════════
-        // RÔLES MÉTIER — TROIS ÉVÉNEMENTS VENUS D'AILLEURS.
-        //
-        // Sans ces trois lignes, les rôles Seller, FoodPartner et Driver ne sont
-        // attribués par personne : ils existent en base, semés au démarrage, et
-        // aucun compte ne les porte. Les BFF partenaire et livreur répondent
-        // alors 403 à tout le monde, sans qu'aucun journal ne relie le refus à
-        // l'inscription qui aurait dû donner le droit.
-        // ═════════════════════════════════════════════════════════════════
-        services.AddScoped<BusinessRoleGrant>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-        services.AddScoped<IIntegrationEventHandler<SellerRegisteredIntegrationEvent>, GrantSellerRoleHandler>();
-        services.AddScoped<IIntegrationEventHandler<RestaurantApprovedIntegrationEvent>, GrantFoodPartnerRoleHandler>();
-        // `DriverVerifiedIntegrationEvent` DE `HBA.Drivers.Contracts`, PAS DE
-        //    `HBA.Deliveries.Contracts` — les deux le déclaraient, aux champs
-        //    identiques, et rendaient le même « driver.verified ». Le consommateur
-        //    ne voyait que le type retenu par ordre alphabétique : enregistré sur
-        //    l'autre, ce handler n'aurait JAMAIS été appelé, sans erreur, et le rôle
-        //    `Driver` ne serait attribué à personne. La déclaration côté Deliveries
-        //    a été retirée : l'agrégat décrit est le livreur, pas la course.
-        services.AddScoped<IIntegrationEventHandler<DriverVerifiedIntegrationEvent>, GrantDriverRoleHandler>();
-
-        // ═════════════════════════════════════════════════════════════════════
-        // LES DEUX LIGNES QUI RENDENT LE MODULE DES MEMBRES UTILISABLE.
-        //
-        // `MapSellerGroup` ne regarde que la claim de rôle du jeton. Sans le
-        // premier consommateur, un membre correctement écrit en base est refoulé
-        // par le ROUTAGE, avant tout handler et avant toute permission — et rien,
-        // ni côté merchant ni ici, ne le signale.
-        //
-        // Le second est asymétrique par nature : il ne retire le rôle que si
-        // seller-service a établi qu'il ne reste AUCUNE autre appartenance. Voir
-        // l'encadré du handler.
-        // ═════════════════════════════════════════════════════════════════════
-        services.AddScoped<IIntegrationEventHandler<SellerMemberJoinedIntegrationEvent>,
-            GrantSellerRoleToMemberHandler>();
-        services.AddScoped<IIntegrationEventHandler<SellerMemberRevokedIntegrationEvent>,
-            RevokeSellerRoleOnMemberRemovedHandler>();
         services.AddScoped<IDomainEventHandler<UserEmailConfirmedDomainEvent>, UserEmailConfirmedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<UserProfileUpdatedDomainEvent>, UserProfileUpdatedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<UserAnonymizedDomainEvent>, UserAnonymizedDomainEventHandler>();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<IdentityDbContext>();
     }
 
     private static JwtOptions BuildJwtOptions(IConfiguration configuration)

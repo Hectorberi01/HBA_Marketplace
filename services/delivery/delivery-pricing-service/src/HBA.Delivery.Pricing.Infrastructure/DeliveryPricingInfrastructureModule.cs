@@ -1,4 +1,5 @@
 using System.Globalization;
+using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Delivery.Pricing.Application.Abstractions;
 using HBA.Delivery.Pricing.Domain.Policies;
 using HBA.Delivery.Pricing.Infrastructure.Persistence;
@@ -16,6 +17,13 @@ public static class DeliveryPricingInfrastructureModule
     {
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
+
+        // L'outbox et les abonnements sont descendus dans `Messaging/Kafka/`, donc
+        // hors de ce module d'infrastructure : ils sont enregistres par
+        // `AjouterMessagerieDeliveryPricing()`, que le composition root peut oublier. Un
+        // oubli ne casserait rien de visible. Cette garde, elle, est enregistree
+        // ici : elle doit exister quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<DeliveryPricingDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -85,7 +93,8 @@ public static class DeliveryPricingInfrastructureModule
         // l'appellerait sans poser le socle n'aurait ni file d'événements, ni
         // dispatcher de domaine, ni métriques d'outbox — et ne démarrerait pas.
         // ═════════════════════════════════════════════════════════════════════
-        services.AddOutboxProcessor<DeliveryPricingDbContext>();
+        // `AddOutboxProcessor` est descendu dans `Messaging/Kafka/Outbox/` :
+        // le laisser ici ferait tourner DEUX videurs sur la meme table.
         return services;
     }
 

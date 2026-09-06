@@ -29,7 +29,7 @@ namespace HBA.Catalog.Application.Offers;
 /// Elles étaient écrites, complètes, et rien ne reliait l'événement de fermeture
 /// de merchant-service à ce module : fermer une boutique laissait ses offres en
 /// vente. Le raccordement vit désormais dans
-/// `Catalog.Infrastructure.Integration.StoreLifecycleCatalogHandlers`, qui garde
+/// `Catalog.Infrastructure.Messaging.Kafka.Consumers.StoreLifecycleCatalogHandlers`, qui garde
 /// l'idempotence et délègue ici.
 ///
 /// LE `SaveChangesAsync` CI-DESSOUS VALIDE AUSSI LA MARQUE D'INBOX du handler

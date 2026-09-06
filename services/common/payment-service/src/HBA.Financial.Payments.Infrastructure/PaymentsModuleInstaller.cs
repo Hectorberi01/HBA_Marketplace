@@ -1,5 +1,5 @@
 using HBA.Shared.Infrastructure.Hosting;
-using HBA.Shared.Infrastructure.Inbox;
+using HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Shared.Infrastructure.Idempotency;
 using System.Reflection;
 using FluentValidation;
@@ -9,7 +9,6 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.FoodOrders.Contracts.IntegrationEvents;
@@ -17,6 +16,7 @@ using HBA.Financial.Payments.Application.Abstractions;
 using HBA.Financial.Payments.Application.Abstractions.Gateways;
 using HBA.Financial.Payments.Application.Payments.Commands.InitiatePayment;
 using HBA.Financial.Payments.Application.Payments.EventHandlers;
+using HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Financial.Payments.Contracts;
 using HBA.Financial.Payments.Domain.Payments;
 using HBA.Financial.Payments.Domain.PaymentMethods;
@@ -41,6 +41,14 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieFinancialPayments()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddDbContext<PaymentsDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", PaymentsDbContext.SchemaName)));
@@ -59,7 +67,6 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
 
         // Socle du §5 et du §19.5 — mêmes enregistrements que user-service et
         // identity-service, pour que les trois se comportent pareil.
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<PaymentsDbContext>>();
         // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
         //
         // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
@@ -332,30 +339,13 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<PaymentRefundedDomainEvent>, PaymentRefundedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<PaymentRefundFailedDomainEvent>, PaymentRefundFailedDomainEventHandler>();
 
-        // Chorégraphie : libération de l'escrow à la livraison de la commande.
-        services.AddScoped<IIntegrationEventHandler<OrderDeliveredIntegrationEvent>, ReleaseEscrowOnOrderDeliveredHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-        // LE MÊME GESTE POUR LE FOOD, QUI N'EXISTAIT PAS.
-        //
-        // `MealOrderDeliveredIntegrationEvent` était publié sans aucun consommateur.
-        // Invisible tant qu'aucun repas ne pouvait être payé ; impasse dès que le
-        // lot 6.1 ouvre ce chemin — client débité, restaurateur jamais reversable.
-        services.AddScoped<IIntegrationEventHandler<MealOrderDeliveredIntegrationEvent>, ReleaseEscrowOnMealOrderDeliveredHandler>();
 
-        // CE MAILLON MANQUAIT : PERSONNE NE REMBOURSAIT.
-        //
-        // `OrderCancelled` avait deux consommateurs — la reprise des gains
-        // vendeur et la notification au client. Aucun ne rendait l'argent. Le
-        // monolithe le faisait dans un helper de sa composition root, qui avait
-        // accès aux deux modules à la fois ; le geste s'est perdu à la découpe.
-        //
-        // C'est financial qui possède le paiement : c'est donc à lui de décider
-        // ce qu'annuler implique.
-        services.AddScoped<IIntegrationEventHandler<OrderCancelledIntegrationEvent>, RefundPaymentOnOrderCancelledHandler>();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<PaymentsDbContext>();
     }
 
     /// <summary>

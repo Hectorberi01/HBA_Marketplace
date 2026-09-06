@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -6,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Communication.Application.Abstractions;
 using HBA.Communication.Application.Conversations;
 using HBA.Communication.Application.Conversations.EventHandlers;
@@ -43,6 +43,22 @@ public sealed class MessagingModuleInstaller : IModuleInstaller
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
+        // CE MODULE N'A PAS ETE PORTE SUR `Messaging/Kafka/`, ET C'EST UNE
+        //     EXCEPTION ASSUMEE.
+        //
+        // `HBA.Communication.Api` compose DEUX modules : Notifications, qui a des
+        // consommateurs et un module Kafka a lui, et celui-ci — la messagerie
+        // interne — qui ne consomme RIEN. Il ne publie qu'un evenement, par son
+        // outbox, et n'a donc ni sujet a declarer ni gestionnaire a enregistrer.
+        //
+        // Lui donner un module complet aurait produit un `Sujets` vide, un
+        // `Consumers/` vide et un second `AjouterMessagerie…()` dans le meme
+        // Program.cs — trois dossiers pour une seule ligne utile, celle-ci.
+        //
+        // CE QUE CETTE EXCEPTION COUTE. La regle « l'outbox est cablee par le
+        // module Kafka du service » souffre ici une entorse : quelqu'un qui
+        // cherche le videur d'outbox de la messagerie interne ne le trouvera pas
+        // dans `Messaging/Kafka/Outbox/`, parce qu'il est reste ici.
         services.AddOutboxProcessor<MessagingDbContext>();
     }
 }

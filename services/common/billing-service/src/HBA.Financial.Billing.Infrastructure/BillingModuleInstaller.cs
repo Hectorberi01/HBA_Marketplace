@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Financial.Billing.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -6,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Infrastructure.Configuration;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Financial.Billing.Application.Abstractions;
 using HBA.Financial.Billing.Application.Commissions;
 using HBA.Financial.Billing.Contracts;
@@ -51,6 +51,14 @@ public sealed class BillingModuleInstaller : IModuleInstaller
             DefaultCommissionRate = bareme.CommissionRate
         };
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieFinancialBilling()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddSingleton(billingOptions);
 
         var connectionString = configuration.GetConnectionString("Default")
@@ -68,6 +76,5 @@ public sealed class BillingModuleInstaller : IModuleInstaller
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<BillingDbContext>();
     }
 }

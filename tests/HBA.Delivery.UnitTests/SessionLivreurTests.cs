@@ -1,5 +1,6 @@
 using HBA.Deliveries.Application.Deliveries.Commands;
 using HBA.Deliveries.Application.Drivers;
+using HBA.Delivery.Core.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Deliveries.Domain.Deliveries;
 using HBA.Deliveries.Domain.Drivers;
 using Microsoft.Extensions.Logging.Abstractions;

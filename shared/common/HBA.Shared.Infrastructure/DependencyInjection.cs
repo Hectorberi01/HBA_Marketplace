@@ -119,7 +119,21 @@ public static class DependencyInjection
                 //
                 // Absent = tous les sujets, comme avant. La migration se fait donc
                 // service par service.
-                SubscribeTopics = sp.GetService<AbonnementsKafka>()?.Sujets ?? []
+                // L'UNION, ET NON LE DERNIER INSCRIT.
+                //
+                // `GetService` ne rend que le DERNIER enregistrement. Trois hotes
+                // composent plusieurs modules dans un seul processus —
+                // `HBA.Financial.Api` (payments, wallet, billing),
+                // `HBA.Engagement.Api` (reviews, recommendations, wishlist),
+                // `HBA.Communication.Api` — et chacun de leurs modules declare ses
+                // propres sujets. Avec `GetService`, deux modules sur trois
+                // n'auraient JAMAIS ete abonnes : leurs gestionnaires seraient
+                // enregistres, corrects, et jamais appeles. Aucune erreur.
+                SubscribeTopics = sp.GetServices<AbonnementsKafka>()
+                    .SelectMany(abonnements => abonnements.Sujets)
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(sujet => sujet, StringComparer.Ordinal)
+                    .ToArray()
             };
 
             // ON REFUSE DE DÉMARRER SI PUBLICATION ET ABONNEMENT DIVERGENT.

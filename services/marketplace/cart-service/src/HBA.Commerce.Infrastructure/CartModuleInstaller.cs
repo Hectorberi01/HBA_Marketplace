@@ -1,4 +1,5 @@
 using System.Reflection;
+using HBA.Commerce.Infrastructure.Messaging.Kafka.Configuration;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -9,11 +10,11 @@ using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
 using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using HBA.Commerce.Application.Abstractions;
 using HBA.Commerce.Application.Carts.Commands.AddItem;
 using HBA.Commerce.Application.Carts.EventHandlers;
+using HBA.Commerce.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Commerce.Contracts;
 using HBA.Commerce.Domain.Carts;
 using HBA.Commerce.Domain.Carts.Events;
@@ -35,6 +36,14 @@ public sealed class CartModuleInstaller : IModuleInstaller
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieCommerce()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddDbContext<CartDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", CartDbContext.SchemaName)));
@@ -51,7 +60,6 @@ public sealed class CartModuleInstaller : IModuleInstaller
         // Le seul gestionnaire d'aujourd'hui survit à un rejeu grâce à sa garde
         // d'état — mais c'est une propriété de SON code, pas du service, et le
         // prochain naîtrait sans elle.
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<CartDbContext>>();
 
         // ═════════════════════════════════════════════════════════════════════
         // CETTE LIGNE ENREGISTRAIT UNE TARIFICATION NEUTRE, ET C'ÉTAIT
@@ -84,11 +92,10 @@ public sealed class CartModuleInstaller : IModuleInstaller
 
         services.AddScoped<IDomainEventHandler<CartCheckedOutDomainEvent>, CartCheckedOutDomainEventHandler>();
 
-        // Chorégraphie : clôture du panier quand une commande est placée.
-        services.AddScoped<IIntegrationEventHandler<OrderPlacedIntegrationEvent>, CloseCartOnOrderPlacedHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<CartDbContext>();
     }
 }

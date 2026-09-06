@@ -1,5 +1,6 @@
 using HBA.Financial.Payments.Contracts;
 using HBA.Financial.Wallet.Application.Earnings;
+using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Financial.Wallet.Domain.Wallets;
 
 namespace HBA.Financial.Wallet.Application.Wallets;

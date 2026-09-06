@@ -1,4 +1,5 @@
 using HBA.Shared.Infrastructure.Hosting;
+using HBA.Media.Infrastructure.Messaging.Kafka.Configuration;
 using System.Reflection;
 using FluentValidation;
 using HBA.Media.Application.Abstractions;
@@ -11,12 +12,11 @@ using HBA.Media.Infrastructure.ObjectStorage;
 using HBA.Media.Infrastructure.Persistence;
 using HBA.Media.Infrastructure.Public;
 using HBA.Shared.Application.Abstractions;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
 using HBA.Merchants.Contracts.IntegrationEvents;
 using HBA.Media.Application.Assets.EventHandlers;
+using HBA.Media.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Shared.IntegrationEvents;
-using HBA.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,6 +48,14 @@ public sealed class MediaModuleInstaller : IModuleInstaller
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieMedia()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddDbContext<MediaDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", MediaDbContext.SchemaName)));
@@ -78,7 +86,6 @@ public sealed class MediaModuleInstaller : IModuleInstaller
         // n'en émettra plus, ce qui est déjà l'essentiel, mais un échec entre les
         // deux reste à rattraper par la purge de rétention.
         // ═════════════════════════════════════════════════════════════════════
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<MediaDbContext>>();
 
         services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.SectionName));
 
@@ -157,7 +164,8 @@ public sealed class MediaModuleInstaller : IModuleInstaller
 
         // conséquences.
 
-        services.AddScoped<IIntegrationEventHandler<KybDocumentRemovedIntegrationEvent>, DeleteMediaOnKybDocumentRemovedHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
         // ═════════════════════════════════════════════════════════════════════
         // TROIS ÉVÉNEMENTS ÉTAIENT LEVÉS ET N'ARRIVAIENT NULLE PART.
@@ -178,7 +186,6 @@ public sealed class MediaModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<MediaDeletedDomainEvent>, MediaDeletedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<MediaProcessingFailedDomainEvent>, MediaProcessingFailedDomainEventHandler>();
 
-        services.AddOutboxProcessor<MediaDbContext>();
     }
 
     /// <summary>

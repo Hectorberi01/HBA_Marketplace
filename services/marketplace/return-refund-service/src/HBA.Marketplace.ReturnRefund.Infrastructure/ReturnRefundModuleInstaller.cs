@@ -1,4 +1,5 @@
 using HBA.Shared.Infrastructure.Hosting;
+using HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Configuration;
 using System.Reflection;
 using FluentValidation;
 using HBA.Marketplace.ReturnRefund.Application.Abstractions;
@@ -36,6 +37,14 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
     {
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaine de connexion Default absente.");
+
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieMarketplaceReturnRefund()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<ReturnRefundDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
@@ -150,7 +159,6 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<RefundSucceededDomainEvent>, RefundSucceededDomainEventHandler>();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
-        services.AddOutboxProcessor<ReturnRefundDbContext>();
     }
 
     /// <summary>

@@ -1,9 +1,10 @@
 using HBA.Shared.Infrastructure.Hosting;
+using HBA.Food.Cart.Infrastructure.Messaging.Kafka.Configuration;
 using System.Reflection;
 using FluentValidation;
 using HBA.FoodCarts.Application.Abstractions;
 using HBA.FoodCarts.Application.Carts.Commands;
-using HBA.FoodCarts.Application.Carts.EventHandlers;
+using HBA.Food.Cart.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.FoodCarts.Contracts;
 using HBA.FoodCarts.Domain.Carts;
 using HBA.FoodCarts.Domain.Carts.Events;
@@ -14,9 +15,7 @@ using HBA.Pricing.Contracts;
 using HBA.Pricing.Promotion;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Inbox;
 using HBA.Shared.Infrastructure.Modularity;
-using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -39,6 +38,14 @@ public sealed class FoodCartModuleInstaller : IModuleInstaller
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
+        // hors de cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieFoodCart()`, que le composition root peut oublier.
+        // Un oubli ne casserait rien de visible — le service demarre et n'emet
+        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
+        // quand ce qu'elle verifie est absent.
+        services.AddHostedService<GardeDeCablage>();
+
         services.AddDbContext<FoodCartDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", FoodCartDbContext.SchemaName)));
@@ -49,7 +56,6 @@ public sealed class FoodCartModuleInstaller : IModuleInstaller
 
         // Sans cette ligne, le dispatcher tourne SANS garde d'idempotence et se
         // contente de le journaliser : le service resterait rejouable en silence.
-        services.AddScoped<IConsumerInbox, EfConsumerInbox<FoodCartDbContext>>();
         services.AddScoped<IFoodCartModuleApi, FoodCartModuleApi>();
         // LE SEUL BOUCHON DE TARIFICATION QUI SUBSISTE (ISSUE-033). Il refuse
         // désormais de démarrer si l'adresse de promotion-service manque — voir
@@ -79,13 +85,11 @@ public sealed class FoodCartModuleInstaller : IModuleInstaller
         services.AddScoped<
             IDomainEventHandler<FoodCartCheckedOutDomainEvent>, FoodCartCheckedOutDomainEventHandler>();
 
-        // Chorégraphie : le panier se clôt quand la commande de repas est partie.
-        services.AddScoped<
-            IIntegrationEventHandler<MealOrderPlacedIntegrationEvent>, CloseFoodCartOnMealOrderPlacedHandler>();
+        // Les gestionnaires d'evenements sont enregistres par le module de
+        // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
-        services.AddOutboxProcessor<FoodCartDbContext>();
     }
 
     /// <summary>
