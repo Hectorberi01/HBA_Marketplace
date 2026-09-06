@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Http;
-using HBA.Shared.Infrastructure.Files;
-
 namespace HBA.Shared.Hosting.Http;
 
 /// <summary>

@@ -1,4 +1,17 @@
-namespace HBA.Shared.Infrastructure.Files;
+// ═════════════════════════════════════════════════════════════════════════════
+// DEPLACE DE `HBA.Shared.Infrastructure.Files` VERS LA COUCHE HTTP.
+//
+// Ce type vivait dans `Infrastructure` alors que son SEUL appelant est
+// `UploadValidation`, dans `Hosting` — vérifié sur tout le dépôt. Ce n'était pas
+// du code mort, c'était du code rangé au mauvais étage : en lisant l'un ou
+// l'autre fichier, rien ne le signalait.
+//
+// Il ne dépend de rien (pas un seul `using`) : la question n'était pas technique,
+// elle était de savoir à quelle couche appartient « reconnaître le type réel d'un
+// fichier téléversé ». La réponse est celle qui reçoit le téléversement.
+// ═════════════════════════════════════════════════════════════════════════════
+
+namespace HBA.Shared.Hosting.Http;
 
 /// <summary>
 /// Reconnaît le type RÉEL d'un fichier à ses premiers octets (« magic bytes »), au lieu de
