@@ -27,6 +27,7 @@ using HBA.Financial.Payments.Infrastructure.Gateways.Simulation;
 using HBA.Financial.Payments.Infrastructure.Persistence;
 using HBA.Financial.Payments.Infrastructure.Public;
 
+using HBA.Financial.Payments.Infrastructure.Caching.Redis;
 namespace HBA.Financial.Payments.Infrastructure;
 
 /// <summary>Enregistre le module Payments : DbContext, repository, API publique, handlers, validators, outbox.</summary>
@@ -38,6 +39,10 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
+        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        services.AjouterCacheFinancialPayments(configuration);
+
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 

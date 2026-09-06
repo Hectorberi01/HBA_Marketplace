@@ -84,4 +84,13 @@
     <ProjectReference Include="..\..\..\food-cart-service\src\HBA.Food.Cart.Contracts\HBA.Food.Cart.Contracts.csproj" />
   </ItemGroup>
 
+
+  <!-- LE CACHE DE CE SERVICE (Caching/Redis/). Ces paquets venaient
+       transitivement de HBA.Shared.Infrastructure ; ils sont explicites
+       depuis que l'implementation est ici. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+  </ItemGroup>
+
 </Project>

@@ -21,6 +21,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.FoodCarts.Infrastructure.Caching.Redis;
 namespace HBA.FoodCarts.Infrastructure;
 
 /// <summary>
@@ -35,6 +36,10 @@ public sealed class FoodCartModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
+        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        services.AjouterCacheFoodCart(configuration);
+
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 

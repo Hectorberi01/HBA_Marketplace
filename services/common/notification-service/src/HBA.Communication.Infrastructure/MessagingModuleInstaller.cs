@@ -17,6 +17,7 @@ using HBA.Communication.Infrastructure.Public;
 using HBA.Communication.Infrastructure.Persistence;
 using HBA.Shared.Infrastructure.Outbox;
 
+using HBA.Communication.Infrastructure.Caching.Redis;
 namespace HBA.Communication.Infrastructure;
 
 /// <summary>Enregistre le module Messaging : DbContext, repository, handlers, validators, outbox.</summary>
@@ -28,6 +29,10 @@ public sealed class MessagingModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
+        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        services.AjouterCacheCommunication(configuration);
+
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 

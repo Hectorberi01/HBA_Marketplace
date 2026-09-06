@@ -2,9 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Caching;
 using HBA.Shared.Infrastructure.Outbox;
 
+using HBA.Catalog.Infrastructure.Caching.Redis.Services;
 namespace HBA.Catalog.Infrastructure.Persistence;
 
 /// <summary>

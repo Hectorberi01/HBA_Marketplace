@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using HBA.Gateway.Infrastructure.Caching.Redis;
 namespace HBA.Gateway.Infrastructure;
 
 public static class DependencyInjection
@@ -18,6 +19,11 @@ public static class DependencyInjection
     public static IServiceCollection AddGatewayInfrastructure(
         this IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE LA PASSERELLE. Il etait branche par le socle pour les
+        // vingt-six services a la fois ; la passerelle n'a pas d'installeur de
+        // module, son point d'entree d'infrastructure est donc ici.
+        services.AjouterCacheGateway(configuration);
+
         services
             .AddOptions<ServicesOptions>()
             .Bind(configuration.GetSection(ServicesOptions.SectionName))

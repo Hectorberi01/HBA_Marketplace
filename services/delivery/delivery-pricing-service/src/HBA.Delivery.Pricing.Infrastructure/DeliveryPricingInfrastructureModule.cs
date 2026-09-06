@@ -9,12 +9,17 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using HBA.Delivery.Pricing.Infrastructure.Caching.Redis;
 namespace HBA.Delivery.Pricing.Infrastructure;
 
 public static class DeliveryPricingInfrastructureModule
 {
     public static IServiceCollection AddDeliveryPricingInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Ce service n'a pas d'installeur
+        // nomme *ModuleInstaller — son point d'entree d'infrastructure est ici.
+        services.AjouterCacheDeliveryPricing(configuration);
+
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 

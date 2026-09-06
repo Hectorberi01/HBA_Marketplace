@@ -11,6 +11,7 @@ using HBA.Engagement.Wishlist.Application.Wishlists;
 using HBA.Engagement.Wishlist.Domain.Wishlists;
 using HBA.Engagement.Wishlist.Infrastructure.Persistence;
 
+using HBA.Engagement.Wishlist.Infrastructure.Caching.Redis;
 namespace HBA.Engagement.Wishlist.Infrastructure;
 
 /// <summary>Enregistre le module Wishlist : DbContext, repository, validators, outbox.</summary>
@@ -22,6 +23,10 @@ public sealed class WishlistModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
+        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        services.AjouterCacheEngagementWishlist(configuration);
+
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 

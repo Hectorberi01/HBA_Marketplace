@@ -18,6 +18,7 @@ using HBA.Inventory.Infrastructure.BackgroundJobs;
 using HBA.Inventory.Infrastructure.Persistence;
 using HBA.Inventory.Infrastructure.Public;
 
+using HBA.Inventory.Infrastructure.Caching.Redis;
 namespace HBA.Inventory.Infrastructure;
 
 /// <summary>Enregistre le module Inventory : DbContext, repositories, API publique, handlers, validators, outbox.</summary>
@@ -29,6 +30,10 @@ public sealed class InventoryModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
+        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        services.AjouterCacheInventory(configuration);
+
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 

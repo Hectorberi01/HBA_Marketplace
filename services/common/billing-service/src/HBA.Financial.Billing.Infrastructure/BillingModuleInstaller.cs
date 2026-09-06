@@ -15,6 +15,7 @@ using HBA.Financial.Billing.Domain.Invoices;
 using HBA.Financial.Billing.Infrastructure.Persistence;
 using HBA.Financial.Billing.Infrastructure.Public;
 
+using HBA.Financial.Billing.Infrastructure.Caching.Redis;
 namespace HBA.Financial.Billing.Infrastructure;
 
 /// <summary>Enregistre le module Billing : DbContext, repositories, API commission, validators, outbox.</summary>
@@ -26,6 +27,10 @@ public sealed class BillingModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
+        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        services.AjouterCacheFinancialBilling(configuration);
+
         // « Billing:DefaultCommissionRate » N'EXISTE PLUS.
         //
         // Ce taux servait de repli quand aucune règle de commission ne

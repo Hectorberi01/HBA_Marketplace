@@ -22,6 +22,7 @@ using HBA.Commerce.Infrastructure.Persistence;
 using HBA.Commerce.Infrastructure.Public;
 using HBA.Orders.Contracts.IntegrationEvents;
 
+using HBA.Commerce.Infrastructure.Caching.Redis;
 namespace HBA.Commerce.Infrastructure;
 
 /// <summary>Enregistre le module Cart : DbContext, repository, API publique, handlers, validators, outbox.</summary>
@@ -33,6 +34,10 @@ public sealed class CartModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
+        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        services.AjouterCacheCommerce(configuration);
+
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 

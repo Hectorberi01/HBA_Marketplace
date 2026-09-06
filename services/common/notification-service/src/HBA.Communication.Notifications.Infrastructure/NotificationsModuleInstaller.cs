@@ -40,6 +40,7 @@ using HBA.Deliveries.Contracts.IntegrationEvents;
 // Lève l'ambiguïté avec FirebaseAdmin.Messaging.FcmOptions.
 using FcmOptions = HBA.Communication.Notifications.Infrastructure.Push.FcmOptions;
 
+using HBA.Communication.Notifications.Infrastructure.Caching.Redis;
 namespace HBA.Communication.Notifications.Infrastructure;
 
 /// <summary>Enregistre le module Notifications : DbContext, repository, dispatcher et consumers fan-out.</summary>
@@ -51,6 +52,10 @@ public sealed class NotificationsModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
+        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        services.AjouterCacheCommunicationNotifications(configuration);
+
         // « Default », ET NON « Marketplace ».
         //
         // Ce module vient du monolithe, où la chaîne s'appelait « Marketplace » —

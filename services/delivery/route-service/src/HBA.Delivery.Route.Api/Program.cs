@@ -20,7 +20,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ═════════════════════════════════════════════════════════════════════════
 builder.AddHbaSecurity();
 
-builder.Services.AddRoutesInfrastructure();
+builder.Services.AddRoutesInfrastructure(builder.Configuration);
 builder.AddHbaGrpc();
 
 // ═════════════════════════════════════════════════════════════════════════

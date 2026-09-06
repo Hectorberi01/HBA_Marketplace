@@ -4,12 +4,26 @@ using HBA.Shared.Infrastructure.Outbox;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
 
+using HBA.Routes.Infrastructure.Caching.Redis;
+using Microsoft.Extensions.Configuration;
 namespace HBA.Routes.Infrastructure;
 
 public static class RoutesInfrastructureModule
 {
-    public static IServiceCollection AddRoutesInfrastructure(this IServiceCollection services)
+    /// <remarks>
+    /// `IConfiguration` EST APPARU AVEC LE CACHE DU SERVICE.
+    ///
+    /// Ce module n'en avait pas besoin — route-service n'a ni base ni cache. Il en
+    /// prend un parce que `AjouterCacheDeliveryRoute` lit « Redis:ConnectionString » :
+    /// le cache etait branche par le socle pour les vingt-six services, il l'est
+    /// desormais par chacun, et ce service n'a pas d'installeur de module ou le
+    /// mettre.
+    /// </remarks>
+    public static IServiceCollection AddRoutesInfrastructure(
+        this IServiceCollection services, IConfiguration configuration)
     {
+        services.AjouterCacheDeliveryRoute(configuration);
+
         // L'outbox et les abonnements sont descendus dans `Messaging/Kafka/`, donc
         // hors de ce module d'infrastructure : ils sont enregistres par
         // `AjouterMessagerieRoute()`, que le composition root peut oublier. Un

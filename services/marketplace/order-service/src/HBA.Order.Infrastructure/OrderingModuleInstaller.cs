@@ -25,6 +25,7 @@ using HBA.Deliveries.Contracts.IntegrationEvents;
 using HBA.Food.Contracts.IntegrationEvents;
 using HBA.Returns.Contracts.IntegrationEvents;
 
+using HBA.Orders.Infrastructure.Caching.Redis;
 namespace HBA.Orders.Infrastructure;
 
 /// <summary>Enregistre le module Ordering : DbContext, repository, API publique, Saga handlers, validators, outbox.</summary>
@@ -36,6 +37,10 @@ public sealed class OrderingModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
+        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
+        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        services.AjouterCacheOrder(configuration);
+
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 

@@ -2,9 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Domain.Events;
-using HBA.Shared.Infrastructure.Caching;
 using HBA.Shared.Infrastructure.Outbox;
 
+using HBA.Engagement.Reviews.Infrastructure.Caching.Redis.Services;
 namespace HBA.Engagement.Reviews.Infrastructure.Persistence;
 
 /// <summary>Factory design-time pour les outils EF.</summary>

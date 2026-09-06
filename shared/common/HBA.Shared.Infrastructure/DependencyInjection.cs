@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using HBA.Shared.Application.Abstractions;
 using HBA.Shared.Application.Observability;
-using HBA.Shared.Infrastructure.Caching;
 using HBA.Shared.Infrastructure.Events;
 using HBA.Shared.Infrastructure.Kafka;
 using HBA.Shared.Infrastructure.Observability;
@@ -220,83 +219,24 @@ public static class DependencyInjection
         services.TryAddSingleton<IOutboxMetrics, NoOpOutboxMetrics>();
 
         // ═════════════════════════════════════════════════════════════════════
-        // LE CACHE DISTRIBUÉ — ET IL NE L'ÉTAIT PAS.
+        // LE CACHE A QUITTÉ CE FICHIER — IL APPARTIENT AUX SERVICES.
         //
-        // CETTE LIGNE ÉTAIT `AddDistributedMemoryCache()`, SOUS UN COMMENTAIRE
-        //    QUI AFFIRMAIT LE CONTRAIRE.
+        // `DistributedCacheService`, `NoOpCacheService` et le choix Redis /
+        // mémoire étaient posés ici, donc pour les vingt-six services à la fois.
+        // Chaque service porte désormais le sien dans
+        // `Infrastructure/Caching/Redis/`, et le branche par
+        // `AjouterCache<Service>()` depuis son installeur.
         //
-        // Il annonçait que « le Bootstrap remplace l'IDistributedCache par Redis
-        // quand Redis:ConnectionString est renseigné ». Ce remplacement n'existait
-        // nulle part : `AddStackExchangeRedisCache` n'apparaissait dans aucun
-        // fichier du dépôt, et le paquet n'était référencé que par
-        // delivery-service, qui a son propre client. Toute la plateforme cachait
-        // donc EN MÉMOIRE, PAR INSTANCE, y compris en production.
+        // CE QUI RESTE PARTAGÉ : `ICacheService`, dans
+        // `HBA.Shared.Application.Abstractions`. C'est le PORT dont dépend la
+        // couche Application de cinq services — pas l'adaptateur.
         //
-        // CE QUE CELA COÛTAIT : L'INVALIDATION NE TOUCHAIT QU'UNE RÉPLIQUE.
-        //
-        // Un cache par instance n'est pas seulement « moins efficace » : il est
-        // FAUX dès qu'on l'invalide. Une éviction déclenchée par un `SaveChanges`
-        // ne vide que le dictionnaire du processus qui a écrit ; les N−1 autres
-        // continuent de servir la valeur périmée jusqu'au TTL. Sur un événement
-        // Kafka, c'est pire encore — dans un groupe de consommateurs, une SEULE
-        // instance reçoit le message.
-        //
-        // C'est ce qui rendait invérifiable la promesse de coupure immédiate d'un
-        // accès suspendu : le membre révoqué continuait d'être autorisé par toutes
-        // les instances sauf une.
-        //
-        // ABSENT, ON RETOMBE EN MÉMOIRE — MAIS BRUYAMMENT.
-        //
-        // Le repli reste possible : un poste de développement n'a pas toujours un
-        // Redis. Ce qu'on ne refait pas, c'est le repli SILENCIEUX, celui qui se
-        // découvre en production. Le message part sur la sortie standard parce
-        // qu'à cet instant le conteneur d'injection n'est pas construit — même
-        // technique que `DeliveriesModuleInstaller`.
+        // CE QUE LE DÉPLACEMENT COÛTE, ET IL FAUT LE SAVOIR : un service qui
+        // n'appelle pas `AjouterCache<Service>()` n'a plus AUCUN `ICacheService`.
+        // La résolution échoue au démarrage — bruyamment, donc — mais elle
+        // échoue, là où ce fichier garantissait la présence. C'est le prix de
+        // l'autonomie, et il se paie une fois par service oublié.
         // ═════════════════════════════════════════════════════════════════════
-        var redis = configuration["Redis:ConnectionString"];
-
-        if (string.IsNullOrWhiteSpace(redis))
-        {
-            Console.WriteLine(
-                "[HBA] Redis absent — cache EN MÉMOIRE, par instance. "
-                + "Toute invalidation ne touchera que le processus qui l'a déclenchée : "
-                + "les autres répliques serviront des valeurs périmées jusqu'au TTL. "
-                + "Renseignez « Redis:ConnectionString » hors développement.");
-
-            services.AddDistributedMemoryCache();
-        }
-        else
-        {
-            services.AddStackExchangeRedisCache(options =>
-            {
-                options.Configuration = redis;
-
-                // UN PRÉFIXE COMMUN, ET NON UN PAR SERVICE.
-                //
-                // Les treize services partagent une instance Redis. Le préfixe les
-                // isole d'un autre locataire éventuel, sans les isoler les uns des
-                // autres — ce qui serait un contresens : les clés sont déjà
-                // nommées par domaine (`sellers:`, `catalog:`, `cart:`), et deux
-                // répliques du MÊME service doivent impérativement partager la
-                // leur, sans quoi on retrouverait exactement le défaut qu'on
-                // corrige ici.
-                options.InstanceName = "hba:";
-            });
-        }
-
-        // Le logger est résolu en OPTIONNEL, et c'est délibéré.
-        //
-        // DistributedCacheService journalise les pannes de cache (Redis injoignable,
-        // invalidation ratée). Mais exiger un ILogger ferait échouer tout conteneur
-        // monté sans AddLogging() — c'est le cas de plusieurs harnais de tests, qui
-        // n'installent qu'un module. Le cache aurait alors cassé des tests qui
-        // n'ont rien à voir avec lui.
-        //
-        // Un service transverse ne doit pas imposer ses dépendances de confort à
-        // ceux qui l'utilisent. Sans logger : NullLogger, et tout fonctionne.
-        services.AddSingleton<ICacheService>(sp => new DistributedCacheService(
-            sp.GetRequiredService<IDistributedCache>(),
-            sp.GetService<ILogger<DistributedCacheService>>() ?? NullLogger<DistributedCacheService>.Instance));
 
         return services;
     }
