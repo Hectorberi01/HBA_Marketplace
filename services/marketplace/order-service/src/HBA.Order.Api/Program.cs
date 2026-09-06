@@ -16,6 +16,7 @@ using HBA.Orders.Infrastructure.Persistence;
 using HBA.Ordering.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
+using HBA.Orders.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<OrderingDbContext>(new OrderingModuleInstaller());

@@ -9,6 +9,7 @@ using HBA.Products.Contracts.Grpc;
 using HBA.Promotions.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
+using HBA.Commerce.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<CartDbContext>(new CartModuleInstaller());

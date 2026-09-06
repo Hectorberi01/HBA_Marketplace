@@ -9,6 +9,7 @@ using HBA.FoodOrders.Infrastructure;
 using HBA.FoodOrders.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 
+using HBA.FoodOrders.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<MealOrderingDbContext>(new MealOrderingModuleInstaller());

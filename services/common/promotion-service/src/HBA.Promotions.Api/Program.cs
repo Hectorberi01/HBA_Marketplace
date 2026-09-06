@@ -10,6 +10,7 @@ using HBA.Promotions.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 using HBA.Shared.IntegrationEvents;
 
+using HBA.Promotions.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<PromotionsDbContext>(new PromotionsModuleInstaller());

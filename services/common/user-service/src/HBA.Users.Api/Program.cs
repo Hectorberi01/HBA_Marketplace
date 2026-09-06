@@ -5,6 +5,7 @@ using HBA.Users.Contracts.Grpc;
 using HBA.Users.Infrastructure;
 using HBA.Users.Infrastructure.Persistence;
 
+using HBA.Users.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<UsersDbContext>(new UsersModuleInstaller());

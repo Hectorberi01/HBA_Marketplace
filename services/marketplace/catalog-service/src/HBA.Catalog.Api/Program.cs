@@ -7,6 +7,7 @@ using HBA.Merchants.Contracts.Grpc;
 using HBA.Products.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
+using HBA.Catalog.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<CatalogDbContext>(new CatalogModuleInstaller());

@@ -1,12 +1,12 @@
 using HBA.Delivery.Pricing.Api.Endpoints;
 using HBA.Delivery.Pricing.Infrastructure.Messaging.Kafka;
-using HBA.Delivery.Pricing.Api.GrpcServices;
 using HBA.Delivery.Pricing.Infrastructure;
 using HBA.Delivery.Pricing.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 using HBA.Shared.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
+using HBA.Delivery.Pricing.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // ═════════════════════════════════════════════════════════════════════════

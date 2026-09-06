@@ -8,6 +8,7 @@ using HBA.FoodCarts.Infrastructure.Persistence;
 using HBA.FoodOrders.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
+using HBA.FoodCarts.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<FoodCartDbContext>(new FoodCartModuleInstaller());

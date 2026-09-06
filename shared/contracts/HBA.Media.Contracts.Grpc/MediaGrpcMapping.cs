@@ -30,7 +30,7 @@ namespace HBA.Media.Contracts.Grpc;
 /// une divergence — un champ oublié d'un côté — produirait une valeur nulle
 /// silencieuse chez l'appelant, sans erreur ni journal.
 /// </remarks>
-internal static class MediaGrpcMapping
+public static class MediaGrpcMapping
 {
     public static ProtoMedia ToProto(this ContractMedia view)
     {

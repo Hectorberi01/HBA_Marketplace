@@ -1,10 +1,10 @@
 using HBA.Drivers.Api.Endpoints;
 using HBA.Drivers.Infrastructure.Messaging.Kafka;
-using HBA.Drivers.Api.Grpc;
 using HBA.Drivers.Infrastructure;
 using HBA.Drivers.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 
+using HBA.Drivers.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // ═════════════════════════════════════════════════════════════════════════

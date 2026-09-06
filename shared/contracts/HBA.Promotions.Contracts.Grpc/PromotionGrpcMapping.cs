@@ -15,7 +15,7 @@ namespace HBA.Promotions.Contracts.Grpc;
 /// l'appelant ne peut plus distinguer d'un vrai zéro. Chaque conversion ci-dessous
 /// dit explicitement ce qu'elle fait du vide.
 /// </summary>
-internal static class PromotionGrpcMapping
+public static class PromotionGrpcMapping
 {
     public static PromotionContext ToProto(this PromotionEvaluationContext context)
         => new()

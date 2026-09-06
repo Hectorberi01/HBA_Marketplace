@@ -9,6 +9,7 @@ using HBA.Merchants.Infrastructure;
 using HBA.Merchants.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 
+using HBA.Merchants.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<SellersDbContext>(new SellersModuleInstaller());

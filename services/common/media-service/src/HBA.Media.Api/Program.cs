@@ -5,6 +5,7 @@ using HBA.Media.Infrastructure;
 using HBA.Media.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 
+using HBA.Media.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<MediaDbContext>(new MediaModuleInstaller());

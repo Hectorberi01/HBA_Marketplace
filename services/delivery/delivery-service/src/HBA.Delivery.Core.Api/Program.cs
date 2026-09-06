@@ -1,10 +1,10 @@
 using HBA.Deliveries.Api.Endpoints;
 using HBA.Deliveries.Infrastructure.Messaging.Kafka;
-using HBA.Deliveries.Api.Grpc;
 using HBA.Deliveries.Infrastructure;
 using HBA.Deliveries.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 
+using HBA.Deliveries.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<DeliveriesDbContext>(new DeliveriesModuleInstaller());

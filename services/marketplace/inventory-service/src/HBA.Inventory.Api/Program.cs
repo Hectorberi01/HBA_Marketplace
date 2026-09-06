@@ -6,6 +6,7 @@ using HBA.Inventory.Infrastructure.Persistence;
 using HBA.Merchants.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
+using HBA.Inventory.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<InventoryDbContext>(new InventoryModuleInstaller());

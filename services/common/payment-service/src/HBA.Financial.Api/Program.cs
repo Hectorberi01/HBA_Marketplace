@@ -2,7 +2,6 @@ using HBA.Financial.Api.Endpoints;
 using HBA.Financial.Wallet.Infrastructure.Messaging.Kafka;
 using HBA.Financial.Payments.Infrastructure.Messaging.Kafka;
 using HBA.Financial.Billing.Infrastructure.Messaging.Kafka;
-using HBA.Financial.Api.GrpcServices;
 using HBA.Financial.Billing.Application.Commissions;
 using HBA.Financial.Billing.Infrastructure.Persistence;
 using HBA.Financial.Billing.Infrastructure;
@@ -18,6 +17,7 @@ using HBA.Merchants.Contracts.Grpc;
 using HBA.Ordering.Contracts.Grpc;
 using HBA.Shared.Hosting;
 
+using HBA.Financial.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<PaymentsDbContext>(new PaymentsModuleInstaller());

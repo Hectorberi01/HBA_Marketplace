@@ -16,6 +16,7 @@ using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Shared.Hosting;
 using HBA.Shared.IntegrationEvents;
 
+using HBA.Food.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<FoodDbContext>(new FoodModuleInstaller());

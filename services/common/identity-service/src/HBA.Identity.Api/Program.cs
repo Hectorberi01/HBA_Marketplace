@@ -6,6 +6,7 @@ using HBA.Identity.Infrastructure;
 using HBA.Identity.Infrastructure.Persistence;
 using HBA.Shared.Hosting;
 
+using HBA.Identity.Api.Grpc.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHbaService<IdentityDbContext>(new IdentityModuleInstaller());
