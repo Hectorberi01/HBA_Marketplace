@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Confluent.Kafka;
+using Confluent.Kafka.Admin;
+using System.Text;
 
 namespace HBA.Order.IntegrationTests;
 
@@ -195,6 +197,76 @@ internal static class BusDeTest
     /// que capture et échec d'une même commande restent ordonnés dans une
     /// partition.
     /// </remarks>
+    /// <summary>
+    /// Cree un sujet, et attend qu'il existe.
+    ///
+    /// LE PRODUCTEUR DE LETTRES MORTES POSE `AllowAutoCreateTopics = false`, comme
+    /// en production ou le courtier refuse la creation implicite. Un test qui
+    /// compterait sur la creation automatique du courtier de test passerait ici et
+    /// mentirait sur la production : c'est precisement le prerequis d'exploitation
+    /// qu'on veut eprouver.
+    /// </summary>
+    public static async Task CreerSujetAsync(string bootstrapServers, string sujet)
+    {
+        using var admin = new AdminClientBuilder(
+            new AdminClientConfig { BootstrapServers = bootstrapServers }).Build();
+
+        try
+        {
+            await admin.CreateTopicsAsync(
+            [
+                new TopicSpecification { Name = sujet, NumPartitions = 1, ReplicationFactor = 1 }
+            ]);
+        }
+        catch (CreateTopicsException ex)
+            when (ex.Results.All(r => r.Error.Code == ErrorCode.TopicAlreadyExists))
+        {
+            // Deja la : c'est le resultat voulu, pas un echec.
+        }
+    }
+
+    /// <summary>
+    /// Lit un sujet en gardant les EN-TETES, que `Drainer` jette.
+    ///
+    /// La file d'attente morte se verifie sur ses en-tetes — sujet, partition et
+    /// offset d'origine, raison — pas sur la charge, qui est recopiee telle quelle.
+    /// </summary>
+    public static IReadOnlyList<(string Valeur, IReadOnlyDictionary<string, string> Entetes)> DrainerBrut(
+        string bootstrapServers, string sujet)
+    {
+        using var consommateur = new ConsumerBuilder<string, string>(new ConsumerConfig
+        {
+            BootstrapServers = bootstrapServers,
+            GroupId = $"test-brut-{Guid.NewGuid()}",
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = false
+        }).Build();
+
+        consommateur.Subscribe(sujet);
+
+        var messages = new List<(string, IReadOnlyDictionary<string, string>)>();
+        var attente = PremiereAttente;
+
+        while (true)
+        {
+            var resultat = consommateur.Consume(attente);
+            if (resultat?.Message is null)
+            {
+                break;
+            }
+
+            var entetes = resultat.Message.Headers.ToDictionary(
+                h => h.Key,
+                h => Encoding.UTF8.GetString(h.GetValueBytes()));
+
+            messages.Add((resultat.Message.Value, entetes));
+            attente = AttenteSuivante;
+        }
+
+        consommateur.Close();
+        return messages;
+    }
+
     public static async Task PublierAsync(
         string bootstrapServers,
         string sujet,
