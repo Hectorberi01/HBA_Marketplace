@@ -638,9 +638,57 @@ public static class CatalogEndpoints
 
         using var flux = new MemoryStream();
         await file.CopyToAsync(flux, ct);
+        var octets = flux.ToArray();
 
+        // ═════════════════════════════════════════════════════════════════════
+        // LE TYPE VIENT DES OCTETS, PAS DE LA DECLARATION DU CLIENT.
+        //
+        // `file.ContentType` provient de l'en-tete multipart. C'est l'appelant qui
+        // l'ecrit, et rien ne l'atteste : `curl --form 'f=@charge.bin;type=image/png'`
+        // suffit a le forger. Il etait pourtant passe tel quel a
+        // `RemoveBackgroundWhiteAsync`, qui le repose en en-tete de la requete vers
+        // rembg — donc le client choisissait le DECODEUR employe sur ses propres
+        // octets, dans le conteneur voisin.
+        //
+        // CE DEFAUT ETAIT DEJA FERME AILLEURS, ET C'EST CE QUI LE REND NOTABLE.
+        // `UploadValidation` / `FileSignature` ont ete ecrits exactement pour ca et
+        // media-service les applique. Cette route-ci ne les appelait pas — et une
+        // recherche des APPELANTS de `UploadValidation` ne pouvait pas la trouver,
+        // puisque son absence d'appel EST le defaut. Ce qu'il fallait chercher,
+        // c'est qui recoit un `IFormFile` : deux services, un seul protege.
+        //
+        // ON N'APPELLE PAS `UploadValidation.CheckImageAsync` POUR AUTANT, ET POUR
+        // DEUX RAISONS ECRITES PLUS HAUT DANS CE MEME FICHIER :
+        //   • elle borne a 5 Mo ; cette route borne a 12 Mo, avec sa raison propre
+        //     (l'inference charge l'image entiere en memoire) ;
+        //   • elle rend `Results.BadRequest(new { error })`, une forme SANS
+        //     enveloppe — celle-la meme que `Results.Problem` avait introduite ici
+        //     et qu'on vient d'en retirer.
+        // On prend donc la primitive, `FileSignature`, et on rend l'enveloppe du
+        // service. La taille est deja verifiee au-dessus : lire l'en-tete d'un
+        // fichier de 2 Go pour decouvrir ensuite qu'il est trop gros offrirait le
+        // deni de service qu'on pretend fermer.
+        // ═════════════════════════════════════════════════════════════════════
+        var typeReel = FileSignature.Detect(
+            octets.AsSpan(0, Math.Min(octets.Length, FileSignature.HeaderBytes)));
+
+        // MESSAGE IDENTIQUE POUR LES DEUX REFUS — signature inconnue ou format non
+        // autorise. Dire « votre PNG est en realite un ZIP » renseignerait un
+        // attaquant sur la finesse de la detection et l'aiderait a la contourner.
+        if (typeReel is null || !UploadValidation.ImageTypes.Contains(typeReel))
+        {
+            return ApiResults.Failure(
+                ErrorCodes.ValidationError,
+                "Type de fichier non autorise. "
+                    + $"Formats acceptes : {string.Join(", ", UploadValidation.ImageTypes)}.",
+                StatusCodes.Status400BadRequest,
+                [new ApiErrorDetail { Field = "file", Message = "Le contenu ne correspond a aucune image reconnue." }]);
+        }
+
+        // LE TYPE REEL, jamais `file.ContentType`. Verifier une identite puis
+        // recopier le faux nom ne verifie rien.
         var resultat = await processor.RemoveBackgroundWhiteAsync(
-            file.FileName, file.ContentType, flux.ToArray(), ct);
+            file.FileName, typeReel, octets, ct);
 
         return resultat.Match(image => Results.File(image.Content, image.ContentType));
     }

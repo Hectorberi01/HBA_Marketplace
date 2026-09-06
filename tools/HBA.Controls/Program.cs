@@ -51,6 +51,7 @@ IControle[] controles =
     new PermissionsControle(),
     new ReferencesControle(),
     new SolutionControle(),
+    new TeleversementsControle(),
     new UsingsControle(),
     new WorkflowsControle(),
 ];
