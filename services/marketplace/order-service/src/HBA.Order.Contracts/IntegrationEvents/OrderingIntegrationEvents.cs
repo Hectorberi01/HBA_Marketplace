@@ -101,12 +101,64 @@ public sealed record OrderConfirmedIntegrationEvent : IntegrationEvent
 }
 
 /// <summary>Commande annulée. Consommé par Notifications / analytics.</summary>
+/// <remarks>
+/// ═════════════════════════════════════════════════════════════════════════════
+/// IL NE DISAIT NI QUI PERD, NI COMBIEN — ET C'EST CE QUE LES DEUX CHAMPS
+///    OPTIONNELS CI-DESSOUS RÉPARENT.
+///
+/// Avec `OrderId`, `BuyerId` et `Reason` seuls, un consommateur peut compter les
+/// annulations de la PLATEFORME et rien d'autre. « Combien ce vendeur a-t-il
+/// perdu ce mois-ci » n'avait aucune source : il aurait fallu relire la commande
+/// chez son propriétaire, une par une, pour un chiffre agrégé.
+///
+/// OPTIONNELS, DONC ADDITIFS (D32). Les cinq consommateurs actuels —
+/// notifications, remboursement, reprise de gains, libération de coupons,
+/// arbitrage de course — ne lisent aucun des deux et ne changent pas d'une
+/// ligne. Un message déjà dans l'outbox au moment du déploiement arrive sans
+/// eux, et `null` y dit la vérité : on ne sait pas.
+///
+/// C'EST BIEN `null` ET NON UNE LISTE VIDE QU'IL FAUT LIRE COMME « JE NE SAIS
+///    PAS ».
+///
+/// Une liste VIDE est une information : la commande n'avait aucun vendeur — un
+/// repas, par construction, comme pour `OrderConfirmed`. Un consommateur qui
+/// confondrait les deux compterait les messages anciens comme des commandes de
+/// restauration.
+/// ═════════════════════════════════════════════════════════════════════════════
+/// </remarks>
 [HbaEvent("order.cancelled")]
 public sealed record OrderCancelledIntegrationEvent : IntegrationEvent
 {
     public required Guid OrderId { get; init; }
     public required Guid BuyerId { get; init; }
     public required string Reason { get; init; }
+
+    /// <summary>
+    /// Les vendeurs concernés et la part perdue par chacun, ou <c>null</c> pour
+    /// un message émis avant l'ajout du champ.
+    /// </summary>
+    /// <remarks>
+    /// VIDE — et non nulle — POUR UNE COMMANDE DE REPAS, comme dans
+    /// `OrderConfirmed` : `BuildSellerShares` écarte les lignes de restauration.
+    ///
+    /// LE MONTANT EST CELUI DE LA COMMANDE, PAS CELUI QUI SERA REMBOURSÉ. Les
+    /// deux coïncident aujourd'hui parce qu'une annulation est totale ; un
+    /// remboursement partiel, s'il arrive, sera un AUTRE fait avec son propre
+    /// événement. Lire celui-ci comme un montant remboursé serait faux le jour
+    /// où les deux divergeront.
+    /// </remarks>
+    public IReadOnlyCollection<OrderSellerShare>? SellerShares { get; init; }
+
+    /// <summary>
+    /// La devise des montants ci-dessus. <c>null</c> avant l'ajout du champ.
+    /// </summary>
+    /// <remarks>
+    /// SANS ELLE, `SellerShares` NE SERAIT PAS AGRÉGEABLE. Additionner des
+    /// montants dont on ignore la devise produit un nombre qui n'est pas une
+    /// somme d'argent — c'est pourquoi les deux champs arrivent ensemble et non
+    /// l'un sans l'autre.
+    /// </remarks>
+    public string? Currency { get; init; }
 }
 
 /// <summary>Commande livrée. Consommé par Payments (libération escrow) et Settlement (payout).</summary>
