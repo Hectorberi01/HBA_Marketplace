@@ -51,3 +51,11 @@ CREATE DATABASE hba_media;
 -- Il ne le montrait pas en pratique, parce que Database.Migrate() cree
 -- la base absente en dev — ce qui masquait l'oubli au lieu de le dire.
 CREATE DATABASE hba_promotion;
+
+-- LA BASE DU SERVICE D'ANALYTIQUE.
+--
+-- Ecrite ICI EN MEME TEMPS que le bloc compose qui l'injecte, et c'est la lecon
+-- de la ligne au-dessus : `hba_promotion` avait manque pendant des semaines sans
+-- que rien ne le dise, parce que `Database.Migrate()` cree la base absente en
+-- developpement. L'oubli se voyait seulement en production, ou il ne la cree pas.
+CREATE DATABASE hba_analytics;

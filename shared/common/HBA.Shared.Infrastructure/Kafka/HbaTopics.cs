@@ -65,6 +65,22 @@ public static class HbaTopics
     public static readonly IReadOnlyDictionary<string, string> DomaineParService =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
+            // analytics-service NE PUBLIE RIEN, ET IL EST INSCRIT QUAND MEME.
+            //
+            // Il consomme trois sujets et n'en alimente aucun. Son entree ici ne
+            // sert donc pas a router ses messages — elle sert a ce que
+            // `KafkaIntegrationEventPublisher` n'avertisse pas a chaque
+            // demarrage qu'un producteur inconnu publie, et a ce que le controle
+            // `kafka-topics` ne le prenne pas pour un producteur hors catalogue.
+            //
+            // CE QUE ÇA CREE : un sujet `<prefixe>.analytics.<version>` de plus
+            // dans `Tous()`, auquel personne n'ecrit. Il est provisionne par
+            // `scripts/kafka-topics.sh` comme les autres — un sujet declare et
+            // non provisionne se cree tout seul au premier message, avec les
+            // reglages PAR DEFAUT du courtier, ce qui est precisement ce que ce
+            // script existe pour eviter.
+            ["analytics-service"] = "analytics",
+
             ["seller-service"] = "merchant",
             ["cart-service"] = "commerce",
             ["payment-service"] = "financial",

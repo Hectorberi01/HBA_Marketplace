@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Analytics.Domain\HBA.Analytics.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Application\HBA.Shared.Application.csproj" />
+  </ItemGroup>
+
+  <!--
+    NI `HBA.Order.Contracts`, NI `HBA.Merchants.Contracts`, NI
+    `HBA.Identity.Contracts` — ET C'EST UNE FRONTIERE, PAS UN OUBLI.
+
+    Ce service consomme trois evenements de trois domaines. Les traduire ICI
+    ferait entrer trois contrats etrangers dans la couche qui porte les requetes
+    de lecture, et chaque nouveau graphe en ajouterait un quatrieme.
+
+    La traduction se fait dans `Infrastructure/Messaging/Kafka/Consumers/`, ou
+    les contrats sont deja necessaires. Ce que cette couche recoit, ce sont des
+    PRIMITIFS : un jour, une devise, une nature, un montant. Voir
+    `ProjecteurDeRollUps`.
+  -->
+
+</Project>

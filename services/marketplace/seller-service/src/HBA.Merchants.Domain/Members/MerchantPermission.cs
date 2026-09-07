@@ -141,7 +141,29 @@ public enum MerchantPermission
     SellerReactivate = 88,
     OwnershipTransfer = 89,
     SecurityPolicyUpdate = 90,
-    AuditView = 91
+    AuditView = 91,
+
+    // ── Analytique ──────────────────────────────────────────────────────────
+    //
+    // AJOUTEE AVEC LE SERVICE QUI LA GARDE, DANS LE MEME COMMIT.
+    //
+    // Le controle `permissions` refuse une permission au catalogue qu'aucune
+    // route n'exige : la declarer « pour plus tard » aurait donc casse la
+    // barriere, ou oblige a l'inscrire dans `SansGardeAssumee` — c'est-a-dire a
+    // ecrire noir sur blanc qu'elle ne sert a rien. Elle garde
+    // `GET /api/sellers/{sellerId}/analytics/sales`, et rien d'autre pour
+    // l'instant.
+    //
+    // ELLE N'EST PAS `FINANCE_VIEW`, ET LA DISTINCTION COMPTE. `FINANCE_VIEW`
+    // ouvre le portefeuille et les versements — de l'argent qu'on peut sortir.
+    // Celle-ci n'ouvre que des CHIFFRES DE VENTE agreges : un commercial qui
+    // suit ses courbes n'a pas a voir le solde ni le compte de versement.
+    //
+    // IL N'Y A PAS DE `PLATFORM_ANALYTICS_VIEW` EN FACE. Ce catalogue decrit ce
+    // qu'un membre d'une EQUIPE VENDEUR peut faire chez SON vendeur ; les
+    // chiffres de la plateforme entiere sont gouvernes par le ROLE Admin, comme
+    // les vingt et une autres surfaces `/api/admin/*` du depot.
+    SellerAnalyticsView = 92
 }
 
 /// <summary>
@@ -293,7 +315,11 @@ public static class MerchantPermissions
         // Déclarée, sans objet tant que `seller_security_policies` n'existe pas.
         new(MerchantPermission.SecurityPolicyUpdate, "SECURITY_POLICY_UPDATE", PermissionRisk.Critical, true),
 
-        new(MerchantPermission.AuditView, "AUDIT_VIEW", PermissionRisk.Sensitive, false)
+        new(MerchantPermission.AuditView, "AUDIT_VIEW", PermissionRisk.Sensitive, false),
+
+        // NORMAL, PAS SENSIBLE : des chiffres de vente agreges, pas un
+        // mouvement d'argent. Voir la ligne de l'enumeration.
+        new(MerchantPermission.SellerAnalyticsView, "SELLER_ANALYTICS_VIEW", PermissionRisk.Normal, false)
     ];
 
     private static readonly Dictionary<MerchantPermission, Entree> ParPermission;

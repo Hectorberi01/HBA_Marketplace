@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Analytics.Application\HBA.Analytics.Application.csproj" />
+    <ProjectReference Include="..\HBA.Analytics.Infrastructure\HBA.Analytics.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+
+    <!--
+      AJOUTÉ POUR LA GARDE D'APPARTENANCE DES ROUTES VENDEUR.
+
+      `/api/sellers/{sellerId}/analytics/sales` désigne le vendeur par l'URL ; le
+      jeton porte un identifiant d'UTILISATEUR. `IMerchantAccessApi` relie les
+      deux, y compris pour les MEMBRES d'équipe, qui n'ont pas de dossier vendeur
+      à leur nom.
+
+      À l'Api et pas plus bas : c'est le bord HTTP qui autorise. `MerchantCapabilities`
+      vient du même assemblage — un code de permission écrit en chaîne littérale
+      serait refusé par le contrôle `permissions`, et à raison : une faute de
+      frappe produirait un refus silencieux, puisque la permission demandée
+      n'existerait dans aucun rôle.
+    -->
+    <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+  </ItemGroup>
+
+  <!--
+    NI `<Protobuf>`, NI SERVEUR gRPC — CE SERVICE N'EXPOSE AUCUNE API INTERNE.
+
+    `AddHbaGrpc()` est appelé quand même dans `Program.cs` : c'est lui qui règle
+    Kestrel sur `Hosting:HttpPort`, et c'est lui qui enregistre
+    `InternalCallClientInterceptor`, dont le client marchand SORTANT a besoin. Le
+    port gRPC s'ouvre donc sans qu'aucun service n'y réponde — un appel y
+    recevrait `UNIMPLEMENTED`, ce qui est la réponse juste.
+
+    Le jour où un service voudra lire ces roll-ups en gRPC plutôt qu'en HTTP, ce
+    sera un `.proto` de plus et un `MapInternalGrpcService` — pas une réécriture.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+  </ItemGroup>
+
+</Project>

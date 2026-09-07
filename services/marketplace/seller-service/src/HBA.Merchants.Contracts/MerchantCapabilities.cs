@@ -141,6 +141,19 @@ public static class MerchantCapabilities
 
     public const string AuditView = "AUDIT_VIEW";
 
+    // ── Analytique ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Lire les chiffres de vente agreges du vendeur —
+    /// <c>GET /api/sellers/{sellerId}/analytics/sales</c>.
+    /// <para>
+    /// SEPAREE DE <see cref="FinanceView"/> : celle-la ouvre le portefeuille et
+    /// les versements, c'est-a-dire de l'argent qu'on peut sortir. Celle-ci
+    /// n'ouvre que des courbes.
+    /// </para>
+    /// </summary>
+    public const string SellerAnalyticsView = "SELLER_ANALYTICS_VIEW";
+
     /// <summary>
     /// Tous les codes déclarés ici, par réflexion sur les constantes.
     /// </summary>

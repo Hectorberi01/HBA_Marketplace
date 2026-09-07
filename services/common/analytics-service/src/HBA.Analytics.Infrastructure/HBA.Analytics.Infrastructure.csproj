@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HBA.Analytics.Domain\HBA.Analytics.Domain.csproj" />
+    <ProjectReference Include="..\HBA.Analytics.Application\HBA.Analytics.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+  </ItemGroup>
+
+  <!--
+    LES TROIS CONTRATS QUE CE SERVICE CONSOMME, ET RIEN D'AUTRE.
+
+    Un fait metier, un contrat, un proprietaire : chaque evenement vient du
+    service qui le publie. Les redeclarer ici en produirait un second exemplaire
+    sous un autre espace de noms — l'enveloppe Kafka ne portant que le nom court,
+    le consommateur en resoudrait un des deux au hasard de l'ordre de chargement,
+    et le gestionnaire enregistre sur l'autre ne serait jamais appele, sans la
+    moindre erreur.
+
+    CE SERVICE N'A PAS DE PROJET `Contracts` A LUI, ET C'EST DELIBERE : il ne
+    publie aucun evenement et n'expose aucun serveur gRPC. Un assemblage de
+    contrats vide serait une promesse d'API interne que personne ne tient.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\marketplace\order-service\src\HBA.Order.Contracts\HBA.Order.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+
+    <!-- Requis par `Messaging/Kafka/Configuration/GardeDeCablage.cs` et par la
+         purge de l'inbox (IHostedService, BackgroundService). Le paquet arrivait
+         de facon transitive ; une dependance transitive disparait sans prevenir
+         quand le projet amont change. Declaree, donc. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+
+  <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
+       voir l'encadre des fichiers de Grpc/. -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\..\..\shared\proto\merchant\v1\merchant.proto" GrpcServices="Client" Access="Internal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+
+  <!-- L'OBSERVABILITE DE CE SERVICE (Observability/). La sonde interroge
+       vraiment le courtier ; ce paquet venait transitivement du socle. -->
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" />
+  </ItemGroup>
+
+
+  <!-- LES SONDES DE SANTE VIENNENT DU FRAMEWORK, PAS D'UN PAQUET.
+       `IHealthCheck`, `HealthCheckResult` et `AddHealthChecks()` sont fournis
+       par Microsoft.AspNetCore.App. Les demander en PackageReference sous
+       gestion centralisee des versions donne NU1008 : le SDK en pose deja une
+       reference implicite, avec sa version. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

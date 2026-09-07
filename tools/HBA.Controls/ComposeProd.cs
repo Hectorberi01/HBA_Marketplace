@@ -85,6 +85,7 @@ public static class ComposeProd
         ["food-cart-service"] = "hba_food",
         ["food-order-service"] = "hba_food",
         ["restaurant-service"] = "hba_food",
+        ["analytics-service"] = "hba_analytics",
     };
 
     private static readonly HashSet<string> Secrets =

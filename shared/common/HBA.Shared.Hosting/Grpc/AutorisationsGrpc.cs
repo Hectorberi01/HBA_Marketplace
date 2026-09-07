@@ -97,6 +97,20 @@ public static class AutorisationsGrpc
     private static readonly FrozenDictionary<string, FrozenSet<string>> _table =
         new Dictionary<string, FrozenSet<string>>(StringComparer.Ordinal)
         {
+            ["HBA.Analytics.Api"] =
+            new[]
+            {
+                "/hba.merchant.v1.MerchantApi/CheckMerchantCapability",
+                "/hba.merchant.v1.MerchantApi/GetMemberAccess",
+                "/hba.merchant.v1.MerchantApi/GetSeller",
+                "/hba.merchant.v1.MerchantApi/GetSellerByUser",
+                "/hba.merchant.v1.MerchantApi/GetSellerPayout",
+                "/hba.merchant.v1.MerchantApi/GetStore",
+                "/hba.merchant.v1.MerchantApi/ListSellerStores",
+                "/hba.merchant.v1.MerchantApi/ValidateSeller",
+            }
+            .ToFrozenSet(StringComparer.Ordinal),
+
             ["HBA.Catalog.Api"] =
             new[]
             {

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace HBA.Gateway.Infrastructure.Configuration;
 
 /// <summary>
-/// Adresses internes des dix-neuf microservices joignables depuis la passerelle.
+/// Adresses internes des vingt microservices joignables depuis la passerelle.
 /// </summary>
 /// <remarks>
 /// ═════════════════════════════════════════════════════════════════════════════
@@ -94,6 +94,22 @@ public sealed class ServicesOptions
     // changé de nature sans changer de symptôme — ce n'est plus un manque de
     // fonctionnalité, c'est un manque de routage.
     // ═════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
+    // LE SERVICE D'ANALYTIQUE, AJOUTÉ AVEC SES CINQ ENDROITS D'UN COUP.
+    //
+    // Cette classe raconte deux fois ce qui arrive quand on n'en fait que
+    // quelques-uns : « Promotion » avait son adresse et pas sa propriété, les
+    // trois du lot 7.5 avaient leur variable Docker et rien pour la lier. Dans
+    // les deux cas la configuration avait l'air complète, et le cluster se
+    // chargeait SANS destination — 503 sur tout un pan de la plateforme.
+    //
+    // Les cinq sont donc faits ensemble : `appsettings.json` (adresse), cette
+    // propriété, la branche de `Resolve`, `ServiceKeys` + `All`, et le cluster
+    // avec ses deux routes. `RoutingTests` vérifie que chaque cluster reçoit une
+    // destination — c'est le seul filet, et il ne rattrape que ce cas-là.
+    // ═════════════════════════════════════════════════════════════════════════
+    [Required, Url] public string Analytics { get; init; } = string.Empty;
+
     [Required, Url] public string ReturnRefund { get; init; } = string.Empty;
     [Required, Url] public string Drivers { get; init; } = string.Empty;
     [Required, Url] public string DeliveryPricing { get; init; } = string.Empty;
@@ -119,6 +135,7 @@ public sealed class ServicesOptions
         ServiceKeys.Promotion => Promotion,
         ServiceKeys.FoodCart => FoodCart,
         ServiceKeys.FoodOrder => FoodOrder,
+        ServiceKeys.Analytics => Analytics,
         ServiceKeys.ReturnRefund => ReturnRefund,
         ServiceKeys.Drivers => Drivers,
         ServiceKeys.DeliveryPricing => DeliveryPricing,
@@ -149,6 +166,7 @@ public static class ServiceKeys
     public const string Promotion = "Promotion";
     public const string FoodCart = "FoodCart";
     public const string FoodOrder = "FoodOrder";
+    public const string Analytics = "Analytics";
     public const string ReturnRefund = "ReturnRefund";
     public const string Drivers = "Drivers";
     public const string DeliveryPricing = "DeliveryPricing";
@@ -165,6 +183,6 @@ public static class ServiceKeys
     [
         Identity, User, Merchant, Catalog, Inventory, Commerce, Order,
         Food, Delivery, Financial, Engagement, Communication, Media, Promotion,
-        FoodCart, FoodOrder, ReturnRefund, Drivers, DeliveryPricing
+        FoodCart, FoodOrder, ReturnRefund, Drivers, DeliveryPricing, Analytics
     ];
 }
