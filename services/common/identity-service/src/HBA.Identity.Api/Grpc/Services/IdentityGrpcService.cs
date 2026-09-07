@@ -1,15 +1,6 @@
-using ContractUser = HBA.Identity.Contracts.UserSummary;
-using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using HBA.Identity.Api.Grpc.Mappers;
 using HBA.Identity.Grpc.V1;
-using HBA.Shared.Hosting.Grpc;
-using HBA.Shared.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-
-using ProtoUser = HBA.Identity.Grpc.V1.UserSummary;
-
 
 using HBA.Identity.Contracts;
 // ═════════════════════════════════════════════════════════════════════════════

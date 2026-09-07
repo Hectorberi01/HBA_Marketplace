@@ -55,9 +55,9 @@ namespace HBA.Commerce.Api.Grpc.Services;
 /// </remarks>
 internal sealed class CommerceGrpcService : CommerceApi.CommerceApiBase
 {
-    private readonly ContratsCommerce.ICartModuleApi _carts;
+    private readonly ICartModuleApi _carts;
 
-    public CommerceGrpcService(ContratsCommerce.ICartModuleApi carts) => _carts = carts;
+    public CommerceGrpcService(ICartModuleApi carts) => _carts = carts;
 
     public override async Task<GetCartResponse> GetActiveCart(
         GetActiveCartRequest request, ServerCallContext context)
