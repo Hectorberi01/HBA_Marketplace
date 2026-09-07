@@ -98,6 +98,40 @@ public sealed class PermissionsControle : IControle
     private static readonly Regex Assumee = new(
         @"MerchantPermission\.(\w+)", RegexOptions.Compiled);
 
+    /// <summary>
+    /// LA DÉCLARATION de <c>SansGardeAssumee</c>, et non sa première MENTION.
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// CE MOTIF EXISTE PARCE QUE LE CONTRÔLE A ACCUSÉ CINQUANTE-TROIS
+    ///    PERMISSIONS D'UN COUP.
+    ///
+    /// La lecture partait d'`IndexOf("SansGardeAssumee")` — la première fois que
+    /// ces seize lettres apparaissent dans le fichier. Un COMMENTAIRE qui nommait
+    /// la liste, deux cent cinquante lignes plus haut, a suffi : l'ancre s'est
+    /// posée dans l'énumération, l'accolade suivante était celle du catalogue, et
+    /// le bloc lu a couvert QUINZE MILLE caractères — donc les cinquante-huit
+    /// entrées `new(MerchantPermission.X, …)`. Toutes les permissions sont
+    /// devenues « assumées », donc toutes les permissions GARDÉES sont devenues
+    /// des fautes.
+    ///
+    /// Un témoin qui accuse tout le monde n'accuse personne : c'est le chiffre
+    /// démesuré qui l'a trahi, pas une relecture.
+    ///
+    /// LA FAMILLE DE CE DÉFAUT EST CELLE QUE CE DÉPÔT FERME PARTOUT AILLEURS :
+    /// chercher un NOM au lieu d'une DÉCLARATION. Un nom apparaît dans les
+    /// commentaires, dans la documentation, dans le message d'erreur qui parle de
+    /// la chose. Une déclaration n'apparaît qu'une fois.
+    ///
+    /// SI LA FORME DE LA DÉCLARATION CHANGE, ce motif ne trouve plus rien et le
+    /// contrôle le DIT — voir l'appelant. Il ne rend pas un ensemble vide en
+    /// silence, ce qui transformerait cinq constats en cinq fautes au motif faux.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    private static readonly Regex DeclarationAssumees = new(
+        @"SansGardeAssumee\s*\{\s*get;\s*\}\s*=\s*new\s+HashSet<MerchantPermission>",
+        RegexOptions.Compiled);
+
     /// <inheritdoc/>
     public Verdict Executer()
     {
@@ -138,7 +172,23 @@ public sealed class PermissionsControle : IControle
                 nonCouvert);
         }
 
+        // `null` VEUT DIRE « JE N'AI PAS TROUVÉ LA DÉCLARATION », ET C'EST
+        // DIFFÉRENT DE « LA LISTE EST VIDE ». Confondre les deux ferait rendre
+        // cinq fautes au motif « n'est pas inscrite dans SansGardeAssumee »
+        // alors que le vrai défaut serait la lecture de ce contrôle.
         var assumees = Assumees(source);
+
+        if (assumees is null)
+        {
+            return new Verdict(
+                [$"la déclaration de `MerchantPermissions.SansGardeAssumee` est "
+                 + $"introuvable dans {Depot.Relatif(chemin)} : sa forme a changé et le "
+                 + "motif de lecture ne la suit plus. Ce contrôle ne peut PAS trancher "
+                 + "sans elle — rendre un verdict ici accuserait les permissions "
+                 + "légitimement assumées, ou en absoudrait d'autres."],
+                [],
+                nonCouvert);
+        }
 
         // Le chemin inverse : du code au nom, pour rendre compte d'un littéral.
         var parCode = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -264,33 +314,39 @@ public sealed class PermissionsControle : IControle
     /// Les permissions inscrites entre les accolades de <c>SansGardeAssumee</c>.
     /// </summary>
     /// <remarks>
-    /// LA LECTURE EST TEXTUELLE ET S'ARRÊTE AU PREMIER <c>};</c>. Un ensemble
-    /// écrit autrement — sur une seule ligne, ou refermé par une accolade suivie
-    /// d'autre chose — ne serait pas lu, et TOUTES les permissions non gardées
-    /// deviendraient des fautes d'un coup. C'est un défaut bruyant, pas
-    /// silencieux : on le préfère à une analyse qui devine.
+    /// L'ANCRE EST LA DÉCLARATION, PAS UNE MENTION — voir l'encadré de
+    /// <see cref="DeclarationAssumees"/>, qui raconte ce que coûtait l'inverse.
+    ///
+    /// LA LECTURE RESTE TEXTUELLE ET S'ARRÊTE AU PREMIER <c>};</c>. Un ensemble
+    /// refermé autrement serait tronqué, et les permissions tombées hors du bloc
+    /// deviendraient des fautes. C'est un défaut BRUYANT, pas silencieux : on le
+    /// préfère à une analyse qui devine.
     /// </remarks>
-    private static HashSet<string> Assumees(string source)
+    /// <returns>
+    /// Les permissions inscrites, ou <c>null</c> si la DÉCLARATION est
+    /// introuvable — deux situations que l'appelant ne doit pas confondre.
+    /// </returns>
+    private static HashSet<string>? Assumees(string source)
     {
-        var assumees = new HashSet<string>(StringComparer.Ordinal);
-
-        var debut = source.IndexOf("SansGardeAssumee", StringComparison.Ordinal);
-        if (debut < 0)
+        var declaration = DeclarationAssumees.Match(source);
+        if (!declaration.Success)
         {
-            return assumees;
+            return null;
         }
 
-        var ouverture = source.IndexOf('{', debut);
+        var ouverture = source.IndexOf('{', declaration.Index + declaration.Length);
         if (ouverture < 0)
         {
-            return assumees;
+            return null;
         }
 
         var fermeture = source.IndexOf("};", ouverture, StringComparison.Ordinal);
         if (fermeture < ouverture)
         {
-            return assumees;
+            return null;
         }
+
+        var assumees = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (Match m in Assumee.Matches(source[ouverture..fermeture]))
         {
@@ -312,5 +368,9 @@ public sealed class PermissionsControle : IControle
             + "voir n'est pas une garde",
             "le SYMBOLE est cherché sur le source AVEC ses commentaires : une "
             + "constante seulement citée dans un encadré compte comme exigée",
+            "la forme de `SansGardeAssumee` : l'ancre est sa DÉCLARATION, mais le "
+            + "bloc est ensuite lu jusqu'au premier `};`. Un ensemble refermé "
+            + "autrement serait tronqué — les permissions perdues deviendraient des "
+            + "fautes, bruyamment",
         ];
 }
