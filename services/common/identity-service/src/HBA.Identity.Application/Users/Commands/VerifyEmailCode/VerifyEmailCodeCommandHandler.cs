@@ -7,7 +7,7 @@ namespace HBA.Identity.Application.Users.Commands.VerifyEmailCode;
 
 /// <summary>
 /// Hashe le code fourni et le compare au code en attente (comparaison à temps
-/// constant, côté domaine). Succès = e-mail marqué vérifié et code purgé.
+/// constant, côté domaine).
 /// </summary>
 internal sealed class VerifyEmailCodeCommandHandler : ICommandHandler<VerifyEmailCodeCommand>
 {
@@ -41,9 +41,7 @@ internal sealed class VerifyEmailCodeCommandHandler : ICommandHandler<VerifyEmai
         }
 
         // La confirmation de l'e-mail ACTIVE le compte en libre-service : c'est
-        // l'instant où l'on sait que l'adresse est réelle. Tant qu'il n'a pas
-        // confirmé, le compte reste PendingVerification et ne peut pas se connecter.
-        // Idempotent : Approve() n'est appelé que sur un compte encore en attente.
+        // l'instant où l'on sait que l'adresse est réelle.
         if (user.Status == UserStatus.PendingVerification)
         {
             user.Approve();

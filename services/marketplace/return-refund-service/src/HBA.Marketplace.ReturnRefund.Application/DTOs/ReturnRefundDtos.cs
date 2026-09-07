@@ -68,19 +68,7 @@ public sealed record DecideRefundDto(decimal Amount, string Currency);
 
 public sealed record OrderReturnSummaryDto(Guid OrderId, decimal ReturnedAmount, string Currency, int ActiveReturnCount);
 
-// ═════════════════════════════════════════════════════════════════════════════
 // CES DEUX ENREGISTREMENTS N'ONT PLUS D'APPELANT, ET C'EST DÉLIBÉRÉ.
-//
-// Les routes `/api/v1/admin/return-policies` qui les employaient ont été
-// retirées le 23/08 : elles répondaient 200 et 201 sans rien persister — voir
-// l'encadré de `Program.cs`. La politique de retour reste, elle, une constante
-// rendue par `ReturnPolicyRepository`.
-//
-// On les conserve parce que la forme est juste et qu'elle a été relue : le lot
-// qui rendra la politique configurable remontera des routes, et repartir de ces
-// deux formes coûte moins que de les réinventer. Si ce lot n'arrive pas, ces
-// vingt lignes sont le prix d'une option — pas d'un mensonge.
-// ═════════════════════════════════════════════════════════════════════════════
 public sealed record ReturnPolicyDto(
     string PolicyId,
     string Version,

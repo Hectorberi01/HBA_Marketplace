@@ -46,18 +46,7 @@ public sealed class Coordinates : ValueObject
                 Error.Validation("delivery.coordinates.longitude_out_of_range", "La longitude doit être comprise entre -180 et 180."));
         }
 
-        // ─────────────────────────────────────────────────────────────────────
         // LE POINT (0, 0) EST REFUSÉ.
-        //
-        // Il est valide au sens des bornes, et il se trouve dans le golfe de
-        // Guinée, à environ 600 km au sud du Bénin. C'est aussi la valeur que
-        // produit tout code qui oublie de renseigner un point : un `default`,
-        // un parsing raté, un champ vide converti en zéro.
-        //
-        // À cette latitude, l'erreur est indétectable à l'œil sur une carte
-        // dézoomée — le point tombe simplement « un peu au sud ». On préfère un
-        // refus explicite à un livreur envoyé vers l'océan.
-        // ─────────────────────────────────────────────────────────────────────
         if (latitude == 0 && longitude == 0)
         {
             return Result.Failure<Coordinates>(
@@ -67,16 +56,7 @@ public sealed class Coordinates : ValueObject
         return new Coordinates(latitude, longitude);
     }
 
-    /// <summary>
-    /// Distance à vol d'oiseau, en kilomètres (formule de haversine).
-    ///
-    /// C'est une distance À VOL D'OISEAU, pas une distance routière. Elle sert
-    /// à classer des livreurs par proximité et à borner un rayon de recherche —
-    /// deux usages où l'ordre compte plus que l'exactitude. Elle ne doit PAS
-    /// servir à facturer une course : à Cotonou, la lagune et les sens uniques
-    /// font que deux points distants d'un kilomètre peuvent en demander quatre.
-    /// La tarification a besoin d'un vrai calcul d'itinéraire.
-    /// </summary>
+    /// <summary>Distance à vol d'oiseau, en kilomètres (formule de haversine).</summary>
     public double DistanceKmTo(Coordinates other)
     {
         const double earthRadiusKm = 6371.0;

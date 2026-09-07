@@ -3,34 +3,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Users.Domain.Profiles;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE PROFIL D'UNE PERSONNE.
-///
-/// Le cahier d'architecture sépare deux questions : Identity répond à « qui peut
-/// se connecter ? », User à « qui est la personne ? ». Le prénom et le nom
-/// appartiennent à la seconde — ils ne participent à aucune décision d'accès.
-///
-/// L'IDENTIFIANT DU PROFIL EST LE UserId D'IDENTITY. PAS UN NOUVEAU GUID.
-///
-/// C'est la décision structurante de cet agrégat, et elle mérite d'être défendue.
-///
-/// Un identifiant propre obligerait à porter en plus un <c>UserId</c>, donc à
-/// maintenir un index unique dessus, et surtout à répondre à « que faire s'il y
-/// en a deux ? ». La réponse serait « c'est impossible » — autant le rendre
-/// impossible PAR CONSTRUCTION : la clé primaire est le compte.
-///
-/// Cela rend aussi la lecture triviale depuis n'importe quel appelant qui tient
-/// déjà un <c>UserId</c> — c'est-à-dire tous — sans jointure ni recherche.
-///
-/// CE MODULE NE VÉRIFIE PAS QUE LE COMPTE EXISTE.
-///
-/// Il ne connaît rien d'Identity, Contracts compris : c'est ce que vérifie
-/// UsersBoundaryTests. Un profil rattaché à un compte inconnu est une donnée
-/// orpheline sans danger ; le couplage qu'une vérification introduirait, lui,
-/// coûterait la séparation qu'on vient de faire.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE PROFIL D'UNE PERSONNE.</summary>
 public sealed class UserProfile : AggregateRoot<Guid>
 {
     public const int MaxName = 100;
@@ -56,8 +29,8 @@ public sealed class UserProfile : AggregateRoot<Guid>
 
     /// <summary>
     /// Avatar. Facultatif — et il le restera : exiger une photo à l'inscription
-    /// ferait abandonner un acheteur sur un formulaire qu'il remplit debout dans
-    /// un marché.
+    /// ferait abandonner un acheteur sur un formulaire qu'il remplit debout dans un
+    /// marché.
     /// </summary>
     public string? AvatarUrl { get; private set; }
 
@@ -65,13 +38,7 @@ public sealed class UserProfile : AggregateRoot<Guid>
 
     public DateTime? UpdatedOnUtc { get; private set; }
 
-    /// <summary>
-    /// Ce qu'on affiche et ce qu'on met dans un e-mail.
-    ///
-    /// Calculé, jamais stocké : un champ « nom complet » persisté diverge du jour
-    /// où quelqu'un corrige son nom de famille sans que la concaténation soit
-    /// refaite — et c'est le nom affiché au client qui devient faux.
-    /// </summary>
+    /// <summary>Ce qu'on affiche et ce qu'on met dans un e-mail.</summary>
     public string DisplayName => $"{FirstName} {LastName}".Trim();
 
     public static Result<UserProfile> Create(Guid userId, string? firstName, string? lastName)
@@ -101,9 +68,7 @@ public sealed class UserProfile : AggregateRoot<Guid>
             return names;
         }
 
-        // Les deux champs sont affectés ENSEMBLE, après validation complète. Une
-        // affectation au fil de l'eau laisserait un profil au prénom neuf et au
-        // nom ancien si la seconde validation échouait.
+        // Les deux champs sont affectés ENSEMBLE, après validation complète.
         (FirstName, LastName) = names.Value;
         UpdatedOnUtc = DateTime.UtcNow;
 
@@ -111,7 +76,7 @@ public sealed class UserProfile : AggregateRoot<Guid>
     }
 
     /// <summary>
-    /// Change l'avatar. <c>null</c> le retire — c'est un droit, pas un oubli :
+    /// Change l'avatar. <c> null</c> le retire — c'est un droit, pas un oubli :
     /// quelqu'un qui veut effacer sa photo doit pouvoir le faire.
     /// </summary>
     public Result SetAvatar(string? avatarUrl)
@@ -133,10 +98,6 @@ public sealed class UserProfile : AggregateRoot<Guid>
     /// <summary>
     /// Prénom et nom sont tous deux OBLIGATOIRES, et tronqués plutôt que refusés
     /// s'ils dépassent.
-    ///
-    /// Ils le sont déjà côté Identity : les rendre facultatifs ici produirait des
-    /// profils vides pour des comptes qui, eux, portent un nom — et l'écart ne se
-    /// verrait qu'au premier e-mail adressé à « Bonjour , ».
     /// </summary>
     private static Result<(string FirstName, string LastName)> ValidateNames(string? firstName, string? lastName)
     {
@@ -172,11 +133,6 @@ public interface IUserProfileRepository
 
     Task AddAsync(UserProfile profile, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Retire un profil. Appelé à la suppression du compte, et seulement là.
-    ///
-    /// C'est une vraie suppression, pas une anonymisation : rien ne référence un
-    /// profil, contrairement au compte que les commandes désignent.
-    /// </summary>
+    /// <summary>Retire un profil. Appelé à la suppression du compte, et seulement là.</summary>
     void Remove(UserProfile profile);
 }

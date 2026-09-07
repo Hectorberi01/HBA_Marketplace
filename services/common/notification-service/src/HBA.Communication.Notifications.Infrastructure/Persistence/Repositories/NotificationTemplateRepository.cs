@@ -31,10 +31,6 @@ internal sealed class NotificationTemplateRepository : INotificationTemplateRepo
         }
 
         // REPLI SUR LA LOCALE, JAMAIS SUR LE CANAL.
-        //
-        // Un texte dans la mauvaise langue reste lisible et se corrige. Un corps
-        // d'e-mail envoyé par SMS coûte dix messages et arrive tronqué au milieu
-        // d'une phrase.
         return await actifs
             .Where(t => t.Locale == LocaleParDefaut)
             .OrderByDescending(t => t.Version)

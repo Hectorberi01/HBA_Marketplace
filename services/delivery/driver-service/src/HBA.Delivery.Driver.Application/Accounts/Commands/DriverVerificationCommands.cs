@@ -6,26 +6,12 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Drivers.Application.Accounts.Commands;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // LES TROIS DÉCISIONS DE L'EXPLOITATION.
-//
-// ELLES PRENNENT UN `DriverId`, PAS UN `UserId`, ET CE N'EST PAS UNE ENTORSE
-// À LA RÈGLE DU JETON.
-//
-// L'appelant n'est PAS le titulaire du dossier : c'est un administrateur qui
-// arbitre celui de quelqu'un d'autre. Il n'y a donc rien à déduire de son jeton,
-// et l'identifiant doit venir de l'URL. La protection ici est le RÔLE — ces
-// commandes ne sont exposées que sous `MapAdminGroup` — pas l'appartenance.
-//
-// C'est la même distinction que `FinancialEndpoints` fait entre `/wallets/me` et
-// les routes d'administration : le `/me` interdit l'identifiant, l'administration
-// l'exige.
-// ═════════════════════════════════════════════════════════════════════════════
 
 /// <summary>L'exploitation valide un dossier : le livreur peut travailler.</summary>
 public sealed record VerifyDriverCommand(Guid DriverId) : ICommand;
 
-/// <summary>L'exploitation refuse un dossier. Le livreur peut redéposer ses pièces.</summary>
+/// <summary>L'exploitation refuse un dossier.</summary>
 public sealed record RejectDriverCommand(Guid DriverId, string? Reason) : ICommand;
 
 /// <summary>L'exploitation écarte un livreur déjà vérifié.</summary>

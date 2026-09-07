@@ -8,38 +8,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 
-// ═════════════════════════════════════════════════════════════════════════════
-// COPIE DEPUIS `HBA.Promotions.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
-//
-// `shared/` ne contient plus que les `.proto`. Ce service compile lui-meme le
-// contrat dont il a besoin, et porte donc sa propre traduction.
-//
-// LES TYPES GENERES SONT `internal` A CET ASSEMBLAGE. Deux services qui
-// compilent le meme proto obtiennent deux types CLR distincts ; les rendre
-// publics ferait, dans un hote compose, deux types publics du meme nom complet —
-// CS0433, a l'usage, loin de la cause. Les adaptateurs et mappings sont donc
-// `internal` eux aussi : un type public dont la signature expose un type interne
-// ne compile pas.
-//
-// CE QUE ÇA COUTE : cette traduction existe en 3 exemplaires dans le depot,
-// un par service qui appelle ce domaine. Elles sont identiques aujourd'hui et
-// rien n'empeche qu'elles divergent. C'est le prix de l'autonomie par service,
-// paye ici en connaissance de cause.
-// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Promotions.Contracts.Grpc` (lot D — dissolution des assemblages
+// de contrats).
 
 namespace HBA.Commerce.Infrastructure.Grpc.Mappers;
 
 /// <summary>
-/// Traduction entre les enregistrements de <c>HBA.Promotions.Contracts</c> et les
+/// Traduction entre les enregistrements de <c> HBA.Promotions.Contracts</c> et les
 /// messages protobuf.
-///
-/// PROTOBUF N'A PAS DE `null`, ET C'EST TOUTE LA DIFFICULTÉ DE CE FICHIER.
-///
-/// Une `string` absente vaut la chaîne vide, un `int64` absent vaut zéro. Traduire
-/// naïvement rendrait `PromotionId = Guid.Empty` là où le contrat dit « aucune
-/// campagne », et `Discount = 0` là où il dit « aucune remise » — deux valeurs que
-/// l'appelant ne peut plus distinguer d'un vrai zéro. Chaque conversion ci-dessous
-/// dit explicitement ce qu'elle fait du vide.
 /// </summary>
 internal static class PromotionGrpcMapping
 {
@@ -69,35 +45,19 @@ internal static class PromotionGrpcMapping
             Valid = result.Valid,
 
             // CHAÎNE VIDE ET NON `Guid.Empty.ToString()`.
-            //
-            // « 00000000-0000-… » est un GUID parfaitement valide : l'appelant le
-            // parserait sans erreur et croirait tenir une campagne. Le vide, lui,
-            // échoue au parsing, ce qui est exactement le signal recherché.
             PromotionId = result.PromotionId?.ToString() ?? string.Empty,
             Discount = result.Discount,
             Currency = result.Currency ?? string.Empty,
             Message = result.Message ?? string.Empty,
             Reason = result.Reason ?? string.Empty,
 
-            // LA DÉCOMPOSITION PAR FINANCEUR (D28). Même règle de vide que
-            // `PromotionId` : chaîne vide et non `Guid.Empty.ToString()`, parce
-            // que « 00000000-… » est un GUID valide que l'appelant parserait sans
-            // erreur en croyant tenir un vendeur.
+            // LA DÉCOMPOSITION PAR FINANCEUR (D28).
             SellerFundedDiscount = result.SellerFundedDiscount,
             PlatformFundedDiscount = result.PlatformFundedDiscount,
             OwnerSellerId = result.OwnerSellerId?.ToString() ?? string.Empty
         };
 
-    /// <summary>
-    /// UN SERVEUR D'AVANT D28 REND `discount` SANS SES DEUX PARTS.
-    ///
-    /// Protobuf ne distingue pas « champ absent » de « zéro ». Un total non nul
-    /// avec deux parts à zéro décrit donc une remise que personne ne paie, ce qui
-    /// n'existe pas : c'est un serveur antérieur. On la rattache alors à la
-    /// PLATEFORME — le même défaut que la migration pose aux campagnes existantes,
-    /// et pour la même raison : imputer au vendeur prélèverait sur des marchands
-    /// que rien ne désigne, par le calcul des gains, sans laisser de trace.
-    /// </summary>
+    /// <summary>UN SERVEUR D'AVANT D28 REND `discount` SANS SES DEUX PARTS.</summary>
     public static PromotionEvaluationResult ToContract(this EvaluatePromotionResponse proto)
     {
         var vendeur = proto.SellerFundedDiscount;
@@ -133,12 +93,6 @@ internal static class PromotionGrpcMapping
                 Currency = reservation.Currency,
 
                 // `ToUniversalTime()` EST OBLIGATOIRE, PAS DÉFENSIF.
-                //
-                // `Timestamp.FromDateTime` LÈVE si le `DateTime` n'est pas en
-                // `Kind.Utc`. Une date relue d'EF revient en `Kind.Unspecified` :
-                // sans cette conversion, la première réservation renvoyée par gRPC
-                // ferait tomber l'appel avec une exception d'argument, et le
-                // checkout échouerait sur une retenue pourtant accordée.
                 ExpiresAt = Timestamp.FromDateTime(
                     DateTime.SpecifyKind(reservation.ExpiresAtUtc, DateTimeKind.Utc))
             };

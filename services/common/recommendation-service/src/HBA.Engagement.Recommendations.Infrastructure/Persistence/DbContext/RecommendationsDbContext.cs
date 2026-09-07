@@ -11,13 +11,7 @@ namespace HBA.Engagement.Recommendations.Infrastructure.Persistence;
 /// <summary>DbContext du module Recommendations (schéma « recommendations »).</summary>
 public sealed class RecommendationsDbContext : ModuleDbContext, IOutboxDbContext, IRecommendationsUnitOfWork
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // L'OUTBOX ET L'INBOX DE CE SERVICE — LEURS TABLES LUI APPARTIENNENT.
-    //
-    // Le socle draine la file d'evenements et exclut ces deux tables du journal
-    // d'audit ; il ne connait plus ni l'une ni l'autre. Ces trois membres sont ce
-    // qu'il appelle, et ils repondent avec les entites de `Persistence/`.
-    // ═════════════════════════════════════════════════════════════════════════
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)

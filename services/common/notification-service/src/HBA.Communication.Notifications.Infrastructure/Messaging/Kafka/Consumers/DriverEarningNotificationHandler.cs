@@ -3,58 +3,13 @@ using HBA.Deliveries.Contracts;
 using HBA.Financial.Wallet.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Communication.Notifications.Application.Notifications;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// Le gain d'une course vient d'être crédité → le livreur l'apprend.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// MÊME SILENCE QUE LES REVERSEMENTS VENDEUR, UN ÉTAGE PLUS BAS.
-///
-/// Le livreur n'était pas payé du tout — le fil entre la fin de course et le
-/// portefeuille n'existait pas. Une fois ce fil posé, il l'aurait été SANS UN
-/// MOT : rien dans sa boîte de réception, rien par courriel. Il aurait dû ouvrir
-/// l'écran « Revenus » et comparer deux chiffres de mémoire pour deviner qu'une
-/// course lui avait été réglée.
-///
-/// C'est exactement ce que `PayoutPaidNotificationHandler` a corrigé pour le
-/// vendeur, et pour la même raison : le message qu'un travailleur attend le plus
-/// est celui qui lui dit qu'il a été payé.
-///
-/// ON ÉCOUTE LE CRÉDIT, PAS LA FIN DE COURSE.
-///
-/// `DeliveryCompletedIntegrationEvent` porte déjà le montant, et il serait plus
-/// court de partir de lui. Mais ce montant n'est qu'un calcul : une course sans
-/// prix ou un portefeuille en devise incompatible n'aboutit à aucune écriture, et
-/// le livreur aurait reçu l'annonce d'un gain absent de son solde. Un message qui
-/// ment envoie l'intéressé au support avec raison.
-///
-/// PAS D'E-MAIL.
-///
-/// Le livreur enchaîne les courses ; une adresse encombrée d'un courriel par
-/// remise deviendrait un dossier de spam, et le jour où un vrai message
-/// arriverait, personne ne le lirait. Le récapitulatif de revenus est un autre
-/// besoin, et il se traite par période, pas par course.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Le gain d'une course vient d'être crédité → le livreur l'apprend.</summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.DriverEarningCreditedNotificationHandler")]
 public sealed class DriverEarningCreditedNotificationHandler
     : IIntegrationEventHandler<DriverEarningCreditedIntegrationEvent>
@@ -84,12 +39,6 @@ public sealed class DriverEarningCreditedNotificationHandler
         if (livreur is null)
         {
             // ON N'ÉCHOUE PAS : L'ARGENT EST DÉJÀ AU PORTEFEUILLE.
-            //
-            // Le crédit est écrit et commité ; rejouer ce message ne le referait
-            // pas — le contrôle d'idempotence le rejetterait — et ne ferait
-            // qu'empiler des tentatives. Un livreur crédité mais introuvable au
-            // référentiel signale en revanche une incohérence qui se corrige à la
-            // main : elle doit sortir dans les alertes.
             _logger.LogError(
                 "Gain crédité sur la course {DeliveryId} : livreur {DriverId} introuvable — "
                 + "il ne sera PAS prévenu de son paiement.",

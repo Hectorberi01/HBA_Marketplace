@@ -48,24 +48,18 @@ public sealed class SellersModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheMerchants(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteMerchants(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
         // `AjouterMessagerieMerchants()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<SellersDbContext>(options =>
@@ -74,13 +68,8 @@ public sealed class SellersModuleInstaller : IModuleInstaller
 
         services.AddScoped<ISellerUnitOfWork>(sp => sp.GetRequiredService<SellersDbContext>());
 
-        // CONSTRUIT ICI, PAS RÉSOLU PLUS TARD : la validation du barème vit
-        // dans le constructeur, et doit faire échouer le DÉMARRAGE.
-        //
-        // Sellers n'applique aucune commission — il l'AFFICHE. C'est justement
-        // pourquoi il doit lire la même source que ceux qui l'appliquent : servir
-        // au vendeur un taux différent de celui qu'on lui prélève est le défaut
-        // qu'on corrige ici.
+        // CONSTRUIT ICI, PAS RÉSOLU PLUS TARD : la validation du barème vit dans le
+        // constructeur, et doit faire échouer le DÉMARRAGE.
         services.AddSingleton<IPlatformPricing>(new PlatformPricing(configuration));
 
         services.AddScoped<ISellerRepository, SellerRepository>();
@@ -88,15 +77,8 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         services.AddScoped<ISellerModuleApi, SellerModuleApi>();
 
         // L'IMPLÉMENTATION LOCALE, POUR LE SERVICE QUI LA SERT.
-        //
-        // Les quatre autres services obtiennent `IMerchantAccessApi` par le client
-        // gRPC ; ici c'est la lecture directe, avec son cache. Sans cet
-        // enregistrement, `MerchantsGrpcService` ne se construit pas — et le
-        // service refuse de démarrer, ce qui est la bonne façon de découvrir un
-        // oubli de composition.
         services.AddScoped<IMerchantAccessApi, MerchantAccessApi>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // L'ÉQUIPE D'UN VENDEUR.
         //
         // `MemberAccessResolver` EST LA GARDE DE TOUTES CES ROUTES.
@@ -106,39 +88,18 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         // plutôt que le recopier dans chaque handler est ce qui garantit qu'il n'y
         // en a qu'un — et donc qu'aucune route ne peut en avoir une variante plus
         // permissive.
-        // ═════════════════════════════════════════════════════════════════════
         services.AddScoped<ISellerMemberRepository, SellerMemberRepository>();
         services.AddScoped<ISellerRoleRepository, SellerRoleRepository>();
         services.AddScoped<ISellerInvitationRepository, SellerInvitationRepository>();
         services.AddScoped<MemberAccessResolver>();
 
         // LECTURE SEULE, ET AUCUN DÉPÔT EN FACE.
-        //
-        // Le journal n'est jamais écrit depuis le métier : `ModuleDbContext` s'en
-        // charge à partir du `ChangeTracker`. Enregistrer un « dépôt » symétrique
-        // avec un `AddAsync` inviterait quelqu'un à l'appeler à la main, et cette
-        // ligne-là échapperait à la transaction qui fait toute la valeur du journal.
         services.AddScoped<IAuditTrailReader, AuditTrailReader>();
 
         // Aléa et SHA-256 : sans état, donc singleton.
         services.AddSingleton<IInvitationTokens, InvitationTokens>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // LES SEPT TRADUCTEURS « ÉVÉNEMENT DE DOMAINE → ÉVÉNEMENT D'INTÉGRATION ».
-        //
-        // UN OUBLI ICI NE CASSE RIEN ET NE DIT RIEN.
-        //
-        // Le répartiteur résout paresseusement : un événement de domaine sans
-        // gestionnaire enregistré est ignoré en silence. Le membre serait
-        // correctement écrit en base, la commande rendrait un succès, et
-        // l'événement d'intégration ne partirait jamais — donc le rôle `Seller` ne
-        // serait jamais greffé (lot B′), et le cache d'autorisation ne serait
-        // jamais invalidé. Tout aurait l'air de fonctionner.
-        //
-        // IL N'Y EN A PAS HUIT. L'INVITATION EST PUBLIÉE PAR SON HANDLER DE
-        // COMMANDE, parce que son événement porte le jeton et que l'agrégat ne
-        // connaît que l'empreinte.
-        // ═════════════════════════════════════════════════════════════════════
         services.AddScoped<IDomainEventHandler<SellerMemberJoinedDomainEvent>,
             SellerMemberJoinedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<SellerMemberRolesChangedDomainEvent>,
@@ -154,28 +115,11 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<SellerMemberRevokedDomainEvent>,
             SellerMemberRevokedDomainEventHandler>();
 
-        // LE TRANSFERT DE PROPRIÉTÉ (lot 7.2, ISSUE-040). Sans cet
-        // enregistrement, l'événement serait levé par l'agrégat et ne sortirait
-        // nulle part : ni le cédant ni le bénéficiaire n'apprendraient le geste le
-        // plus irréversible du module.
+        // LE TRANSFERT DE PROPRIÉTÉ (lot 7.2, ISSUE-040).
         services.AddScoped<IDomainEventHandler<SellerOwnershipTransferredDomainEvent>,
             SellerOwnershipTransferredDomainEventHandler>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // PLUS AUCUN STOCKAGE ICI. LES PIÈCES KYB VIVENT DANS HBA MEDIA.
-        //
-        // Ce module portait sa PROPRE implémentation S3 — signature AWS V4
-        // comprise — pendant que le catalogue en portait une seconde, dans un
-        // module qui l'ignorait. Deux copies d'un algorithme cryptographique :
-        // une correction de l'une n'aurait jamais atteint l'autre, et la
-        // divergence ne se serait vue que le jour où une signature aurait été
-        // refusée en production.
-        //
-        // `CloudflareR2KybStorage`, `SimulatedKybStorage` et `IKybDocumentStorage`
-        // sont supprimés. Le service média les remplace, avec en prime une
-        // politique de rétention que ce module n'avait pas : une pièce d'identité
-        // supprimée y survit un an, comme l'exige la conservation légale.
-        // ═════════════════════════════════════════════════════════════════════
 
         services.AddScoped<IDomainEventHandler<SellerRegisteredDomainEvent>, SellerRegisteredDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<SellerActivatedDomainEvent>, SellerActivatedDomainEventHandler>();
@@ -183,25 +127,12 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<SellerReactivatedDomainEvent>, SellerReactivatedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<SellerDeletedDomainEvent>, SellerDeletedDomainEventHandler>();
 
-        // SANS CET ENREGISTREMENT, LE FICHIER D'UNE PIÈCE KYB RETIRÉE RESTE DANS
-        // LE BUCKET PRIVÉ. Rien ne casse, rien n'alerte : la donnée personnelle
-        // reste, simplement.
+        // SANS CET ENREGISTREMENT, LE FICHIER D'UNE PIÈCE KYB RETIRÉE RESTE DANS LE
+        // BUCKET PRIVÉ.
         services.AddScoped<IDomainEventHandler<KybDocumentRemovedDomainEvent>, KybDocumentRemovedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<SellerKybRejectedDomainEvent>, SellerKybRejectedDomainEventHandler>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // LES DEUX MOITIÉS MANQUANTES DU PARCOURS KYB (§10.3).
-        //
-        // Seul le REFUS était publié. Le vendeur n'était donc prévenu que lorsqu'on
-        // lui refusait son dossier — jamais de sa réception, jamais de sa
-        // validation. Et l'exploitation n'avait aucun signal pour alimenter sa file
-        // de validation : elle la découvrait en la rafraîchissant.
-        //
-        // `SellerKybVerifiedDomainEvent` était levé depuis l'origine SANS AUCUN
-        // GESTIONNAIRE. Un événement de domaine sans destinataire ne lève pas, ne
-        // journalise pas, et disparaît à la fin de l'unité de travail : rien ne
-        // pouvait le signaler.
-        // ═════════════════════════════════════════════════════════════════════
         services.AddScoped<IDomainEventHandler<SellerKybSubmittedDomainEvent>, SellerKybSubmittedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<SellerKybVerifiedDomainEvent>, SellerKybVerifiedDomainEventHandler>();
 
@@ -216,25 +147,7 @@ public sealed class SellersModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<SellerSuspendedDomainEvent>, SellerSuspendedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<SellerSuspensionLiftedDomainEvent>, SellerSuspensionLiftedDomainEventHandler>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // INBOX DE CONSOMMATION (§19.5) ET IDEMPOTENCE DES ÉCRITURES (§25).
-        //
-        // LES DEUX TABLES EXISTENT SANS CES DEUX LIGNES, ET NE SERVENT À RIEN.
-        //
-        // `IConsumerInbox` non enregistré, un gestionnaire qui l'injecte ne se
-        // construit pas — le message part en erreur à la consommation, pas au
-        // démarrage. Et `IIdempotencyStore` non enregistré, le filtre LAISSE
-        // PASSER : il journalise en Erreur puis exécute la requête SANS protection
-        // contre le rejeu. C'est le pire des cas — la route a l'air protégée.
-        // ═════════════════════════════════════════════════════════════════════
-        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
-        //
-        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
-        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
-        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
-        // désormais indissociables — voir `IdempotencyRegistration` pour la
-        // raison, qui tient en une phrase : un huitième service qui ne copierait
-        // que la première ligne n'aurait jamais de purge, sans rien signaler.
         services.AjouterIdempotenceMerchants();
 
         // Les gestionnaires d'evenements sont enregistres par le module de

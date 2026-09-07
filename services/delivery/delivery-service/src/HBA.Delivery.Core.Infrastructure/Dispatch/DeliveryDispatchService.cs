@@ -8,54 +8,10 @@ using Microsoft.Extensions.Logging;
 
 namespace HBA.Deliveries.Infrastructure.Dispatch;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA BOUCLE QUI FAIT VIVRE LE DISPATCH.
-///
-/// Sans elle, une course est créée, passe en « recherche de livreur »… et y reste.
-/// L'agrégat sait tout faire, mais il n'a pas d'horloge : personne ne vient lui
-/// dire « propose », ni « ce livreur n'a pas répondu ».
-///
-/// DEUX TÂCHES, UN SEUL TOUR
-///
-///   1. EXPIRER les propositions sans réponse. Elle vient EN PREMIER, et ce n'est
-///      pas un détail d'ordonnancement : une course bloquée sur un livreur muet
-///      n'est pas « en recherche », donc l'étape 2 ne la verrait pas. Expirer
-///      d'abord, c'est remettre ces courses dans le circuit du même tour.
-///
-///   2. PROPOSER les courses en attente, de la plus ancienne à la plus récente.
-///
-/// UNE SEULE INSTANCE À LA FOIS — MÊME CONTRAINTE QUE L'OUTBOX.
-///
-/// Deux processus qui tournent en parallèle liraient les mêmes courses et les
-/// proposeraient à deux livreurs différents. Les deux accepteraient ; un seul
-/// obtiendrait la course, l'autre se serait dérouté pour rien. Sur une flotte
-/// d'indépendants, c'est le genre d'incident qui se raconte et qui coûte des
-/// livreurs.
-///
-/// D'où le drapeau <c>DISPATCH_ENABLED</c>, aligné par défaut sur
-/// <c>OUTBOX_ENABLED</c> : les hôtes qui ne drainent pas l'outbox — les quatre
-/// BFF — ne dispatchent pas non plus. Aucune configuration de déploiement à
-/// modifier.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA BOUCLE QUI FAIT VIVRE LE DISPATCH.</summary>
 internal sealed class DeliveryDispatchService : BackgroundService
 {
-    /// <summary>
-    /// Délai laissé au livreur pour répondre.
-    ///
-    /// LA VALEUR VIT DÉSORMAIS DANS LE DOMAINE, PAS ICI.
-    ///
-    /// Elle y a été déplacée parce qu'un second lecteur est apparu : l'écran du
-    /// livreur, qui affiche le compte à rebours de la proposition. Une constante
-    /// d'infrastructure n'est pas lisible depuis la couche Application — la
-    /// dépendance irait à l'envers — et la recopier aurait créé deux valeurs que
-    /// rien n'obligeait à rester égales. Le jour où l'une passe à 60 secondes,
-    /// l'autre affiche 45 et le livreur voit expirer une course qu'il croyait
-    /// avoir le temps d'accepter.
-    ///
-    /// L'alias est conservé pour ne pas réécrire les trois usages de ce fichier.
-    /// </summary>
+    /// <summary>Délai laissé au livreur pour répondre.</summary>
     public static TimeSpan OfferTimeout => Domain.Deliveries.Delivery.OfferTimeout;
 
     /// <summary>
@@ -86,19 +42,7 @@ internal sealed class DeliveryDispatchService : BackgroundService
         {
             try
             {
-                // ─────────────────────────────────────────────────────────────
                 // UN SEUL PROCESSUS TRAITE UN TOUR.
-                //
-                // Sans ce verrou, deux répliques de l'API liraient les MÊMES
-                // courses en attente et les proposeraient chacune à un livreur :
-                // deux téléphones sonnent, un seul livreur arrive. Rien dans
-                // l'agrégat ne l'attrape — Delivery n'a pas de jeton de
-                // concurrence.
-                //
-                // Le tour est SAUTÉ si le verrou est pris. Ce n'est pas une perte :
-                // l'autre processus fait le travail, et le tour suivant arrive
-                // dans cinq secondes.
-                // ─────────────────────────────────────────────────────────────
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<Persistence.DeliveriesDbContext>();
@@ -145,28 +89,13 @@ internal sealed class DeliveryDispatchService : BackgroundService
         await ExpireStaleOffersAsync(stoppingToken);
 
         // AVANT la proposition : une course programmée dont l'heure est venue doit
-        // entrer en recherche dans le MÊME tour, pas au suivant. Cinq secondes de
-        // latence importent peu ; l'ordre, si : l'inverse ajouterait un tour
-        // complet à chaque course programmée.
+        // entrer en recherche dans le MÊME tour, pas au suivant.
         await OpenScheduledWindowsAsync(stoppingToken);
 
         await OfferPendingDeliveriesAsync(stoppingToken);
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// OUVRE LA RECHERCHE DES COURSES PROGRAMMÉES DONT L'HEURE APPROCHE.
-    ///
-    /// Sans cette passe, une course programmée resterait « Pending » pour
-    /// toujours : la création ne la met plus en recherche — c'est tout l'intérêt
-    /// d'un créneau — et rien d'autre ne viendrait constater que l'heure est
-    /// venue. Le client aurait choisi un créneau pour ne jamais être livré.
-    ///
-    /// La fenêtre s'ouvre AVANT l'heure promise, du délai d'anticipation : il
-    /// faut encore trouver quelqu'un et rouler. Voir
-    /// Delivery.ScheduledDispatchLeadTime.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>OUVRE LA RECHERCHE DES COURSES PROGRAMMÉES DONT L'HEURE APPROCHE.</summary>
     private async Task OpenScheduledWindowsAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -186,8 +115,8 @@ internal sealed class DeliveryDispatchService : BackgroundService
         foreach (var delivery in due)
         {
             // On repasse l'instant à l'agrégat plutôt que de lui laisser lire
-            // l'horloge : c'est le même « maintenant » que celui qui a servi à
-            // la requête, donc pas de course entre les deux.
+            // l'horloge : c'est le même « maintenant » que celui qui a servi à la
+            // requête, donc pas de course entre les deux.
             var result = delivery.StartSearching(now);
 
             if (result.IsSuccess)
@@ -197,8 +126,7 @@ internal sealed class DeliveryDispatchService : BackgroundService
             else
             {
                 // Ne devrait pas arriver — la requête filtre déjà sur l'état et
-                // l'échéance. Si cela se produit, c'est que la requête et
-                // l'agrégat ne sont plus d'accord, et il faut le savoir.
+                // l'échéance.
                 _logger.LogWarning(
                     "Course programmée {DeliveryId} non ouverte : {Code}.",
                     delivery.Id.Value, result.Error.Code);
@@ -257,15 +185,7 @@ internal sealed class DeliveryDispatchService : BackgroundService
 
         foreach (var delivery in awaiting)
         {
-            // ─────────────────────────────────────────────────────────────────
             // UNE COURSE « SANS LIVREUR DISPONIBLE » EST RÉESSAYÉE, PAS OUBLIÉE.
-            //
-            // `ListAwaitingDriverAsync` inclut cet état à dessein. Mais l'agrégat
-            // exige d'être en « recherche » pour accepter une proposition : on
-            // rouvre donc la recherche avant de proposer. C'est ce qui permet à
-            // une course créée dans une commune sans livreur de partir quand un
-            // livreur s'y connecte, dix minutes plus tard.
-            // ─────────────────────────────────────────────────────────────────
             if (delivery.Status is DeliveryStatus.NoDriverAvailable)
             {
                 var reopened = delivery.StartSearching();
@@ -291,9 +211,7 @@ internal sealed class DeliveryDispatchService : BackgroundService
 
             if (result.Value.DriverId is null)
             {
-                // Aucun livreur trouvé à ce tour. Ce n'est pas une erreur : la
-                // course sera reproposée au tour suivant, avec un rayon élargi
-                // au-delà de deux tentatives.
+                // Aucun livreur trouvé à ce tour.
                 _logger.LogDebug(
                     "Aucun livreur pour la course {DeliveryId} (rayon {Radius} km).",
                     delivery.Id.Value, result.Value.RadiusKm);

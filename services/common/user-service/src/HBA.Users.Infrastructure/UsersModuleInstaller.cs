@@ -21,20 +21,7 @@ using HBA.Users.Infrastructure.Observability;
 using HBA.Users.Infrastructure.Idempotency;
 namespace HBA.Users.Infrastructure;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ENREGISTREMENT DU MODULE USER.
-///
-/// Le module ne porte pour l'instant qu'un domaine : le CARNET D'ADRESSES, repris
-/// d'Identity. Le profil, l'avatar et les préférences prévus au cahier
-/// d'architecture viendront s'ajouter ici, sans nouvel installer.
-///
-/// AUCUNE DÉPENDANCE VERS IDENTITY. Le module reçoit un <c>UserId</c> et le
-/// traite comme une référence opaque : il ne le résout pas, ne le valide pas
-/// contre la table des comptes, et n'a pas de quoi le faire. C'est cette absence
-/// de lien qui permet d'extraire le module plus tard sans migration de données.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ENREGISTREMENT DU MODULE USER.</summary>
 public sealed class UsersModuleInstaller : IModuleInstaller
 {
     public string ModuleName => "Users";
@@ -43,13 +30,10 @@ public sealed class UsersModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheUsers(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteUsers(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
@@ -67,45 +51,10 @@ public sealed class UsersModuleInstaller : IModuleInstaller
         services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
         services.AddScoped<IUsersModuleApi, UsersModuleApi>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // L'OUTBOX ET L'INBOX SONT DESCENDUES DANS `Messaging/Kafka/`.
-        //
-        // Ce bloc portait `AddScoped<IConsumerInbox, ...>` et
-        // `AddOutboxProcessor<UsersDbContext>`. Les deux sont maintenant dans
-        // `Messaging/Kafka/Inbox/` et `Messaging/Kafka/Outbox/`, appelés par
-        // `AjouterMessagerieUsers()` : le module de messagerie porte TOUT le
-        // câblage de la messagerie, y compris son chemin de sortie.
-        //
-        // CE QUI N'A PAS BOUGÉ, ET NE DOIT PAS. `OutboxMessage` et
-        // `ConsumerInboxEntry` restent des entités du socle partagé, mappées par
-        // `UsersDbContext` et créées par les migrations de ce service. Le module
-        // possède la POLITIQUE, pas le TYPE.
-        //
-        // CE QUE CE DÉPLACEMENT A COÛTÉ, ET COMMENT C'EST PAYÉ. Ces
-        // enregistrements ne sont plus faits par l'installeur, que le composition
-        // root appelle toujours, mais par un module qu'il peut oublier. Un oubli
-        // ne casserait RIEN de visible : le service démarre, sert ses routes, et
-        // n'émet plus rien. `GardeDeCablage`, enregistrée trois lignes plus bas,
-        // refuse le démarrage dans ce cas — elle est enregistrée ICI précisément
-        // parce qu'elle doit exister quand le module, lui, est absent.
-        // ═════════════════════════════════════════════════════════════════════
         services.AddHostedService<GardeDeCablage>();
 
         // L'IDEMPOTENCE RESTE ICI, ELLE, ET CE N'EST PAS UNE INCOHÉRENCE.
-        //
-        // Elle protège aussi les routes HTTP annotées `AllowIdempotency()`, qui
-        // n'ont aucun rapport avec Kafka. La ranger dans le module de messagerie
-        // ferait dépendre l'idempotence des commandes HTTP d'un module qu'un
-        // service sans Kafka n'appellerait pas.
-        //
-        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
-        //
-        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
-        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
-        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
-        // désormais indissociables — voir `IdempotencyRegistration` pour la
-        // raison, qui tient en une phrase : un huitième service qui ne copierait
-        // que la première ligne n'aurait jamais de purge, sans rien signaler.
         services.AjouterIdempotenceUsers();
 
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);

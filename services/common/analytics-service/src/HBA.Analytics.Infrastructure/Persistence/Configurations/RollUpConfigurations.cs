@@ -4,26 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace HBA.Analytics.Infrastructure.Persistence.Configurations;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES TROIS TABLES DE ROLL-UP. LEUR CLÉ EST LEUR DÉFINITION.
-///
-/// Chacune n'a que sa clé primaire pour index, et c'est suffisant : les trois
-/// lectures du service filtrent sur un PRÉFIXE de cette clé — (vendeur, jour)
-/// pour l'une, (jour) pour les deux autres. Ajouter un index secondaire coûterait
-/// une écriture de plus par événement consommé pour une lecture que l'index
-/// primaire sert déjà.
-///
-/// AUCUNE CLÉ ÉTRANGÈRE VERS UN AUTRE SCHÉMA, et il n'y en aura jamais :
-/// `SellerId` désigne un vendeur de seller-service, dans une AUTRE base. C'est
-/// la règle du §9, et c'est aussi ce qui rend ces tables reconstructibles —
-/// elles ne contraignent rien, elles ne font que compter.
-///
-/// LES MONTANTS SONT EN `numeric(18,2)`, PAS EN VIRGULE FLOTTANTE. Une somme
-/// d'argent accumulée en `double` dérive, et la dérive d'un roll-up journalier
-/// est cumulative : elle ne se corrige qu'en recalculant tout.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES TROIS TABLES DE ROLL-UP. LEUR CLÉ EST LEUR DÉFINITION.</summary>
 public sealed class VenteJournaliereVendeurConfiguration : IEntityTypeConfiguration<VenteJournaliereVendeur>
 {
     public void Configure(EntityTypeBuilder<VenteJournaliereVendeur> builder)
@@ -86,16 +67,7 @@ public sealed class AnnulationJournaliereVendeurConfiguration
     }
 }
 
-/// <summary>
-/// Voir l'encadré de <see cref="VenteJournaliereVendeurConfiguration"/>.
-/// </summary>
-/// <remarks>
-/// L'ORDRE DE LA CLÉ EST CELUI DE LA LECTURE : (jour, prestataire, devise,
-/// issue). La seule requête du service filtre sur une PLAGE DE JOURS et rien
-/// d'autre, donc sur le préfixe de la clé. Mettre le prestataire en tête —
-/// tentant, puisque c'est lui qu'on regarde — obligerait à balayer la table
-/// entière pour une période.
-/// </remarks>
+/// <summary>Voir l'encadré de <see cref="VenteJournaliereVendeurConfiguration"/>.</summary>
 public sealed class PaiementJournalierConfiguration : IEntityTypeConfiguration<PaiementJournalier>
 {
     public void Configure(EntityTypeBuilder<PaiementJournalier> builder)

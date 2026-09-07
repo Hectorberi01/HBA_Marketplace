@@ -26,8 +26,7 @@ internal sealed class SuspendSellerCommandHandler : ICommandHandler<SuspendSelle
         }
 
         // Le résultat est désormais examiné : Suspend() peut refuser (compte
-        // fermé). L'ignorer aurait rendu la garde de statut décorative — elle
-        // aurait protégé l'agrégat, et l'appelant aurait reçu un succès.
+        // fermé).
         var result = seller.Suspend(command.Reason);
         if (result.IsFailure)
         {
@@ -41,9 +40,9 @@ internal sealed class SuspendSellerCommandHandler : ICommandHandler<SuspendSelle
 }
 
 /// <summary>
-/// Lève une suspension. Le catalogue retiré POUR CE MOTIF revient en vente —
-/// voir SellerCatalogSuspension côté Products : ce qu'un modérateur avait
-/// suspendu pour une autre raison reste retiré.
+/// Lève une suspension. Le catalogue retiré POUR CE MOTIF revient en vente — voir
+/// SellerCatalogSuspension côté Products : ce qu'un modérateur avait suspendu pour
+/// une autre raison reste retiré.
 /// </summary>
 internal sealed class LiftSellerSuspensionCommandHandler : ICommandHandler<LiftSellerSuspensionCommand>
 {

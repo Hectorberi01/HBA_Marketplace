@@ -7,27 +7,11 @@ using HBA.Shared.IntegrationEvents;
 
 using HBA.Food.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Food.Infrastructure.Messaging.Kafka.Processors;
-// ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
-//
-// L'outbox et l'inbox appartiennent au service : leurs tables sont creees par SES
-// migrations. `shared` n'en garde que les ports — `IConsumerInbox`, la file en
-// memoire, et deux marqueurs vides sans lesquels le journal d'audit se
-// journaliserait lui-meme.
-//
-// CE QUE CETTE COPIE COUTE, ET IL FAUT LE SAVOIR : c'est le chemin qui garantit
-// qu'aucun evenement n'est perdu. Il existe maintenant en un exemplaire par
-// service. Un defaut corrige ici ne l'est nulle part ailleurs.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Food.Infrastructure.Persistence.Outbox;
 
-/// <summary>
-/// Publisher d'events d'intégration via l'Outbox. « Publier » = écrire une ligne
-/// dans la table outbox du module, dans la même unité de travail que le
-/// changement d'état. Aucun appel direct à un autre module : la livraison réelle
-/// est faite plus tard par <see cref="OutboxProcessor"/>.
-/// </summary>
+/// <summary>Publisher d'events d'intégration via l'Outbox.</summary>
 public sealed class OutboxIntegrationEventPublisher : IIntegrationEventPublisher
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);

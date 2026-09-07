@@ -15,24 +15,8 @@ using SharedOrder = HBA.Ordering.Contracts.OrderSummary;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-// ═════════════════════════════════════════════════════════════════════════════
-// COPIE DEPUIS `HBA.Ordering.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
-//
-// `shared/` ne contient plus que les `.proto`. Ce service compile lui-meme le
-// contrat dont il a besoin, et porte donc sa propre traduction.
-//
-// LES TYPES GENERES SONT `internal` A CET ASSEMBLAGE. Deux services qui
-// compilent le meme proto obtiennent deux types CLR distincts ; les rendre
-// publics ferait, dans un hote compose, deux types publics du meme nom complet —
-// CS0433, a l'usage, loin de la cause. Les adaptateurs et mappings sont donc
-// `internal` eux aussi : un type public dont la signature expose un type interne
-// ne compile pas.
-//
-// CE QUE ÇA COUTE : cette traduction existe en 8 exemplaires dans le depot,
-// un par service qui appelle ce domaine. Elles sont identiques aujourd'hui et
-// rien n'empeche qu'elles divergent. C'est le prix de l'autonomie par service,
-// paye ici en connaissance de cause.
-// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Ordering.Contracts.Grpc` (lot D — dissolution des assemblages
+// de contrats).
 
 namespace HBA.Food.Infrastructure.Grpc.Clients;
 
@@ -71,28 +55,7 @@ internal sealed class OrderingGrpcClient : IOrderingModuleApi
         return response.Orders.Count > 0;
     }
 
-    /// <summary>
-    /// Le compteur de ventes du vendeur.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// CETTE MÉTHODE PASSAIT PAR `ListOrdersBySeller`, QUI N'A JAMAIS EU DE
-    /// CORPS DE SERVEUR.
-    ///
-    /// Elle est appelée par `SellerSalesCountHandler` à CHAQUE commande confirmée.
-    /// Elle rendait donc `UNIMPLEMENTED` à chaque fois — avant que l'inbox ne soit
-    /// marquée, donc avec rejeu du message — et `SalesCount` restait à zéro pour
-    /// tous les vendeurs. Le handler avait précisément été écrit pour le remplir.
-    ///
-    /// ET ELLE REFAISAIT LE TRI DES STATUTS ELLE-MÊME.
-    ///
-    /// Elle filtrait `Confirmed`/`Delivered` sur les lignes reçues, alors que la
-    /// version in-process le fait en SQL : même interface, deux réponses possibles
-    /// selon le côté du réseau où vivait le lecteur. Le serveur rend maintenant le
-    /// NOMBRE, et il n'y a plus qu'un endroit où « une vente est une vente payée »
-    /// est écrit.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Le compteur de ventes du vendeur.</summary>
     public async Task<int> GetSellerSalesCountAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetSellerSalesCountAsync(
@@ -103,20 +66,7 @@ internal sealed class OrderingGrpcClient : IOrderingModuleApi
     }
 
 
-    // ═════════════════════════════════════════════════════════════════════
     // ON NE COMBLE PLUS LES TROUS EN INVENTANT.
-    //
-    // Cette conversion forçait `Kind` à « Goods », mettait `CartId` à vide,
-    // `CreatedAtUtc` à `DateTime.MinValue`, les remises à zéro, et recalculait
-    // un prix unitaire en divisant le total par la quantité.
-    //
-    // Toute commande de REPAS revenait donc en commande de MARCHANDISE : plat,
-    // options et note disparaissaient sans un mot, et food-service ne pouvait
-    // pas ouvrir de ticket de cuisine à partir de ce qu'il recevait.
-    //
-    // Le message proto porte désormais les dix-sept champs du contrat ; la
-    // conversion se contente de traduire.
-    // ═════════════════════════════════════════════════════════════════════
     private static SharedOrder ToContract(Proto.OrderSummary order)
         => new(
             Id: OrderingGrpcParsing.ParseGuid(order.OrderId),
@@ -246,22 +196,7 @@ internal sealed class OrdersGrpcClient : HBA.Orders.Contracts.IOrderingModuleApi
         return response.Orders.Count > 0;
     }
 
-    /// <summary>
-    /// Le compteur de ventes du vendeur.
-    /// </summary>
-    /// <remarks>
-    /// MÊME CORRECTION QUE DANS `OrderingGrpcClient`, ET IL FALLAIT LES DEUX.
-    ///
-    /// Ce second client sert l'autre interface `IOrderingModuleApi` du dépôt —
-    /// celle de `HBA.Orders.Contracts`. Il passait lui aussi par
-    /// `ListOrdersBySeller`, un RPC sans corps de serveur, et refaisait le filtre
-    /// de statut de son côté. Personne ne l'appelle aujourd'hui ; le laisser
-    /// aurait posé un `UNIMPLEMENTED` en embuscade pour le premier qui l'aurait
-    /// fait.
-    ///
-    /// DEUX INTERFACES DE MÊME NOM DANS DEUX NAMESPACES, c'est un reste de
-    /// nommage à traiter en 9.5 — pas ici.
-    /// </remarks>
+    /// <summary>Le compteur de ventes du vendeur.</summary>
     public async Task<int> GetSellerSalesCountAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         var response = await _client.GetSellerSalesCountAsync(
@@ -271,20 +206,7 @@ internal sealed class OrdersGrpcClient : HBA.Orders.Contracts.IOrderingModuleApi
         return response.SalesCount;
     }
 
-    // ═════════════════════════════════════════════════════════════════════
     // ON NE COMBLE PLUS LES TROUS EN INVENTANT.
-    //
-    // Cette conversion forçait `Kind` à « Goods », mettait `CartId` à vide,
-    // `CreatedAtUtc` à `DateTime.MinValue`, les remises à zéro, et recalculait
-    // un prix unitaire en divisant le total par la quantité.
-    //
-    // Toute commande de REPAS revenait donc en commande de MARCHANDISE : plat,
-    // options et note disparaissaient sans un mot, et food-service ne pouvait
-    // pas ouvrir de ticket de cuisine à partir de ce qu'il recevait.
-    //
-    // Le message proto porte désormais les dix-sept champs du contrat ; la
-    // conversion se contente de traduire.
-    // ═════════════════════════════════════════════════════════════════════
     private static ServiceOrder ToServiceContract(Proto.OrderSummary order)
         => new(
             Id: OrderingGrpcParsing.ParseGuid(order.OrderId),

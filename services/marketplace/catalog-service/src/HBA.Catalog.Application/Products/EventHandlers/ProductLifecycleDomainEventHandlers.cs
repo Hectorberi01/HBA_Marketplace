@@ -5,26 +5,7 @@ using HBA.Catalog.Domain.Products.Events;
 
 namespace HBA.Catalog.Application.Products.EventHandlers;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // FRONTIÈRE DOMAINE → INTÉGRATION, POUR LES HUIT FAITS DU CYCLE DE VIE (§19).
-//
-// HUIT HANDLERS D'UNE LIGNE PLUTÔT QU'UN SEUL AVEC UN `switch`.
-//
-// Un handler unique aurait dû s'abonner à un type commun, donc réintroduire
-// l'événement fourre-tout que ce lot vient de retirer. Et le `switch` aurait
-// silencieusement ignoré tout fait ajouté demain sans branche — un événement
-// levé par le domaine, jamais publié, et rien pour le signaler.
-//
-// Ici, un fait sans handler ne compile pas moins bien : il n'est simplement pas
-// enregistré dans `CatalogModuleInstaller`, et `check-event-consumers.py` le
-// remonte.
-//
-// CES HANDLERS N'ÉCRIVENT PAS SUR KAFKA. Ils écrivent dans l'OUTBOX, dans la
-// même transaction que le changement de statut — c'est ce que fait
-// `IIntegrationEventPublisher` ici. Publier directement laisserait un produit
-// publié en base sans que personne ne l'apprenne, le jour où le courtier est
-// indisponible pendant trois secondes.
-// ═════════════════════════════════════════════════════════════════════════════
 
 public sealed class ProductSubmittedDomainEventHandler
     : IDomainEventHandler<ProductSubmittedForReviewDomainEvent>

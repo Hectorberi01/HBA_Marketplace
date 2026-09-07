@@ -13,29 +13,7 @@ public static class DevicePlatforms
     public static readonly string[] All = [Ios, Android, Web];
 }
 
-/// <summary>
-/// Appareil enregistré pour les notifications push.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'IDENTITÉ D'UN APPAREIL EST LE COUPLE (utilisateur, jeton), PAS LE JETON SEUL.
-///
-/// Un jeton push est réattribué par le fournisseur : le même jeton FCM peut, après
-/// réinstallation, désigner un autre compte sur le même téléphone. Indexer sur le
-/// jeton seul ferait donc partir les notifications de l'un chez l'autre.
-///
-/// À l'inverse, un même utilisateur a légitimement plusieurs appareils. C'est
-/// pourquoi il n'y a ni contrainte d'unicité sur `UserId`, ni sur `PushToken`,
-/// mais sur le couple : réenregistrer le même appareil MET À JOUR la ligne au lieu
-/// d'en créer une seconde, sinon chaque ouverture de l'application ajouterait un
-/// destinataire et l'utilisateur recevrait ses notifications en double, en triple…
-///
-/// `LastSeenAt` N'EST PAS DÉCORATIF.
-///
-/// Les fournisseurs refusent les jetons périmés, et un jeton mort ne se signale
-/// pas : il échoue silencieusement. Cette date est la seule base d'une purge, et
-/// sans purge la table grossit d'une ligne par réinstallation, indéfiniment.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Appareil enregistré pour les notifications push.</summary>
 public sealed class UserDevice : AggregateRoot<Guid>
 {
     public const int MaxPushToken = 512;
@@ -113,7 +91,10 @@ public interface IUserDeviceRepository
 {
     Task AddAsync(UserDevice device, CancellationToken cancellationToken = default);
 
-    /// <summary>Retrouve un appareil par le couple identifiant — voir l'encadré de <see cref="UserDevice"/>.</summary>
+    /// <summary>
+    /// Retrouve un appareil par le couple identifiant — voir l'encadré de
+    /// <see cref="UserDevice"/> .
+    /// </summary>
     Task<UserDevice?> FindAsync(Guid userId, string pushToken, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<UserDevice>> ListByUserAsync(Guid userId, CancellationToken cancellationToken = default);

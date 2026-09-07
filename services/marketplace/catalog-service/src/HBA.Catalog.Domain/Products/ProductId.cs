@@ -1,9 +1,6 @@
 namespace HBA.Catalog.Domain.Products;
 
-/// <summary>
-/// Identité forte du produit (strongly-typed id). Évite de confondre un
-/// ProductId avec un SellerId ou un CategoryId à la compilation.
-/// </summary>
+/// <summary>Identité forte du produit (strongly-typed id).</summary>
 public readonly record struct ProductId(Guid Value)
 {
     public static ProductId New() => new(Guid.NewGuid());

@@ -8,22 +8,8 @@ using HBA.Shared.IntegrationEvents;
 
 using System.Globalization;
 
-// ═════════════════════════════════════════════════════════════════════════════
-// DEPLACE DEPUIS `HBA.Delivery.Pricing.Api.GrpcServices` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
+// DEPLACE DEPUIS `HBA.Delivery.Pricing.Api.GrpcServices` (lot B de la migration
+// gRPC).
 
 namespace HBA.Delivery.Pricing.Api.Grpc.Services;
 
@@ -81,25 +67,7 @@ internal sealed class DeliveryPricingGrpcService : DeliveryPricingApi.DeliveryPr
         return ToValidationProto(validation);
     }
 
-    /// <summary>
-    /// Relit un devis établi, avec de quoi le REFUSER en connaissance de cause.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// `GetQuoteAsync` FAIT PLUS QUE LIRE : IL PÉRIME.
-    ///
-    /// Il bascule un devis `ACTIVE` dont l'échéance est passée en `EXPIRED`, et
-    /// l'écrit. C'est pour cela que l'on passe par lui plutôt que par une lecture
-    /// nue : sans cela, un devis expiré depuis une heure serait rendu `ACTIVE`
-    /// avec une `ExpiresAt` dans le passé, et il faudrait que chaque appelant
-    /// refasse la comparaison — avec son horloge, et sa dérive.
-    ///
-    /// `found = false` N'EST PAS UNE ERREUR. Un identifiant recopié de travers
-    /// ou un devis purgé sont des cas ordinaires du checkout. Les rendre en
-    /// `NotFound` obligerait l'appelant à distinguer « ce devis n'existe pas » de
-    /// « ce service est tombé » en lisant un code de statut.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Relit un devis établi, avec de quoi le REFUSER en connaissance de cause.</summary>
     public override async Task<LookupQuoteResponse> LookupQuote(
         LookupQuoteRequest request, ServerCallContext context)
     {
@@ -124,22 +92,19 @@ internal sealed class DeliveryPricingGrpcService : DeliveryPricingApi.DeliveryPr
             Total = quote.Total,
             Currency = quote.Currency,
 
-            // ARRONDI AU PLUS PROCHE, PAS TRONCATURE. 90 secondes est une
-            // course « d'environ 2 minutes », pas « d'environ 1 minute » : c'est
-            // ce qui s'affiche au client, et une minute annoncée en moins se
-            // remarque à chaque commande.
+            // ARRONDI AU PLUS PROCHE, PAS TRONCATURE. 90 secondes est une course «
+            // d'environ 2 minutes », pas « d'environ 1 minute » : c'est ce qui
+            // s'affiche au client, et une minute annoncée en moins se remarque à
+            // chaque commande.
             EstimatedMinutes = (int)Math.Round(quote.DurationSeconds / 60.0, MidpointRounding.AwayFromZero),
             DistanceKm = quote.DistanceMeters / 1000.0,
             ExpiresAt = quote.ExpiresAt.ToString("O", CultureInfo.InvariantCulture),
 
-            // `EstimatedMinutes` ci-dessus est un PLANCHER quand ceci vaut
-            // « FALLBACK_HAVERSINE » — voir le proto. L'appelant a besoin des
-            // deux ensemble : le nombre seul se lit comme une prévision.
+            // `EstimatedMinutes` ci-dessus est un PLANCHER quand ceci vaut «
+            // FALLBACK_HAVERSINE » — voir le proto.
             EstimationSource = quote.SourceEstimation,
 
-            // DEUX ÉTATS DISTINCTS, JAMAIS FONDUS EN « INVALIDE » — voir le
-            // proto. `GetQuoteAsync` a déjà périmé le devis si son échéance est
-            // passée, donc le statut lu ici fait foi.
+            // DEUX ÉTATS DISTINCTS, JAMAIS FONDUS EN « INVALIDE » — voir le proto.
             IsExpired = quote.Status == "EXPIRED",
             IsConsumed = quote.Status == "CONSUMED",
 
@@ -223,10 +188,9 @@ internal sealed class DeliveryPricingGrpcService : DeliveryPricingApi.DeliveryPr
             ServiceLevel = quote.ServiceLevel,
             EstimationSource = quote.SourceEstimation,
 
-            // INVARIANT, PAS LOCALISÉ. `ToString(InvariantCulture)` donne
-            // « 1.30 » ; la culture par défaut d'un conteneur donnerait « 1,30 »
-            // ici et « 1.30 » ailleurs, pour la même valeur. Un contrat ne se lit
-            // pas différemment selon la machine qui le sérialise.
+            // INVARIANT, PAS LOCALISÉ. `ToString(InvariantCulture)` donne « 1.30 »
+            // ; la culture par défaut d'un conteneur donnerait « 1,30 » ici et «
+            // 1.30 » ailleurs, pour la même valeur.
             UrbanCorrectionFactor = quote.FacteurCorrectionApplique.ToString(CultureInfo.InvariantCulture)
         };
 

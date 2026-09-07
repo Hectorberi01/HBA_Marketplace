@@ -4,7 +4,6 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Merchants.Application.Members;
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// LA RÉSOLUTION D'UN ACTEUR — UN SEUL ENDROIT, ET C'EST LA GARDE ELLE-MÊME.
 ///
 /// CES ROUTES N'UTILISENT PAS `DenyUnlessOwnSellerAsync`, ET CE N'EST PAS UN OUBLI.
@@ -26,7 +25,6 @@ namespace HBA.Merchants.Application.Members;
 /// Un compte sans appartenance reçoit le même refus, que le dossier visé existe ou
 /// non. Les identifiants de vendeurs sont publics — ils circulent dans les liens
 /// de boutique : distinguer les deux cas permettrait d'énumérer qui est vendeur.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 /// <remarks>
 /// Public, contrairement aux handlers du module : la composition root vit dans
@@ -57,11 +55,6 @@ public sealed class MemberAccessResolver
         }
 
         // LE REFUS D'UN MEMBRE SUSPENDU EST DIT ICI, PAS DEVINÉ PLUS LOIN.
-        //
-        // `MemberActor.Ensure` refuserait de toute façon, mais avec le motif de la
-        // permission manquante. Un membre suspendu doit lire « votre accès n'est
-        // pas actif » : c'est la seule information qui lui permet de comprendre
-        // qu'il doit s'adresser à son employeur et non réessayer.
         if (!membre.CanAct)
         {
             return Error.Forbidden(

@@ -4,27 +4,7 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Financial.Payments.Domain.PaymentMethods;
 
 /// <summary>Famille du moyen de paiement enregistré.</summary>
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QU'ON PEUT ENREGISTRER — À NE PAS CONFONDRE AVEC <c>PaymentMethod</c>.
-///
-/// Le module Payments porte DÉJÀ une énumération <c>PaymentMethod</c> : MobileMoney,
-/// Card, BankTransfer, CashOnDelivery. Elle dit COMMENT un paiement a été fait.
-///
-/// Celle-ci dit ce qu'un acheteur peut ENREGISTRER pour réutiliser plus tard. Les
-/// deux se ressemblent, et la tentation de les fusionner viendra — c'est d'ailleurs
-/// la collision de noms entre cette classe et cette énumération qui a fait échouer
-/// la compilation lors du déplacement depuis Identity.
-///
-/// NE PAS LES FUSIONNER. Un paiement à la livraison est un mode de règlement
-/// parfaitement valide ; ce n'est pas un instrument qu'on enregistre dans un
-/// carnet. Fusionner autoriserait la création d'un « moyen de paiement enregistré
-/// de type CashOnDelivery » — un objet sans référence de compte, que rien ne
-/// pourrait débiter, et que l'interface afficherait comme une carte.
-///
-/// Deux ensembles proches ne sont pas le même ensemble.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>CE QU'ON PEUT ENREGISTRER — À NE PAS CONFONDRE AVEC <c>PaymentMethod</c>.</summary>
 public enum PaymentMethodType
 {
     /// <summary>Compte Mobile Money (MTN MoMo, Moov…).</summary>
@@ -34,15 +14,7 @@ public enum PaymentMethodType
     Card = 1
 }
 
-/// <summary>
-/// Moyen de paiement enregistré par un client. Agrégat racine simple, rattaché à
-/// un compte par <see cref="UserId"/> (référence inter-agrégat, pas de FK).
-///
-/// Sécurité : on ne persiste JAMAIS de donnée sensible complète. Pour une carte,
-/// seuls la marque, les 4 derniers chiffres et l'expiration sont conservés (aucun
-/// PAN complet ni CVV). Pour Mobile Money, le numéro (MSISDN) sert à initier le
-/// paiement via la passerelle.
-/// </summary>
+/// <summary>Moyen de paiement enregistré par un client.</summary>
 public sealed class SavedPaymentMethod : AggregateRoot<SavedPaymentMethodId>
 {
     private SavedPaymentMethod()
@@ -168,10 +140,7 @@ public sealed class SavedPaymentMethod : AggregateRoot<SavedPaymentMethodId>
             isDefault));
     }
 
-    /// <summary>
-    /// Met à jour un moyen Mobile Money : libellé, opérateur et numéro (MSISDN).
-    /// Refuse l'appel si le moyen n'est pas de type Mobile Money.
-    /// </summary>
+    /// <summary>Met à jour un moyen Mobile Money : libellé, opérateur et numéro (MSISDN).</summary>
     public Result UpdateMobileMoney(string? label, string provider, string msisdn)
     {
         if (Type != PaymentMethodType.MobileMoney)
@@ -196,11 +165,7 @@ public sealed class SavedPaymentMethod : AggregateRoot<SavedPaymentMethodId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Met à jour un moyen Carte : libellé, expiration et titulaire. Le numéro de
-    /// carte n'est pas modifiable (on ne conserve que les 4 derniers chiffres).
-    /// Refuse l'appel si le moyen n'est pas de type Carte.
-    /// </summary>
+    /// <summary>Met à jour un moyen Carte : libellé, expiration et titulaire.</summary>
     public Result UpdateCard(string? label, int expiryMonth, int expiryYear, string? holderName)
     {
         if (Type != PaymentMethodType.Card)

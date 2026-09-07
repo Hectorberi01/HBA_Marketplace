@@ -13,14 +13,8 @@ internal sealed class ProductReviewConfiguration : IEntityTypeConfiguration<Prod
         builder.HasKey(r => r.Id);
         builder.Property(r => r.Id).ValueGeneratedNever();
 
-        // `ProductId` EST UN Guid NU, PAS UN `ProductId`, ET IL N'Y A PAS DE
-        //    CLÉ ÉTRANGÈRE VERS `products`.
-        //
-        // C'est un agrégat séparé : il référence le produit par identifiant, comme
-        // le fait `ProductOffer`. Une vraie clé étrangère avec cascade
-        // supprimerait le journal des décisions en même temps que la fiche — or
-        // c'est précisément quand une fiche disparaît qu'on veut savoir qui l'avait
-        // approuvée.
+        // `ProductId` EST UN Guid NU, PAS UN `ProductId`, ET IL N'Y A PAS DE CLÉ
+        // ÉTRANGÈRE VERS `products`.
         builder.Property(r => r.ProductId).IsRequired();
         builder.Property(r => r.RevisionId).IsRequired();
         builder.Property(r => r.RevisionVersion).IsRequired();
@@ -39,8 +33,8 @@ internal sealed class ProductReviewConfiguration : IEntityTypeConfiguration<Prod
 
         builder.Navigation(r => r.Reasons).UsePropertyAccessMode(PropertyAccessMode.Field);
 
-        // L'historique d'un produit, du plus récent au plus ancien : c'est la
-        // seule lecture de cette table côté fiche.
+        // L'historique d'un produit, du plus récent au plus ancien : c'est la seule
+        // lecture de cette table côté fiche.
         builder.HasIndex(r => new { r.ProductId, r.ReviewedAtUtc });
 
         // « Qu'a fait cet administrateur ? » — la question d'audit.

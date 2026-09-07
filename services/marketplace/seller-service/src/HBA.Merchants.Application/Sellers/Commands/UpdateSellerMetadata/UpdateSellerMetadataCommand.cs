@@ -3,8 +3,5 @@ using HBA.Merchants.Domain.Sellers;
 
 namespace HBA.Merchants.Application.Sellers.Commands.UpdateSellerMetadata;
 
-/// <summary>
-/// Met à jour les informations société (metadata) déclarées par le vendeur.
-/// <c>null</c> efface la metadata. N'affecte ni le statut ni le KYB.
-/// </summary>
+/// <summary>Met à jour les informations société (metadata) déclarées par le vendeur.</summary>
 public sealed record UpdateSellerMetadataCommand(Guid SellerId, SellerCompanyInfo? Metadata) : ICommand;

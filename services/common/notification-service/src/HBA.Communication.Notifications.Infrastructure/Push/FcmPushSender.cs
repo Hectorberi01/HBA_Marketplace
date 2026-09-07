@@ -5,9 +5,8 @@ using Microsoft.Extensions.Logging;
 namespace HBA.Communication.Notifications.Infrastructure.Push;
 
 /// <summary>
-/// Envoi de notifications push via Firebase Cloud Messaging (SDK FirebaseAdmin,
-/// API HTTP v1). Envoie par lots (max 500 jetons) et remonte les jetons devenus
-/// invalides (app désinstallée / jeton périmé) pour purge.
+/// Envoi de notifications push via Firebase Cloud Messaging (SDK FirebaseAdmin, API
+/// HTTP v1).
 /// </summary>
 public sealed class FcmPushSender : IPushSender
 {
@@ -59,10 +58,7 @@ public sealed class FcmPushSender : IPushSender
                         continue;
                     }
 
-                    // DIAGNOSTIC : code d'erreur exact par jeton. Les plus fréquents :
-                    //  - ThirdPartyAuthError : clé APNs (.p8) absente/incorrecte dans Firebase.
-                    //  - Unregistered / InvalidArgument : jeton périmé ou invalide (purge).
-                    //  - SenderIdMismatch : le jeton appartient à un autre projet Firebase.
+                    // DIAGNOSTIC : code d'erreur exact par jeton.
                     var code = (r.Exception as FirebaseMessagingException)?.MessagingErrorCode;
                     _logger.LogWarning(
                         "FCM : échec jeton #{Index} — code={Code} : {Message}",

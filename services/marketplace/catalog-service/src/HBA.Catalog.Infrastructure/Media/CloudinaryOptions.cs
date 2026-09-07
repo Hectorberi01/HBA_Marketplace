@@ -2,11 +2,7 @@ namespace HBA.Catalog.Infrastructure.Media;
 
 /// <summary>
 /// Configuration Cloudinary pour le TRAITEMENT des images produit (détourage IA +
-/// fond blanc). Cloudinary ne sert qu'au traitement : l'image finale est ensuite
-/// rapatriée dans Cloudflare R2 par le flux de création, et l'asset Cloudinary est
-/// détruit. Secrets hors du dépôt. Section de config : « Media:Cloudinary ».
-/// Tant que les identifiants ne sont pas renseignés, un adaptateur no-op renvoie
-/// l'image d'origine inchangée.
+/// fond blanc).
 /// </summary>
 public sealed class CloudinaryOptions
 {

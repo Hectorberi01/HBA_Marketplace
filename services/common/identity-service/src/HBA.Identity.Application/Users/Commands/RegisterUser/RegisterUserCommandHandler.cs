@@ -17,15 +17,7 @@ namespace HBA.Identity.Application.Users.Commands.RegisterUser;
 /// </summary>
 internal sealed class RegisterUserCommandHandler : ICommandHandler<RegisterUserCommand, Guid>
 {
-    /// <summary>
-    /// LE CODE NE TRAVERSE PLUS LE BUS EN CLAIR.
-    ///
-    /// Il partait tel quel dans l'événement, donc dans
-    /// `identity.outbox_messages.Content` — table jamais purgée — puis sur un
-    /// topic Kafka retenu sept jours. Une lecture de l'un ou l'autre valait
-    /// prise de compte. Il est désormais chiffré ici, et déchiffré par le seul
-    /// service qui doit l'envoyer.
-    /// </summary>
+    /// <summary>LE CODE NE TRAVERSE PLUS LE BUS EN CLAIR.</summary>
     private readonly ISecretProtector _protecteur;
 
     private const string DefaultRoleName = "Buyer";
@@ -112,29 +104,7 @@ internal sealed class RegisterUserCommandHandler : ICommandHandler<RegisterUserC
 
         var user = userResult.Value;
 
-        // Le compte naît `PendingVerification` (cf. User.Register). Reste à savoir
-        // s'il y reste.
-        //
-        // L'ancien code appelait ici `user.ConfirmEmail(tokenHash, …)` — c'est-à-dire
-        // qu'il confirmait l'e-mail avec le jeton qu'il venait lui-même de fabriquer
-        // trois lignes plus haut. Le commentaire l'assumait comme un raccourci de
-        // démo, mais il avait deux conséquences fâcheuses : tout compte était actif
-        // instantanément, et la base affirmait `EmailVerified = true` pour des
-        // adresses que personne n'avait jamais vérifiées.
-        //
-        // Désormais l'activation est une DÉCISION, prise par un administrateur ou
-        // par la configuration — jamais une confirmation fabriquée.
-        // ACTIVATION.
-        //
-        // LIBRE-SERVICE (CreatedByAdmin == false) : le compte N'EST PAS activé ici.
-        // Il naît PendingVerification et n'est activé que lorsque l'utilisateur
-        // confirme son adresse e-mail (VerifyEmailCode). Sans cela, un compte
-        // pourrait se connecter sans jamais prouver qu'il possède l'adresse — c'est
-        // exactement le trou qu'on ferme (un non-vérifié ne doit pas entrer).
-        //
-        // CRÉÉ PAR UN ADMIN : l'administrateur se porte garant de l'adresse, on peut
-        // donc activer d'emblée (sauf si la politique exige tout de même une
-        // approbation manuelle).
+        // Le compte naît `PendingVerification` (cf.
         if (command.CreatedByAdmin && !_registrationPolicy.RequireApprovalForAdminCreated)
         {
             user.Approve();

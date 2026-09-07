@@ -6,42 +6,8 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Media.Application.Assets;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// TÉLÉVERSER UN FICHIER (cahier des charges §7 mode A, §14).
-///
-/// Le flux retenu fait transiter les octets PAR L'API. Le cahier préfère le
-/// « presigned » pour le mobile ; ce mode-ci reste indispensable de toute façon
-/// aux uploads initiés côté serveur — import, migration, génération de facture —
-/// et il est le seul qui permette de valider le contenu avant qu'il n'atteigne le
-/// stockage.
-///
-/// L'ORDRE DES ÉTAPES EST LE CŒUR DE CETTE COMMANDE.
-///
-///   1. valider (taille, format, cohérence extension) — AVANT tout octet écrit ;
-///   2. calculer l'empreinte, et rendre le média existant si c'est un doublon ;
-///   3. déposer les octets ;
-///   4. enregistrer la métadonnée ;
-///   5. générer les variantes, dont l'échec ne perd pas le fichier.
-///
-/// Inverser 3 et 4 laisserait une ligne désignant un objet inexistant, et chaque
-/// lecture échouerait sur un fichier que la base jure présent.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
-/// <summary>
-/// Ce qu'un dépôt rend à son appelant.
-///
-/// L'URL EST RENDUE ICI PARCE QU'ELLE EST DÉJÀ CONNUE.
-///
-/// La commande vient de calculer la clé d'objet : reconstruire l'URL ne coûte
-/// rien. Ne rendre que l'identifiant obligerait chaque appelant qui affiche
-/// l'image — logo de boutique, pièce jointe de discussion, photo produit — à
-/// relire immédiatement le média qu'il vient d'écrire.
-///
-/// NULLE POUR UN FICHIER PRIVÉ, et pour la raison énoncée sur `MediaView` :
-/// une pièce d'identité n'a pas d'URL permanente. L'appelant qui doit la lire
-/// demande une URL signée, nommément et pour cinq minutes.
-/// </summary>
+/// <summary>TÉLÉVERSER UN FICHIER (cahier des charges §7 mode A, §14).</summary>
+/// <summary>Ce qu'un dépôt rend à son appelant.</summary>
 public sealed record UploadedMedia(Guid MediaId, string? Url);
 
 public sealed record UploadMediaCommand(
@@ -53,30 +19,13 @@ public sealed record UploadMediaCommand(
     byte[] Content,
     Guid CreatedByUserId) : ICommand<UploadedMedia>;
 
-/// <summary>
-/// Supprime LOGIQUEMENT (§19). Les octets survivent le temps de la rétention
-/// prévue pour cette nature de fichier — dix ans pour une facture, trente jours
-/// pour une photo produit.
-/// </summary>
+/// <summary>Supprime LOGIQUEMENT (§19).</summary>
 public sealed record DeleteMediaCommand(Guid MediaId) : ICommand;
 
-/// <summary>
-/// Relance la génération des variantes (§14, <c>/reprocess</c>).
-///
-/// SA RAISON D'ÊTRE EST L'ÉTAT <c>Failed</c>. Sans elle, une image dont les
-/// miniatures ont échoué — service de traitement indisponible dix minutes — reste
-/// sans miniatures pour toujours, et personne ne relie l'affichage lourd à un
-/// incident d'un mardi matin.
-/// </summary>
+/// <summary>Relance la génération des variantes (§14, <c>/reprocess</c>).</summary>
 public sealed record ReprocessMediaCommand(Guid MediaId) : ICommand;
 
-/// <summary>
-/// Efface PHYSIQUEMENT les médias dont la rétention est écoulée (§19).
-///
-/// Appelée par une tâche planifiée. Rend le nombre d'objets réellement effacés —
-/// un zéro permanent est le signe que le ménage ne tourne plus, et c'est le genre
-/// de panne qui ne se voit que sur la facture de stockage.
-/// </summary>
+/// <summary>Efface PHYSIQUEMENT les médias dont la rétention est écoulée (§19).</summary>
 public sealed record PurgeExpiredMediaCommand(int Take = 100) : ICommand<int>;
 
 internal sealed class MediaCommandHandler
@@ -107,10 +56,6 @@ internal sealed class MediaCommandHandler
         var politique = MediaTypePolicy.For(command.MediaType);
 
         // ── 1. VALIDER AVANT D'ÉCRIRE UN SEUL OCTET ─────────────────────────
-        //
-        // Le §8 énumère les contrôles. Les faire après le dépôt reviendrait à
-        // stocker ce qu'on s'apprête à refuser — et à payer le stockage de
-        // fichiers qu'on n'aurait jamais dû accepter.
         var validation = politique.Validate(command.ContentType, command.FileName, command.Content?.LongLength ?? 0);
         if (validation.IsFailure)
         {
@@ -118,13 +63,6 @@ internal sealed class MediaCommandHandler
         }
 
         // ── 2. L'EMPREINTE, ET L'IDEMPOTENCE QU'ELLE OFFRE ──────────────────
-        //
-        // CE N'EST PAS (SEULEMENT) DE LA DÉDUPLICATION.
-        //
-        // Un mobile sur un réseau instable réessaie un upload interrompu ; sans ce
-        // contrôle, le même fichier est stocké deux fois, la galerie affiche un
-        // doublon, et le vendeur en supprime un au hasard. Rendre l'identifiant
-        // EXISTANT rend la commande rejouable sans effet de bord.
         var empreinte = Convert.ToHexString(SHA256.HashData(command.Content!)).ToLowerInvariant();
 
         var existant = await _assets.FindByChecksumAsync(
@@ -156,9 +94,9 @@ internal sealed class MediaCommandHandler
 
         if (media.IsFailure)
         {
-            // L'OBJET DÉPOSÉ DEVIENT ORPHELIN. On tente de le retirer, sans
-            // faire dépendre la réponse de ce nettoyage : l'appelant doit lire la
-            // vraie erreur, pas celle du ménage.
+            // L'OBJET DÉPOSÉ DEVIENT ORPHELIN. On tente de le retirer, sans faire
+            // dépendre la réponse de ce nettoyage : l'appelant doit lire la vraie
+            // erreur, pas celle du ménage.
             await _storage.DeleteAsync(bucket, cle, cancellationToken);
             return Result.Failure<UploadedMedia>(media.Error);
         }
@@ -178,9 +116,7 @@ internal sealed class MediaCommandHandler
         }
         else
         {
-            // Pas de variantes prévues : le fichier est prêt tel quel. Le laisser
-            // en « Uploaded » ferait attendre indéfiniment un traitement qui
-            // n'arrivera jamais.
+            // Pas de variantes prévues : le fichier est prêt tel quel.
             media.Value.CompleteProcessing([]);
         }
 
@@ -189,16 +125,7 @@ internal sealed class MediaCommandHandler
         return Decrire(media.Value);
     }
 
-    /// <summary>
-    /// L'identifiant, et l'URL SEULEMENT si le fichier est public.
-    ///
-    /// LE TEST PORTE SUR LE MÉDIA, PAS SUR LA POLITIQUE DE SA NATURE.
-    ///
-    /// Les deux coïncident aujourd'hui, mais c'est le média qui décide de sa
-    /// visibilité — la politique ne fait qu'en fixer la valeur par défaut.
-    /// Interroger la politique laisserait passer une URL publique le jour où un
-    /// fichier est restreint individuellement.
-    /// </summary>
+    /// <summary>L'identifiant, et l'URL SEULEMENT si le fichier est public.</summary>
     private UploadedMedia Decrire(MediaAsset media)
     {
         if (!media.IsPubliclyReadable)
@@ -252,9 +179,9 @@ internal sealed class MediaCommandHandler
                 "media.no_variants", "Cette nature de média ne produit pas de variantes."));
         }
 
-        //ON RELIT L'ORIGINAL DEPUIS LE STOCKAGE. Il n'est pas en base — c'est
-        // tout le principe du service — et le retraitement doit repartir des
-        // octets réels, pas d'une variante déjà dégradée.
+        // ON RELIT L'ORIGINAL DEPUIS LE STOCKAGE. Il n'est pas en base — c'est tout
+        // le principe du service — et le retraitement doit repartir des octets
+        // réels, pas d'une variante déjà dégradée.
         var original = await _storage.DownloadAsync(media.Bucket, media.ObjectKey, cancellationToken);
         if (original.IsFailure)
         {
@@ -276,8 +203,8 @@ internal sealed class MediaCommandHandler
 
         foreach (var media in expires)
         {
-            // LES OCTETS D'ABORD, LA LIGNE ENSUITE — l'inverse de l'upload, et
-            // pour la même raison retournée : une ligne effacée avant ses objets
+            // LES OCTETS D'ABORD, LA LIGNE ENSUITE — l'inverse de l'upload, et pour
+            // la même raison retournée : une ligne effacée avant ses objets
             // laisserait des octets que PLUS RIEN ne désigne, donc que personne ne
             // saura jamais retrouver ni facturer.
             var toutEfface = true;
@@ -290,8 +217,7 @@ internal sealed class MediaCommandHandler
 
             if (!toutEfface)
             {
-                // On laisse la ligne : le prochain passage réessaiera. Un stockage
-                // momentanément indisponible ne doit pas produire d'orphelins.
+                // On laisse la ligne : le prochain passage réessaiera.
                 continue;
             }
 
@@ -309,14 +235,7 @@ internal sealed class MediaCommandHandler
 
     private static readonly Error Introuvable = Error.NotFound("media.not_found", "Média introuvable.");
 
-    /// <summary>
-    /// UN ÉCHEC DE VARIANTE NE PERD PAS LE FICHIER.
-    ///
-    /// L'original est déjà dans le stockage et reste servable — <c>IsUsable</c> le
-    /// dit explicitement. Faire échouer tout l'upload parce qu'une miniature n'a
-    /// pas pu être calculée perdrait une photo parfaitement valable, et
-    /// l'utilisateur recommencerait sans comprendre.
-    /// </summary>
+    /// <summary>UN ÉCHEC DE VARIANTE NE PERD PAS LE FICHIER.</summary>
     private async Task GenerateVariantsAsync(
         MediaAsset media, byte[] content, string contentType, CancellationToken cancellationToken)
     {

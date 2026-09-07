@@ -5,10 +5,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Catalog.Domain.Products;
 
-/// <summary>
-/// Slug SEO unique, dérivé du nom. Value Object : pas d'identité, comparé par sa
-/// valeur. La normalisation est centralisée ici (invariant du domaine).
-/// </summary>
+/// <summary>Slug SEO unique, dérivé du nom.</summary>
 public sealed partial class Slug : ValueObject
 {
     private Slug(string value) => Value = value;
@@ -41,35 +38,8 @@ public sealed partial class Slug : ValueObject
     }
 
     /// <summary>
-    /// Replie les caractères accentués sur leur équivalent ASCII, SANS dépendre d'ICU.
-    ///
-    /// ────────────────────────────────────────────────────────────────────────────
-    /// L'implémentation précédente reposait sur <c>Normalize(NormalizationForm.FormD)</c>
-    /// puis sur la suppression des marques non-espaçantes. C'est la méthode canonique,
-    /// enseignée partout — et elle était SILENCIEUSEMENT INOPÉRANTE ici.
-    ///
-    /// La raison tient en une ligne de <c>Directory.Build.props</c> :
-    ///
-    ///     &lt;InvariantGlobalization&gt;true&lt;/InvariantGlobalization&gt;
-    ///
-    /// Dans ce mode, .NET n'embarque pas ICU, et <c>String.Normalize</c> devient un
-    /// NO-OP : il rend la chaîne telle quelle, sans lever. Le « é » ne se décomposait
-    /// donc jamais en « e » + accent ; il restait un caractère unique, que la regex
-    /// <c>[^a-z0-9]+</c> traitait ensuite comme un séparateur.
-    ///
-    /// Résultat, en production comme en test :
-    ///     « Téléphone Samsung »  →  « t-l-phone-samsung »
-    ///     « Sac à main cuir »    →  « sac-main-cuir »
-    ///     « Électronique »       →  « lectronique »
-    ///
-    /// Et un slug part dans l'URL. Il est indexé, partagé, mis en favori. Une fois
-    /// publié, on ne le corrige plus sans casser des liens.
-    ///
-    /// D'où une table explicite. Elle est verbeuse, mais elle a trois vertus que la
-    /// voie « élégante » n'avait pas : elle ne dépend d'aucune bibliothèque système,
-    /// elle donne le MÊME résultat sur le poste du développeur et dans le conteneur,
-    /// et elle est lisible — on voit ce qui devient quoi.
-    /// ────────────────────────────────────────────────────────────────────────────
+    /// Replie les caractères accentués sur leur équivalent ASCII, SANS dépendre
+    /// d'ICU.
     /// </summary>
     private static string RemoveDiacritics(string text)
     {
@@ -92,9 +62,7 @@ public sealed partial class Slug : ValueObject
 
     /// <summary>
     /// Latin-1 Supplement + Latin Extended-A, en minuscules (l'appelant a déjà
-    /// abaissé la casse). Un caractère non répertorié est rendu tel quel : la regex
-    /// suivante le transformera en séparateur, ce qui reste le comportement sûr pour
-    /// un alphabet qu'on ne sait pas translittérer (arabe, cyrillique, CJK).
+    /// abaissé la casse).
     /// </summary>
     private static string Fold(char c) => c switch
     {
@@ -118,8 +86,7 @@ public sealed partial class Slug : ValueObject
         'ý' or 'ÿ' or 'ŷ' => "y",
         'ź' or 'ż' or 'ž' => "z",
 
-        // Ligatures : elles valent DEUX lettres, pas une. « Cœur » donne « coeur »,
-        // et non « cur ».
+        // Ligatures : elles valent DEUX lettres, pas une.
         'æ' => "ae",
         'œ' => "oe",
         'ß' => "ss",

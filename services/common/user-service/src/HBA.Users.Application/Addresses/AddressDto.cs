@@ -2,18 +2,7 @@ using HBA.Shared.Domain.Geography;
 
 namespace HBA.Users.Application.Addresses;
 
-/// <summary>
-/// Vue d'une adresse du carnet utilisateur.
-///
-/// <see cref="CommuneCode"/> est ce que le client renvoie à l'écriture ;
-/// <see cref="CommuneName"/> et <see cref="DepartmentName"/> ne servent QU'À L'AFFICHAGE
-/// et sont résolus ici — ainsi une application mobile n'a pas besoin d'embarquer les
-/// 77 communes pour afficher une adresse déjà enregistrée.
-///
-/// <see cref="IsComplete"/> vaut <c>false</c> pour les adresses antérieures à la refonte
-/// (sans commune normalisée, sans repère, ou sans téléphone valide). Les surfaces DOIVENT
-/// s'en servir : le checkout la refuse, le carnet la signale.
-/// </summary>
+/// <summary>Vue d'une adresse du carnet utilisateur.</summary>
 public sealed record AddressDto(
     Guid Id,
     string Label,
@@ -32,11 +21,8 @@ public sealed record AddressDto(
     bool IsComplete)
 {
     /// <summary>
-    /// Une ligne prête à afficher ou à lire au téléphone, du plus précis au plus large :
-    /// « En face de la pharmacie Sainte-Rita, Fidjrossè, Cotonou ».
-    ///
-    /// Le repère vient EN PREMIER, à l'inverse d'une adresse occidentale. C'est ce que le
-    /// livreur cherche : la commune, il la connaît déjà.
+    /// Une ligne prête à afficher ou à lire au téléphone, du plus précis au plus
+    /// large : « En face de la pharmacie Sainte-Rita, Fidjrossè, Cotonou ».
     /// </summary>
     public string SingleLine => string.Join(", ", new[] { Landmark, Quartier, Line1, CommuneName }
         .Where(p => !string.IsNullOrWhiteSpace(p)));

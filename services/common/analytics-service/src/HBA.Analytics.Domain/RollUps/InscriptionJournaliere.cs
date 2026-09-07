@@ -1,10 +1,6 @@
 namespace HBA.Analytics.Domain.RollUps;
 
 /// <summary>Nombre d'inscriptions d'un jour, par nature.</summary>
-/// <remarks>
-/// UNE INSCRIPTION VENDEUR COMPTE AUSSI DANS LES ACHETEURS. Voir
-/// <see cref="NatureDInscription"/> : les deux séries ne s'additionnent pas.
-/// </remarks>
 public sealed class InscriptionJournaliere
 {
     public DateOnly Day { get; init; }

@@ -11,9 +11,7 @@ public sealed class UserPreferencesConfiguration : IEntityTypeConfiguration<User
     {
         builder.ToTable("preferences");
 
-        // La clé est le UserId — voir l'encadré de UserPreferences. `ValueGeneratedNever`
-        // est indispensable : sans lui, EF traite un Guid en clé comme généré par la
-        // base et écrase l'identifiant fourni par un autre, tiré au hasard.
+        // La clé est le UserId — voir l'encadré de UserPreferences.
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Id).ValueGeneratedNever();
 

@@ -18,15 +18,7 @@ public sealed record StockMovementView(
     string? Reference,
     DateTime OccurredOnUtc);
 
-/// <summary>
-/// L'historique des mouvements d'un article.
-/// </summary>
-/// <remarks>
-/// LA BORNE EST PLAFONNÉE ICI, PAS SEULEMENT PAR DÉFAUT. Un `take` venu du
-/// client et repris tel quel rendrait la borne décorative : il suffirait de
-/// demander 100 000 lignes. Le défaut sert le cas courant, le plafond ferme la
-/// porte.
-/// </remarks>
+/// <summary>L'historique des mouvements d'un article.</summary>
 public sealed record ListStockMovementsQuery(Guid InventoryItemId, int Take = 50)
     : IQuery<IReadOnlyList<StockMovementView>>;
 

@@ -3,12 +3,7 @@ using HBA.Financial.Payments.Application.Abstractions.Gateways;
 
 namespace HBA.Financial.Payments.Infrastructure.Gateways.Simulation;
 
-/// <summary>
-/// Adaptateur PayPal (stub sandbox). Mappe les types d'événements PayPal
-/// (<c>event_type</c>) vers les résultats normalisés et lit la référence sous
-/// <c>resource.id</c>. Pour passer en réel : injecter le SDK PayPal (Orders v2)
-/// et vérifier les webhooks via l'API de vérification de signature.
-/// </summary>
+/// <summary>Adaptateur PayPal (stub sandbox).</summary>
 public sealed class PayPalPaymentGateway : SimulatedPaymentGateway
 {
     private readonly PayPalOptions _options;
@@ -35,7 +30,8 @@ public sealed class PayPalPaymentGateway : SimulatedPaymentGateway
 
     protected override string? ExtractReference(JsonElement root)
     {
-        // Payload de test : { "event_type": "...", "providerReference": "ORDER_..." }
+        // Payload de test : { "event_type": "...", "providerReference": "ORDER_..."
+        // }
         if (root.TryGetProperty("providerReference", out var direct))
         {
             return direct.GetString();

@@ -7,13 +7,7 @@ using HBA.Users.Domain.Devices;
 
 namespace HBA.Users.Application.Devices;
 
-/// <summary>
-/// Appareil tel que rendu par l'API.
-///
-/// LE JETON PUSH N'EST PAS DANS LE DTO — voir l'encadré de <see cref="UserDevice"/>.
-/// Le rendre permettrait à quiconque lit la liste des appareils d'envoyer des
-/// notifications au nom de la plateforme.
-/// </summary>
+/// <summary>Appareil tel que rendu par l'API.</summary>
 public sealed record DeviceDto(Guid Id, string Platform, DateTime LastSeenAtUtc);
 
 /// <summary>Enregistre ou rafraîchit un appareil pour les notifications push.</summary>
@@ -46,10 +40,7 @@ internal sealed class RegisterDeviceCommandHandler : ICommandHandler<RegisterDev
             return Result.Failure<DeviceDto>(created.Error);
         }
 
-        // Réenregistrement du même appareil : on rafraîchit la ligne existante. Sans
-        // cela, chaque ouverture de l'application ajouterait un destinataire et
-        // l'utilisateur recevrait la même notification autant de fois qu'il a
-        // réinstallé.
+        // Réenregistrement du même appareil : on rafraîchit la ligne existante.
         var existing = await _repository.FindAsync(
             command.UserId, created.Value.PushToken, cancellationToken);
 
@@ -63,12 +54,6 @@ internal sealed class RegisterDeviceCommandHandler : ICommandHandler<RegisterDev
         await _repository.AddAsync(created.Value, cancellationToken);
 
         // PUBLICATION AVANT SaveChanges, PAS APRÈS.
-        //
-        // `IIntegrationEventPublisher` écrit dans l'outbox du même DbContext : la
-        // ligne d'événement et la ligne d'appareil partent donc dans LA MÊME
-        // transaction. Publier après le SaveChanges les séparerait en deux, et un
-        // arrêt entre les deux perdrait l'événement sans laisser de trace — le
-        // problème exact que l'outbox du §19.6 existe pour supprimer.
         await _publisher.PublishAsync(
             new UserDeviceRegisteredIntegrationEvent
             {

@@ -28,19 +28,7 @@ internal sealed class ImportCategoriesCommandHandler
     public async Task<Result<CategoryImportReport>> Handle(
         ImportCategoriesCommand command, CancellationToken cancellationToken)
     {
-        // ─────────────────────────────────────────────────────────────────────────
         // TOUT L'ARBRE EST CHARGÉ UNE FOIS, EN MÉMOIRE.
-        //
-        // Un import de quelques centaines de lignes traverse des milliers de nœuds.
-        // Interroger la base à chaque segment produirait autant d'allers-retours —
-        // insupportable dès lors que la base est distante (une dizaine de
-        // millisecondes chacun).
-        //
-        // Une taxonomie de marketplace compte quelques milliers d'entrées au plus :
-        // elle tient sans peine en mémoire. Le dictionnaire est indexé par CHEMIN,
-        // jamais par nom — c'est ce qui permet à « Alimentation » d'exister sous
-        // « Chiens » et sous « Chats ».
-        // ─────────────────────────────────────────────────────────────────────────
         var existing = await _categoryRepository.ListAllAsync(cancellationToken);
         var byPath = existing.ToDictionary(
             c => c.Path,
@@ -120,9 +108,9 @@ internal sealed class ImportCategoriesCommandHandler
                     await _categoryRepository.AddAsync(created, cancellationToken);
                 }
 
-                // Inscrit même en simulation : les lignes suivantes de la même branche
-                // doivent le voir comme déjà pris en charge, sinon le compte rendu
-                // annoncerait plusieurs créations pour un seul nœud.
+                // Inscrit même en simulation : les lignes suivantes de la même
+                // branche doivent le voir comme déjà pris en charge, sinon le
+                // compte rendu annoncerait plusieurs créations pour un seul nœud.
                 byPath[created.Path] = (created.Id.Value, created.Path);
                 AddOutcome(outcomes, reported, key: created.Path, path: created.Path, label: label,
                     status: "created", message: null);
@@ -134,8 +122,9 @@ internal sealed class ImportCategoriesCommandHandler
 
         if (!command.DryRun && outcomes.Any(o => o.Status == "created"))
         {
-            // Une seule transaction pour tout le fichier : un import à moitié appliqué
-            // laisserait une taxonomie tronquée, sans moyen de savoir où reprendre.
+            // Une seule transaction pour tout le fichier : un import à moitié
+            // appliqué laisserait une taxonomie tronquée, sans moyen de savoir où
+            // reprendre.
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 

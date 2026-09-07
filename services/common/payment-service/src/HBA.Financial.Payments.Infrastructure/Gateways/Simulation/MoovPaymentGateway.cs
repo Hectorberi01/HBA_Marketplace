@@ -1,10 +1,6 @@
 namespace HBA.Financial.Payments.Infrastructure.Gateways.Simulation;
 
-/// <summary>
-/// Adaptateur Moov Money (stub sandbox). Même logique RequestToPay + callback de
-/// statut que MTN. Pour le réel : API Moov (MerchantId / ApiKey), corrélation par
-/// transaction id.
-/// </summary>
+/// <summary>Adaptateur Moov Money (stub sandbox).</summary>
 public sealed class MoovPaymentGateway : MobileMoneyPaymentGateway
 {
     private readonly MoovOptions _options;

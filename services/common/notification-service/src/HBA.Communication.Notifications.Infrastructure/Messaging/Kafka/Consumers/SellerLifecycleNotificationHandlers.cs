@@ -8,11 +8,6 @@ using HBA.Engagement.Reviews.Contracts.IntegrationEvents;
 using HBA.Merchants.Contracts;
 using HBA.Merchants.Contracts.IntegrationEvents;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Communication.Notifications.Application.Notifications;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
@@ -23,14 +18,6 @@ namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consume
 /// Sans cela, un dossier pouvait dormir des jours : rien ne signalait son arrivée.
 /// </summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerRegisteredAdminNotificationHandler")]
 public sealed class SellerRegisteredAdminNotificationHandler : IIntegrationEventHandler<SellerRegisteredIntegrationEvent>
 {
@@ -60,16 +47,7 @@ public sealed class SellerRegisteredAdminNotificationHandler : IIntegrationEvent
     }
 }
 
-/// <summary>
-/// Confirme au vendeur la FERMETURE qu'il a lui-même demandée.
-///
-/// CE MESSAGE ANNONÇAIT UNE SUSPENSION. Il disait « Votre boutique a été
-/// suspendue […] contactez le support pour en connaître le motif » à quelqu'un
-/// qui venait de fermer son compte de son plein gré. Le vendeur était accusé
-/// d'une sanction inexistante, et invité à appeler pour un motif qui n'existait
-/// pas. La vraie suspension, elle, ne prévenait personne — voir
-/// SellerSuspendedNotificationHandler, ajouté depuis.
-/// </summary>
+/// <summary>Confirme au vendeur la FERMETURE qu'il a lui-même demandée.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerClosedNotificationHandler")]
 public sealed class SellerClosedNotificationHandler : IIntegrationEventHandler<SellerClosedIntegrationEvent>
 {
@@ -89,19 +67,7 @@ public sealed class SellerClosedNotificationHandler : IIntegrationEventHandler<S
             alsoEmail: true);
 }
 
-/// <summary>
-/// Prévient le vendeur que sa boutique a été SUSPENDUE par la plateforme.
-///
-/// CETTE NOTIFICATION N'EXISTAIT PAS. La suspension retire tout son catalogue
-/// de la vente : la découvrir par la chute de ses commandes est le pire cas — il
-/// perd des jours à chercher une panne qui n'existe pas.
-///
-/// LE MOTIF EST REPRIS S'IL EXISTE. « Contactez le support » sans rien d'autre
-/// fait payer au vendeur un appel pour une information qu'on avait déjà.
-///
-/// Doublée par e-mail : il n'ouvrira pas forcément l'application ce jour-là, et
-/// c'est justement le jour où il doit savoir.
-/// </summary>
+/// <summary>Prévient le vendeur que sa boutique a été SUSPENDUE par la plateforme.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerSuspendedNotificationHandler")]
 public sealed class SellerSuspendedNotificationHandler : IIntegrationEventHandler<SellerSuspendedIntegrationEvent>
 {
@@ -142,15 +108,7 @@ public sealed class SellerSuspensionLiftedNotificationHandler : IIntegrationEven
             alsoEmail: true);
 }
 
-/// <summary>
-/// Prévient le vendeur que son dossier KYB a été REFUSÉ, et lui dit POURQUOI.
-///
-/// AUCUN MOTIF NE LUI PARVENAIT — ni même le refus. Il voyait un statut
-/// « Rejeté » sur son écran, sans savoir quelle pièce corriger : il redéposait la
-/// même, la modération la refusait à nouveau, et les deux s'épuisaient.
-///
-/// Un refus sans motif n'est pas une décision de modération, c'est une impasse.
-/// </summary>
+/// <summary>Prévient le vendeur que son dossier KYB a été REFUSÉ, et lui dit POURQUOI.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerKybRejectedNotificationHandler")]
 public sealed class SellerKybRejectedNotificationHandler : IIntegrationEventHandler<SellerKybRejectedIntegrationEvent>
 {
@@ -192,27 +150,7 @@ public sealed class SellerReactivatedNotificationHandler : IIntegrationEventHand
             alsoEmail: true);
 }
 
-/// <summary>
-/// Prévient le vendeur qu'un avis vient d'être publié sur l'un de ses produits.
-/// L'événement ne porte que le produit : on remonte au vendeur via le catalogue.
-/// </summary>
-/// <remarks>
-/// `IProductsModuleApi` ET NON `ICatalogModuleApi` — SUBSTITUTION DÉLIBÉRÉE.
-///
-/// Dans le monolithe, ce gestionnaire appelait `ICatalogModuleApi` : les deux
-/// modules vivaient dans le même processus, n'importe quelle interface faisait
-/// l'affaire. Ici l'appel doit traverser le réseau, et `ICatalogModuleApi`
-/// n'existe QUE côté serveur — `HBA.Catalog.Contracts.Grpc` expose le service,
-/// pas de client. Aucun moyen de joindre catalog-service par cette interface.
-///
-/// `IProductsModuleApi` a, lui, un client gRPC (`AddProductsGrpcClient`) qui
-/// pointe vers `Services:Catalog`. Son `ProductSummary` porte `SellerId` et
-/// `Name`, les deux seuls champs utilisés ici : la substitution ne change rien
-/// au message envoyé.
-///
-/// Elle va d'ailleurs dans le sens déjà acté de la dualité Catalog/Products,
-/// Products étant le successeur.
-/// </remarks>
+/// <summary>Prévient le vendeur qu'un avis vient d'être publié sur l'un de ses produits.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.ReviewPublishedNotificationHandler")]
 public sealed class ReviewPublishedNotificationHandler : IIntegrationEventHandler<ReviewPublishedIntegrationEvent>
 {
@@ -263,8 +201,8 @@ public sealed class ReviewPublishedNotificationHandler : IIntegrationEventHandle
 }
 
 /// <summary>
-/// Prévient le vendeur qu'une de ses références est en RUPTURE. Un produit en rupture
-/// ne se vend plus : chaque heure sans le savoir est une vente perdue.
+/// Prévient le vendeur qu'une de ses références est en RUPTURE. Un produit en
+/// rupture ne se vend plus : chaque heure sans le savoir est une vente perdue.
 /// </summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.StockDepletedNotificationHandler")]
 public sealed class StockDepletedNotificationHandler : IIntegrationEventHandler<StockDepletedIntegrationEvent>
@@ -297,22 +235,7 @@ public sealed class StockDepletedNotificationHandler : IIntegrationEventHandler<
             return;
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // ON PRÉVIENT TOUS LES VENDEURS CONCERNÉS, PLUS UN SEUL.
-        //
-        // L'ancien code prenait `.FirstOrDefault()` sur la liste des offres
-        // portant ce SKU. Or le SKU n'est unique QU'AU SEIN D'UN PRODUIT : deux
-        // produits distincts peuvent porter la même référence, et l'inventaire
-        // les indexe ensemble.
-        //
-        // Un seul vendeur — celui que la base rendait en premier — était donc
-        // prévenu, et les autres découvraient la rupture en constatant l'absence
-        // de commandes. Le tirage était en plus instable : rien ne garantit
-        // l'ordre d'une requête sans tri.
-        //
-        // On déduplique par vendeur : un même vendeur ayant plusieurs offres sur
-        // cette référence ne doit pas recevoir trois fois le même message.
-        // ═════════════════════════════════════════════════════════════════════
         var vendeurs = offres.Select(o => o.SellerId).Distinct().ToList();
 
         foreach (var sellerId in vendeurs)
@@ -337,10 +260,7 @@ public sealed class StockDepletedNotificationHandler : IIntegrationEventHandler<
     }
 }
 
-/// <summary>
-/// Prévient l'acheteur que son PAIEMENT A ÉCHOUÉ. Sans ce message, il croit sa commande
-/// passée et attend un colis qui ne partira jamais.
-/// </summary>
+/// <summary>Prévient l'acheteur que son PAIEMENT A ÉCHOUÉ.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.PaymentFailedNotificationHandler")]
 public sealed class PaymentFailedNotificationHandler : IIntegrationEventHandler<PaymentFailedIntegrationEvent>
 {
@@ -365,8 +285,8 @@ public sealed class PaymentFailedNotificationHandler : IIntegrationEventHandler<
             return;
         }
 
-        // Le MOTIF technique du PSP n'est pas repris : il est rarement compréhensible et
-        // parfois révélateur (numéro, solde). On invite à réessayer.
+        // Le MOTIF technique du PSP n'est pas repris : il est rarement
+        // compréhensible et parfois révélateur (numéro, solde).
         await _dispatcher.NotifyAsync(
             order.BuyerId,
             "Paiement échoué",

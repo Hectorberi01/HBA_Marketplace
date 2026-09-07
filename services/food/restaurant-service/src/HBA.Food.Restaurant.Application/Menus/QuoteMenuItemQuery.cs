@@ -5,15 +5,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Food.Application.Menus;
 
-/// <summary>
-/// Le prix d'un plat avec les options retenues, et de quoi l'afficher.
-///
-/// LES LIBELLÉS SONT RENVOYÉS MAIS NE DOIVENT PAS ÊTRE STOCKÉS.
-///
-/// Ils servent à confirmer le choix à l'écran (« Riz au gras — Grande taille,
-/// poulet »). Les figer dans le panier ferait afficher pendant des semaines un
-/// nom que le restaurateur a corrigé depuis.
-/// </summary>
+/// <summary>Le prix d'un plat avec les options retenues, et de quoi l'afficher.</summary>
 public sealed record MenuItemQuote(
     Guid MenuItemId,
     string Name,
@@ -23,25 +15,7 @@ public sealed record MenuItemQuote(
 
 public sealed record QuotedOption(Guid OptionGroupId, Guid OptionId, string GroupName, string OptionName, decimal PriceDelta);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// COMBIEN COÛTE CE PLAT AVEC CES OPTIONS, ET PEUT-ON LE COMMANDER ?
-///
-/// CETTE REQUÊTE EXISTE POUR QUE LE PANIER N'AIT PAS À SAVOIR.
-///
-/// Ajouter un plat au panier suppose quatre vérifications que seul Food peut
-/// faire : l'établissement prend-il des commandes à cet instant, le plat est-il
-/// disponible, les options appartiennent-elles à ce plat, et les groupes
-/// obligatoires ont-ils reçu leur choix. Les recopier côté Cart y importerait le
-/// vocabulaire de la restauration — et la copie divergerait à la première règle
-/// modifiée.
-///
-/// CE PRIX N'ENGAGE PAS. Il est recalculé à la réception de la commande, à
-/// partir de la même carte. Un plat dont le prix change entre l'ajout au panier
-/// et le paiement est facturé au prix de la carte : c'est le restaurant qui fixe
-/// ses prix, pas l'instantané que le client garde ouvert sur son téléphone.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>COMBIEN COÛTE CE PLAT AVEC CES OPTIONS, ET PEUT-ON LE COMMANDER ?</summary>
 public sealed record QuoteMenuItemQuery(
     Guid RestaurantId,
     Guid MenuItemId,
@@ -76,8 +50,8 @@ internal sealed class QuoteMenuItemQueryHandler : IQueryHandler<QuoteMenuItemQue
 
         var restaurant = await _restaurants.GetByIdAsync(new RestaurantId(query.RestaurantId), cancellationToken);
 
-        // Même réponse que pour un identifiant inconnu : distinguer les deux
-        // dirait à qui teste des identifiants lesquels existent.
+        // Même réponse que pour un identifiant inconnu : distinguer les deux dirait
+        // à qui teste des identifiants lesquels existent.
         if (restaurant is null || !restaurant.IsPubliclyVisible)
         {
             return Result.Failure<MenuItemQuote>(
@@ -85,10 +59,6 @@ internal sealed class QuoteMenuItemQueryHandler : IQueryHandler<QuoteMenuItemQue
         }
 
         // L'ÉTABLISSEMENT DOIT PRENDRE DES COMMANDES MAINTENANT.
-        //
-        // Sans ce contrôle, on remplirait le panier d'un restaurant fermé, et le
-        // refus n'arriverait qu'au paiement — après que le client a saisi son
-        // adresse et choisi son moyen de paiement.
         var blocage = restaurant.CanAcceptOrders(maintenant);
         if (blocage != OrderingBlockedReason.None)
         {
@@ -100,10 +70,6 @@ internal sealed class QuoteMenuItemQueryHandler : IQueryHandler<QuoteMenuItemQue
         var item = await _items.GetByIdAsync(new MenuItemId(query.MenuItemId), cancellationToken);
 
         // LE PLAT DOIT APPARTENIR À CE RESTAURANT.
-        //
-        // Sans cette comparaison, un client passerait l'identifiant d'un plat d'un
-        // autre établissement : le prix serait celui de l'autre carte, et la
-        // commande partirait vers une cuisine qui ne connaît pas ce plat.
         if (item is null || item.RestaurantId != query.RestaurantId)
         {
             return Result.Failure<MenuItemQuote>(
@@ -111,11 +77,6 @@ internal sealed class QuoteMenuItemQueryHandler : IQueryHandler<QuoteMenuItemQue
         }
 
         // LA CARTE DU PLAT DOIT ÊTRE SERVIE À CETTE HEURE.
-        //
-        // `PriceSelection` juge l'article et ses options, jamais le CRÉNEAU de la
-        // carte qui le contient. Sans ce contrôle, le menu du midi resterait
-        // commandable à 22 h — c'est précisément le cas que le second niveau de la
-        // carte existe pour représenter.
         var section = (await _categories.ListByRestaurantAsync(query.RestaurantId, cancellationToken))
             .FirstOrDefault(c => c.Id.Value == item.MenuCategoryId);
 

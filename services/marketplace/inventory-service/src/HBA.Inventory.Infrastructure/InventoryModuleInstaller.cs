@@ -22,7 +22,10 @@ using HBA.Inventory.Infrastructure.Caching.Redis;
 using HBA.Inventory.Infrastructure.Observability;
 namespace HBA.Inventory.Infrastructure;
 
-/// <summary>Enregistre le module Inventory : DbContext, repositories, API publique, handlers, validators, outbox.</summary>
+/// <summary>
+/// Enregistre le module Inventory : DbContext, repositories, API publique,
+/// handlers, validators, outbox.
+/// </summary>
 public sealed class InventoryModuleInstaller : IModuleInstaller
 {
     public string ModuleName => "Inventory";
@@ -31,24 +34,18 @@ public sealed class InventoryModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheInventory(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteInventory(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
         // `AjouterMessagerieInventory()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<InventoryDbContext>(options =>
@@ -59,9 +56,7 @@ public sealed class InventoryModuleInstaller : IModuleInstaller
 
         services.AddScoped<IInventoryItemRepository, InventoryItemRepository>();
 
-        // Le journal des mouvements (lot 7.3, ISSUE-044). Écrit dans la MÊME unité
-        // de travail que la mutation : un journal tenu à part laisserait, au premier
-        // incident, un stock modifié sans ligne qui l'explique.
+        // Le journal des mouvements (lot 7.3, ISSUE-044).
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IFulfillmentLocationRepository, FulfillmentLocationRepository>();
         services.AddScoped<IInventoryModuleApi, InventoryModuleApi>();
@@ -73,39 +68,7 @@ public sealed class InventoryModuleInstaller : IModuleInstaller
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE BALAYAGE D'EXPIRATION DES RÉSERVATIONS (ISSUE-031).
-        //
-        // SANS CET ENREGISTREMENT, LA CORRECTION N'EXISTE PAS.
-        //
-        // `ExpiresAtUtc` était écrite depuis la migration initiale et relue par
-        // personne : la colonne, la commande et l'agrégat peuvent tous être justes,
-        // si rien ne les appelle le stock continue de s'éroder exactement comme
-        // avant. C'est la panne qu'a connue return-refund, dont les trois
-        // travailleurs étaient enregistrés — et vides.
-        //
-        // CE MODULE N'EST COMPOSÉ QUE PAR inventory-service (voir son
-        // `Program.cs`). Contrairement à l'outbox, il n'y a donc pas de second hôte
-        // qui lancerait un deuxième balayeur. Si un BFF venait un jour à composer
-        // ce module, il faudrait un interrupteur du même genre que
-        // `OUTBOX_ENABLED` — deux balayeurs liraient le même lot.
-        //
-        // Période PAR DÉFAUT : 5 minutes. Une expiration n'a aucune urgence — la
-        // réservation est hors délai depuis un quart d'heure quand on la voit — et
-        // balayer plus souvent relirait la table pour rien. Elle reste réglable :
-        //
-        //     Inventory:ReservationSweep:IntervalSeconds
-        //     Inventory:ReservationSweep:BatchSize
-        //
-        // `configuration[...]` + `TryParse`, PAS `GetValue<T>` : ce projet ne
-        // référence que `Microsoft.Extensions.Configuration.Abstractions`, et
-        // `GetValue<T>` vit dans le paquet `.Binder`. C'est la manière de faire du
-        // dépôt (voir `PaymentsModuleInstaller`).
-        //
-        // Les valeurs absurdes sont ignorées au profit du défaut : une période de
-        // zéro seconde ferait tourner le balayeur en boucle serrée sur la base, et
-        // un lot négatif ne balaierait plus rien — sans que rien ne le dise.
-        // ═════════════════════════════════════════════════════════════════════
         var periode = TimeSpan.FromMinutes(5);
         if (int.TryParse(configuration["Inventory:ReservationSweep:IntervalSeconds"], out var secondes)
             && secondes > 0)
@@ -122,27 +85,7 @@ public sealed class InventoryModuleInstaller : IModuleInstaller
         services.AddSingleton(new StockReservationSweepOptions(periode, taillePar));
         services.AddHostedService<ExpireStockReservationsWorker>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // LA PURGE DES RÉSERVATIONS TERMINÉES (manque connu depuis le lot 3.5).
-        //
-        // TROIS RÉGLAGES, ET LE PLUS DÉLICAT EST LA RÉTENTION.
-        //
-        // `ConfirmReservation` teste une ligne `Confirmed` pour être idempotent :
-        // effacer cette ligne avant qu'un rejeu Kafka ne puisse encore arriver
-        // ferait décrémenter le stock une seconde fois. Quatre-vingt-dix jours par
-        // défaut, très au-delà de la rétention d'un topic et des reprises
-        // d'outbox. La raccourcir sous une semaine est une décision à prendre en
-        // connaissance de cette phrase.
-        //
-        // UNE FOIS PAR JOUR, ET NON TOUTES LES CINQ MINUTES comme l'expiration.
-        // Celle-ci rend du stock à la vente et doit courir ; la purge n'a aucun
-        // effet métier — plus souvent ne ferait que relire une table pour n'y rien
-        // trouver.
-        //
-        // LOT VOLONTAIREMENT BAS. Le PREMIER passage sur une base en service
-        // depuis longtemps a des mois d'historique à reprendre : mieux vaut
-        // plusieurs tours courts qu'une transaction qui verrouille la table.
-        // ═════════════════════════════════════════════════════════════════════
         var periodePurge = TimeSpan.FromHours(24);
         if (int.TryParse(configuration["Inventory:ReservationPurge:IntervalHours"], out var heures)
             && heures > 0)

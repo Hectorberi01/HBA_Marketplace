@@ -12,28 +12,7 @@ namespace HBA.FoodCarts.Application.Carts.Commands;
 /// <summary>Une option retenue par le client : son groupe et son choix.</summary>
 public sealed record FoodOptionChoice(Guid OptionGroupId, Guid OptionId);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// AJOUT D'UN PLAT AU PANIER.
-///
-/// IL N'Y A PLUS DE PRIX DANS CETTE COMMANDE, ET C'EST LE POINT.
-///
-/// Son ancêtre — `AddFoodItemToCartCommand`, dans cart-service — recevait
-/// `UnitBaseAmount` et `Currency` depuis le corps HTTP, et son propre
-/// commentaire l'assumait : « ce gestionnaire n'interroge ni Food ni Pricing […]
-/// tout cela a été vérifié par l'appelant ». L'appelant, c'était le navigateur du
-/// client. Ni la disponibilité du plat, ni l'appartenance des options à ses
-/// groupes, ni le prix n'étaient contrôlés nulle part sur ce chemin.
-///
-/// Ce n'était pas une négligence : cart-service vivait dans la marketplace et
-/// n'avait aucun droit de connaître une carte de restaurant. La frontière était
-/// juste, et c'est le PLACEMENT du panier qui était faux.
-///
-/// food-cart-service est dans le domaine restauration. Il lit la carte
-/// (`IFoodModuleApi.GetMenuItemAsync`), vérifie et calcule. Le montant n'entre
-/// plus par la porte du client.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>AJOUT D'UN PLAT AU PANIER.</summary>
 public sealed record AddItemToFoodCartCommand(
     Guid BuyerId,
     Guid RestaurantId,
@@ -66,9 +45,6 @@ internal sealed class AddItemToFoodCartCommandHandler : ICommandHandler<AddItemT
         var article = await _food.GetMenuItemAsync(command.RestaurantId, command.MenuItemId, cancellationToken);
 
         // MÊME RÉPONSE POUR « PLAT INCONNU » ET « PLAT D'UN AUTRE RESTAURANT ».
-        //
-        // Distinguer les deux dirait à qui essaie des identifiants lesquels
-        // existent, et chez qui.
         if (article is null)
         {
             return Result.Failure<Guid>(Error.NotFound(
@@ -124,29 +100,6 @@ internal sealed class AddItemToFoodCartCommandHandler : ICommandHandler<AddItemT
 
     /// <summary>
     /// Le prix unitaire du plat, suppléments compris — et la validation des choix.
-    ///
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// QUATRE CONTRÔLES, ET AUCUN N'EXISTAIT AVANT LA SÉPARATION.
-    ///
-    /// 1. CHAQUE OPTION APPARTIENT À UN GROUPE DE CE PLAT. Sans lui, l'identifiant
-    ///    d'une option prise chez un autre plat — ou inventé — entrerait dans le
-    ///    panier, et la cuisine recevrait un choix qu'elle ne sait pas préparer.
-    ///
-    /// 2. L'OPTION EST DISPONIBLE. « Grande taille » épuisée à 21 h ne doit pas se
-    ///    commander à 21 h 01.
-    ///
-    /// 3. LES BORNES DU GROUPE SONT RESPECTÉES. Un groupe obligatoire sans choix
-    ///    produirait un plat que la cuisine ne peut pas assembler ; trois
-    ///    accompagnements dans un groupe qui en autorise un seul seraient
-    ///    facturés et jamais servis.
-    ///
-    /// 4. LE MÊME CHOIX N'EST PAS COMPTÉ DEUX FOIS. Sans ce contrôle, envoyer
-    ///    deux fois la même option la ferait payer deux fois tout en satisfaisant
-    ///    un maximum de deux — un surcoût que rien ne rattrape.
-    ///
-    /// Le total est alors le prix de base plus la somme des écarts. C'est une
-    /// ESTIMATION D'AFFICHAGE : la commande la recalcule au moment d'être passée.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     private static Result<decimal> Coter(MenuItemView article, IReadOnlyList<FoodOptionChoice> choix)
     {
@@ -219,19 +172,7 @@ public sealed record ApplyFoodCartCouponCommand(Guid BuyerId, string Code) : ICo
 
 public sealed record RemoveFoodCartCouponCommand(Guid BuyerId) : ICommand;
 
-/// <summary>
-/// Les mutations d'un panier existant. Elles partagent la même ouverture — lire
-/// le panier actif, refuser s'il n'y en a pas — et la même fermeture : sauver,
-/// puis faire tomber le cache.
-///
-/// L'INVALIDATION DU CACHE EST DANS LA FERMETURE COMMUNE, PAS DANS CHAQUE
-/// GESTIONNAIRE.
-///
-/// `GetActiveFoodCartQuery` sert une copie mise en cache deux minutes. Un
-/// gestionnaire qui oublierait l'invalidation ferait disparaître la modification
-/// aux yeux du client, qui la retrouverait quelques minutes plus tard sans
-/// comprendre. Écrite une fois, elle ne peut pas s'oublier cinq fois.
-/// </summary>
+/// <summary>Les mutations d'un panier existant.</summary>
 internal abstract class FoodCartMutationHandler
 {
     protected FoodCartMutationHandler(
@@ -325,22 +266,6 @@ internal sealed class ApplyFoodCartCouponCommandHandler
     public async Task<Result> Handle(ApplyFoodCartCouponCommand command, CancellationToken cancellationToken)
     {
         // LA VALIDATION SE FAIT ICI, PAS DANS L'AGRÉGAT.
-        //
-        // Le panier ne doit pas savoir ce qu'est une promotion : seul Pricing
-        // détient les codes, leurs fenêtres et leurs plafonds. `ApplyPromotionCode`
-        // n'atteste donc de rien — il enregistre une saisie.
-        //
-        // LE SOUS-TOTAL N'EST PAS TRANSMIS, ET C'EST DÉLIBÉRÉ ICI.
-        //
-        // `ValidateCouponAsync` a gagné un paramètre `cartSubtotal` au lot D28 —
-        // optionnel, pour que les appelants d'avant continuent de compiler. Le
-        // panier de repas emploie `PromotionPricingModuleApi` depuis le 29/08/2026 ;
-        // il employait auparavant une tarification neutre, qui refusait TOUT code
-        // sans rien évaluer : lui passer un sous-total serait une donnée que
-        // personne ne lit, et laisserait croire que la validation examine le
-        // panier. Le jour où food-cart sera branché sur promotion-service, ce
-        // paramètre sera à remplir dans le MÊME geste — sans quoi une condition
-        // « panier d'au moins 5 000 F » ne serait découverte qu'au checkout.
         var verdict = await _pricing.ValidateCouponAsync(
             command.Code, command.BuyerId, cancellationToken: cancellationToken);
         if (!verdict.IsValid)

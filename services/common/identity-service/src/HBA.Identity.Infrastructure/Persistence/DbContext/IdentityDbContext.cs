@@ -14,20 +14,10 @@ using HBA.Identity.Infrastructure.Idempotency;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Identity.Infrastructure.Persistence;
 
-/// <summary>
-/// DbContext du module Identity. Vit dans le schéma « identity » : pas de JOIN ni
-/// de foreign key vers un autre schéma. Hérite de ModuleDbContext pour l'Unit of
-/// Work (dispatch des domain events) et l'outbox.
-/// </summary>
+/// <summary>DbContext du module Identity.</summary>
 public sealed class IdentityDbContext : ModuleDbContext, IOutboxDbContext, IIdentityUnitOfWork
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // L'OUTBOX ET L'INBOX DE CE SERVICE — LEURS TABLES LUI APPARTIENNENT.
-    //
-    // Le socle draine la file d'evenements et exclut ces deux tables du journal
-    // d'audit ; il ne connait plus ni l'une ni l'autre. Ces trois membres sont ce
-    // qu'il appelle, et ils repondent avec les entites de `Persistence/`.
-    // ═════════════════════════════════════════════════════════════════════════
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
@@ -70,41 +60,14 @@ public sealed class IdentityDbContext : ModuleDbContext, IOutboxDbContext, IIden
 
     // PAS DE « DbSet<Address> » ICI. Le carnet d'adresses a été déplacé dans le
     // module User (schéma « users ») : il répond à « qui est la personne ? », pas à
-    // « qui peut se connecter ? ». La table identity.addresses est supprimée par la
-    // migration MoveAddressesToUsers, APRÈS la reprise des données côté Users.
+    // « qui peut se connecter ? ».
 
     protected override string Schema => SchemaName;
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE JOURNAL D'AUDIT EST ACTIF ICI (lot 7.1, ISSUE-042 / ISSUE-043).
-    ///
-    /// `KeepsAuditTrail` VALAIT `false` SUR VINGT ET UN CONTEXTES SUR VINGT-QUATRE.
-    ///
-    /// Ce qui n'y laissait AUCUNE trace : l'attribution et le retrait d'un rôle
-    /// PLATEFORME (`POST`/`DELETE /api/identity/users/{id}/roles`), la modification
-    /// des permissions d'un rôle, et la suspension d'un compte.
-    ///
-    /// C'est le journal le plus important du dépôt. Un rôle plateforme ouvre tout le
-    /// back-office ; se l'attribuer à soi-même était, jusqu'à cette migration, un
-    /// geste que rien ne consignait nulle part. La seule question qu'on pose après
-    /// une compromission — « qui a donné ce droit, et quand » — n'avait pas de
-    /// réponse.
-    ///
-    /// Activé DANS LE MÊME COMMIT que la migration qui crée `identity.audit_entries` —
-    /// l'inverse produirait une surcharge qui promet une table absente, et le défaut
-    /// ne se verrait qu'au premier `SaveChanges` en production.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE JOURNAL D'AUDIT EST ACTIF ICI (lot 7.1, ISSUE-042 / ISSUE-043).</summary>
     protected override bool KeepsAuditTrail => true;
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LE JOURNAL D'AUDIT DE CE SERVICE — L'ENTITE ET SA TABLE LUI APPARTIENNENT.
-    //
-    // Le socle collecte les mutations, resout l'acteur et fixe l'instant unique de
-    // la transaction ; il ne connait plus aucune table d'audit. Ces deux methodes
-    // sont ce qu'il appelle, et elles repondent avec l'entite de `Auditing/`.
-    // ═════════════════════════════════════════════════════════════════════════
     protected override void ConfigurerLeJournalDAudit(ModelBuilder modelBuilder)
         => modelBuilder.ApplyConfiguration(new AuditConfiguration());
 
@@ -131,8 +94,8 @@ public sealed class IdentityDbContext : ModuleDbContext, IOutboxDbContext, IIden
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(IdentityDbContext).Assembly);
-        // Configurations du socle : elles vivent dans un autre assembly, le balayage
-        // ci-dessus ne les trouve pas.
+        // Configurations du socle : elles vivent dans un autre assembly, le
+        // balayage ci-dessus ne les trouve pas.
         modelBuilder.ApplyConfiguration(new ConsumerInboxConfiguration());
         modelBuilder.ApplyConfiguration(new IdempotencyConfiguration());
 

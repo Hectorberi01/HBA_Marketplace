@@ -5,54 +5,21 @@ using HBA.Shared.Application.Context;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.Logging;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Merchants.Infrastructure.Integration` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Merchants.Infrastructure;
 
 using HBA.Merchants.Infrastructure.Persistence.Outbox;
 using HBA.Merchants.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
-// ═════════════════════════════════════════════════════════════════════════════
-// CE FICHIER VIT DANS `Infrastructure/Messaging/Kafka/Consumers`, ET NON DANS `Application`.
-//
-// Il dépend de `IConsumerInbox`, qui vit dans `HBA.Shared.Infrastructure` — que la
-// couche Application ne référence pas, délibérément. Même arbitrage que pour
-// `UserAnonymizedSellerPurgeHandler`.
-// ═════════════════════════════════════════════════════════════════════════════
+// CE FICHIER VIT DANS `Infrastructure/Messaging/Kafka/Consumers`, ET NON DANS
+// `Application`.
 
 namespace HBA.Merchants.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA NOTE DU VENDEUR, ENFIN ALIMENTÉE.
-///
-/// `Seller.UpdateRating` N'AVAIT AUCUN APPELANT DANS TOUT LE DÉPÔT.
-///
-/// La colonne existait, était persistée, figurait dans la projection de vitrine —
-/// et valait `0` pour tout le monde. Un vendeur ayant écoulé trois cents commandes
-/// était présenté comme n'ayant jamais vendu ni satisfait personne. Sur une place
-/// de marché, la preuve sociale sur laquelle repose l'achat était constamment
-/// fausse, et fausse dans le sens qui décourage.
-///
-/// ON POSE LA VALEUR REÇUE, ON N'ACCUMULE RIEN.
-///
-/// `SellerRatingRecomputedIntegrationEvent` porte la MOYENNE recalculée par
-/// review-service depuis ses propres tables, pas l'avis qui vient d'arriver.
-/// Recevoir deux fois le même message pose donc deux fois la même valeur : le
-/// gestionnaire est idempotent par nature, contrairement à celui du RGPD dont la
-/// garde d'inbox est load-bearing.
-///
-/// La garde est quand même là — ceinture et bretelles — et elle sert surtout à ne
-/// pas réécrire, à chaque rejeu, une ligne que rien ne change.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA NOTE DU VENDEUR, ENFIN ALIMENTÉE.</summary>
 public sealed class SellerRatingHandler
     : IIntegrationEventHandler<SellerRatingRecomputedIntegrationEvent>
 {
-    /// <summary>Nom de ce consumer dans `consumer_inbox` (§19.5). Stable : il est en base.</summary>
+    /// <summary>Nom de ce consumer dans `consumer_inbox` (§19.5).</summary>
     private const string ConsumerName = "seller-service.engagement-seller-rating-recomputed";
 
     private readonly ISellerRepository _sellers;
@@ -85,20 +52,12 @@ public sealed class SellerRatingHandler
         if (seller is null)
         {
             // ON TRACE QUAND MÊME, ET ON NE LÈVE PAS.
-            //
-            // Un avis peut viser un produit dont le vendeur a depuis été supprimé.
-            // Lever ferait rejouer trois fois un message qui ne réussira jamais,
-            // puis journaliser en Critical une perte qui n'en est pas une. Sans la
-            // trace, l'événement reviendrait à chaque rejeu pour ne rien faire.
             await MarquerTraiteAsync(e, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return;
         }
 
         // `double` → `decimal`, ET LA BORNE EST DÉJÀ DANS L'AGRÉGAT.
-        //
-        // `UpdateRating` refuse hors [0, 5]. On ne recopie pas ce contrôle ici :
-        // deux bornes pour une règle divergent au premier ajustement.
         var resultat = seller.UpdateRating((decimal)e.Average);
 
         if (resultat.IsFailure)

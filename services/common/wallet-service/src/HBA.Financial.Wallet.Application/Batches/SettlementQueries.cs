@@ -15,7 +15,10 @@ public sealed record ListSettlementBatchesQuery : IQuery<IReadOnlyList<Settlemen
 /// <summary>Relevé d'un vendeur sur une période (ventes, commissions, net).</summary>
 public sealed record GetSellerStatementQuery(Guid SellerId, DateTime PeriodStartUtc, DateTime PeriodEndUtc) : IQuery<SellerStatementSummary>;
 
-/// <summary>Lignes détaillées du relevé d'un vendeur sur une période (un gain = une ligne), triées par date.</summary>
+/// <summary>
+/// Lignes détaillées du relevé d'un vendeur sur une période (un gain = une ligne),
+/// triées par date.
+/// </summary>
 public sealed record GetSellerStatementLinesQuery(Guid SellerId, DateTime PeriodStartUtc, DateTime PeriodEndUtc) : IQuery<IReadOnlyList<SellerStatementLine>>;
 
 internal static class SettlementMapper
@@ -80,18 +83,6 @@ internal sealed class GetSellerStatementLinesQueryHandler : IQueryHandler<GetSel
         var earnings = await _repository.ListSellerEarningsAsync(query.SellerId, query.PeriodStartUtc, query.PeriodEndUtc, cancellationToken);
 
         // LES LIGNES SUIVENT LE RÉSUMÉ : MONTANTS NETS DES REPRISES.
-        //
-        // Le résumé (`GetSellerStatementAsync`) déduit désormais ce qui a été repris
-        // sur une vente remboursée. Laisser ici les montants d'origine ferait un
-        // relevé dont les lignes ne totalisent pas le total — le pire des deux
-        // mondes : le vendeur ne saurait ni ce qu'il a vendu, ni ce qui lui est dû,
-        // et conclurait à une erreur de calcul.
-        //
-        // La trace de la reprise n'est pas perdue pour autant : le STATUT de la ligne
-        // passe « Reversed » dès que la vente est entièrement rendue. Une reprise
-        // PARTIELLE, elle, ne se lit nulle part sur cette ligne — les montants
-        // baissent, le statut ne bouge pas. C'est la même lacune de contrat que sur le
-        // résumé, et elle se refermera au même endroit.
         IReadOnlyList<SellerStatementLine> lines = earnings
             .Select(e => new SellerStatementLine(
                 e.Id.Value, e.OrderId, e.CreatedAtUtc, e.RemainingGrossAmount, e.RemainingCommissionAmount,

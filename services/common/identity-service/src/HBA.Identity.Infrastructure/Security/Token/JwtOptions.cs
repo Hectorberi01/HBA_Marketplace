@@ -2,7 +2,7 @@ namespace HBA.Identity.Infrastructure.Security;
 
 /// <summary>
 /// Paramètres d'authentification, liés depuis la section « Jwt » de la
-/// configuration. La clé de signature doit être longue (>= 32 octets) et secrète.
+/// configuration.
 /// </summary>
 public sealed class JwtOptions
 {

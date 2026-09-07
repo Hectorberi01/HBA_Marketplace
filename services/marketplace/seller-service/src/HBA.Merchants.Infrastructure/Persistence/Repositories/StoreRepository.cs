@@ -10,8 +10,7 @@ internal sealed class StoreRepository : IStoreRepository
     public StoreRepository(SellersDbContext dbContext) => _dbContext = dbContext;
 
     // SUIVI EF : toutes les lectures de ce dépôt précèdent une mutation (ouvrir,
-    // fermer, changer les horaires). Les écrans passent par les requêtes, qui
-    // projettent sans suivre.
+    // fermer, changer les horaires).
     public async Task<Store?> GetByIdAsync(StoreId id, CancellationToken cancellationToken = default)
         => await _dbContext.Stores.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 

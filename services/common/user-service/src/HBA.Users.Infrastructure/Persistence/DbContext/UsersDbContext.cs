@@ -14,38 +14,10 @@ using HBA.Users.Infrastructure.Idempotency;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Users.Infrastructure.Persistence;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE MODULE USER — « QUI EST LA PERSONNE ? »
-///
-/// Le cahier d'architecture sépare deux questions que le code réunissait :
-///
-///   • IDENTITY répond à « qui peut se connecter ? » — mot de passe, jetons,
-///     rôles, vérifications. C'est de la sécurité d'accès.
-///   • USER répond à « qui est la personne ? » — profil, avatar, adresses,
-///     préférences. C'est du métier.
-///
-/// La distinction n'est pas cosmétique. Le carnet d'adresses n'a aucune raison
-/// d'être verrouillé derrière les mêmes contraintes qu'un magasin de mots de
-/// passe, et un magasin de mots de passe n'a aucune raison de grossir à chaque
-/// fois qu'un acheteur ajoute une adresse de livraison.
-///
-/// LA RÉFÉRENCE VA DANS UN SEUL SENS.
-///
-/// User connaît le <c>UserId</c> émis par Identity ; Identity ne connaît pas User.
-/// C'est ce qui permet de supprimer un profil sans toucher au compte, et de
-/// vérifier un mot de passe sans charger un carnet d'adresses.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE MODULE USER — « QUI EST LA PERSONNE ? »</summary>
 public sealed class UsersDbContext : ModuleDbContext, IOutboxDbContext, IUsersUnitOfWork
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // L'OUTBOX ET L'INBOX DE CE SERVICE — LEURS TABLES LUI APPARTIENNENT.
-    //
-    // Le socle draine la file d'evenements et exclut ces deux tables du journal
-    // d'audit ; il ne connait plus ni l'une ni l'autre. Ces trois membres sont ce
-    // qu'il appelle, et ils repondent avec les entites de `Persistence/`.
-    // ═════════════════════════════════════════════════════════════════════════
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
@@ -79,8 +51,8 @@ public sealed class UsersDbContext : ModuleDbContext, IOutboxDbContext, IUsersUn
 
     /// <summary>
     /// Les profils. Leur clé primaire est le UserId émis par Identity — voir
-    /// l'encadré sur UserProfile : c'est ce qui rend « deux profils pour un
-    /// compte » impossible par construction.
+    /// l'encadré sur UserProfile : c'est ce qui rend « deux profils pour un compte
+    /// » impossible par construction.
     /// </summary>
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
 
@@ -90,14 +62,7 @@ public sealed class UsersDbContext : ModuleDbContext, IOutboxDbContext, IUsersUn
     /// <summary>Appareils enregistrés pour les notifications push (§10.2).</summary>
     public DbSet<UserDevice> Devices => Set<UserDevice>();
 
-    /// <summary>
-    /// Traces de consommation Kafka (§19.5) et requêtes idempotentes (§5).
-    ///
-    /// Elles vivent dans le schéma du service et non dans une base commune : le §9
-    /// interdit qu'un service lise la base d'un autre, et une inbox partagée serait
-    /// exactement cela — avec en prime un point de panne unique sur le chemin de
-    /// toutes les consommations.
-    /// </summary>
+    /// <summary>Traces de consommation Kafka (§19.5) et requêtes idempotentes (§5).</summary>
     public DbSet<ConsumerInboxEntry> ConsumerInbox => Set<ConsumerInboxEntry>();
 
     public DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
@@ -109,9 +74,7 @@ public sealed class UsersDbContext : ModuleDbContext, IOutboxDbContext, IUsersUn
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(UsersDbContext).Assembly);
 
         // Les configurations du socle vivent dans un AUTRE assembly : le balayage
-        // ci-dessus ne les trouve pas. Les oublier ne casse rien à la compilation —
-        // les tables manquent simplement, et l'erreur ne surgit qu'au premier
-        // message consommé, en production.
+        // ci-dessus ne les trouve pas.
         modelBuilder.ApplyConfiguration(new ConsumerInboxConfiguration());
         modelBuilder.ApplyConfiguration(new IdempotencyConfiguration());
         base.OnModelCreating(modelBuilder);

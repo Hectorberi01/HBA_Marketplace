@@ -4,11 +4,7 @@ using HBA.Identity.Domain.Roles.Events;
 
 namespace HBA.Identity.Domain.Roles;
 
-/// <summary>
-/// Définit ce qu'un acteur a le droit de faire : base de l'autorisation. Porte
-/// un ensemble de permissions granulaires (cf. dossier, Role / Permission).
-/// Les permissions sont stockées sous forme de codes validés par le VO Permission.
-/// </summary>
+/// <summary>Définit ce qu'un acteur a le droit de faire : base de l'autorisation.</summary>
 public sealed class Role : AggregateRoot<RoleId>
 {
     private List<string> _permissions = new();

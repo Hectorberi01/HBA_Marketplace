@@ -8,29 +8,7 @@ using MediatR;
 
 namespace HBA.Marketplace.ReturnRefund.Api.Endpoints;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES RETOURS, CÔTÉ CLIENT.
-///
-/// TROIS ROUTES NE LISAIENT AUCUNE IDENTITÉ.
-///
-/// Le groupe est authentifié — `MapAuthenticatedGroup` — mais `CreateAsync`,
-/// `GetAsync` et `TimelineAsync` ne regardaient pas QUI appelait. Le client d'un
-/// dossier était simplement lu dans la commande désignée. Conséquences, avec un
-/// seul identifiant glané dans un ticket de support ou une capture d'écran :
-///
-///   • ouvrir un retour sur la commande d'un tiers, en son nom ;
-///   • lire son dossier — lignes achetées, montants, adresse de la boutique ;
-///   • lire sa chronologie complète.
-///
-/// LE REFUS SE PRÉSENTE COMME UNE ABSENCE, PAS COMME UN INTERDIT.
-///
-/// Ici l'identifiant désigne une RESSOURCE, pas un vendeur : la règle §29 du
-/// dépôt demande un 404. Et c'est aussi le bon choix de sécurité — répondre 403
-/// confirmerait à un inconnu que ce dossier existe, ce qui est déjà la moitié de
-/// ce qu'il cherchait.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES RETOURS, CÔTÉ CLIENT.</summary>
 public static class CustomerReturnsEndpoints
 {
     public static IEndpointRouteBuilder MapCustomerReturnsEndpoints(this IEndpointRouteBuilder app)
@@ -47,14 +25,7 @@ public static class CustomerReturnsEndpoints
         return app;
     }
 
-    /// <summary>
-    /// L'IDENTITÉ EST TRANSMISE À LA COMMANDE, ELLE N'EST PLUS DÉDUITE.
-    ///
-    /// La garde ne peut pas vivre ici : à ce stade on ne connaît que
-    /// l'identifiant de commande, et savoir qui l'a passée exige l'appel gRPC que
-    /// le handler fait déjà. On lui passe donc l'appelant, et c'est lui qui
-    /// compare — un seul aller-retour, une seule source de vérité.
-    /// </summary>
+    /// <summary>L'IDENTITÉ EST TRANSMISE À LA COMMANDE, ELLE N'EST PLUS DÉDUITE.</summary>
     private static async Task<IResult> CreateAsync(
         CreateReturnRequestDto request, ClaimsPrincipal user, ISender sender, CancellationToken ct)
         => (await sender.Send(new CreateReturnCommand(request, CurrentUserId(user)), ct))
@@ -120,12 +91,8 @@ public static class CustomerReturnsEndpoints
     }
 
     /// <summary>
-    /// Rend <c>null</c> quand le dossier appartient à l'appelant, ou la réponse à
+    /// Rend <c> null</c> quand le dossier appartient à l'appelant, ou la réponse à
     /// renvoyer sinon.
-    ///
-    /// UNE LECTURE DE PLUS PAR REQUÊTE, ET ELLE EST NÉCESSAIRE. Le client d'un
-    /// dossier n'est pas dans le jeton, il est dans la ressource : sans la lire,
-    /// il n'y a rien à comparer. C'est exactement l'état d'avant.
     /// </summary>
     private static async Task<IResult?> VerifierProprietaireAsync(
         Guid id, ClaimsPrincipal user, ISender sender, CancellationToken ct)
@@ -144,14 +111,7 @@ public static class CustomerReturnsEndpoints
         return EstLeSien(dossier.Value, user) ? null : Introuvable();
     }
 
-    /// <summary>
-    /// ADMINISTRATEURS ET MODÉRATEURS PASSENT.
-    ///
-    /// Ils arbitrent les litiges et n'ont aucun dossier à leur nom : les exclure
-    /// ici casserait le support. Leur surface propre est `/api/v1/admin/returns`,
-    /// mais tant qu'un agent ouvre le lien que le client lui a envoyé, il tombe
-    /// sur cette route.
-    /// </summary>
+    /// <summary>ADMINISTRATEURS ET MODÉRATEURS PASSENT.</summary>
     private static bool EstLeSien(ReturnRequestDto dossier, ClaimsPrincipal user)
         => CurrentUserId(user) is { } userId
            && (dossier.CustomerId == userId

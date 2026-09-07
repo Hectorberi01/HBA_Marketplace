@@ -4,10 +4,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Identity.Domain.Users;
 
-/// <summary>
-/// Adresse e-mail validée et normalisée (minuscules). Source d'unicité d'un
-/// compte. Value Object : comparé par sa valeur.
-/// </summary>
+/// <summary>Adresse e-mail validée et normalisée (minuscules).</summary>
 public sealed partial class Email : ValueObject
 {
     private Email(string value) => Value = value;

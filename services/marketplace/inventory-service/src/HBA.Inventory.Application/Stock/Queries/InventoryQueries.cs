@@ -13,23 +13,13 @@ public sealed record GetInventoryItemQuery(Guid InventoryItemId) : IQuery<Invent
 public sealed record GetAvailabilityQuery(string Sku) : IQuery<AvailabilitySummary>;
 
 /// <summary>Liste les articles sous le seuil de réapprovisionnement.</summary>
-/// <param name="Take">
-/// Combien de lignes au plus. Plafonné côté serveur — voir
-/// <c>ListLowStockQueryHandler.PlafondDeLecture</c>.
-/// </param>
+/// <param name="Take">Combien de lignes au plus.</param>
 public sealed record ListLowStockQuery(int Take = 50) : IQuery<IReadOnlyList<InventoryItemSummary>>;
 
 /// <summary>Liste les articles de stock d'un SKU (toutes localisations).</summary>
 public sealed record ListInventoryBySkuQuery(string Sku) : IQuery<IReadOnlyList<InventoryItemSummary>>;
 
-/// <summary>
-/// Liste les articles de stock situés dans un ensemble de localisations.
-///
-/// Sert au BFF Vendeur : ce module ignorant la notion de boutique, l'appelant résout
-/// d'abord les localisations du vendeur, puis interroge cette requête. C'est ce qui
-/// permet d'afficher l'inventaire complet d'une boutique en une requête, au lieu d'un
-/// appel `ListInventoryBySkuQuery` par référence du catalogue.
-/// </summary>
+/// <summary>Liste les articles de stock situés dans un ensemble de localisations.</summary>
 public sealed record ListInventoryByLocationsQuery(IReadOnlyCollection<Guid> LocationIds)
     : IQuery<IReadOnlyList<InventoryItemSummary>>;
 
@@ -107,14 +97,9 @@ internal sealed class GetAvailabilityQueryHandler : IQueryHandler<GetAvailabilit
 internal sealed class ListLowStockQueryHandler : IQueryHandler<ListLowStockQuery, IReadOnlyList<InventoryItemSummary>>
 {
     /// <summary>
-    /// Le plafond serveur, identique à celui de <c>ListStockMovementsQueryHandler</c>.
+    /// Le plafond serveur, identique à celui de <c>
+    /// ListStockMovementsQueryHandler</c>.
     /// </summary>
-    /// <remarks>
-    /// C'EST UNE ALERTE, PAS UN INVENTAIRE. Deux cents lignes sous seuil, c'est
-    /// déjà plus que ce qu'un gestionnaire traite dans sa journée. Le plafond est
-    /// posé ICI, dans l'application, et non laissé au client : un `take` venu de la
-    /// requête ne doit jamais pouvoir rouvrir le balayage complet que ce lot ferme.
-    /// </remarks>
     private const int PlafondDeLecture = 200;
 
     private readonly IInventoryItemRepository _repository;

@@ -7,22 +7,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Drivers.Application.Accounts.Commands;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // TOUTES CES COMMANDES PORTENT `UserId` EN PREMIER, ET C'EST UNE GARDE DE FORME.
-//
-// AVANT CE LOT, AUCUNE N'EXISTAIT : les six routes `/api/v1/drivers/me*`
-// opéraient sur `DriverStore.DefaultDriverId`, un GUID codé en dur. TOUS LES
-// LIVREURS ÉTAIENT LE MÊME LIVREUR (ISSUE-029) : un livreur lisait le dossier
-// d'un autre, modifiait son téléphone et déclarait son véhicule.
-//
-// La correction n'est pas « vérifier l'identifiant reçu » mais NE JAMAIS EN
-// RECEVOIR : le `UserId` est écrit par la route depuis `CurrentUserId(user)`,
-// c'est-à-dire depuis le jeton. C'est le raisonnement développé dans
-// `FinancialEndpoints.cs` autour des routes `/me` (ISSUE-017/018), et il vaut
-// ici mot pour mot — le propriétaire du dossier EST l'utilisateur du jeton, il
-// n'y a donc aucun lien à vérifier et surtout aucune surface où il faudrait le
-// vérifier.
-// ═════════════════════════════════════════════════════════════════════════════
 
 /// <summary>Ouvre un dossier livreur pour l'utilisateur du jeton.</summary>
 public sealed record RegisterDriverCommand(Guid UserId, string? FullName, string? Phone) : ICommand<Guid>;
@@ -46,16 +31,7 @@ public sealed record SubmitDriverDocumentCommand(
 /// <summary>Soumet le dossier de l'appelant à la vérification.</summary>
 public sealed record SubmitDriverDossierCommand(Guid UserId) : ICommand;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES CINQ GESTES DU LIVREUR SUR SON PROPRE DOSSIER.
-///
-/// Toutes suivent le même moule : résoudre le dossier PAR LE COMPTE, appeler la
-/// méthode du domaine, enregistrer. Aucune ne décide quoi que ce soit — la
-/// complétude des pièces, la validité du téléphone et l'exigence de plaque sont
-/// dans l'agrégat, qui est le seul à pouvoir les tenir.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES CINQ GESTES DU LIVREUR SUR SON PROPRE DOSSIER.</summary>
 internal sealed class DriverAccountCommandHandler
     : ICommandHandler<RegisterDriverCommand, Guid>,
       ICommandHandler<UpdateDriverProfileCommand>,
@@ -80,13 +56,6 @@ internal sealed class DriverAccountCommandHandler
         }
 
         // CE CONTRÔLE NE SUFFIT PAS SEUL, ET IL N'EST PAS CENSÉ SUFFIRE.
-        //
-        // Deux inscriptions simultanées du même compte le passent toutes deux
-        // (double-clic, réessai du client mobile). C'est l'index unique sur
-        // `UserId`, posé par la migration initiale, qui tranche réellement : la
-        // seconde écriture est refusée par la base et ressort en 409 par
-        // `ServiceExceptionMiddleware`. Ce test-ci n'existe que pour rendre le
-        // message utile dans le cas courant, qui est séquentiel.
         if (await _accounts.ExistsForUserAsync(command.UserId, cancellationToken))
         {
             return Result.Failure<Guid>(Error.Conflict(
@@ -186,9 +155,7 @@ internal sealed class DriverAccountCommandHandler
 
     /// <summary>
     /// « Introuvable » et non « interdit » : l'appelant est authentifié mais n'a
-    /// pas de dossier. Un 403 laisserait entendre qu'il en existe un qu'on lui
-    /// refuse — ce qui est faux, et ce qui l'enverrait vers le support plutôt que
-    /// vers le formulaire d'inscription.
+    /// pas de dossier.
     /// </summary>
     private static Error NotFound()
         => Error.NotFound("driver.not_found", "Aucun dossier livreur n'est rattaché à ce compte.");

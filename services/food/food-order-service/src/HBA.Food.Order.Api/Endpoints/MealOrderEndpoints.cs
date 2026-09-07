@@ -18,29 +18,13 @@ public static class MealOrderEndpoints
         client.MapPost("/", PlaceAsync);
         client.MapPost("/{id:guid}/cancel", CancelAsync);
 
-        // ═════════════════════════════════════════════════════════════════════
         // L'ESPACE RESTAURATEUR.
-        //
-        // L'APPARTENANCE SE VÉRIFIE PAR LE PERSONNEL, PAS PAR LE PROPRIÉTAIRE.
-        //
-        // Résoudre l'établissement par son créateur revenait à interdire
-        // l'application à tout le personnel — un manager, un caissier ou un
-        // cuisinier n'avait accès à rien. `GetStaffMembershipAsync` rend
-        // l'établissement ET les permissions du compte.
-        // ═════════════════════════════════════════════════════════════════════
         var restaurateur = app
             .MapAuthenticatedGroup("/api/food/restaurant/orders")
             .WithTags("Food · Commandes (restaurateur)");
         restaurateur.MapGet("/", ListForMyRestaurantAsync);
 
-        // ═════════════════════════════════════════════════════════════════════
         // LA FILE D'ARBITRAGE.
-        //
-        // Une commande payée devenue inexécutable n'est ni annulée ni relancée
-        // d'office : quelqu'un tranche. Voir `MealOrder.MarkUnderReview` pour la
-        // raison — rembourser automatiquement détruirait des ventes récupérables,
-        // et l'argent rendu ne se reprend pas.
-        // ═════════════════════════════════════════════════════════════════════
         var admin = app.MapAdminGroup("/api/admin/food/orders").WithTags("Food · Commandes (admin)");
         admin.MapPost("/{id:guid}/review/resume", ResumeAfterReviewAsync);
         admin.MapPost("/{id:guid}/review/refund", RefundAfterReviewAsync);
@@ -54,16 +38,7 @@ public static class MealOrderEndpoints
             ? Results.Unauthorized()
             : (await sender.Send(new ListMyMealOrdersQuery(buyerId), ct)).Match(Results.Ok);
 
-    /// <summary>
-    /// Une commande — la sienne, et pas une autre.
-    /// </summary>
-    /// <remarks>
-    /// LE DEMANDEUR VOYAGE AVEC LA REQUÊTE, ET LA RÉPONSE EST « INTROUVABLE ».
-    ///
-    /// Un 403 confirmerait que la commande existe, et permettrait d'énumérer les
-    /// commandes de la plateforme en essayant des identifiants. Le propriétaire,
-    /// lui, ne voit jamais la différence.
-    /// </remarks>
+    /// <summary>Une commande — la sienne, et pas une autre.</summary>
     private static async Task<IResult> GetAsync(
         Guid id, ClaimsPrincipal user, ISender sender, CancellationToken ct)
     {
@@ -99,16 +74,7 @@ public static class MealOrderEndpoints
                 ct))
                 .Match(() => Results.NoContent());
 
-    /// <summary>
-    /// Les commandes de MON établissement.
-    /// </summary>
-    /// <remarks>
-    /// L'IDENTIFIANT DU RESTAURANT NE VIENT PAS DE L'URL.
-    ///
-    /// Le mettre dans le chemin obligerait à vérifier que l'appelant y travaille
-    /// — un contrôle de plus, oubliable. Il est résolu depuis le jeton : il n'y a
-    /// aucun identifiant à falsifier.
-    /// </remarks>
+    /// <summary>Les commandes de MON établissement.</summary>
     private static async Task<IResult> ListForMyRestaurantAsync(
         ClaimsPrincipal user, IFoodModuleApi food, ISender sender, CancellationToken ct)
     {
@@ -145,13 +111,7 @@ public static class MealOrderEndpoints
         return Guid.TryParse(brut, out var id) ? id : null;
     }
 
-    /// <summary>
-    /// AUCUN `ShippingFee` DANS CE CORPS, ET C'EST LA CORRECTION ELLE-MÊME.
-    ///
-    /// `PlaceOrderRequest` en portait un : le client posait zéro, se faisait
-    /// livrer gratuitement, et la plateforme achetait la course au prix réel.
-    /// Seul l'identifiant du devis voyage ; le serveur en lit le montant.
-    /// </summary>
+    /// <summary>AUCUN `ShippingFee` DANS CE CORPS, ET C'EST LA CORRECTION ELLE-MÊME.</summary>
     public sealed record PlaceMealOrderRequest(
         ShippingAddressInput? ShippingAddress,
         string? DeliveryQuoteId,

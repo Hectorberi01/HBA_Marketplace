@@ -5,29 +5,7 @@ using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Drivers.Application.Accounts.Events;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // C'EST ICI QUE ISSUE-007 SE REFERME, ET IL FAUT COMPRENDRE OÙ ELLE ÉTAIT.
-//
-// Avant ce lot, `DriverStore` appelait `IIntegrationEventPublisher.PublishAsync`
-// directement depuis une méthode qui n'écrivait rien en base. Le publieur enregistré
-// était `IntegrationEventQueue` — une `List<>` scopée que le `DbContext` du module
-// est censé drainer. Il n'y avait pas de `DbContext`. La liste mourait avec la
-// requête, `PublishAsync` rendait `Task.CompletedTask`, et l'appelant voyait un
-// succès. LA PERTE ÉTAIT TOTALE ET SYSTÉMATIQUE, pas occasionnelle.
-//
-// Le chemin est maintenant celui des vingt-deux autres modules :
-//
-//   agrégat lève un ÉVÉNEMENT DE DOMAINE
-//     → `ModuleDbContext.SaveChangesAsync` le dispatche
-//       → ce gestionnaire met un ÉVÉNEMENT D'INTÉGRATION dans la file
-//         → le MÊME `SaveChanges` draine la file vers `drivers.outbox_messages`
-//           → `AddOutboxProcessor<DriverDbContext>()` publie sur Kafka
-//
-// L'effet métier et le message partent donc dans la même transaction : ou les deux,
-// ou aucun. C'est ce que `DriversModuleInstaller` enregistre, et sans ces quatre
-// `AddScoped` le dispatcheur ne trouverait aucun gestionnaire — ce qui n'est PAS
-// une erreur de démarrage, c'est un silence.
-// ═════════════════════════════════════════════════════════════════════════════
 
 public sealed class DriverRegisteredDomainEventHandler
     : IDomainEventHandler<DriverAccountRegisteredDomainEvent>
@@ -50,16 +28,7 @@ public sealed class DriverRegisteredDomainEventHandler
             cancellationToken);
 }
 
-/// <summary>
-/// La vérification publie DEUX événements, et ce n'est pas une redondance.
-///
-/// `DriverVerifiedIntegrationEvent` est le fait nu, destiné à identity-service qui
-/// attribue le rôle « Driver ». `DriverDossierVerifiedIntegrationEvent` porte
-/// l'identité complète, destinée à delivery-service qui doit créer la projection
-/// dispatchable. Les fusionner obligerait identity-service à recevoir le nom, le
-/// téléphone et le véhicule d'un livreur pour attribuer un rôle — voir l'encadré
-/// du contrat.
-/// </summary>
+/// <summary>La vérification publie DEUX événements, et ce n'est pas une redondance.</summary>
 public sealed class DriverVerifiedDomainEventHandler
     : IDomainEventHandler<DriverAccountVerifiedDomainEvent>
 {
@@ -111,18 +80,13 @@ public sealed class DriverSuspendedDomainEventHandler
             {
                 DriverId = domainEvent.DriverId,
 
-                // Le contrat exige un motif. Une suspension sans motif saisi reste
-                // une suspension : mieux vaut un libellé neutre qu'un message qui
-                // n'est jamais publié parce qu'une propriété `required` est nulle.
+                // Le contrat exige un motif.
                 Reason = domainEvent.Reason ?? "Non précisé."
             },
             cancellationToken);
 }
 
-/// <summary>
-/// L'UN DES DEUX ÉVÉNEMENTS QUE CE SERVICE PERDAIT (ISSUE-007). Il part
-/// désormais par l'outbox, dans la transaction qui écrit le véhicule.
-/// </summary>
+/// <summary>L'UN DES DEUX ÉVÉNEMENTS QUE CE SERVICE PERDAIT (ISSUE-007).</summary>
 public sealed class DriverVehicleDeclaredDomainEventHandler
     : IDomainEventHandler<DriverVehicleDeclaredDomainEvent>
 {

@@ -3,35 +3,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Catalog.Domain.Products;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// TARIFICATION DE RÉFÉRENCE D'UNE RÉVISION (§8, §21, §23).
-///
-/// CE N'EST PAS LE PRIX QUE L'ACHETEUR PAIE.
-///
-/// Décision D12 : le prix transactionnel reste porté par <c>ProductOffer</c>, que
-/// cart-service consomme en gRPC et qui seul connaît la commission et les frais
-/// fournisseur. Ce qui vit ICI est le prix de RÉFÉRENCE saisi par le vendeur dans
-/// son formulaire (§13, étape 4) : la base à partir de laquelle une offre est
-/// créée, et la valeur qui, modifiée, exige une nouvelle validation (§6).
-///
-/// Confondre les deux est le piège de ce fichier. Un affichage public qui lirait
-/// <see cref="BasePrice"/> montrerait un prix hors commission — donc INFÉRIEUR à
-/// ce qui sera facturé au paiement, et l'écart ne se verrait qu'au panier.
-///
-/// DES ENTIERS, PAS DES DÉCIMAUX (§21, décision D13).
-///
-/// Les montants sont des <c>long</c> en francs CFA entiers. Le XOF n'a pas de
-/// subdivision : 850000 est un montant exact, et il n'existe pas de « 850000,50 ».
-/// Un decimal n'apporterait ici qu'un stockage plus large et la tentation d'une
-/// division qui rendrait des centimes que personne ne peut payer.
-///
-/// Les tables antérieures — product_offers — restent en numeric(18,2) : les
-/// convertir demanderait de toucher le VO Money partagé par tout le dépôt et les
-/// RPC gRPC qui rendent les montants en chaîne. Deux conventions coexistent donc
-/// dans le schéma catalog, et c'est le seul endroit où elles se rencontrent.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>TARIFICATION DE RÉFÉRENCE D'UNE RÉVISION (§8, §21, §23).</summary>
 public sealed class ProductPricing : ValueObject
 {
     public const string DeviseParDefaut = "XOF";
@@ -61,19 +33,10 @@ public sealed class ProductPricing : ValueObject
     /// <summary>Prix de référence vendeur, en unités entières de <see cref="Currency"/>.</summary>
     public long BasePrice { get; private set; }
 
-    /// <summary>Prix barré affiché à côté du prix courant. Nul s'il n'y a pas de remise.</summary>
+    /// <summary>Prix barré affiché à côté du prix courant.</summary>
     public long? CompareAtPrice { get; private set; }
 
-    /// <summary>
-    /// Coût d'achat du vendeur.
-    ///
-    /// NE SORT JAMAIS DANS UNE API PUBLIQUE (§17, consigne 14).
-    ///
-    /// C'est une marge commerciale : exposée, elle dit à un concurrent — et à
-    /// l'acheteur — exactement ce que gagne le vendeur. La garde ne peut pas être
-    /// posée ici, ce champ n'a aucun moyen de savoir qui le lit ; elle vit dans
-    /// les DTO publics, qui ne doivent tout simplement pas porter la propriété.
-    /// </summary>
+    /// <summary>Coût d'achat du vendeur.</summary>
     public long? CostPrice { get; private set; }
 
     public string Currency { get; private set; } = DeviseParDefaut;
@@ -102,11 +65,6 @@ public sealed class ProductPricing : ValueObject
         }
 
         // UN PRIX BARRÉ INFÉRIEUR AU PRIX COURANT EST UNE FAUSSE PROMOTION.
-        //
-        // Affiché tel quel, il montre « 800 000 F » barré au-dessus de
-        // « 850 000 F » : l'acheteur lit une remise négative. C'est un défaut de
-        // saisie fréquent (les deux champs se ressemblent), et il ne se voit qu'à
-        // l'écran, jamais dans les journaux.
         if (compareAtPrice.HasValue && compareAtPrice.Value <= basePrice)
         {
             return Error.Validation(
@@ -145,12 +103,6 @@ public sealed class ProductPricing : ValueObject
     /// <summary>
     /// Vrai si le passage de cette tarification à l'autre est une modification
     /// CRITIQUE au sens du §6 — donc si elle exige une nouvelle validation.
-    ///
-    /// LE COÛT D'ACHAT N'EN FAIT PAS PARTIE.
-    ///
-    /// Il n'est jamais montré à l'acheteur : le corriger ne change rien de ce que
-    /// l'administrateur avait validé. L'y inclure enverrait en file d'attente des
-    /// fiches déjà en vente pour une correction de comptabilité interne.
     /// </summary>
     public bool DiffereCritiquementDe(ProductPricing autre)
         => autre is null

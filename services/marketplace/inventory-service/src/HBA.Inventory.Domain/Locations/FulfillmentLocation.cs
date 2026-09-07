@@ -17,8 +17,8 @@ public enum FulfillmentLocationType
 }
 
 /// <summary>
-/// Lieu d'où part un colis. Unifie l'adresse vendeur (FBS) et l'entrepôt
-/// plateforme (FBP) (cf. dossier, FulfillmentLocation).
+/// Lieu d'où part un colis. Unifie l'adresse vendeur (FBS) et l'entrepôt plateforme
+/// (FBP) (cf.
 /// </summary>
 public sealed class FulfillmentLocation : AggregateRoot<FulfillmentLocationId>
 {

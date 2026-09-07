@@ -37,19 +37,7 @@ internal sealed class ResetPasswordCommandHandler : ICommandHandler<ResetPasswor
         var providedHash = _tokenGenerator.Hash(command.Token);
         var result = user.ResetPassword(providedHash, _passwordHasher.Hash(command.NewPassword), DateTime.UtcNow);
 
-        // ═════════════════════════════════════════════════════════════════════
         // ON ENREGISTRE MÊME EN CAS D'ÉCHEC. C'EST LA MOITIÉ DU CORRECTIF.
-        //
-        // Un essai raté incrémente le compteur sur l'agrégat. La version
-        // précédente sortait ici avec `return result` avant tout SaveChanges :
-        // le compteur montait en mémoire, l'entité était jetée avec le scope de
-        // la requête, et l'essai suivant repartait de zéro.
-        //
-        // Le plafond de cinq essais n'aurait alors JAMAIS été atteint. Le code
-        // aurait eu l'air correct — la règle est dans le domaine, elle est
-        // testée — et l'attaque serait restée exactement aussi praticable
-        // qu'avant. Un compteur qu'on n'enregistre pas est un compteur décoratif.
-        // ═════════════════════════════════════════════════════════════════════
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return result;

@@ -6,26 +6,6 @@ using HBA.Catalog.Infrastructure.Persistence;
 namespace HBA.Catalog.Infrastructure.Public;
 
 /// <summary>Implémentation in-process de la lecture des offres.</summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// PAS DE CACHE ICI, CONTRAIREMENT À `CatalogModuleApi`.
-///
-/// Les fiches produit sont mises en cache parce qu'elles changent rarement et
-/// sont lues à chaque affichage. Un PRIX est l'inverse : c'est ce qui change le
-/// plus souvent, et un prix périmé de trente secondes est un prix faux — affiché
-/// à l'acheteur, puis figé dans son panier.
-///
-/// Le jour où la charge l'exigera, la bonne réponse sera une invalidation sur
-/// `ProductOfferPriceChangedDomainEvent`, pas une durée de vie.
-///
-/// LE SKU COÛTE UNE SECONDE REQUÊTE, ET C'EST ASSUMÉ.
-///
-/// L'offre porte un `VariantId`, pas un SKU. Chaque projection résout donc les
-/// références par un appel à `IProductRepository.GetSkusByVariantIdsAsync` — EN
-/// LOT, jamais une par une. C'est la seule dépendance de ce fichier vers
-/// l'agrégat produit.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 internal sealed class OfferModuleApi : IOfferModuleApi
 {
     private readonly IProductOfferRepository _offers;
@@ -63,11 +43,6 @@ internal sealed class OfferModuleApi : IOfferModuleApi
         var skus = await ResolveSkusAsync(offers.Select(o => o.VariantId), cancellationToken);
 
         // INDEXÉ PAR IDENTIFIANT D'OFFRE, et les absents ne figurent pas.
-        //
-        // Un dictionnaire incomplet est la bonne réponse : l'appelant demande huit
-        // offres, en reçoit sept, et sait laquelle manque. Rendre une liste
-        // l'obligerait à faire lui-même la correspondance, et rendre une entrée
-        // nulle lui ferait croire à une offre vide.
         return offers.ToDictionary(o => o.Id.Value, o => ToContract(o, skus));
     }
 
@@ -102,9 +77,7 @@ internal sealed class OfferModuleApi : IOfferModuleApi
         }
 
         // `v.Sku` ET NON `v.Sku.Value` : voir l'encadré de
-        // `ProductRepository.GetSkusByVariantIdsAsync`. `Sku` porte un
-        // convertisseur de valeur, et EF ne sait pas descendre dedans — la
-        // requête lève à l'exécution, jamais à la compilation.
+        // `ProductRepository.GetSkusByVariantIdsAsync`.
         var lignes = await _dbContext.Products
             .AsNoTracking()
             .SelectMany(p => p.Variants)
@@ -123,9 +96,9 @@ internal sealed class OfferModuleApi : IOfferModuleApi
             StoreId: o.StoreId,
             SellerId: o.SellerId,
 
-            // `null` SI LA VARIANTE A DISPARU, et non une chaîne vide : le
-            // contrat distingue « pas de référence » de « référence vide », et
-            // Inventory ne doit pas chercher un SKU qui n'existe pas.
+            // `null` SI LA VARIANTE A DISPARU, et non une chaîne vide : le contrat
+            // distingue « pas de référence » de « référence vide », et Inventory ne
+            // doit pas chercher un SKU qui n'existe pas.
             Sku: skus.GetValueOrDefault(o.VariantId),
 
             BuyerPrice: o.BuyerPrice.Amount,

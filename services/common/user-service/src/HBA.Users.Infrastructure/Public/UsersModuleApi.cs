@@ -3,13 +3,7 @@ using HBA.Users.Domain.Profiles;
 
 namespace HBA.Users.Infrastructure.Public;
 
-/// <summary>
-/// Implémentation en processus de l'API publique du module User.
-///
-/// LECTURE SEULE, comme celle de Deliveries. Créer ou renommer un profil passe
-/// par une commande MediatR : un autre module ne doit pas pouvoir modifier
-/// l'identité affichée d'une personne par un simple appel de méthode.
-/// </summary>
+/// <summary>Implémentation en processus de l'API publique du module User.</summary>
 internal sealed class UsersModuleApi : IUsersModuleApi
 {
     private readonly IUserProfileRepository _profiles;
@@ -30,8 +24,7 @@ internal sealed class UsersModuleApi : IUsersModuleApi
         var profiles = await _profiles.ListByUserIdsAsync(userIds, cancellationToken);
 
         // Un DICTIONNAIRE et non une liste : l'appelant tient déjà ses identifiants
-        // et veut retrouver chacun sans reparcourir. Rendre une liste l'obligerait à
-        // construire ce dictionnaire lui-même, à chaque appel, dans chaque module.
+        // et veut retrouver chacun sans reparcourir.
         return profiles.ToDictionary(p => p.Id, ToSummary);
     }
 

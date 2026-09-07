@@ -12,47 +12,14 @@ using System.Runtime.CompilerServices;
 
 using HBA.Commerce.Contracts;
 using ContratsCommerce = HBA.Commerce.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Commerce.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Commerce.Api.Grpc.Services;
 
 /// <summary>
-/// Côté commerce-service : sert le panier valorisé à qui sait présenter le
-/// secret interne.
+/// Côté commerce-service : sert le panier valorisé à qui sait présenter le secret
+/// interne.
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// POURQUOI CE CONTRAT EXISTE.
-///
-/// `PlaceOrderCommandHandler` lit le panier pour figer ses prix dans une
-/// commande. Dans le monolithe, il appelait `ICartModuleApi` en mémoire. Une
-/// fois Ordering et Cart séparés en deux services, l'interface était toujours
-/// injectée et plus personne ne la fournissait : le conteneur d'order-service
-/// refusait de démarrer.
-///
-/// C'EST UNE LECTURE SUR LE CHEMIN CRITIQUE.
-///
-/// Sans réponse de commerce-service, aucune commande ne peut être passée.
-/// L'échéance de cinq secondes posée par `InternalCallClientInterceptor` vaut
-/// donc ici comme ailleurs : un panier qui ne répond pas doit rendre un refus
-/// franc plutôt que retenir la requête de l'acheteur.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 internal sealed class CommerceGrpcService : CommerceApi.CommerceApiBase
 {
     private readonly ICartModuleApi _carts;
@@ -84,11 +51,6 @@ internal sealed class CommerceGrpcService : CommerceApi.CommerceApiBase
     }
 
     // « PAS DE PANIER » N'EST PAS UNE ERREUR.
-    //
-    // `NotFound` obligerait l'appelant à rattraper une RpcException pour un cas
-    // parfaitement normal — un acheteur qui n'a rien mis dans son panier. Le
-    // drapeau `found` distingue « pas de panier » de « le service n'a pas
-    // répondu », et seule la seconde situation mérite une exception.
     private static GetCartResponse Respond(ContratsCommerce.CartSummary? cart)
         => cart is null
             ? new GetCartResponse { Found = false }

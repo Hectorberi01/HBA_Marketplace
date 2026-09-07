@@ -6,8 +6,7 @@ namespace HBA.FoodCarts.Application.Carts;
 
 /// <summary>
 /// Valorise un panier de repas : pour chaque ligne, demande à Pricing le prix
-/// effectif, puis agrège. Le panier ne stocke jamais ces prix — ils sont
-/// recalculés à chaque lecture.
+/// effectif, puis agrège.
 /// </summary>
 internal static class FoodCartPricer
 {
@@ -22,23 +21,8 @@ internal static class FoodCartPricer
 
         foreach (var ligne in cart.Items)
         {
-            // ═════════════════════════════════════════════════════════════════
-            // PRODUIT, CATÉGORIE ET VENDEUR SONT VIDES, ET C'EST UNE LIMITE
-            //    CONNUE — PAS UN OUBLI.
-            //
-            // Une promotion CIBLÉE ne peut donc pas s'appliquer à un repas :
-            // seules les promotions générales et les codes valent ici. Cibler un
-            // restaurant ou une carte supposerait que Pricing sache ce qu'est un
-            // restaurant, et ce vocabulaire n'existe pas de son côté.
-            //
-            // La séparation ne change rien à cela — elle le rend seulement
-            // lisible. Dans l'ancien panier, ces trois zéros étaient des champs
-            // « de l'autre nature » laissés vides ; ici ce sont des arguments
-            // qu'on passe explicitement, avec la raison écrite au-dessus.
-            //
-            // Le jour où ce besoin apparaîtra, c'est `PriceRequest` qu'il faudra
-            // étendre — pas ce fichier.
-            // ═════════════════════════════════════════════════════════════════
+            // PRODUIT, CATÉGORIE ET VENDEUR SONT VIDES, ET C'EST UNE LIMITE CONNUE
+            // — PAS UN OUBLI.
             var demande = new PriceRequest(
                 BaseAmount: ligne.UnitBaseAmount,
                 Currency: ligne.Currency,

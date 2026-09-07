@@ -5,24 +5,7 @@ using HBA.Catalog.Domain.Products;
 
 namespace HBA.Catalog.Application.Products.Commands.RemoveProductMedia;
 
-/// <summary>
-/// Retire un média d'un produit.
-///
-/// LA GARANTIE D'EFFACEMENT A CHANGÉ DE NATURE.
-///
-/// Ce gestionnaire supprimait le fichier AVANT d'enregistrer : si l'appel
-/// distant échouait, rien n'était écrit et les deux systèmes restaient d'accord.
-/// C'était simple et lisible — mais cela imposait un appel réseau synchrone au
-/// milieu d'une transaction, et rendait le détachement impossible dès que le
-/// service de stockage était indisponible.
-///
-/// L'agrégat NOMME désormais le fichier (`ProductMediaRemovedDomainEvent`), et
-/// l'outbox porte l'effacement. La transaction ne dépend plus d'un tiers, et une
-/// panne du service média retarde l'effacement au lieu de bloquer le vendeur.
-/// Le prix est une fenêtre de quelques secondes pendant laquelle le fichier
-/// existe encore — acceptable pour une image publique, et documenté comme tel
-/// sur l'événement.
-/// </summary>
+/// <summary>Retire un média d'un produit.</summary>
 public sealed record RemoveProductMediaCommand(Guid ProductId, Guid MediaId) : ICommand;
 
 internal sealed class RemoveProductMediaCommandHandler : ICommandHandler<RemoveProductMediaCommand>

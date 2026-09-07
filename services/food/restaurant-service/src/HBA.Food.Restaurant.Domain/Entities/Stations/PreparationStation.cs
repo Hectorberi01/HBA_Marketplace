@@ -9,28 +9,7 @@ public readonly record struct PreparationStationId(Guid Value)
     public override string ToString() => Value.ToString();
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UN POSTE DE PRÉPARATION (cahier des charges §9) : GRILL, PIZZA, DRINKS.
-///
-/// POURQUOI CE TYPE EXISTE, ALORS QU'UN SIMPLE LIBELLÉ SUFFIRAIT
-///
-/// Parce que l'écran de cuisine (§13) est découpé par poste : le grillardin ne
-/// doit voir que ses grillades, le barman que ses boissons. Un libellé libre sur
-/// l'article rendrait ce découpage impossible dès la première faute de frappe —
-/// « Grill » et « GRILL » deviendraient deux postes, et deux commandes
-/// afficheraient deux écrans différents pour le même plat.
-///
-/// ET SURTOUT : « la commande globale est prête quand TOUTES les stations sont
-/// prêtes » (§13). Cette phrase n'a de sens que si les postes sont des entités
-/// comparables, pas des chaînes.
-///
-/// FACULTATIF SUR L'ARTICLE. Un maquis à un seul feu n'a pas de postes, et
-/// exiger d'en créer un avant de saisir son premier plat serait une barrière à
-/// l'entrée pour rien. Un article sans poste part au poste « par défaut » de
-/// l'écran de cuisine — c'est-à-dire à tout le monde.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UN POSTE DE PRÉPARATION (cahier des charges §9) : GRILL, PIZZA, DRINKS.</summary>
 public sealed class PreparationStation : AggregateRoot<PreparationStationId>
 {
     private PreparationStation()
@@ -54,24 +33,12 @@ public sealed class PreparationStation : AggregateRoot<PreparationStationId>
     /// <summary>Ce que lit un humain : « Grillades », « Boissons ».</summary>
     public string Name { get; private set; } = default!;
 
-    /// <summary>
-    /// Le code court affiché sur le ticket et l'écran : GRILL, PIZZA, DRINKS.
-    ///
-    /// NORMALISÉ EN MAJUSCULES, sans espace. Un code saisi tantôt « grill »
-    /// tantôt « Grill » créerait deux postes que rien ne rapprocherait — et
-    /// l'écran de cuisine se scinderait en deux sans que personne comprenne.
-    /// </summary>
+    /// <summary>Le code court affiché sur le ticket et l'écran : GRILL, PIZZA, DRINKS.</summary>
     public string Code { get; private set; } = default!;
 
     public int DisplayOrder { get; private set; }
 
-    /// <summary>
-    /// Poste fermé sans être supprimé — le grill du dimanche.
-    ///
-    /// NE SE SUPPRIME PAS TANT QUE DES ARTICLES LE DÉSIGNENT. Voir la garde du
-    /// gestionnaire de commande : un poste supprimé laisserait des articles
-    /// pointant vers rien, et leurs tickets n'apparaîtraient sur aucun écran.
-    /// </summary>
+    /// <summary>Poste fermé sans être supprimé — le grill du dimanche.</summary>
     public bool IsActive { get; private set; }
 
     public DateTime CreatedOnUtc { get; private set; }
@@ -136,15 +103,7 @@ public sealed class PreparationStation : AggregateRoot<PreparationStationId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Ferme le poste.
-    ///
-    /// N'AGIT PAS SUR LES ARTICLES QUI LE DÉSIGNENT, et c'est délibéré : le
-    /// grill fermé le dimanche rouvre le lundi, et effacer le rattachement de
-    /// quarante plats obligerait à tout ressaisir. C'est l'écran de cuisine qui
-    /// regroupe les tickets d'un poste fermé avec les autres — mieux vaut un
-    /// grillardin qui voit une ligne en trop qu'un plat que personne ne prépare.
-    /// </summary>
+    /// <summary>Ferme le poste.</summary>
     public Result Deactivate()
     {
         IsActive = false;
@@ -152,13 +111,7 @@ public sealed class PreparationStation : AggregateRoot<PreparationStationId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Majuscules, sans espace ni ponctuation. Rend <c>null</c> si rien ne reste.
-    ///
-    /// La normalisation est faite ICI et pas à la saisie : un code venu d'un import
-    /// ou d'une future API partenaire doit subir la même règle, sinon l'unicité en
-    /// base se contournerait par une espace.
-    /// </summary>
+    /// <summary>Majuscules, sans espace ni ponctuation.</summary>
     private static string? Normalize(string? code)
     {
         if (string.IsNullOrWhiteSpace(code))

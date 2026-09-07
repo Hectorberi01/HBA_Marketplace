@@ -4,24 +4,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace HBA.Engagement.Reviews.Infrastructure.Messaging.Kafka.Configuration;
 
-/// <summary>
-/// REFUSE LE DEMARRAGE SI LE MODULE DE MESSAGERIE N'A PAS ETE BRANCHE.
-///
-/// L'outbox, l'inbox et les abonnements ne sont plus enregistres par
-/// l'installeur — que le composition root appelle toujours — mais par
-/// `AjouterMessagerieEngagementReviews()`, qu'il peut oublier. Un oubli ne casse RIEN de
-/// visible : le service compile, demarre, sert ses routes, et n'emet ni ne
-/// consomme plus rien.
-///
-/// La garde est enregistree par l'INSTALLEUR : elle doit exister quand ce
-/// qu'elle verifie est absent.
-///
-/// `IHostedService` et non `BackgroundService` : une exception levee dans
-/// `StartAsync` arrete l'hote, la meme dans `ExecuteAsync` est avalee.
-///
-/// CE QU'ELLE NE COUVRE PAS. Elle verifie que le module a ete appele, pas qu'il
-/// est complet : un sujet ou un gestionnaire oublie passe sans rien dire.
-/// </summary>
+/// <summary>REFUSE LE DEMARRAGE SI LE MODULE DE MESSAGERIE N'A PAS ETE BRANCHE.</summary>
 internal sealed class GardeDeCablage(IServiceProvider services) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)

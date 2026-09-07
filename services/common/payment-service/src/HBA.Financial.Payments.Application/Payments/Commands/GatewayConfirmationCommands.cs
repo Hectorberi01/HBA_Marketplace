@@ -9,16 +9,14 @@ using HBA.Financial.Payments.Domain.Payments;
 namespace HBA.Financial.Payments.Application.Payments.Commands;
 
 /// <summary>
-/// Traite un webhook PSP : vérifie la signature, normalise l'événement et
-/// applique le résultat au paiement corrélé (encaissement / échec / remboursement).
-/// Idempotent : un événement déjà appliqué est acquitté sans erreur.
+/// Traite un webhook PSP : vérifie la signature, normalise l'événement et applique
+/// le résultat au paiement corrélé (encaissement / échec / remboursement).
 /// </summary>
 public sealed record ProcessGatewayWebhookCommand(string Provider, string RawBody, string? Signature) : ICommand;
 
 /// <summary>
 /// Confirme un paiement au retour de la redirection : interroge le PSP pour
-/// connaître le statut réel de la session/intention, puis l'applique. Sécurise
-/// le cas où le webhook n'est pas (encore) arrivé.
+/// connaître le statut réel de la session/intention, puis l'applique.
 /// </summary>
 public sealed record ConfirmPaymentFromRedirectCommand(Guid PaymentId) : ICommand;
 
@@ -41,57 +39,6 @@ internal static class GatewayOutcomeApplier
     /// <summary>
     /// Impute un remboursement notifié par le prestataire, POUR LE MONTANT ANNONCÉ.
     /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// 5 000 F REMBOURSÉS CLÔTURAIENT UNE COMMANDE DE 50 000 F.
-    ///
-    /// Cette branche s'écrivait `payment.Refund()` — le remboursement du SOLDE
-    /// ENTIER — parce que `GatewayEvent` ne portait aucun montant. Un geste
-    /// commercial de 5 000 F notifié par webhook passait donc le paiement en
-    /// « Refunded » : solde remboursable à zéro, commande close comme
-    /// intégralement remboursée, 45 000 F que le système croyait avoir rendus et
-    /// qui étaient toujours chez nous. Perte sèche, comptabilité fausse, aucune
-    /// alerte.
-    ///
-    /// Le domaine savait pourtant déjà faire : `payment_refunds` accepte
-    /// PLUSIEURS lignes, `RefundedAmount` en fait la somme, et `MarkRefundSucceeded`
-    /// ne bascule le paiement en « Refunded » QUE si `RefundableAmount` tombe à
-    /// zéro. Il ne manquait que le montant.
-    ///
-    /// ─────────────────────────────────────────────────────────────────────────
-    /// ET QUAND LE PRESTATAIRE NE DIT PAS LE MONTANT ? ON REFUSE.
-    ///
-    /// C'est le cas de FedaPay sur un simple `status: refunded` de transaction, et
-    /// de tout PSP dont le payload ne porte ni montant de remboursement ni cumul.
-    ///
-    /// Décision : REFUS EXPLICITE. On ne touche pas au paiement, on journalise en
-    /// Critical, et on rend une erreur métier — le webhook répond 422, ce que le
-    /// tableau de bord du prestataire affiche comme un endpoint en échec. C'est
-    /// un signal que quelqu'un voit.
-    ///
-    /// Le repli « alors c'est un remboursement total » est EXACTEMENT le défaut
-    /// corrigé ici : il transforme une information manquante en écriture
-    /// comptable fausse et irréversible. Un remboursement non enregistré se
-    /// rattrape en lisant le relevé du prestataire ; une commande close à tort ne
-    /// se rattrape plus.
-    ///
-    /// ─────────────────────────────────────────────────────────────────────────
-    /// IDEMPOTENCE : LA CLÉ VIENT DU PRESTATAIRE, PAS DE NOUS.
-    ///
-    /// Kafka et les PSP livrent au moins une fois. La clé d'idempotence est donc
-    /// dérivée de l'identifiant de remboursement du prestataire quand il existe,
-    /// ou du CUMUL annoncé — deux formes stables d'une livraison à l'autre.
-    /// L'index unique `(PaymentId, IdempotencyKey)` posé au lot 3.1 tranche les
-    /// courses concurrentes en base (23505 → 409), et `BeginRefund` rend la ligne
-    /// existante plutôt que d'en créer une seconde.
-    ///
-    /// LIMITE ASSUMÉE : si le prestataire annonce un MONTANT sans identifiant
-    /// de remboursement, deux remboursements partiels du MÊME montant sur le même
-    /// paiement se confondent — le second est ignoré. On sous-enregistre plutôt
-    /// que de sur-enregistrer : le sens de l'erreur est celui qui ne clôt pas une
-    /// commande à tort.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
     private static Result AppliquerRemboursement(Payment payment, GatewayEvent gatewayEvent, ILogger logger)
     {
         // Déjà intégralement remboursé : rejeu du webhook, rien à faire.
@@ -138,9 +85,7 @@ internal static class GatewayOutcomeApplier
         }
         else if (gatewayEvent.TotalRefundedAmount is { } cumulPrestataire)
         {
-            // Le prestataire annonce un CUMUL (Stripe : `amount_refunded`). Ce qui
-            // reste à imputer est la différence avec ce que nous avons déjà
-            // enregistré — ce qui rend le rejeu naturellement inoffensif.
+            // Le prestataire annonce un CUMUL (Stripe : `amount_refunded`).
             montant = cumulPrestataire - payment.RefundedAmount;
 
             if (montant <= 0m)
@@ -156,7 +101,7 @@ internal static class GatewayOutcomeApplier
         }
         else
         {
-            //Voir l'encadré : refus explicite, jamais de repli vers « total ».
+            // Voir l'encadré : refus explicite, jamais de repli vers « total ».
             logger.LogCritical(
                 "REMBOURSEMENT SANS MONTANT annoncé par {Prestataire} pour le paiement {PaymentId} "
                 + "(référence {ProviderReference}, montant du paiement {Montant} {Devise}). "
@@ -276,7 +221,8 @@ internal sealed class ProcessGatewayWebhookCommandHandler : ICommandHandler<Proc
         var payment = await _repository.GetByProviderReferenceAsync(gatewayEvent.ProviderReference!, cancellationToken);
         if (payment is null)
         {
-            // Paiement inconnu : on acquitte pour éviter les renvois en boucle du PSP.
+            // Paiement inconnu : on acquitte pour éviter les renvois en boucle du
+            // PSP.
             return Result.Success();
         }
 

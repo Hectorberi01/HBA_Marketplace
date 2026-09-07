@@ -15,10 +15,6 @@ internal sealed class ProductRevisionConfiguration : IEntityTypeConfiguration<Pr
         builder.Property(r => r.Id).ValueGeneratedNever();
 
         // MÊME CONVERSION QUE LA CLÉ PRIMAIRE DE `Product`, ET MÊME TYPE CLR.
-        //
-        // EF exige le second : une clé étrangère `Guid` face à une clé primaire
-        // `ProductId` fait échouer la construction du modèle. Voir l'encadré de
-        // `ProductRevision.ProductId`. La colonne reste un `uuid`.
         builder.Property(r => r.ProductId)
             .HasConversion(id => id.Value, value => new ProductId(value))
             .IsRequired();
@@ -54,26 +50,10 @@ internal sealed class ProductRevisionConfiguration : IEntityTypeConfiguration<Pr
         builder.Property(r => r.ReviewedAtUtc);
         builder.Property(r => r.PublishedAtUtc);
 
-        // ═══════════════════════════════════════════════════════════════════════
         // TARIFICATION DE RÉFÉRENCE — COLONNES PLATES, PAS DE TABLE SÉPARÉE.
-        //
-        // ÉCART ASSUMÉ AU §20, QUI PRÉVOIT UNE TABLE `product_prices`.
-        //
-        // Cette table n'a de sens que le jour où une VARIANTE porte son propre prix
-        // (§11) : il faut alors une ligne dont la clé est « révision ou variante »,
-        // ce qu'aucune colonne d'une seule table ne sait représenter. Tant que le
-        // prix ne vit que sur la révision, une table séparée ajouterait une
-        // jointure à chaque lecture de fiche pour ne stocker que six colonnes.
-        //
-        // `OwnsOne` sans `ToTable` est aussi le mécanisme déjà utilisé et éprouvé
-        // dans ce dépôt pour Money sur product_offers.
-        // ═══════════════════════════════════════════════════════════════════════
         builder.OwnsOne(r => r.Pricing, pricing =>
         {
             // BIGINT, PAS NUMERIC (§21, décision D13).
-            //
-            // Des francs CFA entiers. Voir l'encadré de ProductPricing pour la
-            // cohabitation avec product_offers, resté en numeric(18,2).
             pricing.Property(p => p.BasePrice)
                 .HasColumnName("base_price")
                 .HasColumnType("bigint")
@@ -120,31 +100,9 @@ internal sealed class ProductRevisionConfiguration : IEntityTypeConfiguration<Pr
         builder.Navigation(r => r.Specifications).UsePropertyAccessMode(PropertyAccessMode.Field);
 
         // UNE SEULE RÉVISION PAR NUMÉRO DE VERSION (§21).
-        //
-        // Sans cet index, deux écritures concurrentes sur le même produit créent
-        // deux révisions « version 5 ». Rien ne se plaint ; on découvre le doublon
-        // en cherchant pourquoi la file de validation affiche deux fois la même
-        // fiche, et il est alors impossible de savoir laquelle a été approuvée.
         builder.HasIndex(r => new { r.ProductId, r.Version }).IsUnique();
 
-        // ═══════════════════════════════════════════════════════════════════════
         // LE SLUG N'EST PAS UNIQUE — SAUF PARMI LES RÉVISIONS PUBLIÉES.
-        //
-        // C'est le piège de cette table, et il tombe dans les deux sens :
-        //
-        //   • un index unique simple casserait la deuxième révision d'un produit,
-        //     qui porte le MÊME slug que la première. Le vendeur corrigerait une
-        //     faute de frappe et recevrait une violation de contrainte ;
-        //   • aucune contrainte du tout casserait l'URL publique
-        //     `GET /api/v1/catalog/products/{slug}` (§17), qui suppose qu'un slug
-        //     désigne un produit. Deux fiches publiées homonymes rendraient la
-        //     route non déterministe — et la fiche servie changerait au gré du plan
-        //     d'exécution PostgreSQL.
-        //
-        // L'unicité PARTIELLE dit exactement ce qui est vrai : parmi ce qui est
-        // visible, un slug ne désigne qu'une chose. Même forme que
-        // `ux_product_offers_store_variant` et `ux_coupon_usages_live_hold`.
-        // ═══════════════════════════════════════════════════════════════════════
         builder.HasIndex(r => r.Slug)
             .IsUnique()
             .HasFilter("\"Status\" = 'Published'")
@@ -172,11 +130,6 @@ internal sealed class ProductConditionConfiguration : IEntityTypeConfiguration<P
         builder.Property(c => c.Description).HasMaxLength(2000);
 
         // CES DEUX BOOLÉENS SONT DÉDUITS DU TYPE, ILS NE SONT PAS SAISIS.
-        //
-        // Ils sont stockés quand même : les requêtes « tous les reconditionnés »
-        // et « toutes les occasions » les lisent directement, et recalculer le
-        // type en SQL obligerait à recopier la règle dans une clause WHERE — donc
-        // à la maintenir à deux endroits. Voir ProductCondition.Create.
         builder.Property(c => c.IsUsed).IsRequired();
         builder.Property(c => c.IsRefurbished).IsRequired();
 

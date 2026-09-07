@@ -35,33 +35,7 @@ public sealed class ReviewPublishedDomainEventHandler : IDomainEventHandler<Revi
         await PublierNoteVendeurAsync(_publisher, _reviews, domainEvent.SellerId, cancellationToken);
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// RECALCULE LA NOTE DU VENDEUR ET PUBLIE LE RÉSULTAT.
-    ///
-    /// ON PUBLIE LA MOYENNE, PAS L'AVIS QUI VIENT D'ARRIVER.
-    ///
-    /// Laisser seller-service accumuler les notes reçues le ferait double-compter
-    /// au premier rejeu — Kafka livre au moins une fois. Recalculer ici, depuis nos
-    /// propres tables, et poser le résultat rend le consommateur idempotent sans
-    /// qu'il ait à s'en occuper.
-    ///
-    /// ET C'EST NOUS QUI RECALCULONS, PAS LE CONSOMMATEUR.
-    ///
-    /// L'alternative — seller-service nous rappelle pour la moyenne — supposerait
-    /// un client gRPC vers ce service. `HBA.Engagement.Contracts.Grpc` ne contient
-    /// qu'un `.csproj` : le proto y est déclaré, `GetSellerRating` y figure, aucune
-    /// classe n'est écrite et personne ne référence le projet. Construire cette
-    /// couche pour un seul appelant coûterait plus cher que de porter trois nombres
-    /// dans un événement.
-    ///
-    /// ET CETTE LECTURE N'EST PAS MISE EN CACHE, VOLONTAIREMENT.
-    ///
-    /// `ReviewQueries` explique que la note vendeur ne l'est pas justement parce
-    /// qu'elle est calculée à chaque AVIS, pas à chaque AFFICHAGE. C'est ici que
-    /// cette hypothèse cesse d'être théorique.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>RECALCULE LA NOTE DU VENDEUR ET PUBLIE LE RÉSULTAT.</summary>
     internal static async Task PublierNoteVendeurAsync(
         IIntegrationEventPublisher publisher,
         IReviewRepository reviews,
@@ -81,17 +55,7 @@ public sealed class ReviewPublishedDomainEventHandler : IDomainEventHandler<Revi
     }
 }
 
-/// <summary>
-/// Publie « avis rejeté », et fait recalculer la note du vendeur.
-/// </summary>
-/// <remarks>
-/// LE REJET COMPTE AUTANT QUE LA PUBLICATION.
-///
-/// `GetSellerRatingAsync` ne retient que les avis `Published` : retirer un avis
-/// change donc la moyenne. Ne republier qu'à la publication laisserait un vendeur
-/// porter indéfiniment la note d'un avis modéré — et ce serait le seul endroit où
-/// le retrait d'un avis ne se verrait nulle part.
-/// </remarks>
+/// <summary>Publie « avis rejeté », et fait recalculer la note du vendeur.</summary>
 public sealed class ReviewRejectedDomainEventHandler : IDomainEventHandler<ReviewRejectedDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;

@@ -6,21 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HBA.Drivers.Infrastructure.Persistence.Repositories;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LECTURES DU DOSSIER LIVREUR.
-///
-/// AUCUNE N'EST EN `AsNoTracking`, ET C'EST VOULU : les quatre commandes de ce
-/// service mutent l'agrégat qu'elles viennent de lire. Une lecture non suivie
-/// rendrait `SaveChanges` silencieusement sans effet — le pire cas, puisque
-/// l'appelant reçoit un succès.
-///
-/// Le port de LECTURE PURE, lui, n'existe pas encore : les requêtes passent par le
-/// même chemin et paient donc le suivi pour rien. C'est un coût mesurable
-/// seulement sur la file de vérification, qui charge jusqu'à deux cents dossiers
-/// avec leurs pièces. À revoir le jour où cette file sera réellement utilisée.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LECTURES DU DOSSIER LIVREUR.</summary>
 internal sealed class DriverAccountRepository : IDriverAccountRepository
 {
     private readonly DriverDbContext _dbContext;
@@ -53,8 +39,7 @@ internal sealed class DriverAccountRepository : IDriverAccountRepository
 
 /// <summary>
 /// La frontière transactionnelle du module, servie par le `DbContext` lui-même —
-/// comme `IDeliveryUnitOfWork` et `IReturnRefundUnitOfWork`. C'est ce qui garantit
-/// que l'effet métier et son événement d'intégration partent ensemble.
+/// comme `IDeliveryUnitOfWork` et `IReturnRefundUnitOfWork`.
 /// </summary>
 internal sealed class DriverUnitOfWork : IDriverUnitOfWork
 {

@@ -33,29 +33,13 @@ internal sealed class SellerEarningConfiguration : IEntityTypeConfiguration<Sell
         builder.Property(e => e.SettlementBatchId);
         builder.Property(e => e.SettledByWithdrawalId);
 
-        // ═════════════════════════════════════════════════════════════════════
         // LES CUMULS DE REPRISE (voir `SellerEarning.ReversedGrossAmount`).
-        //
-        // VALEUR PAR DÉFAUT 0 CÔTÉ BASE, POSÉE PAR LA MIGRATION.
-        //
-        // Les lignes ANTÉRIEURES n'ont rien de repris, mais un `ADD COLUMN` sans
-        // défaut les remplirait de NULL — et `decimal` non nullable refuserait de
-        // les matérialiser au premier chargement. Le défaut vit dans
-        // `20260830000100_RepriseDesGains`, pas ici : `HasDefaultValue` inscrirait
-        // aussi le défaut dans le MODÈLE, et EF cesserait alors d'envoyer les zéros
-        // explicites qu'un gain neuf doit écrire.
-        // ═════════════════════════════════════════════════════════════════════
         builder.Property(e => e.ReversedGrossAmount).HasColumnType("numeric(18,2)").IsRequired();
         builder.Property(e => e.ReversedCommissionAmount).HasColumnType("numeric(18,2)").IsRequired();
         builder.Property(e => e.ReversedProviderFeeAmount).HasColumnType("numeric(18,2)").IsRequired();
         builder.Property(e => e.ReversedNetAmount).HasColumnType("numeric(18,2)").IsRequired();
 
         // LES QUATRE « RESTANT » SONT CALCULÉS — IGNORER EST OBLIGATOIRE.
-        //
-        // Ce sont des propriétés en lecture seule sans champ de stockage. Sans cet
-        // `Ignore`, EF les prend pour des colonnes, ne trouve ni setter ni backing
-        // field, et le MODÈLE ÉCHOUE À SE CONSTRUIRE — c'est-à-dire au démarrage du
-        // service, pas à la première requête.
         builder.Ignore(e => e.RemainingGrossAmount);
         builder.Ignore(e => e.RemainingCommissionAmount);
         builder.Ignore(e => e.RemainingProviderFeeAmount);
@@ -66,13 +50,10 @@ internal sealed class SellerEarningConfiguration : IEntityTypeConfiguration<Sell
         builder.HasIndex(e => new { e.Status, e.CreatedAtUtc });
 
         // La règle d'imputation lit les gains payables d'UN vendeur, du plus ancien
-        // au plus récent. Sans cet index, chaque demande de retrait déclenche un tri
-        // sur toute la table — et le tri est ici une règle métier, pas un confort :
-        // il décide quels gains le retrait consomme.
+        // au plus récent.
         builder.HasIndex(e => new { e.SellerId, e.Status, e.ReleasedAtUtc });
 
-        // Remonter les gains d'un retrait à rembourser (refus, échec PSP). Filtré :
-        // l'écrasante majorité des gains n'a jamais été imputée à un retrait.
+        // Remonter les gains d'un retrait à rembourser (refus, échec PSP).
         builder.HasIndex(e => e.SettledByWithdrawalId)
             .HasFilter("\"SettledByWithdrawalId\" IS NOT NULL")
             .HasDatabaseName("ix_seller_earnings_withdrawal");
@@ -99,55 +80,16 @@ internal sealed class SettlementBatchConfiguration : IEntityTypeConfiguration<Se
         builder.Property(b => b.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(b => b.CreatedAtUtc).IsRequired();
 
-        // IsRequired() — LA CONTRAINTE DOIT VIVRE DANS LA BASE, PAS DANS UN RÉGLAGE EF.
-        //
-        // Correction d'une affirmation antérieure (voir doc 22) : SANS IsRequired(), EF
-        // ne sévrait PAS pour autant. Le `OnDelete(DeleteBehavior.Cascade)` ci-dessous
-        // gouverne aussi le sort des ORPHELINS — avec Cascade, un enfant retiré de la
-        // collection est SUPPRIMÉ, pas mis à NULL. Les données de production l'ont confirmé.
-        //
-        // Alors pourquoi IsRequired() ? Pour trois raisons plus modestes et plus sûres :
-        //
-        //   1. Cette clé étrangère est RÉELLEMENT obligatoire — un enfant sans parent n'a
-        //      aucun sens métier. Le modèle le déclarait facultatif. Un modèle qui ment
-        //      finit toujours par produire du code qui se trompe.
-        //
-        //   2. La colonne était NULL-able en base, donc RIEN ne l'interdisait. Une ligne
-        //      orpheline a d'ailleurs été trouvée en production (message_reactions) : on
-        //      ignore ce qui l'a créée, et c'est précisément le problème. NOT NULL l'aurait
-        //      refusée, quelle que soit sa provenance.
-        //
-        //   3. Sans ça, le comportement dépend d'un réglage FRAGILE : retirer le
-        //      `OnDelete(Cascade)` — geste anodin en apparence — ferait réellement basculer
-        //      cette relation en sévérance. Avec IsRequired() ET NOT NULL, c'est impossible.
-        //
-        // ET C'EST DÉSORMAIS `Restrict`, PAS `Cascade` (§8).
-        //
-        // Supprimer un lot de reversement effaçait le DÉTAIL de ce qui a été versé
-        // à chaque vendeur. Le lot porte le total ; les `payouts` portent qui a reçu
-        // combien. Sans eux, un vendeur qui conteste son versement n'a plus rien en
-        // face de son relevé.
-        //
-        // LE POINT 3 CI-DESSUS EST DEVENU LE POINT PRINCIPAL. Il annonçait que
-        // retirer `Cascade` ferait basculer la relation en SÉVÉRANCE — c'est-à-dire
-        // qu'un `payout` retiré de la collection se verrait mis à `NULL` au lieu
-        // d'être supprimé. C'est bien ce qui arriverait SANS `IsRequired()` ; avec
-        // lui, EF lève au lieu de sévrer, et la base refuserait de toute façon le
-        // `NULL`. Vérifié avant de toucher : `_payouts` n'est jamais muté par
-        // retrait — seulement lu et alimenté. Le basculement est donc sans effet
-        // sur le code existant.
+        // IsRequired() — LA CONTRAINTE DOIT VIVRE DANS LA BASE, PAS DANS UN RÉGLAGE
+        // EF.
         builder.HasMany(b => b.Payouts)
             .WithOne()
             .HasForeignKey("SettlementBatchId")
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
 
-        // LES DEUX SEULES LECTURES DE LISTE TRIENT SUR `CreatedAtUtc`, SUR TOUTE
-        // LA TABLE ET SANS BORNE (`SettlementRepositories.cs:135` et `:143`).
-        //
-        // Sans index, chaque affichage de l'historique des lots est un tri complet.
-        // La table ne décroît jamais — un lot par période, indéfiniment. L'index ne
-        // borne pas la requête (c'est le lot 8.4), il rend le tri gratuit.
+        // LES DEUX SEULES LECTURES DE LISTE TRIENT SUR `CreatedAtUtc`, SUR TOUTE LA
+        // TABLE ET SANS BORNE (`SettlementRepositories.cs:135` et `:143`).
         builder.HasIndex(b => b.CreatedAtUtc);
 
         builder.Navigation(b => b.Payouts).UsePropertyAccessMode(PropertyAccessMode.Field);

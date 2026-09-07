@@ -6,23 +6,7 @@ using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Analytics.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// Un compte créé compte dans les inscriptions acheteur du jour.
-/// </summary>
-/// <remarks>
-/// « ACHETEUR » EST UN RACCOURCI, ET IL FAUT LE SAVOIR.
-///
-/// `UserRegistered` dit qu'un COMPTE a été créé — pas que son titulaire achètera.
-/// Identity ne sait pas, au moment de l'inscription, ce que ce compte deviendra :
-/// acheteur, vendeur, livreur. Ranger la ligne sous « Buyer » est donc une
-/// convention de lecture, pas un fait, et c'est pourquoi le graphe l'appelle
-/// « inscriptions » et non « nouveaux acheteurs ».
-///
-/// NI L'E-MAIL NI LE NOM NE SONT LUS. Ce service compte ; il ne constitue pas un
-/// second annuaire des comptes. L'événement les porte parce que
-/// notification-service en a besoin — pas parce que tout consommateur doit les
-/// garder.
-/// </remarks>
+/// <summary>Un compte créé compte dans les inscriptions acheteur du jour.</summary>
 public sealed class UserRegisteredRollUpHandler : IIntegrationEventHandler<UserRegisteredIntegrationEvent>
 {
     private readonly ProjecteurDeRollUps _projecteur;

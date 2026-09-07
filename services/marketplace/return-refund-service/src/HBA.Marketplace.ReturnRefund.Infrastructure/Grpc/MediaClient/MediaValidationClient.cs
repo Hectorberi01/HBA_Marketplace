@@ -11,7 +11,6 @@ namespace HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.MediaClient;
 /// qui la produit.
 /// </summary>
 /// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// CE QUI ÉTAIT CASSÉ : CE CLIENT NE CONTACTAIT PERSONNE.
 ///
 /// La version précédente vérifiait UNIQUEMENT que l'identifiant n'était pas une
@@ -23,7 +22,6 @@ namespace HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.MediaClient;
 /// preuve qui n'existe pas, et le jour d'un litige il n'y a rien à produire —
 /// sans que rien, dans les journaux, ne dise que la preuve n'a jamais existé.
 ///
-/// ═════════════════════════════════════════════════════════════════════════════
 /// IL S'APPUIE SUR `IMediaModuleApi`, ET NON SUR LE CLIENT gRPC ENGENDRÉ.
 ///
 /// La première version parlait directement à `MediaApi.MediaApiClient`. Elle
@@ -41,7 +39,6 @@ namespace HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.MediaClient;
 /// compilateur aurait rendu CS0104 sur un nom ambigu — une erreur qui désigne la
 /// ligne d'enregistrement, pas la collision qui la cause.
 ///
-/// ═════════════════════════════════════════════════════════════════════════════
 /// CE QUE CETTE CLASSE VÉRIFIE, ET DANS CET ORDRE :
 ///
 ///   1. l'identifiant est un GUID — media-service n'en connaît pas d'autres ;
@@ -63,7 +60,6 @@ namespace HBA.Marketplace.ReturnRefund.Infrastructure.Grpc.MediaClient;
 /// même erreur dans les deux cas ferait refuser des dossiers légitimes pendant
 /// un redéploiement, et le client n'aurait aucun moyen de comprendre pourquoi sa
 /// photo, bien réelle, est rejetée.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
 internal sealed class MediaValidationClient : IMediaGrpcClient
 {
@@ -86,10 +82,6 @@ internal sealed class MediaValidationClient : IMediaGrpcClient
         }
 
         // UN IDENTIFIANT MAL FORMÉ SE REFUSE ICI, PAS SUR LE RÉSEAU.
-        //
-        // `IMediaModuleApi.GetAsync` prend un `Guid` : un identifiant invalide
-        // ferait lever `Guid.Parse` au fond de cette méthode, avec une trace qui
-        // désigne le transport plutôt que la saisie.
         if (!Guid.TryParse(mediaId, out var identifiant))
         {
             return Result.Failure(Error.Validation(
@@ -126,12 +118,6 @@ internal sealed class MediaValidationClient : IMediaGrpcClient
         if (media.OwnerId != ownerId)
         {
             // ON NE DIT PAS À QUI ELLE APPARTIENT.
-            //
-            // Répondre « ce média appartient à quelqu'un d'autre » ferait de ce
-            // point un oracle : on pourrait énumérer les preuves d'autrui en
-            // distinguant « n'existe pas » de « existe, mais pas à vous ». Le
-            // message est donc le même dans les deux cas pour l'appelant, et
-            // seul le journal fait la différence.
             _logger.LogWarning(
                 "Preuve de retour rejetée : le média {MediaId} n'appartient pas à {OwnerId}.",
                 mediaId, ownerId);

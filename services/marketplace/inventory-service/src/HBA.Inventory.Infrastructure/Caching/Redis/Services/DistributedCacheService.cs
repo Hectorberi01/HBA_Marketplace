@@ -3,28 +3,14 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using HBA.Shared.Application.Abstractions;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Caching`.
-//
-// Le cache appartient desormais au service : il vit dans son Infrastructure, et
-// c'est son propre module qui le branche. `ICacheService` reste en revanche dans
-// `HBA.Shared.Application.Abstractions` — c'est le PORT dont depend la couche
-// Application, pas l'adaptateur.
-//
-// `internal` : rien hors de cet assemblage n'a de raison de nommer cette classe.
-// Le conteneur la resout par `ICacheService`.
-//
-// CE QUE ÇA COUTE : cette implementation existe en vingt-six exemplaires. Elles
-// sont identiques aujourd'hui, et rien n'empeche qu'elles divergent — un TTL
-// change ici ne changera rien ailleurs.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Inventory.Infrastructure.Caching.Redis.Services;
 
 /// <summary>
-/// Implémentation de <see cref="ICacheService"/> au-dessus d'<see cref="IDistributedCache"/>
-/// (Redis ou mémoire selon la configuration du Bootstrap). Sérialisation JSON ;
-/// TTL par défaut de 5 minutes.
+/// Implémentation de <see cref="ICacheService"/> au-dessus d'<see
+/// cref="IDistributedCache"/> (Redis ou mémoire selon la configuration du
+/// Bootstrap).
 /// </summary>
 internal sealed class DistributedCacheService : ICacheService
 {
@@ -41,12 +27,7 @@ internal sealed class DistributedCacheService : ICacheService
         _logger = logger;
     }
 
-    /// <summary>
-    /// Enveloppe de sérialisation. Elle existe pour une seule raison : distinguer
-    /// « la clé est absente du cache » de « le cache SAIT que la valeur n'existe
-    /// pas ». Sans elle, les deux cas se confondent en <c>null</c> et la seconde
-    /// situation ne peut pas être mémorisée.
-    /// </summary>
+    /// <summary>Enveloppe de sérialisation.</summary>
     private sealed record Envelope<T>(T? Value);
 
     public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
@@ -91,8 +72,8 @@ internal sealed class DistributedCacheService : ICacheService
             {
                 var envelope = JsonSerializer.Deserialize<Envelope<T>>(bytes, SerializerOptions);
 
-                // Un envelope désérialisé, MÊME avec Value == null, est un SUCCÈS de
-                // cache : c'est le cache négatif. On renvoie null sans toucher la base.
+                // Un envelope désérialisé, MÊME avec Value == null, est un SUCCÈS
+                // de cache : c'est le cache négatif.
                 if (envelope is not null)
                 {
                     return envelope.Value;
@@ -100,9 +81,8 @@ internal sealed class DistributedCacheService : ICacheService
             }
             catch (JsonException ex)
             {
-                // Entrée corrompue, ou écrite par une version antérieure du contrat.
-                // On l'ignore et on relit la source : un cache illisible doit
-                // redevenir un cache vide, jamais casser une lecture.
+                // Entrée corrompue, ou écrite par une version antérieure du
+                // contrat.
                 _logger.LogWarning(ex, "Entrée de cache illisible (« {CacheKey} ») ; relecture depuis la base.", key);
             }
         }
@@ -111,8 +91,8 @@ internal sealed class DistributedCacheService : ICacheService
 
         var options = new DistributedCacheEntryOptions
         {
-            // Une ABSENCE expire vite : assez pour absorber une rafale, trop peu pour
-            // qu'un produit tout juste publié reste invisible.
+            // Une ABSENCE expire vite : assez pour absorber une rafale, trop peu
+            // pour qu'un produit tout juste publié reste invisible.
             AbsoluteExpirationRelativeToNow = value is null
                 ? missTtl ?? DefaultMissTtl
                 : ttl ?? DefaultTtl,
@@ -126,15 +106,6 @@ internal sealed class DistributedCacheService : ICacheService
 
     
     // Accès à Redis — TOUJOURS en échec OUVERT (fail-open).
-    //
-    // Un cache est un accélérateur, pas une source de vérité. Si Redis tombe, la
-    // marketplace doit RALENTIR, pas s'arrêter : on retombe sur la base. Laisser
-    // remonter l'exception transformerait une panne de cache en panne totale —
-    // autrement dit, ajouter du cache aurait RÉDUIT la disponibilité.
-    //
-    // (À ne pas confondre avec la vérification Turnstile du site, qui doit, elle,
-    // échouer FERMÉE. Un cache et un contrôle de sécurité n'ont pas le même mode
-    // de défaillance : l'un dégrade, l'autre protège.)
 
     private async Task<byte[]?> GetBytesAsync(string key, CancellationToken cancellationToken)
     {
@@ -172,7 +143,7 @@ internal sealed class DistributedCacheService : ICacheService
             // Ici, l'échec ouvert a un COÛT : la clé survit et servira une valeur
             // périmée jusqu'à son TTL. C'est le compromis retenu — les TTL sont
             // courts, et refuser l'écriture métier parce que le cache est en panne
-            // serait pire. On journalise en Error : ce n'est pas anodin.
+            // serait pire.
             _logger.LogError(ex, "Échec d'invalidation de « {CacheKey} » ; valeur périmée jusqu'à expiration du TTL.", key);
         }
     }

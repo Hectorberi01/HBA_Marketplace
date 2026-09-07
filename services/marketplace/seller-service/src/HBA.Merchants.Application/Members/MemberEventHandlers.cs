@@ -5,27 +5,7 @@ using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Merchants.Application.Members;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES ÉVÉNEMENTS D'APPARTENANCE, DU DOMAINE VERS LE BUS.
-///
-/// SEPT HANDLERS ICI, ET UN HUITIÈME QUI N'Y EST PAS — L'INVITATION.
-///
-/// Elle est publiée depuis `MemberCommandHandler`, pas depuis un événement de
-/// domaine, et pour une raison de fond : son événement doit porter le JETON EN
-/// CLAIR, or l'agrégat ne le connaît pas. Il ne reçoit que son empreinte — c'est
-/// tout l'intérêt du §7. Faire remonter le secret dans un événement de domaine
-/// obligerait à le loger dans l'agrégat sans le persister, c'est-à-dire à créer un
-/// champ dont l'unique raison d'être serait de contourner sa propre conception.
-///
-/// CES HANDLERS NE FONT QUE TRADUIRE. AUCUNE DÉCISION ICI.
-///
-/// Un contrôle posé à cet étage s'exécuterait APRÈS l'enregistrement de la
-/// mutation : il ne pourrait plus rien empêcher, seulement produire un événement
-/// incohérent avec la base. Les décisions sont dans l'agrégat, les vérifications
-/// de contexte dans le handler de commande.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES ÉVÉNEMENTS D'APPARTENANCE, DU DOMAINE VERS LE BUS.</summary>
 public sealed class SellerMemberJoinedDomainEventHandler
     : IDomainEventHandler<SellerMemberJoinedDomainEvent>
 {
@@ -112,16 +92,7 @@ public sealed class SellerMemberStoreUnassignedDomainEventHandler
             cancellationToken);
 }
 
-/// <summary>
-/// Publie « accès suspendu ».
-/// <para>
-/// CET ÉVÉNEMENT PROMET UNE COUPURE IMMÉDIATE QUE L'INFRASTRUCTURE NE TIENT PAS
-/// ENCORE. Le cache d'autorisation est en mémoire, par instance : dans un groupe de
-/// consommateurs, une seule réplique le reçoit et se purge. Les autres continuent
-/// de servir les droits périmés jusqu'au TTL. Le lot 0a — brancher Redis — est ce
-/// qui rend la promesse vraie.
-/// </para>
-/// </summary>
+/// <summary>Publie « accès suspendu ».</summary>
 public sealed class SellerMemberSuspendedDomainEventHandler
     : IDomainEventHandler<SellerMemberSuspendedDomainEvent>
 {
@@ -162,14 +133,7 @@ public sealed class SellerMemberActivatedDomainEventHandler
             cancellationToken);
 }
 
-/// <summary>
-/// Publie « membre sorti ».
-/// <para>
-/// SON CONSOMMATEUR NE DOIT PAS RETIRER LE RÔLE `Seller` SANS VÉRIFIER : le
-/// compte peut être propriétaire d'un autre dossier. La révocation n'est pas le
-/// symétrique de l'octroi, et c'est dit sur le contrat.
-/// </para>
-/// </summary>
+/// <summary>Publie « membre sorti ».</summary>
 public sealed class SellerMemberRevokedDomainEventHandler
     : IDomainEventHandler<SellerMemberRevokedDomainEvent>
 {
@@ -196,9 +160,7 @@ public sealed class SellerMemberRevokedDomainEventHandler
             cancellationToken);
 }
 
-/// <summary>
-/// Publie le transfert de propriété : les deux comptes doivent l'apprendre.
-/// </summary>
+/// <summary>Publie le transfert de propriété : les deux comptes doivent l'apprendre.</summary>
 public sealed class SellerOwnershipTransferredDomainEventHandler
     : IDomainEventHandler<SellerOwnershipTransferredDomainEvent>
 {

@@ -6,27 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace HBA.Media.Infrastructure.ObjectStorage;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// STOCKAGE EN MÉMOIRE, POUR LE DÉVELOPPEMENT HORS LIGNE.
-///
-/// Substitut retenu quand aucune configuration de stockage n'est fournie. Le
-/// dépôt a le même motif ailleurs — <c>SimulatedMediaStorage</c> côté catalogue,
-/// <c>SimulatedKybStorage</c> côté vendeurs — et pour la même raison : un
-/// développeur sans identifiants S3 doit pouvoir lancer l'application et créer un
-/// produit.
-///
-/// LE CHOIX EST JOURNALISÉ AU DÉMARRAGE, PAS SILENCIEUX.
-///
-/// Un substitut qui s'installe sans le dire, c'est une préproduction qui perd
-/// tous ses fichiers au redémarrage pendant trois semaines avant que quelqu'un ne
-/// comprenne. Voir <c>MediaModuleInstaller</c>.
-///
-/// IL NE SIGNE RIEN. Les URL qu'il rend sont locales et ne protègent rien.
-/// C'est acceptable en développement, et c'est pourquoi il ne doit jamais être
-/// sélectionné en production — la configuration présente suffit à l'écarter.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>STOCKAGE EN MÉMOIRE, POUR LE DÉVELOPPEMENT HORS LIGNE.</summary>
 internal sealed class InMemoryObjectStorage : IObjectStorage
 {
     private readonly ConcurrentDictionary<string, byte[]> _objets = new(StringComparer.Ordinal);
@@ -59,12 +39,7 @@ internal sealed class InMemoryObjectStorage : IObjectStorage
     public Result<string> GetPublicUrl(string bucket, string objectKey)
         => $"memory://{bucket}/{objectKey}";
 
-    /// <summary>
-    /// CE N'EST PAS UNE VRAIE SIGNATURE, et le préfixe le dit.
-    ///
-    /// Une URL « signée » indistinguable d'une vraie ferait croire à un
-    /// développeur que le chemin privé fonctionne, alors qu'il ne protège rien.
-    /// </summary>
+    /// <summary>CE N'EST PAS UNE VRAIE SIGNATURE, et le préfixe le dit.</summary>
     public Result<string> CreateSignedGetUrl(string bucket, string objectKey, int expiresSeconds = 300)
         => $"memory://{bucket}/{objectKey}?unsigned-development-only&expires={expiresSeconds}";
 

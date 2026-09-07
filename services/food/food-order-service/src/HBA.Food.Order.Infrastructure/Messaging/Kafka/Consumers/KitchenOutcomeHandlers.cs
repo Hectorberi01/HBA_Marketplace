@@ -5,73 +5,18 @@ using HBA.Shared.IntegrationEvents;
 using MediatR;
 using Microsoft.Extensions.Logging;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.FoodOrders.Application.Orders.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.FoodOrders.Application.Orders.EventHandlers;
 
 namespace HBA.FoodOrders.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUE LA CUISINE DÉCIDE, ET CE QUE LA COMMANDE EN FAIT.
-///
-/// TROIS GESTES, ET LE PREMIER EST CELUI QUI MANQUAIT LE PLUS.
-///
-/// Sans le refus, le ticket passait « refusé » et la commande restait
-/// « confirmée » : le client était débité pour un repas qui n'existerait jamais,
-/// et rien ne reliait les deux faits.
-///
-/// Sans la livraison, une commande de repas ne se terminait JAMAIS : elle restait
-/// confirmée, l'escrow n'était pas levé, et le gain du restaurateur restait
-/// bloqué en « à venir ». Le repas était remis au client, et le restaurateur
-/// n'était jamais payé.
-///
-/// CES GESTES OUVRENT UN DROIT, ILS NE RENDENT PAS L'ARGENT.
-///
-/// L'annulation publie un fait ; financial-service rembourse en le consommant.
-/// Ce service annonce, il n'ordonne pas un virement.
-///
-/// ET LES TROIS FILTRENT SUR L'ORIGINE DU TICKET.
-///
-/// Le ticket de cuisine naît de deux ponts : une commande order-service dont une
-/// ligne est un plat, ou une `MealOrder` d'ici. Ses événements portent un
-/// `OrderId` qui vient donc de deux univers, et order-service a trois
-/// gestionnaires jumeaux abonnés aux MÊMES messages.
-///
-/// Sans filtre, pour chaque ticket, l'un des deux jeux cherchait un identifiant
-/// étranger dans sa propre base : introuvable, `SagaOutcome` en faisait une
-/// alerte Critical, et les reprises Kafka s'épuisaient — sur un fonctionnement
-/// parfaitement normal. C'est exactement la raison d'être de ce champ, du même
-/// ordre que le filtre `OrderType` des gestionnaires de paiement, deux fichiers
-/// plus loin.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>CE QUE LA CUISINE DÉCIDE, ET CE QUE LA COMMANDE EN FAIT.</summary>
 internal static class TicketDeRepas
 {
-    /// <summary>
-    /// Ce ticket vient-il d'une `MealOrder` ?
-    ///
-    /// EXIGE « Food » EXPLICITEMENT — l'inverse du filtre d'order-service, qui
-    /// accepte tout ce qui n'est pas « Food ». Un message d'avant le lot 6.4 ne
-    /// porte pas le champ et vaut « Marketplace » : il n'est pas pour nous, et
-    /// c'est exact — aucune commande de repas n'avait pu être confirmée avant que
-    /// le lot 6.1 n'ouvre son chemin de paiement.
-    /// </summary>
+    /// <summary>Ce ticket vient-il d'une `MealOrder` ?</summary>
     public static bool Nous(string? origine)
         => string.Equals(origine, FoodOrderOrigins.Food, StringComparison.OrdinalIgnoreCase);
 }
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.FoodOrders.Application.Orders.EventHandlers.CancelMealOrderOnKitchenRejectionHandler")]
 public sealed class CancelMealOrderOnKitchenRejectionHandler
     : IIntegrationEventHandler<FoodOrderRejectedIntegrationEvent>
@@ -110,18 +55,7 @@ public sealed class CancelMealOrderOnKitchenRejectionHandler
     }
 }
 
-/// <summary>
-/// Le ticket a été annulé côté cuisine.
-/// </summary>
-/// <remarks>
-/// MÊME EFFET QUE LE REFUS, ET CE N'EST PAS UN DOUBLON.
-///
-/// Le REFUS est une décision prise à la réception — plus de riz, four en panne.
-/// L'ANNULATION intervient plus tard, parfois alors que la préparation a commencé
-/// (`WasInKitchen`). Les deux amènent la commande au même endroit, mais le motif
-/// qui atterrit dans le dossier n'est pas le même, et c'est ce que lit
-/// l'exploitation.
-/// </remarks>
+/// <summary>Le ticket a été annulé côté cuisine.</summary>
 [NomDeConsommateur("HBA.FoodOrders.Application.Orders.EventHandlers.CancelMealOrderOnKitchenCancellationHandler")]
 public sealed class CancelMealOrderOnKitchenCancellationHandler
     : IIntegrationEventHandler<FoodOrderCancelledIntegrationEvent>
@@ -158,16 +92,7 @@ public sealed class CancelMealOrderOnKitchenCancellationHandler
     }
 }
 
-/// <summary>
-/// Le repas a été remis au client : la commande se clôt.
-/// </summary>
-/// <remarks>
-/// C'EST LA CUISINE QUI TRADUIT, PAS LA LIVRAISON.
-///
-/// La fin de course porte une référence « FOOD-… » dont le GUID est celui du
-/// TICKET, inconnu de cette base. C'est restaurant-service qui fait la
-/// correspondance, en publiant cet événement avec l'`OrderId`.
-/// </remarks>
+/// <summary>Le repas a été remis au client : la commande se clôt.</summary>
 [NomDeConsommateur("HBA.FoodOrders.Application.Orders.EventHandlers.MarkMealOrderDeliveredOnKitchenDeliveryHandler")]
 public sealed class MarkMealOrderDeliveredOnKitchenDeliveryHandler
     : IIntegrationEventHandler<FoodOrderDeliveredIntegrationEvent>

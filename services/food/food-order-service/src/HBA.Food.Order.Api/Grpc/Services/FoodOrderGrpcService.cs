@@ -12,22 +12,7 @@ using System.Runtime.CompilerServices;
 
 using HBA.FoodOrders.Contracts;
 using ContratsFoodOrders = HBA.FoodOrders.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.FoodOrders.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.FoodOrders.Api.Grpc.Services;
 
@@ -66,23 +51,10 @@ internal sealed class FoodOrderGrpcService : Proto.FoodOrderApi.FoodOrderApiBase
             CustomerNote = commande.CustomerNote ?? string.Empty,
 
             // « o » — ALLER-RETOUR EXACT, ET FUSEAU CONSERVÉ.
-            //
-            // Un format court perdrait les millisecondes et le décalage, et la
-            // date relue ne serait plus la même. Les commandes se trient et se
-            // rapprochent par cet instant.
             CreatedOnUtc = commande.CreatedOnUtc.ToString("o", CultureInfo.InvariantCulture)
         };
 
         // L'ADRESSE DE REMISE — SANS ELLE, AUCUNE COURSE N'ÉTAIT CRÉÉE.
-        //
-        // restaurant-service la demandait à order-service, seul univers de
-        // commandes qu'il connaissait ; une commande de repas y était introuvable
-        // et le sac restait sur le passe. Voir `MealOrderShippingAddressSummary`.
-        //
-        // Le protobuf n'a pas de « nul » pour une chaîne : une adresse absente
-        // rend huit chaînes vides, et c'est le client qui décide si cela vaut une
-        // adresse ou non. Reconstruire un objet « présent mais vide » ici ferait
-        // croire à une adresse là où il n'y en a pas.
         if (commande.ShippingAddress is { } adresse)
         {
             vue.ShipToRecipient = adresse.Recipient ?? string.Empty;
@@ -140,15 +112,7 @@ internal sealed class FoodOrderGrpcService : Proto.FoodOrderApi.FoodOrderApiBase
 
     private static string Ecrire(decimal montant) => montant.ToString(CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Une coordonnée, en aller-retour EXACT.
-    ///
-    /// « R » ET NON LE FORMAT PAR DÉFAUT. Le défaut arrondit à quinze chiffres
-    /// significatifs : la longitude relue n'est plus tout à fait celle écrite. Sur
-    /// une adresse, l'écart se compte en centimètres et n'a aucune importance —
-    /// mais un identifiant de point qui ne se compare plus à lui-même en a une,
-    /// et cette valeur sert de clé de rapprochement chez delivery-service.
-    /// </summary>
+    /// <summary>Une coordonnée, en aller-retour EXACT.</summary>
     private static string Ecrire(double coordonnee)
         => coordonnee.ToString("R", CultureInfo.InvariantCulture);
 }

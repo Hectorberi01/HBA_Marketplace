@@ -3,22 +3,7 @@ using HBA.Identity.Api.Grpc.Mappers;
 using HBA.Identity.Grpc.V1;
 
 using HBA.Identity.Contracts;
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Identity.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Identity.Api.Grpc.Services;
 
@@ -70,11 +55,6 @@ internal sealed class IdentityGrpcService : IdentityApi.IdentityApiBase
         response.Permissions.AddRange(validation.Permissions);
 
         // UN JETON REFUSÉ N'EST PAS UNE ERREUR gRPC.
-        //
-        // Lever une RpcException sur `valid = false` ferait ouvrir le disjoncteur de
-        // l'appelant : quelques centaines de jetons expirés — situation parfaitement
-        // normale en fin de session — et le service serait considéré en panne. Un
-        // refus est une RÉPONSE, pas un incident.
         return response;
     }
 

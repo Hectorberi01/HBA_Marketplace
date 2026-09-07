@@ -6,14 +6,7 @@ using HBA.Catalog.Domain.Brands;
 
 namespace HBA.Catalog.Application.Brands;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // LES DEMANDES DE MARQUE (§10, §16).
-//
-// « Le vendeur ne crée pas directement une nouvelle marque officielle. » Sans ce
-// mécanisme, « Samsung », « SAMSUNG », « Samsung Electronics » et « samsumg »
-// cohabitent au bout d'un mois, et le filtre par marque de la vitrine devient
-// inutilisable.
-// ═════════════════════════════════════════════════════════════════════════════
 
 /// <summary>Un vendeur demande une marque absente du référentiel.</summary>
 public sealed record RequestBrandCreationCommand(
@@ -21,15 +14,7 @@ public sealed record RequestBrandCreationCommand(
     string Name,
     string? Note = null) : ICommand<Guid>;
 
-/// <summary>
-/// Un administrateur approuve la demande (§16).
-///
-/// `ExistingBrandId` EST LE CAS FRÉQUENT, PAS L'EXCEPTION.
-///
-/// Une demande « samsumg » se rattache au « Samsung » déjà au catalogue. Ne
-/// permettre que la création ferait de ce mécanisme la source du problème qu'il
-/// devait résoudre : un doublon de plus, validé cette fois.
-/// </summary>
+/// <summary>Un administrateur approuve la demande (§16).</summary>
 public sealed record ApproveBrandRequestCommand(
     Guid RequestId,
     Guid ReviewedBy,
@@ -68,12 +53,6 @@ internal sealed class BrandRequestUseCases
         RequestBrandCreationCommand command, CancellationToken cancellationToken)
     {
         // IDEMPOTENT SUR LE DOUBLE-CLIC, PAS SUR LA REDEMANDE APRÈS REFUS.
-        //
-        // Le formulaire est un champ et un bouton : le double envoi est la règle.
-        // On rend la demande existante plutôt qu'un conflit — l'utilisateur voulait
-        // demander cette marque, c'est fait. En revanche une demande refusée puis
-        // corrigée doit pouvoir repartir : d'où le filtre sur les seules demandes
-        // EN ATTENTE, ici comme dans l'index partiel `ux_brand_requests_pending`.
         var enCours = await _requests.GetPendingByNameAsync(command.SellerId, command.Name, cancellationToken);
         if (enCours is not null)
         {
@@ -124,11 +103,6 @@ internal sealed class BrandRequestUseCases
             }
 
             // LE SLUG PEUT DÉJÀ ÊTRE PRIS, ET LE MESSAGE DOIT LE DIRE.
-            //
-            // C'est le signal qu'une marque très proche existe — « Samsung » face à
-            // « samsung ». L'administrateur doit alors rattacher plutôt que créer,
-            // et l'erreur le lui indique au lieu de le laisser devant une violation
-            // de contrainte.
             if (await _brands.SlugExistsAsync(creation.Value.Slug.Value, cancellationToken))
             {
                 return Result.Failure<Guid>(Error.Conflict(

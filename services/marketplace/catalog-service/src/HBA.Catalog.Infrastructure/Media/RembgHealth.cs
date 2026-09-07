@@ -1,26 +1,6 @@
 namespace HBA.Catalog.Infrastructure.Media;
 
-/// <summary>
-/// Santé observée du service de détourage local, partagée par le processus.
-///
-/// ─────────────────────────────────────────────────────────────────────────────────
-/// POURQUOI « CONFIGURÉ » NE SUFFIT PAS À DIRE « DISPONIBLE »
-///
-/// `IImageProcessingAvailability` existe pour qu'une interface ne promette pas un
-/// détourage qui n'aura pas lieu. Avec Cloudinary, « configuré » était une
-/// approximation acceptable : un service managé tiers est là ou n'est pas là, et on
-/// n'y peut rien. Avec un conteneur voisin, l'approximation devient fausse — le
-/// conteneur peut être arrêté, en cours de redémarrage, ou en train de télécharger son
-/// modèle. Répondre « oui, le détourage marche » dans ces cas-là ramène exactement le
-/// faux badge « Détourée » que ce drapeau devait supprimer.
-///
-/// On ne sonde PAS activement : cela demanderait un service d'arrière-plan pour une
-/// information cosmétique. On retient simplement le dernier échec. Après un échec,
-/// la fonction est déclarée indisponible pendant <see cref="CooldownMinutes"/>, puis
-/// redevient optimiste — sans quoi une panne d'une minute la condamnerait jusqu'au
-/// prochain redéploiement.
-/// ─────────────────────────────────────────────────────────────────────────────────
-/// </summary>
+/// <summary>Santé observée du service de détourage local, partagée par le processus.</summary>
 public sealed class RembgHealth
 {
     private const int CooldownMinutes = 2;

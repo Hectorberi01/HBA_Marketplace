@@ -7,8 +7,7 @@ namespace HBA.Catalog.Application.Products.EventHandlers;
 
 /// <summary>
 /// Frontière domaine → intégration : porte hors de Catalog le nom du fichier à
-/// effacer. Sans ce relais, l'événement de domaine mourrait dans le module et
-/// l'image resterait dans le stockage.
+/// effacer.
 /// </summary>
 public sealed class ProductMediaRemovedDomainEventHandler : IDomainEventHandler<ProductMediaRemovedDomainEvent>
 {

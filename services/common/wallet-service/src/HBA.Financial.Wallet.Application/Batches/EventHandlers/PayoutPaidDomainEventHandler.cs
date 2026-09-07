@@ -5,7 +5,10 @@ using HBA.Financial.Wallet.Domain.Batches.Events;
 
 namespace HBA.Financial.Wallet.Application.Batches.EventHandlers;
 
-/// <summary>Publie « reversement versé » (Notifications informe le vendeur, compta enregistre).</summary>
+/// <summary>
+/// Publie « reversement versé » (Notifications informe le vendeur, compta
+/// enregistre).
+/// </summary>
 public sealed class PayoutPaidDomainEventHandler : IDomainEventHandler<PayoutPaidDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;

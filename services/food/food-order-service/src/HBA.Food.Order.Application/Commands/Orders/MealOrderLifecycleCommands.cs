@@ -8,15 +8,8 @@ namespace HBA.FoodOrders.Application.Orders.Commands;
 /// <summary>Le paiement est encaissé : la commande est confirmée.</summary>
 public sealed record ConfirmMealOrderPaymentCommand(Guid OrderId) : ICommand;
 
-/// <summary>
-/// Annulation avant confirmation.
-/// </summary>
-/// <param name="RequesterId">
-/// L'acheteur, quand c'est lui qui annule. Nul quand c'est le système — un échec
-/// de paiement, par exemple. Une commande dont le demandeur n'est pas
-/// propriétaire est « introuvable », comme à la lecture : distinguer révélerait
-/// l'existence.
-/// </param>
+/// <summary>Annulation avant confirmation.</summary>
+/// <param name="RequesterId">L'acheteur, quand c'est lui qui annule.</param>
 public sealed record CancelMealOrderCommand(
     Guid OrderId, string Reason, Guid? RequesterId = null) : ICommand;
 
@@ -35,17 +28,7 @@ public sealed record ResumeMealOrderAfterReviewCommand(Guid OrderId) : ICommand;
 /// <summary>L'arbitrage retourne la vente : le client sera remboursé.</summary>
 public sealed record RefundMealOrderAfterReviewCommand(Guid OrderId, string Reason) : ICommand;
 
-/// <summary>
-/// Le socle commun des transitions : relire la commande, appliquer, persister.
-///
-/// ÉCRIT UNE FOIS PARCE QUE LA PARTIE INTÉRESSANTE EST AILLEURS.
-///
-/// Chacune de ces commandes tient en trois lignes une fois la lecture et la
-/// sauvegarde factorisées. Ce qui mérite d'être lu, ce sont les gardes du
-/// domaine — pourquoi une commande confirmée ne s'annule pas, pourquoi un refus
-/// après paiement est une issue prévue — et elles vivent dans
-/// <see cref="MealOrder"/>, pas ici.
-/// </summary>
+/// <summary>Le socle commun des transitions : relire la commande, appliquer, persister.</summary>
 internal abstract class MealOrderTransitionHandler
 {
     protected MealOrderTransitionHandler(IMealOrderRepository orders, IMealOrderUnitOfWork unitOfWork)
@@ -91,15 +74,7 @@ internal sealed class ConfirmMealOrderPaymentCommandHandler
     {
     }
 
-    /// <summary>
-    /// DEUX TRANSITIONS DANS LE MÊME ENREGISTREMENT, ET AUCUN APPEL À INVENTORY.
-    ///
-    /// Son équivalent marketplace intercale, entre `MarkPaid` et `Confirm`, une
-    /// boucle qui solde les réservations de stock. Un repas n'en a aucune : le
-    /// commentaire de `RequiresStockReservation` disait déjà que soumettre un plat
-    /// à Inventory était inoffensif « par accident », au bon vouloir d'une
-    /// validation vivant dans un autre module. Ici la question ne se pose plus.
-    /// </summary>
+    /// <summary>DEUX TRANSITIONS DANS LE MÊME ENREGISTREMENT, ET AUCUN APPEL À INVENTORY.</summary>
     public Task<Result> Handle(ConfirmMealOrderPaymentCommand command, CancellationToken cancellationToken)
         => AppliquerAsync(
             command.OrderId,
@@ -160,8 +135,8 @@ internal sealed class MarkMealOrderDeliveredCommandHandler
 }
 
 /// <summary>
-/// Les trois gestes de l'arbitrage : y entrer, en sortir par la reprise, en
-/// sortir par le retour.
+/// Les trois gestes de l'arbitrage : y entrer, en sortir par la reprise, en sortir
+/// par le retour.
 /// </summary>
 internal sealed class MealOrderReviewCommandHandler
     : MealOrderTransitionHandler,

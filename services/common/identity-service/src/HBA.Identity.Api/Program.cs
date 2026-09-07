@@ -11,73 +11,30 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddHbaService<IdentityDbContext>(new IdentityModuleInstaller());
 builder.AddHbaGrpc();
 
-// ═════════════════════════════════════════════════════════════════════════
 // TOUT CE QUE CE SERVICE ECOUTE ET PUBLIE EST DECLARE DANS SON PROPRE MODULE.
-//
-// Cet appel porte aussi l'outbox et l'inbox : l'oublier laisserait un service
-// qui demarre et n'emet plus rien. `GardeDeCablage`, enregistree par
-// l'installeur, refuse le demarrage dans ce cas.
-// ═════════════════════════════════════════════════════════════════════════
 builder.Services.AjouterMessagerieIdentity();
 
 var app = builder.Build();
 
 app.UseHbaService();
 
-// ═════════════════════════════════════════════════════════════════════════
-// CE SERVICE SERT `/api/v1/auth/*` — ET CE COMMENTAIRE A DIT LE CONTRAIRE
-//    PENDANT TOUTE LA DURÉE DE LA PANNE (ISSUE-063).
-//
-// Il affirmait : « LES CHEMINS PUBLICS RESTENT `/api/identity/*`, PAS
-// `/api/auth/*` […] la passerelle enverrait `/api/identity/auth/login` à un
-// service n'écoutant plus que `/api/auth/login`, et l'appel finirait en 404 ».
-//
-// Le raisonnement était juste. Sa PRÉMISSE a cessé de l'être : le renommage a eu
-// lieu quand même, vers `/api/v1/auth`, et le commentaire n'a pas suivi. La
-// passerelle a continué de réécrire `/api/auth/*` en `/api/identity/auth/*` —
-// un préfixe que ce service n'a jamais servi. TOUTE la surface publique
-// d'authentification rendait 404 : login, register, refresh, logout,
-// password/forgot, password/reset, email/verify, confirm-email, reauthenticate.
-//
-// Le cluster était bon, la destination joignable, le service en bonne santé.
-// Rien ne ressemblait à une panne.
-//
-// LES QUATRE GROUPES RÉELLEMENT SERVIS, pour que la prochaine réécriture
-// puisse être vérifiée sans lire tout le fichier :
-//
-//     /api/v1/auth          — register, confirm-email, login, refresh,
-//                             reauthenticate, logout, otp/request, verify-otp,
-//                             password/forgot, password/reset, email/resend,
-//                             email/verify
-//     /api/identity/account — le compte de l'utilisateur connecté
-//     /api/identity/users   — administration des comptes
-//     /api/identity/roles   — administration des rôles
-// ═════════════════════════════════════════════════════════════════════════
+// CE SERVICE SERT `/api/v1/auth/*` — ET CE COMMENTAIRE A DIT LE CONTRAIRE PENDANT
+// TOUTE LA DURÉE DE LA PANNE (ISSUE-063).
 app.MapIdentityEndpoints();
 
 app.MapInternalGrpcService<IdentityGrpcService>();
 
-// ═════════════════════════════════════════════════════════════════════════
 // SCHÉMA À JOUR AVANT D'OUVRIR LE PORT.
-//
-// Actif par défaut en Development seulement (Database:MigrateOnStartup).
-// ═════════════════════════════════════════════════════════════════════════
 await app.MigrateHbaDatabaseAsync<IdentityDbContext>();
 
 // Un Job de migration s'arrête ici : les schémas sont à jour, aucun port ne
-// s'ouvre, et le conteneur se termine avec le code 0. Placé APRÈS le dernier
-// `MigrateHbaDatabaseAsync` — plusieurs services portent plusieurs DbContext, et
-// sortir après le premier laisserait les autres bases sans schéma.
+// s'ouvre, et le conteneur se termine avec le code 0.
 if (app.SortirApresMigrations())
 {
     return;
 }
 
 // APRÈS LES MIGRATIONS, ET C'EST UN ORDRE, PAS UNE PRÉFÉRENCE.
-//
-// L'amorçage écrit dans `roles` et `users`. Sur une base neuve, l'inverser
-// donnerait « relation "identity.roles" does not exist » — une erreur qui
-// désigne le semis alors que la faute est à l'ordre des deux lignes.
 await app.SeedIdentityAsync();
 
 app.Run();

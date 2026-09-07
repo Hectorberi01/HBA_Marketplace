@@ -1,6 +1,8 @@
 namespace HBA.Identity.Application.Abstractions;
 
-/// <summary>Hash et vérification de mot de passe (implémenté avec BCrypt en Infrastructure).</summary>
+/// <summary>
+/// Hash et vérification de mot de passe (implémenté avec BCrypt en Infrastructure).
+/// </summary>
 public interface IPasswordHasher
 {
     string Hash(string password);

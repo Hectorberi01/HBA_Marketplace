@@ -2,14 +2,7 @@ using HBA.Identity.Application.Abstractions;
 
 namespace HBA.Identity.Infrastructure.Security;
 
-/// <summary>
-/// Section « Identity:Registration » de la configuration.
-///
-/// Les valeurs par défaut sont les plus STRICTES. C'est volontaire : une option de
-/// sécurité qui s'ouvre toute seule quand on oublie de la déclarer n'est pas une
-/// option, c'est un piège. Un fichier de configuration absent doit fermer la porte,
-/// pas l'ouvrir.
-/// </summary>
+/// <summary>Section « Identity:Registration » de la configuration.</summary>
 public sealed class RegistrationOptions
 {
     public const string SectionName = "Identity:Registration";
@@ -17,14 +10,7 @@ public sealed class RegistrationOptions
     /// <summary>Inscription publique (app acheteur, site) : approbation requise.</summary>
     public bool RequireApprovalForBuyers { get; set; } = true;
 
-    /// <summary>
-    /// Comptes créés depuis la console d'administration : approbation requise.
-    ///
-    /// Faux par défaut, et c'est le seul assouplissement. Un administrateur qui vient
-    /// de créer un compte, RCCM en main, n'a rien à s'auto-valider : le clic
-    /// n'apporterait aucune garantie supplémentaire, seulement une file qui se
-    /// remplit de son propre travail.
-    /// </summary>
+    /// <summary>Comptes créés depuis la console d'administration : approbation requise.</summary>
     public bool RequireApprovalForAdminCreated { get; set; } = false;
 }
 

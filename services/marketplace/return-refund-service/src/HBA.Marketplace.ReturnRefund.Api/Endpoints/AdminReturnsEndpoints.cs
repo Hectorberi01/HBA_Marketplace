@@ -13,19 +13,7 @@ public static class AdminReturnsEndpoints
     {
         var group = app.MapAdminGroup("/api/v1/admin/returns").WithTags("Admin Returns");
 
-        // ═════════════════════════════════════════════════════════════════════
         // LA LISTE MANQUAIT, ET LES TROIS AUTRES ROUTES SONT ADRESSÉES PAR GUID.
-        //
-        // Sans elle, il fallait déjà connaître l'identifiant d'un dossier pour le
-        // consulter, l'arbitrer ou le clore. Autrement dit : aucun écran
-        // d'administration des retours ne pouvait exister, et un dossier qu'aucun
-        // client ne relançait n'était vu par personne.
-        //
-        // PAS DE « FILE DES LITIGES » CODÉE EN DUR. `ReturnStatus` compte seize
-        // états, et décider ici lesquels pressent figerait dans le serveur un
-        // jugement d'exploitation. La route rend tous les dossiers, filtrables par
-        // statut, avec le compte de chaque statut dans `meta.facets`.
-        // ═════════════════════════════════════════════════════════════════════
         group.MapGet("/", ListAsync);
 
         group.MapGet("/{id:guid}", GetAsync);
@@ -35,13 +23,6 @@ public static class AdminReturnsEndpoints
     }
 
     /// <summary>Page de dossiers de retour, toutes boutiques confondues (Admin).</summary>
-    /// <remarks>
-    /// TOUS LES PARAMÈTRES SONT NULLABLES : UN APPEL NU REND LA PREMIÈRE PAGE.
-    ///
-    /// `PageSize` n'est posé que s'il est demandé, pour que la valeur par défaut
-    /// reste celle de la requête et n'oblige pas ce projet d'API à référencer le
-    /// socle de pagination pour lire une constante.
-    /// </remarks>
     private static async Task<IResult> ListAsync(
         int? page, int? pageSize, string? status, ISender sender, CancellationToken ct)
     {

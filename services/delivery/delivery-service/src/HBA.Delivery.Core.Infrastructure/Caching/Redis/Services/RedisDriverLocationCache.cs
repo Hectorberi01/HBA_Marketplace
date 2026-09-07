@@ -7,32 +7,7 @@ using StackExchange.Redis;
 
 namespace HBA.Deliveries.Infrastructure.Caching;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// POSITIONS DES LIVREURS — REDIS, ET SES COMMANDES GÉOSPATIALES.
-///
-/// Redis sait répondre nativement à « qui est dans ce rayon » : les positions
-/// vivent dans un index géospatial (GEOADD), interrogé par GEOSEARCH. C'est la
-/// raison principale du choix — sans cela, il faudrait charger tous les livreurs
-/// en ligne et calculer les distances en mémoire à chaque course.
-///
-/// DEUX STRUCTURES, PARCE QU'UN INDEX GÉO NE SAIT PAS EXPIRER
-///
-/// Redis n'applique pas de durée de vie aux MEMBRES d'un index géospatial : on
-/// ne peut faire expirer que la clé entière. Or une position doit se périmer
-/// individuellement — un livreur dont le téléphone n'émet plus depuis deux
-/// minutes ne doit plus être proposé, sans effacer tous les autres.
-///
-/// D'où une seconde clé par livreur, celle-ci avec un TTL. L'index géo répond
-/// « qui est à proximité », et la clé horodatée dit « lesquels sont encore
-/// frais ». Un livreur absent de la seconde est ignoré, et son entrée dans
-/// l'index sera écrasée à sa prochaine émission ou nettoyée par le passage
-/// suivant.
-///
-/// Ce n'est pas élégant. C'est la contrepartie assumée d'une structure qui, en
-/// échange, répond en une milliseconde à la seule question que pose le dispatch.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>POSITIONS DES LIVREURS — REDIS, ET SES COMMANDES GÉOSPATIALES.</summary>
 internal sealed class RedisDriverLocationCache : IDriverLocationCache
 {
     /// <summary>Index géospatial de tous les livreurs en ligne.</summary>
@@ -56,11 +31,7 @@ internal sealed class RedisDriverLocationCache : IDriverLocationCache
     {
         var member = driverId.Value.ToString();
 
-        // GEOADD attend (longitude, latitude) — dans cet ordre. L'inverser est
-        // l'erreur classique de tout code géospatial, et elle est INDÉTECTABLE au
-        // Bénin : latitude ~6,4 et longitude ~2,4 sont deux nombres à un chiffre
-        // parfaitement plausibles l'un pour l'autre. Le point atterrit simplement
-        // ailleurs, sans qu'aucune validation ne se déclenche.
+        // GEOADD attend (longitude, latitude) — dans cet ordre.
         await Db.GeoAddAsync(GeoKey, position.Longitude, position.Latitude, member);
 
         await Db.StringSetAsync(
@@ -120,9 +91,7 @@ internal sealed class RedisDriverLocationCache : IDriverLocationCache
         }
         catch (RedisServerException ex)
         {
-            // GEOSEARCH exige Redis 6.2+. Sur une version antérieure, mieux vaut
-            // un dispatch dégradé qu'un dispatch arrêté : on retombe sur l'ordre
-            // de l'index, sans notion de distance.
+            // GEOSEARCH exige Redis 6.2+.
             _logger.LogWarning(ex, "GEOSEARCH indisponible ; recherche de livreurs dégradée (sans distance).");
             var all = await Db.SortedSetRangeByRankAsync(GeoKey, 0, limit * 4);
             return await FilterFreshAsync(all.Select(m => (m, (double?)null)), limit);

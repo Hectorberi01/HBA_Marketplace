@@ -62,9 +62,7 @@ internal sealed class AddAddressCommandHandler : ICommandHandler<AddAddressComma
 
         await _repository.AddAsync(created.Value, cancellationToken);
 
-        // §10.2 : `user.address.created`. Ni rue ni point GPS dans la charge utile —
-        // voir l'encadré de l'événement : un topic conservé plusieurs jours n'est pas
-        // un endroit où poser une adresse postale.
+        // §10.2 : `user.address.created`.
         await _publisher.PublishAsync(
             new UserAddressCreatedIntegrationEvent
             {

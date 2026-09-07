@@ -26,8 +26,7 @@ internal sealed class AddProductVariantCommandHandler : ICommandHandler<AddProdu
         }
 
         // SKU laissé vide par l'app : on le génère à partir de l'ID vendeur du
-        // produit (le vendeur n'a pas à inventer une référence unique). S'il en a
-        // saisi un, on le respecte.
+        // produit (le vendeur n'a pas à inventer une référence unique).
         var sku = string.IsNullOrWhiteSpace(command.Sku)
             ? Sku.Generate(product.SellerId).Value
             : command.Sku;

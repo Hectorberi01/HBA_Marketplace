@@ -12,24 +12,8 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using ContratsMerchants = HBA.Merchants.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
-// COPIE DEPUIS `HBA.Merchants.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
-//
-// `shared/` ne contient plus que les `.proto`. Ce service compile lui-meme le
-// contrat dont il a besoin, et porte donc sa propre traduction.
-//
-// LES TYPES GENERES SONT `internal` A CET ASSEMBLAGE. Deux services qui
-// compilent le meme proto obtiennent deux types CLR distincts ; les rendre
-// publics ferait, dans un hote compose, deux types publics du meme nom complet —
-// CS0433, a l'usage, loin de la cause. Les adaptateurs et mappings sont donc
-// `internal` eux aussi : un type public dont la signature expose un type interne
-// ne compile pas.
-//
-// CE QUE ÇA COUTE : cette traduction existe en 10 exemplaires dans le depot,
-// un par service qui appelle ce domaine. Elles sont identiques aujourd'hui et
-// rien n'empeche qu'elles divergent. C'est le prix de l'autonomie par service,
-// paye ici en connaissance de cause.
-// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Merchants.Contracts.Grpc` (lot D — dissolution des assemblages
+// de contrats).
 
 namespace HBA.Catalog.Infrastructure.Grpc.Clients;
 
@@ -89,15 +73,7 @@ internal sealed class MerchantsGrpcClient : ContratsMerchants.ISellerModuleApi, 
     }
 
     /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
     /// LE COMPTE DE REVERSEMENT — LA SEULE LECTURE QUI DISE LA VÉRITÉ À DISTANCE.
-    ///
-    /// VOIR `ToContract` PLUS BAS AVANT DE LIRE `ContratsMerchants.SellerSummary.Payout`.
-    ///
-    /// Ce champ-là vaut `null` pour tout le monde ici, faute d'être transporté.
-    /// wallet-service l'a lu, et plus aucun vendeur de la plateforme ne pouvait
-    /// sortir son argent.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     public async Task<ContratsMerchants.SellerPayout> GetSellerPayoutAsync(
         Guid sellerId, CancellationToken cancellationToken = default)
@@ -123,37 +99,7 @@ internal sealed class MerchantsGrpcClient : ContratsMerchants.ISellerModuleApi, 
     }
 
     /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
     /// HUIT CHAMPS AU PROTO, HUIT CHAMPS AU CONTRAT. PLUS RIEN N'EST INVENTÉ ICI.
-    ///
-    /// CE MAPPEUR EN FABRIQUAIT SIX, ET CE N'ÉTAIT PAS BÉNIN.
-    ///
-    /// Le record C# portait quatorze champs ; le proto en transporte huit. Les six
-    /// autres — `Rating`, `SalesCount`, `Payout`, `KybDocuments`, `Metadata`,
-    /// `KybRejectionReason` — recevaient ici une valeur neutre qu'aucun appelant ne
-    /// pouvait distinguer d'une vraie. Une interface, deux sémantiques : dans
-    /// seller-service, `ISellerModuleApi` rendait le vendeur ; ici, un objet EN
-    /// FORME de vendeur, dont l'argent et les pièces d'identité avaient été
-    /// remplacés par du plausible.
-    ///
-    /// `Payout: null` A RENDU IMPOSSIBLE TOUT RETRAIT VENDEUR DE LA PLATEFORME.
-    ///
-    /// wallet-service, hébergé par payment-service, résout `ISellerModuleApi` sur
-    /// CE client. Il lisait `seller?.Payout`, obtenait `null` quel que soit le
-    /// vendeur, et refusait chaque demande — pendant que la validation
-    /// administrative d'une demande existante échouait AVEC remboursement, sur le
-    /// même motif faux. Le vendeur lisait « Aucun compte de versement Mobile Money
-    /// configuré » avec son numéro MTN sous les yeux (D21).
-    ///
-    /// La sortie n'était pas de mieux commenter ce mappeur : c'était de SÉPARER LES
-    /// CONTRATS (D24). `ContratsMerchants.SellerSummary` ne porte plus que ce qui voyage ; la fiche
-    /// riche vit dans `SellerDetail`, côté Application, et ne sort jamais du
-    /// service. Il n'y a donc plus de champ à remplir faute de mieux — le
-    /// compilateur interdit ce que ce commentaire se contentait d'avertir.
-    ///
-    /// CE QUI RESTE À SAVOIR : ajouter un champ à `ContratsMerchants.SellerSummary` sans l'ajouter
-    /// au proto rouvrirait le trou à l'identique. Les deux se modifient ensemble.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     private static ContratsMerchants.SellerSummary ToContract(Proto.SellerSummary seller)
         => new(
@@ -178,26 +124,14 @@ internal sealed class MerchantsGrpcClient : ContratsMerchants.ISellerModuleApi, 
             Status: store.Status,
             // LU, PLUS CALCULÉ. Cette ligne comparait le statut à « Active »,
             // valeur absente de `StoreStatus` : toute boutique était fermée à
-            // distance. Voir l'encadré de `is_selling` dans le proto.
+            // distance.
             IsSelling: store.IsSelling,
             FulfillmentLocationId: store.HasFulfillmentLocationId ? ParseGuid(store.FulfillmentLocationId) : null,
             StatusReason: null,
             OpeningHours: [],
             CreatedOnUtc: DateTime.MinValue);
 
-    /// <summary>
-    /// AUCUN CACHE CÔTÉ CLIENT, ET C'EST UNE DÉCISION.
-    ///
-    /// Le cahier (§50) voulait un cache chez chaque appelant, invalidé par un
-    /// événement Kafka. Cinq services, cinq copies, cinq occasions d'en oublier
-    /// une — et dans un groupe de consommateurs, une SEULE réplique reçoit le
-    /// message d'invalidation. La suspension d'un membre n'aurait mordu que là.
-    ///
-    /// Le cache vit donc chez seller-service, où il est évincé dans la même
-    /// transaction que la mutation qui le périme. Ce client fait un aller-retour
-    /// gRPC par requête ; c'est le prix d'une révocation qui prend effet
-    /// immédiatement partout, et c'est le bon.
-    /// </summary>
+    /// <summary>AUCUN CACHE CÔTÉ CLIENT, ET C'EST UNE DÉCISION.</summary>
     public async Task<ContratsMerchants.MerchantAccess?> GetAccessAsync(
         Guid userId, CancellationToken cancellationToken = default)
     {
@@ -222,8 +156,7 @@ internal sealed class MerchantsGrpcClient : ContratsMerchants.ISellerModuleApi, 
             // `ToDictionary` SUR UNE LISTE QUI POURRAIT PORTER DEUX FOIS LA MÊME
             // BOUTIQUE LÈVERAIT. Le serveur ne le fait pas — il itère un
             // dictionnaire — mais un client ne doit pas dépendre de la discipline
-            // d'un serveur qu'il ne compile pas avec lui. Le regroupement absorbe
-            // le doublon en réunissant, ce qui est la seule fusion correcte ici.
+            // d'un serveur qu'il ne compile pas avec lui.
             response.StorePermissions
                 .GroupBy(b => ParseGuid(b.StoreId))
                 .ToDictionary(
@@ -259,20 +192,7 @@ internal sealed class MerchantsGrpcClient : ContratsMerchants.ISellerModuleApi, 
     private static Guid ParseGuid(string? value)
         => Guid.TryParse(value, out var id) ? id : Guid.Empty;
 
-    /// <summary>
-    /// Un montant venu du fil.
-    /// </summary>
-    /// <remarks>
-    /// REFUSAIT DE RENDRE ZÉRO — voir <see cref="MontantSurLeFil"/>. Cette
-    /// fonction s'écrivait « TryParse(…) ? valeur : 0m », comme six autres du
-    /// dépôt : un champ non posé par l'émetteur — donc la chaîne VIDE, il n'y a
-    /// pas de « non renseigné » pour un `string` protobuf 3 — se lisait « zéro
-    /// franc ».
-    ///
-    /// `champ` EST REMPLI PAR LE COMPILATEUR, pas à la main. Il reçoit le TEXTE
-    /// de l'expression passée — « order.AlreadyRefundedAmount » — donc un nom plus
-    /// précis qu'aucun littéral recopié, et qui suit les renommages tout seul.
-    /// </remarks>
+    /// <summary>Un montant venu du fil.</summary>
     private static decimal ParseDecimal(
         string? value, [CallerArgumentExpression(nameof(value))] string champ = "")
         => MontantSurLeFil.Lire(value, champ);
@@ -298,12 +218,6 @@ internal static class MerchantsGrpcRegistration
 
         // DEUX INTERFACES, UNE SEULE INSTANCE — ET NON DEUX ENREGISTREMENTS
         // INDÉPENDANTS DE LA MÊME CLASSE.
-        //
-        // `AddScoped<IMerchantAccessApi, MerchantsGrpcClient>()` construirait un
-        // SECOND client dans la même portée. Sans conséquence fonctionnelle
-        // aujourd'hui, mais c'est exactement le genre de duplication qui devient
-        // un défaut le jour où le client portera un état — un jeton, un compteur,
-        // un disjoncteur.
         services.AddScoped<ContratsMerchants.IMerchantAccessApi>(sp =>
             (MerchantsGrpcClient)sp.GetRequiredService<ContratsMerchants.ISellerModuleApi>());
 

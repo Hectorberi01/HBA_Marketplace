@@ -19,7 +19,10 @@ using HBA.Financial.Billing.Infrastructure.Caching.Redis;
 using HBA.Financial.Billing.Infrastructure.Observability;
 namespace HBA.Financial.Billing.Infrastructure;
 
-/// <summary>Enregistre le module Billing : DbContext, repositories, API commission, validators, outbox.</summary>
+/// <summary>
+/// Enregistre le module Billing : DbContext, repositories, API commission,
+/// validators, outbox.
+/// </summary>
 public sealed class BillingModuleInstaller : IModuleInstaller
 {
     public string ModuleName => "Billing";
@@ -28,33 +31,13 @@ public sealed class BillingModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheFinancialBilling(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteFinancialBilling(configuration);
 
         // « Billing:DefaultCommissionRate » N'EXISTE PLUS.
-        //
-        // Ce taux servait de repli quand aucune règle de commission ne
-        // s'applique — c'est-à-dire, en pratique, toujours. Il était lu ici,
-        // sans validation, pendant que Products et Wallet en lisaient deux
-        // autres ailleurs : trois définitions du même chiffre, dans deux unités.
-        //
-        // PlatformPricing est désormais la seule. La présence de l'ancienne clé
-        // fait échouer le démarrage plutôt que d'être ignorée en silence.
-        //
-        // CE REPLI N'EST PLUS UN REPLI DE COIN : C'EST LE TAUX COURANT.
-        //
-        // `AccrueEarningsOnOrderConfirmedHandler` interroge désormais
-        // `ICommissionModuleApi` pour chaque ligne de marchandise. Faute de règle
-        // — le cas ordinaire —, c'est cette valeur qui est prélevée. Elle et
-        // `PricingOptions.PlatformCommissionRate` sortent du MÊME barème, deux
-        // lignes plus bas et dans WalletModuleInstaller : elles ne peuvent pas
-        // diverger, et il n'y a plus qu'une clé à éditer pour les changer.
         var bareme = new PlatformPricing(configuration);
 
         var billingOptions = new BillingOptions
@@ -62,12 +45,10 @@ public sealed class BillingModuleInstaller : IModuleInstaller
             DefaultCommissionRate = bareme.CommissionRate
         };
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
-        // `AjouterMessagerieFinancialBilling()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieFinancialBilling()`, que le composition root peut
+        // oublier.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddSingleton(billingOptions);

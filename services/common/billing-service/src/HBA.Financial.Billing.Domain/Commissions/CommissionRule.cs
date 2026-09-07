@@ -18,11 +18,7 @@ public enum CommissionScope
     Seller = 2
 }
 
-/// <summary>
-/// Règle de commission : définit combien la plateforme prélève. Distincte de
-/// Payments (qui encaisse) et de Settlement (qui reverse). La résolution prend
-/// la règle active la plus spécifique (Seller &gt; Category &gt; Global).
-/// </summary>
+/// <summary>Règle de commission : définit combien la plateforme prélève.</summary>
 public sealed class CommissionRule : AggregateRoot<CommissionRuleId>
 {
     private CommissionRule()
@@ -112,7 +108,10 @@ public sealed class CommissionRule : AggregateRoot<CommissionRuleId>
 
     public void Reactivate() => IsActive = true;
 
-    /// <summary>Modifie la règle (taux, frais, devise, bornes, prise d'effet) avec revalidation. Le périmètre n'est pas modifiable.</summary>
+    /// <summary>
+    /// Modifie la règle (taux, frais, devise, bornes, prise d'effet) avec
+    /// revalidation.
+    /// </summary>
     public Result Update(decimal rate, decimal fixedFee, string currency, decimal? minFee, decimal? maxFee, DateTime effectiveFromUtc)
     {
         if (rate is < 0m or > 1m)

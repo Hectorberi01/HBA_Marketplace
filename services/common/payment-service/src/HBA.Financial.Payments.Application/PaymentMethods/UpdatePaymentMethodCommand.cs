@@ -7,9 +7,7 @@ namespace HBA.Financial.Payments.Application.PaymentMethods;
 
 /// <summary>
 /// Met à jour un moyen de paiement enregistré (vérifie la propriété via
-/// <see cref="UserId"/>). Pour Mobile Money : libellé, opérateur et numéro. Pour
-/// Carte : libellé, expiration et titulaire (le numéro n'est jamais modifiable).
-/// Si <see cref="MakeDefault"/> est vrai, le moyen devient le nouveau défaut.
+/// <see cref="UserId"/> ).
 /// </summary>
 public sealed record UpdatePaymentMethodCommand(
     Guid UserId,

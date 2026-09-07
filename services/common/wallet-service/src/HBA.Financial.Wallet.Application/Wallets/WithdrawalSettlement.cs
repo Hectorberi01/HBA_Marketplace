@@ -6,14 +6,9 @@ namespace HBA.Financial.Wallet.Application.Wallets;
 
 /// <summary>
 /// Applique à un retrait le statut RÉEL de son dépôt chez le PSP. Point d'entrée
-/// UNIQUE, partagé par les deux sources de vérité :
-///  • le webhook (temps réel, mais peut se perdre ou arriver en désordre) ;
-///  • la réconciliation périodique (lente, mais exhaustive — le filet de sécurité).
-///
-/// Les deux chemins doivent aboutir EXACTEMENT au même effet comptable, sinon on
-/// obtiendrait un double remboursement (webhook « failed » suivi du même verdict en
-/// réconciliation). D'où cette classe : la règle de clôture n'existe qu'à un endroit,
-/// et elle est idempotente — un retrait déjà tranché n'est plus jamais touché.
+/// UNIQUE, partagé par les deux sources de vérité : • le webhook (temps réel, mais
+/// peut se perdre ou arriver en désordre) ; • la réconciliation périodique (lente,
+/// mais exhaustive — le filet de sécurité).
 /// </summary>
 public sealed class WithdrawalSettlement
 {
@@ -32,11 +27,8 @@ public sealed class WithdrawalSettlement
     }
 
     /// <summary>
-    /// Renvoie <c>true</c> si le retrait a été tranché (clôturé ou remboursé) par cet appel.
-    ///
-    /// Garde d'idempotence : seul un retrait en <see cref="WithdrawalStatus.Processing"/>
-    /// est mutable. Un retrait déjà Completed/Failed est ignoré — c'est ce qui rend sûr
-    /// le fait de recevoir DEUX fois le même verdict (webhook rejoué + réconciliation).
+    /// Renvoie <c> true</c> si le retrait a été tranché (clôturé ou remboursé) par
+    /// cet appel.
     /// </summary>
     public async Task<bool> ApplyAsync(Withdrawal withdrawal, PayoutProgress progress, CancellationToken cancellationToken = default)
     {
@@ -57,9 +49,8 @@ public sealed class WithdrawalSettlement
                 await RefundAsync(withdrawal, cancellationToken);
                 return true;
 
-            // pending / started / processing / unknown : encore en vol, ou PSP muet.
-            // On ne touche à rien : ni clôture (le vendeur n'a rien reçu), ni
-            // remboursement (l'argent est peut-être en route).
+            // pending / started / processing / unknown : encore en vol, ou PSP
+            // muet.
             default:
                 return false;
         }
@@ -73,15 +64,8 @@ public sealed class WithdrawalSettlement
         var wallet = await _wallets.GetBySellerAsync(withdrawal.SellerId, cancellationToken);
         if (wallet is null)
         {
-            // Portefeuille introuvable : on garde la trace de l'échec, sans crédit fantôme.
-            //
-            // ON NE LIBÈRE PAS LES GAINS NON PLUS, ET LES DEUX VONT ENSEMBLE.
-            //
-            // Rendre les gains payables sans recréditer le solde les ferait entrer
-            // dans un lot dont le montant serait plafonné par un portefeuille qui
-            // n'existe pas : rien ne serait versé, et les gains resteraient à
-            // tourner. Le retrait « Failed » et son montant restent la trace à
-            // partir de laquelle trancher à la main.
+            // Portefeuille introuvable : on garde la trace de l'échec, sans crédit
+            // fantôme.
             return;
         }
 
@@ -92,8 +76,7 @@ public sealed class WithdrawalSettlement
             "withdrawal_refund", "withdrawal", withdrawal.Id.Value), cancellationToken);
 
         // Troisième et dernier chemin de remboursement (les deux autres sont dans
-        // WalletCommands). Les trois doivent libérer les gains imputés, sinon le
-        // solde revient sans que rien ne se solde jamais.
+        // WalletCommands).
         await _imputation.ReleaseWithdrawalAsync(withdrawal.Id.Value, cancellationToken);
     }
 }

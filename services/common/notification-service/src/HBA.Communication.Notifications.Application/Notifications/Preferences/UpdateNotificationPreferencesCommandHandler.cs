@@ -27,8 +27,8 @@ internal sealed class UpdateNotificationPreferencesCommandHandler
             await _repository.AddAsync(pref, cancellationToken);
         }
 
-        // On ne conserve que des catégories connues : un client qui envoie n'importe
-        // quoi ne peut pas polluer la table.
+        // On ne conserve que des catégories connues : un client qui envoie
+        // n'importe quoi ne peut pas polluer la table.
         var muted = command.MutedCategories
             .Select(c => c.Trim().ToLowerInvariant())
             .Where(NotificationCategories.IsKnown)

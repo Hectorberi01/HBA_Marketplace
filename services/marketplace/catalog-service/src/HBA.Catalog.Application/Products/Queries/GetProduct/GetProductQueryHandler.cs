@@ -22,10 +22,6 @@ internal sealed class GetProductQueryHandler : IQueryHandler<GetProductQuery, Pr
         // Cache-aside. MÊME clé que CatalogModuleApi.GetProductAsync : les deux
         // chemins servent la même fiche, ils partagent donc l'entrée — un seul
         // aller-retour en base réchauffe les deux.
-        //
-        // L'absence est mémorisée elle aussi : cet endpoint est ANONYME, et sans
-        // cache négatif une boucle sur des identifiants au hasard traverserait le
-        // cache et frapperait la base à chaque requête.
         var summary = await _cache.GetOrCreateAsync(
             CatalogCacheKeys.Product(query.ProductId),
             async ct =>
@@ -39,8 +35,7 @@ internal sealed class GetProductQueryHandler : IQueryHandler<GetProductQuery, Pr
 
         // if/return plutôt qu'un ternaire : les deux branches ont des types
         // différents (Error et ProductSummary) et ne se rejoignent que par les
-        // conversions implicites de Result<T>. Ça compile, mais la forme explicite
-        // ne laisse aucun doute au lecteur — ni au compilateur.
+        // conversions implicites de Result<T>.
         if (summary is null)
         {
             return Error.NotFound("catalog.product.not_found", $"Produit {query.ProductId} introuvable.");

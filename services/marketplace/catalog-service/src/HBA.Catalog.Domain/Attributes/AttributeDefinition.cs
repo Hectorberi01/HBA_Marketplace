@@ -17,24 +17,7 @@ public enum AttributeValueType
     Date = 8
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UNE DÉFINITION D'ATTRIBUT — TABLE <c>attribute_definitions</c> (§10, §20).
-///
-/// ELLE EST DÉFINIE UNE FOIS, ET RÉUTILISÉE PAR PLUSIEURS CATÉGORIES.
-///
-/// « Couleur » est le même attribut pour les téléphones, les chaussures et les
-/// meubles : même code, mêmes valeurs possibles, même rendu. Le §10 le montre
-/// rattaché à une catégorie, ce qui invite à le recréer à chaque fois — et l'on se
-/// retrouve alors avec `color`, `couleur` et `Colour` selon qui a rempli le
-/// formulaire, trois filtres de vitrine au lieu d'un, et une recherche par couleur
-/// qui ne trouve qu'un tiers du catalogue.
-///
-/// La définition vit donc à part ; c'est <see cref="CategoryAttribute"/> qui
-/// l'attache à une catégorie, avec ce qui, LUI, dépend de la catégorie : obligatoire
-/// ou non, formant variante ou non, position dans le formulaire.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UNE DÉFINITION D'ATTRIBUT — TABLE <c>attribute_definitions</c> (§10, §20).</summary>
 public sealed class AttributeDefinition : AggregateRoot<Guid>
 {
     private AttributeDefinition()
@@ -54,16 +37,7 @@ public sealed class AttributeDefinition : AggregateRoot<Guid>
         CreatedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    /// <summary>
-    /// L'identifiant technique — « color », « storage », « screen_size ».
-    ///
-    /// C'EST LUI QUI VOYAGE, PAS LE NOM.
-    ///
-    /// Le nom est affiché et traduit ; le code est la clé sous laquelle la valeur
-    /// est rangée dans `product_revisions.attributes` et sur laquelle la vitrine
-    /// filtre. Le renommer casserait toutes les fiches déjà saisies — d'où son
-    /// unicité et son immuabilité.
-    /// </summary>
+    /// <summary>L'identifiant technique — « color », « storage », « screen_size ».</summary>
     public string Code { get; private set; } = string.Empty;
 
     public string Name { get; private set; } = string.Empty;
@@ -108,12 +82,6 @@ public sealed class AttributeDefinition : AggregateRoot<Guid>
             .ToList();
 
         // UN « SELECT » SANS OPTIONS EST UN CHAMP QUE PERSONNE NE PEUT REMPLIR.
-        //
-        // Le formulaire vendeur (§13, étape 8) construit une liste déroulante à
-        // partir de ces valeurs. Vide, elle s'affiche sans choix — et si
-        // l'attribut est requis, la fiche devient impossible à soumettre. Le
-        // vendeur ne voit qu'un champ obligatoire et vide ; rien ne lui dit que
-        // c'est la définition qui est incomplète.
         if (type is AttributeValueType.Select or AttributeValueType.MultiSelect && valeurs.Count == 0)
         {
             return Error.Validation(
@@ -134,15 +102,7 @@ public sealed class AttributeDefinition : AggregateRoot<Guid>
             valeurs);
     }
 
-    /// <summary>
-    /// Met à jour le libellé, l'unité et les valeurs possibles.
-    ///
-    /// NI LE CODE NI LE TYPE NE CHANGENT — VOIR L'ENCADRÉ DE <see cref="Code"/>.
-    ///
-    /// Changer le type d'un attribut déjà utilisé rendrait invalides toutes les
-    /// valeurs saisies : un `screen_size` passé de DECIMAL à SELECT ferait échouer
-    /// la soumission de chaque fiche qui le porte, sans qu'aucune n'ait changé.
-    /// </summary>
+    /// <summary>Met à jour le libellé, l'unité et les valeurs possibles.</summary>
     public Result Update(string name, string? unit, IEnumerable<string>? options)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -164,12 +124,6 @@ public sealed class AttributeDefinition : AggregateRoot<Guid>
         }
 
         // ON N'INTERDIT PAS DE RETIRER UNE OPTION, MAIS IL FAUT LE SAVOIR.
-        //
-        // Les fiches qui portaient la valeur retirée gardent leur donnée : elle est
-        // dans `product_revisions.attributes`, pas ici. Elles resteront affichées
-        // telles quelles, et ne repasseront la validation qu'à leur prochaine
-        // soumission — où l'erreur sera claire. Bloquer la suppression figerait le
-        // référentiel pour toujours.
         Name = name.Trim();
         Unit = string.IsNullOrWhiteSpace(unit) ? null : unit.Trim().ToUpperInvariant();
         Options = valeurs;

@@ -17,16 +17,7 @@ public sealed record DriverStopDto(
     double Latitude,
     double Longitude);
 
-/// <summary>
-/// Une course du point de vue du livreur.
-///
-/// CE DTO NE PORTE PAS LE PIN DE REMISE.
-///
-/// Le code de preuve appartient au DESTINATAIRE : c'est lui qui le dicte au
-/// livreur pour attester qu'il a bien reçu son colis. Le mettre ici viderait la
-/// preuve de son sens — un livreur qui lit le code sur son propre écran peut
-/// clore la course sans avoir rencontré personne.
-/// </summary>
+/// <summary>Une course du point de vue du livreur.</summary>
 public sealed record MyDeliveryDto(
     Guid DeliveryId,
     string Reference,
@@ -45,25 +36,7 @@ public sealed record MyDeliveryDto(
     DateTime? OfferedAtUtc,
     DateTime? OfferExpiresAtUtc);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUE LE LIVREUR A À FAIRE MAINTENANT.
-///
-/// CETTE ROUTE MANQUAIT, ET C'EST POURQUOI AUCUN COLIS N'ÉTAIT LIVRABLE.
-///
-/// Le groupe <c>/api/deliveries/mine</c> ne contenait que des POST : accepter,
-/// refuser, faire avancer. Aucun GET. Le livreur pouvait donc répondre à une
-/// proposition — à condition d'en connaître l'identifiant, que rien ne lui
-/// donnait.
-///
-/// LE <c>driverId</c> VIENT DU JETON, PAS DE L'APPEL.
-///
-/// La résolution passe par <c>ResolveDriverQuery</c> côté route, comme les sept
-/// commandes voisines. Accepter un identifiant en paramètre permettrait de lire
-/// le carnet de courses — donc les coordonnées et téléphones des clients — de
-/// n'importe quel livreur.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>CE QUE LE LIVREUR A À FAIRE MAINTENANT.</summary>
 public sealed record MyDeliveriesQuery(Guid DriverId) : IQuery<IReadOnlyList<MyDeliveryDto>>;
 
 internal sealed class MyDeliveriesQueryHandler : IQueryHandler<MyDeliveriesQuery, IReadOnlyList<MyDeliveryDto>>
@@ -90,9 +63,7 @@ internal sealed class MyDeliveriesQueryHandler : IQueryHandler<MyDeliveriesQuery
 
     private MyDeliveryDto Map(Domain.Deliveries.Delivery d, DriverId driverId)
     {
-        // La proposition EN COURS pour CE livreur. Une course peut porter
-        // plusieurs propositions — refusées, expirées — et seule celle qui attend
-        // encore une réponse porte une échéance à afficher.
+        // La proposition EN COURS pour CE livreur.
         var offre = d.Assignments
             .LastOrDefault(a => a.DriverId == driverId && a.Outcome == AssignmentOutcome.Offered);
 
@@ -122,11 +93,7 @@ internal sealed class MyDeliveriesQueryHandler : IQueryHandler<MyDeliveriesQuery
     private decimal? EstimatedEarning(Domain.Deliveries.Delivery d)
     {
         // Le gain déjà figé fait autorité — après la remise, ce n'est plus une
-        // estimation. Avant, on projette le prix par la part en vigueur.
-        //
-        // La part est INJECTÉE, jamais recopiée : c'est la même source que celle
-        // qui figera le montant à la remise. Une constante locale afficherait un
-        // montant que le décompte final contredirait.
+        // estimation.
         if (d.DriverEarning is not null)
         {
             return d.DriverEarning;

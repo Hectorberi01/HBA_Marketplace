@@ -15,11 +15,9 @@ public enum FoodCartStatus
     CheckedOut = 1,
 
     /// <summary>
-    /// ÉTAT INATTEIGNABLE, comme <c>CartStatus.Abandoned</c> côté marchandise
-    /// (lot 9.2) : aucun balayeur ne pose cette valeur, et
-    /// `ux_food_carts_active_buyer` impose un seul panier repas actif par
-    /// acheteur. Conservée pour la même raison — c'est le vocabulaire du
-    /// balayeur à venir, pas du bruit à supprimer.
+    /// ÉTAT INATTEIGNABLE, comme <c> CartStatus.Abandoned</c> côté marchandise (lot
+    /// 9.2) : aucun balayeur ne pose cette valeur, et `ux_food_carts_active_buyer`
+    /// impose un seul panier repas actif par acheteur.
     /// </summary>
     Abandoned = 2
 }

@@ -22,16 +22,7 @@ public sealed record DefautSaisi(
 /// <summary>Une ligne de fiche technique, en chaînes (§12).</summary>
 public sealed record LigneSpecSaisie(string Name, string Value);
 
-/// <summary>
-/// Un groupe de la fiche technique (§12 : « Écran », « Processeur »…).
-///
-/// MIROIR DES TYPES DU DOMAINE, ET NON LES TYPES EUX-MÊMES.
-///
-/// `GroupeDeSpecifications` vit dans le domaine. L'exposer directement au contrat
-/// HTTP ferait dépendre la forme du JSON public de la forme du domaine : le
-/// renommer deviendrait un changement cassant pour les clients mobiles. Même
-/// raison que pour `TarificationSaisie` et `ConditionSaisie`.
-/// </summary>
+/// <summary>Un groupe de la fiche technique (§12 : « Écran », « Processeur »…).</summary>
 public sealed record GroupeSpecSaisi(
     string Name,
     IReadOnlyList<LigneSpecSaisie> Items,
@@ -52,28 +43,7 @@ public sealed record ConditionSaisie(
     int? BatteryHealthPercentage = null,
     bool? BatteryReplaced = null);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// DES CHAÎNES DU CLIENT AUX TYPES DU DOMAINE.
-///
-/// POURQUOI CETTE TRADUCTION NE VIT NI DANS LE DOMAINE, NI DANS L'ENDPOINT.
-///
-/// Pas dans le domaine : `ProductConditionType` ne doit rien savoir de « VERY_GOOD »
-/// ni de la casse que choisit un client mobile. Un domaine qui parse des chaînes
-/// de transport finit par porter les compromis de trois générations d'API.
-///
-/// Pas dans l'endpoint : la création et la mise à jour ont besoin exactement de la
-/// même traduction. La dupliquer, c'est garantir qu'un jour l'une acceptera
-/// « OPEN_BOX » et l'autre non — et que le vendeur ne comprendra pas pourquoi sa
-/// modification est refusée alors que sa création passait.
-///
-/// ELLE REFUSE CE QU'ELLE NE CONNAÎT PAS, ELLE NE RETOMBE PAS SUR UN DÉFAUT.
-///
-/// La tentation est d'écrire « type inconnu → New ». Ce serait transformer une
-/// faute de frappe du client en promesse commerciale : un vendeur qui envoie
-/// « REFURBISHD » verrait sa fiche publiée en NEUF.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>DES CHAÎNES DU CLIENT AUX TYPES DU DOMAINE.</summary>
 public static class ContenuProduitFactory
 {
     public static Result<ContenuProduit> Construire(
@@ -147,7 +117,8 @@ public static class ContenuProduitFactory
     {
         if (saisie is null)
         {
-            // Voir l'encadré de ProductCondition.Neuf : c'est un choix, pas une absence.
+            // Voir l'encadré de ProductCondition.Neuf : c'est un choix, pas une
+            // absence.
             return ProductCondition.Neuf();
         }
 
@@ -214,17 +185,7 @@ public static class ContenuProduitFactory
             saisie.BatteryReplaced);
     }
 
-    /// <summary>
-    /// Analyse une énumération en tolérant les formes de transport.
-    ///
-    /// « VERY_GOOD » ET « VeryGood » DÉSIGNENT LA MÊME CHOSE.
-    ///
-    /// Le cahier écrit les valeurs en SCREAMING_SNAKE_CASE dans les JSON (§9, §11)
-    /// et en PascalCase dans le C# (§7). Sans ce retrait des soulignés, l'API
-    /// refuserait exactement les valeurs que sa propre documentation donne en
-    /// exemple — et le message d'erreur, « État commercial inconnu », désignerait
-    /// une valeur que le lecteur vient de recopier du cahier.
-    /// </summary>
+    /// <summary>Analyse une énumération en tolérant les formes de transport.</summary>
     private static Result<TEnum> Analyser<TEnum>(string? valeur, TEnum defaut, string code, string message)
         where TEnum : struct, Enum
     {

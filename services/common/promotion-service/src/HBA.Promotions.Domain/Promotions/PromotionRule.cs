@@ -4,41 +4,20 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Promotions.Domain.Promotions;
 
-/// <summary>Les types de règle que ce service sait évaluer (§10.16, colonne <c>rule_type</c>).</summary>
+/// <summary>
+/// Les types de règle que ce service sait évaluer (§10.16, colonne <c>
+/// rule_type</c>).
+/// </summary>
 public static class PromotionRuleTypes
 {
-    /// <summary>Sous-total minimum du panier. <c>{"value": 5000}</c>.</summary>
+    /// <summary>Sous-total minimum du panier.</summary>
     public const string MinimumSubtotal = "MINIMUM_SUBTOTAL";
 
     public static readonly IReadOnlySet<string> All =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase) { MinimumSubtotal };
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UNE CONDITION D'ÉLIGIBILITÉ (§10.16, table <c>promotion_rules</c>).
-///
-/// Le cahier stocke <c>rule_type</c> + <c>rule_json</c> : une porte ouverte, qui
-/// permet d'ajouter une condition sans migration. C'est commode, et c'est
-/// exactement ce qui rend la règle suivante indispensable.
-///
-/// UN TYPE DE RÈGLE INCONNU REFUSE LA PROMOTION. IL NE L'IGNORE PAS.
-///
-/// C'est le seul choix défendable, et l'intuition va dans l'autre sens — « on ne
-/// sait pas évaluer, donc on laisse passer » paraît tolérant. Il ne l'est pas :
-/// une règle existe pour RESTREINDRE. L'ignorer accorde précisément la remise que
-/// quelqu'un avait écrit une règle pour empêcher.
-///
-/// Le scénario est concret. Une campagne est créée depuis une interface plus
-/// récente que ce service, avec une condition qu'il ne connaît pas encore —
-/// « premier achat uniquement », « catégorie X exclue ». En ignorant, la remise
-/// part sur tous les paniers, et personne ne s'en aperçoit avant la clôture du
-/// mois. En refusant, la campagne ne s'applique à personne : c'est visible en
-/// une heure, et ça ne coûte rien d'autre qu'un déploiement.
-///
-/// Échouer FERMÉ coûte une campagne inactive ; échouer ouvert coûte un budget.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UNE CONDITION D'ÉLIGIBILITÉ (§10.16, table <c>promotion_rules</c>).</summary>
 public sealed class PromotionRule : Entity<Guid>
 {
     private PromotionRule()
@@ -60,20 +39,12 @@ public sealed class PromotionRule : Entity<Guid>
 
     public string RuleType { get; private set; }
 
-    /// <summary>Paramètres de la règle, tels que saisis. Voir <see cref="PromotionRuleTypes"/>.</summary>
+    /// <summary>Paramètres de la règle, tels que saisis.</summary>
     public string RuleJson { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
 
-    /// <summary>
-    /// Valide la forme d'une règle AU MOMENT DE LA CRÉATION.
-    ///
-    /// ON REFUSE LA CAMPAGNE, PAS LA RÈGLE.
-    ///
-    /// Accepter une campagne en écartant les règles illisibles produirait une
-    /// promotion moins restrictive que ce que son auteur a demandé — et il n'aurait
-    /// aucun moyen de le voir : l'écran afficherait la campagne comme créée.
-    /// </summary>
+    /// <summary>Valide la forme d'une règle AU MOMENT DE LA CRÉATION.</summary>
     public static Result<PromotionRule> Create(Guid promotionId, string? ruleType, string? ruleJson)
     {
         var type = (ruleType ?? string.Empty).Trim().ToUpperInvariant();
@@ -102,12 +73,7 @@ public sealed class PromotionRule : Entity<Guid>
         return sonde;
     }
 
-    /// <summary>
-    /// Le panier satisfait-il cette condition ?
-    ///
-    /// Rend un code distinct par raison : « ajoutez 2 000 F » est actionnable,
-    /// « ce coupon ne s'applique pas » ne l'est pas.
-    /// </summary>
+    /// <summary>Le panier satisfait-il cette condition ?</summary>
     public Result Evaluate(PromotionContext context)
     {
         switch (RuleType.ToUpperInvariant())

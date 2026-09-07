@@ -40,10 +40,8 @@ using HBA.Catalog.Infrastructure.Idempotency;
 namespace HBA.Catalog.Infrastructure;
 
 /// <summary>
-/// Enregistre tout le module Catalog : DbContext (schéma propre), repositories,
-/// API publique, handlers d'events, validators, processeur d'outbox. Le
-/// Bootstrap se contente d'appeler cet installer — il ne connaît pas les
-/// internes du module.
+/// Enregistre tout le module Catalog : DbContext (schéma propre), repositories, API
+/// publique, handlers d'events, validators, processeur d'outbox.
 /// </summary>
 public sealed class CatalogModuleInstaller : IModuleInstaller
 {
@@ -53,24 +51,18 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheCatalog(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteCatalog(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
         // `AjouterMessagerieCatalog()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<CatalogDbContext>(options =>
@@ -84,9 +76,7 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IProductOfferRepository, ProductOfferRepository>();
 
-        // Le journal des décisions d'administration (§16). Sans cet enregistrement,
-        // `AdminReviewCommandHandler` ne se construit pas et les quatre routes
-        // d'administration rendent 500 — MediatR ne résout pas le handler.
+        // Le journal des décisions d'administration (§16).
         services.AddScoped<IProductReviewRepository, ProductReviewRepository>();
 
         // Le référentiel d'attributs et les demandes de marque (§10).
@@ -94,51 +84,10 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         services.AddScoped<ICategoryAttributeRepository, CategoryAttributeRepository>();
         services.AddScoped<IBrandRequestRepository, BrandRequestRepository>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // INBOX DE CONSOMMATION (§19.5) ET IDEMPOTENCE DES ÉCRITURES (§25).
-        //
-        // LES DEUX TABLES EXISTENT SANS CES DEUX LIGNES, ET NE SERVENT À RIEN.
-        //
-        // `CatalogDbContext` applique désormais leurs configurations : les tables
-        // seront créées par la prochaine migration. Mais `IConsumerInbox` non
-        // enregistré, un gestionnaire qui l'injecte ne se construit pas — le
-        // message part en erreur à la consommation, pas au démarrage.
-        //
-        // Et `IIdempotencyStore` non enregistré, `IdempotencyEndpointFilter`
-        // LAISSE PASSER : il journalise en Erreur puis exécute la requête SANS
-        // protection contre le rejeu. C'est le pire des cas — la route a l'air
-        // protégée, le filtre est posé, et un double appel crée deux produits.
-        // ═════════════════════════════════════════════════════════════════════
-        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
-        //
-        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
-        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
-        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
-        // désormais indissociables — voir `IdempotencyRegistration` pour la
-        // raison, qui tient en une phrase : un huitième service qui ne copierait
-        // que la première ligne n'aurait jamais de purge, sans rien signaler.
         services.AjouterIdempotenceCatalog();
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE BARÈME DES OFFRES — SOURCE UNIQUE, VALIDÉE AU DÉMARRAGE.
-        //
-        // SON ABSENCE N'ÉTAIT PAS UNE ERREUR DISCRÈTE : `OfferCommandHandler`
-        // exige `IOfferPricingSettings`, et la validation du conteneur au
-        // démarrage a refusé de construire le service — dix exceptions, une par
-        // commande d'offre. catalog-service ne démarrait plus du tout, et les
-        // migrations ne s'appliquaient donc pas non plus. C'est ce qui expliquait
-        // l'absence de la table `product_offers`.
-        //
-        // On peut lire cet échec comme une bonne nouvelle : la validation stricte
-        // du conteneur a transformé une dépendance oubliée en refus de démarrage,
-        // plutôt qu'en `NullReferenceException` à la première mise en vente.
-        //
-        // `PlatformPricing` PLUTÔT QU'UNE CLÉ À NOUS. Elle lit `Pricing:*`,
-        // refuse une valeur aberrante, et rejette les anciennes clés au lieu de
-        // retomber en silence sur un défaut. C'est la source que financial-service
-        // utilise déjà pour rémunérer le vendeur : les deux calculs qui doivent
-        // s'inverser l'un l'autre ne peuvent plus diverger.
-        // ═════════════════════════════════════════════════════════════════════
         var bareme = new PlatformPricing(configuration);
         services.AddSingleton(bareme);
         services.AddSingleton<IOfferPricingSettings>(new OfferPricingSettings(bareme));
@@ -147,56 +96,11 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         services.AddScoped<ICatalogModuleApi, CatalogModuleApi>();
 
         // INTERFACE DISTINCTE, PAS UNE MÉTHODE DE PLUS SUR `ICatalogModuleApi`.
-        //
-        // Les deux servent le même service, mais pas la même donnée ni le même
-        // rythme : les fiches sont en cache-aside, les prix ne le sont pas — un
-        // prix périmé de trente secondes est un prix faux. Les mêler obligerait à
-        // choisir une politique de cache pour les deux.
         services.AddScoped<IOfferModuleApi, OfferModuleApi>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // AUCUN STOCKAGE ICI, ET C'EST LE POINT DE CETTE BASCULE.
-        //
-        // Ce module portait TROIS implémentations de stockage — Cloudflare R2,
-        // HBA Media Core, et un simulateur — choisies au démarrage selon la
-        // configuration présente. Sellers en avait deux autres, écrites
-        // séparément, avec leur propre signature S3. Cinq façons de ranger un
-        // fichier, cinq endroits où corriger une règle de nommage ou une durée
-        // de rétention.
-        //
-        // Le service média (`HBA.Media`) est désormais le seul à connaître les
-        // octets. Catalog ne manipule plus que des identifiants, et le dépôt se
-        // fait à la frontière HTTP — voir `SellerCatalogEndpoints`.
-        //
-        // LE TRAITEMENT D'IMAGE, LUI, RESTE ICI. Détourer une photo sur fond
-        // blanc n'est pas une règle de stockage mais une règle de PRÉSENTATION
-        // du catalogue : elle ne concerne ni les pièces d'identité, ni les
-        // justificatifs de livraison, ni les factures. La déplacer dans le
-        // service média y aurait installé une dépendance à Cloudinary et à rembg
-        // dont aucun autre appelant n'a l'usage.
-        // ═════════════════════════════════════════════════════════════════════
 
-        // ─────────────────────────────────────────────────────────────────────────
         // TRAITEMENT D'IMAGE : UN CHOIX AU DÉMARRAGE, PAS UN REPLI À CHAUD.
-        //
-        // Les deux implémentations rendent le même service — détourage puis fond
-        // blanc — et ne servent QU'À CELA : l'image finale part sur R2 par le flux de
-        // création. rembg passe devant Cloudinary quand il est configuré : pas de
-        // quota, pas de facture à l'usage, et les photos des vendeurs ne quittent pas
-        // l'infrastructure.
-        //
-        // CE N'EST PAS UNE CHAÎNE DE SECOURS. L'adaptateur est choisi ICI, une fois,
-        // et ne change plus. Si le conteneur rembg tombe, les détourages échouent —
-        // ils NE BASCULENT PAS sur Cloudinary. C'est assumé : un basculement
-        // silencieux vers un service payant, déclenché par une panne, est exactement
-        // le genre de mécanisme qu'on découvre sur une facture.
-        //
-        // Pour revenir à Cloudinary, on vide `Media:Rembg:BaseUrl` et on redémarre.
-        //
-        // Sans aucun des deux, `NullImageProcessor` renvoie l'image inchangée. Il ne
-        // se déclare PAS disponible (`IImageProcessingAvailability`), ce qui permet
-        // aux interfaces de ne pas promettre un détourage qui n'aura pas lieu.
-        // ─────────────────────────────────────────────────────────────────────────
         var rembg = BindRembgOptions(configuration);
         var cloudinary = BindCloudinaryOptions(configuration);
         services.AddSingleton(rembg);
@@ -206,14 +110,13 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         {
             services.AddHttpClient(RembgImageProcessor.ClientName, client =>
             {
-                // Le délai est porté par un CancellationToken dans l'adaptateur, afin
-                // de distinguer « trop lent » d'« annulé par l'appelant ». On laisse
-                // néanmoins une borne large ici : un HttpClient sans limite garderait
-                // une socket ouverte indéfiniment si le service se fige.
+                // Le délai est porté par un CancellationToken dans l'adaptateur,
+                // afin de distinguer « trop lent » d'« annulé par l'appelant ».
                 client.Timeout = TimeSpan.FromSeconds(Math.Max(30, rembg.TimeoutSeconds) + 30);
             });
             // Santé partagée par tout le processus : une panne constatée par une
-            // requête doit être connue de la suivante, et de l'endpoint de capacités.
+            // requête doit être connue de la suivante, et de l'endpoint de
+            // capacités.
             services.AddSingleton<RembgHealth>();
             services.AddScoped<IImageProcessor, RembgImageProcessor>();
         }
@@ -227,39 +130,13 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
             services.AddScoped<IImageProcessor, NullImageProcessor>();
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE MARQUEUR DE DISPONIBILITÉ SE RÉSOUT PAR RENVOI, ET IL MANQUAIT.
-        //
-        // Les trois implémentations portent DEUX interfaces — `IImageProcessor` et
-        // `IImageProcessingAvailability` — mais seule la première était
-        // enregistrée. Le marqueur n'apparaissait que dans un COMMENTAIRE. Tant
-        // que personne ne l'injectait, le défaut est resté invisible ; la première
-        // route qui l'a demandé (`/products/images/process`) a fait refuser le
-        // démarrage du service, et l'application a affiché « Une erreur est
-        // survenue » sur TOUS ses écrans catalogue — la liste des produits
-        // comprise, qui n'a rien à voir avec le détourage.
-        //
-        // UN RENVOI, PAS UN SECOND `AddScoped`. Réenregistrer la classe
-        // concrète créerait DEUX instances par requête : deux clients HTTP, et
-        // surtout deux vues de la santé du service — celle qui répond à
-        // `IsAvailable` ne serait pas celle qui a constaté la panne.
-        //
-        // Placé APRÈS le if/else à dessein : le renvoi est vrai quelle que soit la
-        // branche choisie, et le mettre dans chacune des trois laisserait la
-        // quatrième — celle qu'on ajoutera un jour — sans marqueur.
-        // ═════════════════════════════════════════════════════════════════════
         services.AddScoped<IImageProcessingAvailability>(sp =>
             (IImageProcessingAvailability)sp.GetRequiredService<IImageProcessor>());
 
         // Handlers de domain events (résolus par le DomainEventDispatcher).
         services.AddScoped<IDomainEventHandler<ProductCreatedDomainEvent>, ProductCreatedDomainEventHandler>();
         // HUIT ENREGISTREMENTS LÀ OÙ IL Y EN AVAIT UN — ET CHACUN COMPTE.
-        //
-        // Un fait du cycle de vie sans enregistrement est levé par l'agrégat, ne
-        // trouve aucun handler, et disparaît. Rien n'échoue : le produit change
-        // bien de statut, seul l'extérieur ne l'apprend jamais. C'est le défaut
-        // que le contrôle `event-consumers` existe pour rendre visible, et il
-        // ne se voit pas autrement.
         services.AddScoped<IDomainEventHandler<ProductSubmittedForReviewDomainEvent>, ProductSubmittedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<ProductApprovedDomainEvent>, ProductApprovedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<ProductRejectedDomainEvent>, ProductRejectedDomainEventHandler>();
@@ -274,10 +151,6 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
         services.AddScoped<IDomainEventHandler<BrandRequestApprovedDomainEvent>, BrandRequestApprovedDomainEventHandler>();
 
         // SANS CET ENREGISTREMENT, DÉTACHER UNE IMAGE NE SUPPRIME RIEN.
-        //
-        // L'événement partirait de l'agrégat et ne serait relayé par personne :
-        // aucune erreur, aucun message dans l'outbox, et le fichier resterait
-        // dans le stockage sans que rien ne le désigne.
         services.AddScoped<IDomainEventHandler<ProductMediaRemovedDomainEvent>, ProductMediaRemovedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<BrandCreatedDomainEvent>, BrandCreatedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<CategoryCreatedDomainEvent>, CategoryCreatedDomainEventHandler>();
@@ -292,9 +165,9 @@ public sealed class CatalogModuleInstaller : IModuleInstaller
     }
 
     /// <summary>
-    /// Lie « Media:Rembg ». Absence de section = fonction inactive, jamais d'erreur au
-    /// démarrage : une installation sans détourage doit rester une installation qui
-    /// démarre.
+    /// Lie « Media:Rembg ». Absence de section = fonction inactive, jamais d'erreur
+    /// au démarrage : une installation sans détourage doit rester une installation
+    /// qui démarre.
     /// </summary>
     private static RembgOptions BindRembgOptions(IConfiguration configuration)
     {

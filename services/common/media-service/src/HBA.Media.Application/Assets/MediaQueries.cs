@@ -5,25 +5,11 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Media.Application.Assets;
 
-/// <summary>
-/// Les médias d'une ressource métier (§14, <c>GET /media?owner=…</c>).
-///
-/// AUCUN CONTRÔLE DE DROIT ICI. Le §20 le confie au service propriétaire, et
-/// cette requête est appelée PAR lui — il a déjà tranché. L'exposer directement à
-/// un client sans filtre laisserait n'importe qui lister les pièces légales d'un
-/// vendeur en devinant un identifiant.
-/// </summary>
+/// <summary>Les médias d'une ressource métier (§14, <c>GET /media?owner=…</c>).</summary>
 public sealed record ListMediaByOwnerQuery(MediaOwnerType OwnerType, Guid OwnerId)
     : IQuery<IReadOnlyList<MediaSummary>>;
 
-/// <summary>
-/// Une vue interne, sans URL.
-///
-/// DISTINCTE DE <c>MediaView</c> DES CONTRATS, ET DÉLIBÉRÉMENT PLUS PAUVRE.
-/// Construire une URL demande le stockage ; cette requête ne le connaît pas et n'a
-/// pas à le connaître. Les appelants qui veulent des URL passent par
-/// <c>IMediaModuleApi</c>, qui les fabrique en tenant compte de la visibilité.
-/// </summary>
+/// <summary>Une vue interne, sans URL.</summary>
 public sealed record MediaSummary(
     Guid Id,
     string MediaType,
@@ -65,35 +51,13 @@ internal sealed class MediaQueryHandler : IQueryHandler<ListMediaByOwnerQuery, I
     }
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// QUI A LE DROIT DE TOUCHER À CE MÉDIA ?
-///
-/// CETTE REQUÊTE EXISTE PARCE QUE N'IMPORTE QUEL COMPTE INSCRIT POUVAIT LIRE
-/// N'IMPORTE QUELLE PIÈCE KYB.
-///
-/// Les routes `GET /{id}/download-url` et `DELETE /{id}` étaient bien
-/// authentifiées — le groupe entier passe par `MapAuthenticatedGroup` — mais
-/// elles ne vérifiaient RIEN au-delà. Un compte quelconque, avec un identifiant
-/// de média glané dans une réponse d'API ou deviné, obtenait une URL signée sur
-/// une carte d'identité, un registre de commerce ou une preuve de livraison. Et
-/// pouvait l'effacer.
-///
-/// MEDIA NE SAIT PAS CE QU'EST UN PRODUIT NI UN VENDEUR, et ce n'est pas une
-/// lacune : le §20 le pose. Le contrôle métier complet — « cet utilisateur a-t-il
-/// le droit sur CE vendeur » — appartient au service propriétaire. Ce que Media
-/// sait, en revanche, c'est QUI A DÉPOSÉ le fichier et s'il est public. C'est
-/// suffisant pour refermer l'accès général, et c'est tout ce que cette requête
-/// prétend faire.
-///
-/// La chaîne complète du §20 reste à construire quand les routes métier
-/// porteront les uploads. D'ici là, mieux vaut un contrôle étroit qu'aucun.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>QUI A LE DROIT DE TOUCHER À CE MÉDIA ?</summary>
 public sealed record GetMediaAccessQuery(Guid MediaId) : IQuery<MediaAccess>;
 
 /// <param name="CreatedByUserId">Le compte qui a déposé le fichier.</param>
-/// <param name="IsPublic">Un média public se signe pour tout le monde : il est déjà lisible.</param>
+/// <param name="IsPublic">
+/// Un média public se signe pour tout le monde : il est déjà lisible.
+/// </param>
 /// <param name="IsDeleted">Un média supprimé ne se signe plus, même pour son déposant.</param>
 public sealed record MediaAccess(Guid MediaId, Guid CreatedByUserId, bool IsPublic, bool IsDeleted);
 

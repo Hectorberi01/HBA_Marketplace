@@ -4,36 +4,11 @@ using HBA.Media.Grpc.V1;
 
 
 using HBA.Media.Contracts;
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Media.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Media.Api.Grpc.Services;
 
-/// <summary>
-/// Côté SERVEUR : expose <see cref="IMediaModuleApi"/> sur le port gRPC.
-/// </summary>
-/// <remarks>
-/// CETTE CLASSE NE DÉCIDE DE RIEN.
-///
-/// Elle traduit, appelle, retraduit. Toute règle ajoutée ici — un contrôle de
-/// droit, un filtrage — serait invisible aux appelants en processus du monolithe
-/// pendant l'étranglement : le même média serait visible par un chemin et pas par
-/// l'autre, selon que l'appelant est déjà extrait ou non.
-/// </remarks>
+/// <summary>Côté SERVEUR : expose <see cref="IMediaModuleApi"/> sur le port gRPC.</summary>
 internal sealed class MediaGrpcService : MediaApi.MediaApiBase
 {
     private readonly IMediaModuleApi _media;
@@ -45,10 +20,6 @@ internal sealed class MediaGrpcService : MediaApi.MediaApiBase
         if (!Guid.TryParse(request.MediaId, out var mediaId))
         {
             // `InvalidArgument` ET NON UNE RÉPONSE « non trouvé ».
-            //
-            // Un identifiant malformé est une faute de l'APPELANT, pas une absence
-            // de donnée. Les confondre ferait passer un bug de construction d'URL
-            // pour un média supprimé, et personne ne le chercherait.
             throw new RpcException(new Status(StatusCode.InvalidArgument, "media_id n'est pas un GUID."));
         }
 

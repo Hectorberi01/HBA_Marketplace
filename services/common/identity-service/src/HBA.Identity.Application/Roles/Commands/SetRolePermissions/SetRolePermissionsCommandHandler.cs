@@ -6,7 +6,9 @@ using HBA.Identity.Domain.Roles;
 
 namespace HBA.Identity.Application.Roles.Commands.SetRolePermissions;
 
-/// <summary>Remplace les permissions du rôle (chaque code est validé par le VO Permission).</summary>
+/// <summary>
+/// Remplace les permissions du rôle (chaque code est validé par le VO Permission).
+/// </summary>
 internal sealed class SetRolePermissionsCommandHandler : ICommandHandler<SetRolePermissionsCommand>
 {
     private readonly IRoleRepository _roleRepository;

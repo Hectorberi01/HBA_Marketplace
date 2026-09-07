@@ -55,15 +55,6 @@ internal static class StoreMapper
             store.StatusReason,
             store.OpeningHours
                 // LUNDI EN TÊTE, PAS DIMANCHE.
-                //
-                // `DayOfWeek` vaut Sunday = 0 : trier sur l'énumération telle
-                // quelle afficherait la semaine à l'américaine, dimanche d'abord.
-                // Au Bénin comme en France, une semaine commence le lundi, et un
-                // vendeur qui voit dimanche en haut croit à un bug.
-                //
-                // L'ordre stable compte autant : sans lui, la grille se réaffiche
-                // différemment à chaque lecture et le vendeur croit que ses
-                // horaires ont bougé.
                 .OrderBy(h => ((int)h.Day + 6) % 7)
                 .ThenBy(h => h.OpensAt)
                 .Select(h => new StoreOpeningHourSummary(

@@ -6,16 +6,7 @@ public sealed record ProductReviewReasonSummary(
     string? Field,
     string Message);
 
-/// <summary>
-/// Une décision d'administration rendue sur une révision (§16).
-///
-/// `RevisionId` ET `RevisionVersion` NE SONT PAS DÉCORATIFS.
-///
-/// Un vendeur qui reçoit un rejet a souvent déjà modifié sa fiche entre-temps. Sans
-/// le numéro de version, il ne sait pas si les motifs portent sur ce qu'il voit à
-/// l'écran ou sur ce qu'il a soumis trois jours plus tôt — et il corrige à
-/// l'aveugle.
-/// </summary>
+/// <summary>Une décision d'administration rendue sur une révision (§16).</summary>
 public sealed record ProductReviewSummary(
     Guid Id,
     Guid ProductId,

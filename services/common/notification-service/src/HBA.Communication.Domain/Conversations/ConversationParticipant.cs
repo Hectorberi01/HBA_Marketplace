@@ -2,10 +2,7 @@ using HBA.Shared.Domain.Primitives;
 
 namespace HBA.Communication.Domain.Conversations;
 
-/// <summary>
-/// Participant à une conversation. Modélisé en entité enfant (et non en tableau)
-/// pour rester requêtable : « mes conversations » filtre sur cette table.
-/// </summary>
+/// <summary>Participant à une conversation.</summary>
 public sealed class ConversationParticipant : Entity<Guid>
 {
     private ConversationParticipant()

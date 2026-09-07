@@ -62,14 +62,7 @@ internal sealed class CreateInventoryItemCommandHandler : ICommandHandler<Create
 
 // ---- Réception de stock ---------------------------------------------------
 
-/// <summary>
-/// Ajoute du stock physique (réception).
-/// </summary>
-/// <remarks>
-/// `ActorUserId` ET `Reason` SONT NOUVEAUX (ISSUE-044) : la commande portait
-/// deux champs — l'article et la quantité — et rien ne gardait trace de l'entrée.
-/// L'acteur est IMPOSÉ PAR L'ENDPOINT depuis le jeton, jamais lu dans le corps.
-/// </remarks>
+/// <summary>Ajoute du stock physique (réception).</summary>
 public sealed record ReceiveStockCommand(
     Guid InventoryItemId, int Quantity, Guid? ActorUserId = null, string? Reason = null) : ICommand;
 
@@ -105,10 +98,9 @@ internal sealed class ReceiveStockCommandHandler : ICommandHandler<ReceiveStockC
             return Result.Failure(result.Error);
         }
 
-        // MÊME TRANSACTION QUE LA MUTATION. Un journal écrit après coup — ou
-        // dans un gestionnaire d'événement — laisserait, au premier incident, un
-        // stock modifié sans ligne qui l'explique : exactement l'état qu'on
-        // referme.
+        // MÊME TRANSACTION QUE LA MUTATION. Un journal écrit après coup — ou dans
+        // un gestionnaire d'événement — laisserait, au premier incident, un stock
+        // modifié sans ligne qui l'explique : exactement l'état qu'on referme.
         await _movements.AddAsync(result.Value, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
@@ -117,16 +109,7 @@ internal sealed class ReceiveStockCommandHandler : ICommandHandler<ReceiveStockC
 
 // ---- Ajustement de stock --------------------------------------------------
 
-/// <summary>
-/// Ajuste le stock physique (inventaire, casse, retour).
-/// </summary>
-/// <remarks>
-/// LE MOTIF EST TOUT L'INTÉRÊT DE CE GESTE, ET IL MANQUAIT.
-///
-/// La commande portait `(InventoryItemId, Delta)`. Un stock passant de 400 à 12
-/// ne laissait donc aucune trace de qui, quand, ni pourquoi — sur l'opération
-/// précisément destinée à consigner une casse, un inventaire ou un retour abîmé.
-/// </remarks>
+/// <summary>Ajuste le stock physique (inventaire, casse, retour).</summary>
 public sealed record AdjustStockCommand(
     Guid InventoryItemId, int Delta, Guid? ActorUserId = null, string? Reason = null) : ICommand;
 

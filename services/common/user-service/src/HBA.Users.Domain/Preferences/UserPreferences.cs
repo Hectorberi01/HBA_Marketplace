@@ -4,25 +4,8 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Users.Domain.Preferences;
 
 /// <summary>
-/// Préférences d'un utilisateur : langue, devise et consentements (§10.2, table
-/// <c>preferences</c>).
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA CLÉ PRIMAIRE EST LE UserId, COMME POUR LE PROFIL.
-///
-/// Un utilisateur a exactement un jeu de préférences. Une clé technique distincte
-/// aurait rendu représentable l'état « deux jeux pour un compte » — et il aurait
-/// suffi d'un double appel concurrent à la première connexion pour l'atteindre.
-/// Avec le UserId en clé, la base refuse le second.
-///
-/// `MarketingOptIn` EST FAUX PAR DÉFAUT, ET CE N'EST PAS UN DÉTAIL TECHNIQUE.
-///
-/// Un consentement marketing doit être donné, jamais supposé. Créer les
-/// préférences avec `true` transformerait chaque inscription en consentement
-/// implicite. `PushEnabled` suit la logique inverse et vaut `true` : il gouverne
-/// les notifications TRANSACTIONNELLES — « votre commande est acceptée » — que
-/// l'utilisateur attend, et qui ne relèvent pas du consentement commercial.
-/// ═════════════════════════════════════════════════════════════════════════════
+/// Préférences d'un utilisateur : langue, devise et consentements (§10.2, table <c>
+/// preferences</c>).
 /// </summary>
 public sealed class UserPreferences : AggregateRoot<Guid>
 {
@@ -70,10 +53,7 @@ public sealed class UserPreferences : AggregateRoot<Guid>
                 "users.preferences.user_required", "Des préférences doivent être rattachées à un compte."))
             : new UserPreferences(userId, DefaultLanguage, DefaultCurrency);
 
-    /// <summary>
-    /// Met à jour les champs fournis. Un paramètre null signifie « inchangé » :
-    /// un client qui n'envoie que la devise ne doit pas réinitialiser la langue.
-    /// </summary>
+    /// <summary>Met à jour les champs fournis.</summary>
     public Result Update(string? language, string? currency, bool? pushEnabled, bool? marketingOptIn)
     {
         if (language is not null)
@@ -96,9 +76,7 @@ public sealed class UserPreferences : AggregateRoot<Guid>
 
             if (!SupportedCurrencies.Contains(normalized))
             {
-                // Refus explicite plutôt que silence. Accepter une devise inconnue
-                // ici la ferait ressortir au calcul d'un panier, à un endroit où plus
-                // rien ne rattache l'anomalie au moment où elle a été introduite.
+                // Refus explicite plutôt que silence.
                 return Result.Failure(Error.Validation(
                     "users.preferences.currency_unsupported",
                     $"Devise non prise en charge : « {normalized} »."));
@@ -122,7 +100,9 @@ public sealed class UserPreferences : AggregateRoot<Guid>
     }
 }
 
-/// <summary>Accès aux préférences. Une seule ligne par utilisateur, d'où l'absence de liste.</summary>
+/// <summary>
+/// Accès aux préférences. Une seule ligne par utilisateur, d'où l'absence de liste.
+/// </summary>
 public interface IUserPreferencesRepository
 {
     Task<UserPreferences?> GetAsync(Guid userId, CancellationToken cancellationToken = default);

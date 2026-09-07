@@ -5,18 +5,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Deliveries.Infrastructure.Pricing;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // `internal` DEPUIS LA DISSOLUTION DES ASSEMBLAGES DE CONTRATS (lot D).
-//
-// Le stub genere est desormais compile DANS CET ASSEMBLAGE, avec
-// `Access="Internal"` — sans quoi deux services qui compilent le meme proto
-// exposeraient deux types publics du meme nom complet, et un hote compose qui
-// reference les deux tomberait sur CS0433 a l'usage.
-//
-// Un type public dont le constructeur prend un type interne ne compile pas
-// (CS0051). Cette classe n'est de toute facon resolue que par le conteneur, dans
-// son propre assemblage : la rendre publique n'apportait rien.
-// ═════════════════════════════════════════════════════════════════════════════
 internal sealed class GrpcDeliveryPricingQuoteValidator : IDeliveryPricingQuoteValidator
 {
     private readonly DeliveryPricingApi.DeliveryPricingApiClient _client;
@@ -47,23 +36,7 @@ internal sealed class GrpcDeliveryPricingQuoteValidator : IDeliveryPricingQuoteV
                 },
                 cancellationToken: cancellationToken);
 
-            // ═════════════════════════════════════════════════════════════════
             // ICI L'ARGENT CHANGE DE REPRÉSENTATION (D39).
-            //
-            // `response.Total` est un `int64` : delivery-pricing compte en FRANCS
-            // ENTIERS, comme promotions, parce que le franc CFA n'a pas de
-            // sous-unité. `DeliveryPricingQuoteValidation.Total` est un `decimal`,
-            // comme tout le reste du dépôt.
-            //
-            // La conversion implicite `long → decimal` est EXACTE : 1 500 devient
-            // 1 500,00. Elle est correcte parce que les deux côtés comptent la
-            // même unité.
-            //
-            // NE JAMAIS ÉCRIRE `/ 100` NI `* 100` SUR CETTE LIGNE. Il n'existe
-            // aucune conversion de ce genre dans tout le dépôt — vérifié au lot
-            // 8.9. En ajouter une reviendrait à supposer des centimes, et
-            // multiplierait ou diviserait par cent le prix de chaque course.
-            // ═════════════════════════════════════════════════════════════════
             return new DeliveryPricingQuoteValidation(
                 parsedQuoteId,
                 response.Valid,
@@ -71,30 +44,8 @@ internal sealed class GrpcDeliveryPricingQuoteValidator : IDeliveryPricingQuoteV
                 response.HasTotal ? response.Total : null,
                 response.HasCurrency ? response.Currency : null);
         }
-        // ═════════════════════════════════════════════════════════════════════
-        // QUATRE STATUTS, ET NON PLUS DEUX — CE FILTRE ÉTAIT LE SEUL DU DÉPÔT
-        // ET IL LAISSAIT PASSER LES DEUX PANNES LES PLUS PROBABLES.
-        //
-        // `Unauthenticated` : clé interne absente ou fausse chez l'appelé. Elle
-        // remontait auparavant en `NotFound` — donc hors de ce filtre — et
-        // traversait `CreateDeliveryCommand` en exception brute. Un incident
-        // d'authentification déguisé en défaut de domaine.
-        //
-        // `FailedPrecondition` : `Internal:ApiKey` non configurée chez l'appelé.
-        // Elle arrivait en `Unavailable`, donc rattrapée par chance, pour la
-        // mauvaise raison.
-        //
-        // Dans les QUATRE cas, ce que le domaine doit savoir est le même : le
-        // devis n'a pas pu être consommé parce que le service tarifaire n'a pas
-        // répondu. Le CODE d'erreur, lui, reste distinct dans les journaux — c'est
-        // là qu'on cherche la cause, pas dans le type du Result.
-        //
-        // CE QUI N'EST PAS RATTRAPÉ RESTE DÉLIBÉRÉMENT NON RATTRAPÉ.
-        // `InvalidArgument` (identifiant malformé) et `Internal` (bug de l'appelé)
-        // doivent remonter : les traduire en « service indisponible » ferait
-        // chercher une panne réseau devant un bug de code. C'est exactement le
-        // défaut relevé sur `OrderGrpcClient`.
-        // ═════════════════════════════════════════════════════════════════════
+        // QUATRE STATUTS, ET NON PLUS DEUX — CE FILTRE ÉTAIT LE SEUL DU DÉPÔT ET IL
+        // LAISSAIT PASSER LES DEUX PANNES LES PLUS PROBABLES.
         catch (RpcException exception) when (exception.StatusCode
             is StatusCode.Unavailable
             or StatusCode.DeadlineExceeded

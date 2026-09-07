@@ -8,16 +8,7 @@ using HBA.Promotions.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Promotions.Infrastructure.Persistence;
 
-/// <summary>
-/// Factory design-time pour les outils EF (`dotnet ef migrations add`).
-///
-/// ELLE EST AUTONOME, ET C'EST CE QUI REND `make migrations` UTILISABLE.
-///
-/// Chaîne de connexion par défaut, répartiteur d'événements inerte : générer une
-/// migration ne lit que le MODÈLE, ne contacte aucune base et ne doit déclencher
-/// aucun effet de bord. Sans elle, il faudrait un postgres démarré — donc docker —
-/// pour produire un fichier qui ne dépend d'aucun des deux.
-/// </summary>
+/// <summary>Factory design-time pour les outils EF (`dotnet ef migrations add`).</summary>
 public sealed class PromotionsDbContextFactory : IDesignTimeDbContextFactory<PromotionsDbContext>
 {
     public PromotionsDbContext CreateDbContext(string[] args)

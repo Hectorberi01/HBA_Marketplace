@@ -3,10 +3,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Catalog.Domain.Products;
 
-/// <summary>
-/// Dimensions d'une variante en millimètres. Value Object utilisé par Shipping
-/// pour le calcul des frais de port (cf. dossier, ProductVariant).
-/// </summary>
+/// <summary>Dimensions d'une variante en millimètres.</summary>
 public sealed class Dimensions : ValueObject
 {
     private Dimensions(int lengthMm, int widthMm, int heightMm)

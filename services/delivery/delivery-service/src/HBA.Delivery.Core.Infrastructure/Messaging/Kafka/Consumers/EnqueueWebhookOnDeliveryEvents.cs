@@ -8,38 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HBA.Deliveries.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUI MET LES WEBHOOKS EN FILE.
-///
-/// Ces handlers vivent DANS le module Deliveries, et cela ne viole pas la règle de
-/// cloisonnement : ils ne consomment que les événements de Deliveries lui-même.
-/// Le module reste sans dépendance vers aucun autre — c'est ce que vérifie
-/// DeliveriesBoundaryTests.
-///
-/// UN SEUL FILTRE, ET IL EST DÉCISIF : LA SOURCE.
-///
-/// Seules les courses de source EXTERNE ont un partenaire à prévenir. Une course
-/// HBAExpress mise en file produirait une ligne sans destinataire, réessayée six
-/// fois pour rien, sur chacun des six événements de chaque course — soit
-/// l'écrasante majorité du trafic de la file. C'est le genre de détail qui ne se
-/// voit qu'en production, quand la table a dix millions de lignes mortes.
-///
-/// LE PARTENAIRE N'EST PAS DANS L'ÉVÉNEMENT.
-///
-/// Les événements portent la référence et la source, jamais un PartnerId : c'est
-/// ce qui leur permet de servir aussi bien Ordering, la paie du livreur que les
-/// webhooks. On relit donc la course pour savoir à qui écrire.
-///
-/// POURQUOI CES TYPES SONT « public » ET NON « internal »
-///
-/// Ils sont enregistrés dans le conteneur par DeliveriesModuleInstaller, qui vit
-/// dans l'assembly Infrastructure : « internal » les y rend invisibles. C'est la
-/// convention déjà retenue par ce module pour ses handlers d'événements de
-/// domaine — la seule alternative serait un InternalsVisibleTo, qui ouvrirait
-/// TOUT l'assembly Application à l'Infrastructure pour six classes.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>CE QUI MET LES WEBHOOKS EN FILE.</summary>
 public sealed class DeliveryWebhookEnqueuer
 {
     /// <summary>
@@ -84,8 +53,7 @@ public sealed class DeliveryWebhookEnqueuer
         if (delivery?.PartnerId is not { } partnerId)
         {
             // Une course externe SANS partenaire est un invariant rompu — l'agrégat
-            // le refuse à la création. Si cela arrive, c'est une donnée corrompue,
-            // et le signaler vaut mieux que de laisser le webhook disparaître.
+            // le refuse à la création.
             _logger.LogWarning(
                 "Webhook non mis en file pour la course {DeliveryId} ({EventType}) : aucun partenaire rattaché.",
                 deliveryId, eventType);
@@ -110,55 +78,14 @@ public sealed class DeliveryWebhookEnqueuer
 
         await _webhooks.AddAsync(webhook.Value, ct);
 
-        // ═════════════════════════════════════════════════════════════════════
         // AUCUN WEBHOOK N'A JAMAIS ETE ENREGISTRE, ET RIEN NE LE DISAIT.
-        //
-        // `WebhookDeliveryRepository.AddAsync` fait `_dbContext.WebhookDeliveries
-        // .AddAsync(...)` et RIEN D'AUTRE : l'entite reste dans le suivi des
-        // modifications. Personne n'appelait `SaveChanges` derriere — ni ce
-        // gestionnaire, ni le repartiteur, ni le consommateur Kafka, qui ouvre
-        // une portee, distribue et la referme. La ligne partait avec la portee.
-        //
-        // Consequence : la table `webhook_deliveries` restait VIDE,
-        // `WebhookDispatchService` la relisait sans rien y trouver, et aucun
-        // partenaire n'a jamais recu de notification de course. Le journal disait
-        // « webhook mis en file » a chaque fois.
-        //
-        // CE `SaveChanges` COMMITTE AUSSI LA TRACE D'INBOX que le repartiteur a
-        // ajoutee au meme contexte avant d'appeler ici : sans lui, l'evenement
-        // restait « jamais traite » et se rejouait.
-        //
-        // CE QUE CA NE COUVRE PAS. L'envoi lui-meme reste au
-        // `WebhookDispatchService`, avec ses reprises. Cette ligne garantit la
-        // mise en file, pas la remise au partenaire.
-        // ═════════════════════════════════════════════════════════════════════
         await _unitOfWork.SaveChangesAsync(ct);
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
 // UN HANDLER PAR ÉVÉNEMENT.
-//
-// Ils sont volontairement répétitifs et sans logique : toute la décision est dans
-// l'enqueueur. Un handler générique unique aurait demandé une réflexion sur le
-// type pour retrouver « quel est l'identifiant de course » — c'est-à-dire du code
-// qui casse en silence quand un événement change de forme, au lieu de casser à la
-// compilation.
-//
-// Les NOMS D'ÉVÉNEMENT sont des chaînes stables, en minuscules pointées. C'est ce
-// que le partenaire branche dans son « switch » : les dériver du nom de classe C#
-// ferait d'un renommage interne une rupture de contrat externe.
-// ═════════════════════════════════════════════════════════════════════════════
 
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Deliveries.Application.Webhooks.WebhookOnDeliveryCreated")]
 public sealed class WebhookOnDeliveryCreated : IIntegrationEventHandler<DeliveryCreatedIntegrationEvent>
 {

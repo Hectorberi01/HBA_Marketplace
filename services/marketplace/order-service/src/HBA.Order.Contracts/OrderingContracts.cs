@@ -1,17 +1,9 @@
 namespace HBA.Orders.Contracts;
 
-/// <summary>Une option retenue sur un plat commandé. Identifiants seuls : voir `OrderLineOption`.</summary>
+/// <summary>Une option retenue sur un plat commandé.</summary>
 public sealed record OrderLineOptionSummary(Guid OptionGroupId, Guid OptionId);
 
-/// <summary>
-/// Une ligne de commande.
-///
-/// DEUX NATURES, ET <paramref name="Kind"/> DIT LAQUELLE LIRE.
-///
-/// « Goods » renseigne l'offre, le SKU et le lieu d'expédition ; « Food »
-/// renseigne le restaurant, le plat et ses options. Les champs de l'autre nature
-/// sont vides.
-/// </summary>
+/// <summary>Une ligne de commande.</summary>
 /// <param name="Kind">« Goods » ou « Food ». Décide de tout ce qui suit le paiement.</param>
 public sealed record OrderLineSummary(
     string Kind,
@@ -33,13 +25,7 @@ public sealed record OrderLineSummary(
     string? Notes = null,
     IReadOnlyList<OrderLineOptionSummary>? Options = null);
 
-/// <summary>
-/// Adresse de livraison figée sur la commande (instantané).
-///
-/// <c>CommuneName</c> est résolu à la lecture depuis <c>CommuneCode</c> : seul le code est
-/// stocké. <c>Landmark</c> est le point de repère — au Bénin, c'est l'information que le
-/// livreur utilise réellement, bien avant la rue.
-/// </summary>
+/// <summary>Adresse de livraison figée sur la commande (instantané).</summary>
 public sealed record OrderShippingAddressSummary(
     string? Label,
     string? Recipient,

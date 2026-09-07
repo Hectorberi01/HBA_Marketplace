@@ -20,7 +20,8 @@ internal sealed class CreateProductCommandHandler : ICommandHandler<CreateProduc
     public async Task<Result<Guid>> Handle(CreateProductCommand command, CancellationToken cancellationToken)
     {
         // Slug UNIQUE résolu ici : deux produits homonymes (ou une reprise après un
-        // échec partiel) ne doivent pas bloquer la création — on suffixe « -2 », « -3 »…
+        // échec partiel) ne doivent pas bloquer la création — on suffixe « -2 », «
+        // -3 »…
         var slugResult = await SlugLibre.ResoudreAsync(_productRepository, command.Name, cancellationToken);
         if (slugResult.IsFailure)
         {
@@ -63,8 +64,8 @@ internal sealed class CreateProductCommandHandler : ICommandHandler<CreateProduc
 
         await _productRepository.AddAsync(product, cancellationToken);
 
-        // SaveChanges dispatche le ProductCreatedDomainEvent, dont le handler
-        // écrit l'IntegrationEvent dans l'outbox — le tout dans une transaction.
+        // SaveChanges dispatche le ProductCreatedDomainEvent, dont le handler écrit
+        // l'IntegrationEvent dans l'outbox — le tout dans une transaction.
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return product.Id.Value;

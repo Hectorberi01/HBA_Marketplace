@@ -6,13 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HBA.Deliveries.Infrastructure.Public;
 
-/// <summary>
-/// Implémentation en processus de <see cref="IDeliveryModuleApi"/>.
-///
-/// Lectures uniquement, et toutes en <c>AsNoTracking</c> : rien de ce qui sort
-/// d'ici ne sera modifié, et suivre ces entités ferait grossir le change tracker
-/// d'un DbContext partagé avec des écritures.
-/// </summary>
+/// <summary>Implémentation en processus de <see cref="IDeliveryModuleApi"/>.</summary>
 internal sealed class DeliveryModuleApi : IDeliveryModuleApi
 {
     private readonly DeliveriesDbContext _dbContext;
@@ -40,8 +34,7 @@ internal sealed class DeliveryModuleApi : IDeliveryModuleApi
 
         // Projection au plus juste : cette lecture est sur le chemin de la
         // notification de proposition, qui dispose de quarante-cinq secondes en
-        // tout. Charger l'agrégat entier pour en tirer deux champs y ajouterait
-        // la position, les compteurs et le motif de statut, sans usage.
+        // tout.
         return await _dbContext.Drivers.AsNoTracking()
             .Where(d => d.Id == id)
             .Select(d => new DriverAccount(d.Id.Value, d.UserId, d.FullName))
@@ -52,8 +45,7 @@ internal sealed class DeliveryModuleApi : IDeliveryModuleApi
         string reference, string source, CancellationToken cancellationToken = default)
     {
         // La source arrive en TEXTE : c'est le contrat public, et un appelant
-        // externe n'a pas à connaître nos valeurs numériques. Une source
-        // inconnue n'est pas une erreur — c'est simplement « aucune course ».
+        // externe n'a pas à connaître nos valeurs numériques.
         if (!Enum.TryParse<DeliverySource>(source, ignoreCase: true, out var parsed))
         {
             return null;
@@ -78,15 +70,7 @@ internal sealed class DeliveryModuleApi : IDeliveryModuleApi
 
         var driver = await LoadDriverAsync(delivery, cancellationToken);
 
-        // ─────────────────────────────────────────────────────────────────────
         // LA POSITION N'EST EXPOSÉE QUE PENDANT LE TRANSPORT.
-        //
-        // Ni avant l'acceptation — il n'y a personne à suivre —, ni après la
-        // remise. Ce n'est pas une optimisation : continuer à diffuser la
-        // position d'une personne en dehors de la mission qui la justifie serait
-        // une collecte sans finalité, et elle ne se verrait nulle part puisque
-        // l'écran de suivi resterait ouvert sans que personne s'en aperçoive.
-        // ─────────────────────────────────────────────────────────────────────
         var inTransit = delivery.Status is DeliveryStatus.DriverAccepted
             or DeliveryStatus.ArrivedAtPickup
             or DeliveryStatus.PickedUp

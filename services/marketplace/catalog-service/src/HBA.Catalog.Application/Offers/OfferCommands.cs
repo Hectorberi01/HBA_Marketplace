@@ -7,12 +7,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Catalog.Application.Offers;
 
-/// <summary>
-/// Crée l'offre d'une boutique sur une variante.
-///
-/// LE PRIX SAISI EST LE PRIX VENDEUR NET. Le prix acheteur est calculé —
-/// jamais transmis — pour que les deux ne puissent pas diverger.
-/// </summary>
+/// <summary>Crée l'offre d'une boutique sur une variante.</summary>
 public sealed record CreateOfferCommand(
     Guid ProductId,
     Guid VariantId,
@@ -27,11 +22,7 @@ public sealed record CreateOfferCommand(
 
 public sealed record ChangeOfferPriceCommand(Guid OfferId, decimal SellerPrice) : ICommand;
 
-/// <param name="PromotionalSellerPrice">
-/// Le NET VENDEUR pendant la promotion. PAS LE PRIX ACHETEUR : le vendeur ne
-/// saisit jamais un montant qu'il n'encaisse pas, et le barème reste côté
-/// serveur (tâche S9). Voir l'encadré de `ProductOffer.ApplyPromotion`.
-/// </param>
+/// <param name="PromotionalSellerPrice">Le NET VENDEUR pendant la promotion.</param>
 public sealed record ApplyOfferPromotionCommand(
     Guid OfferId, decimal PromotionalSellerPrice, DateTime? EndsOnUtc) : ICommand;
 
@@ -106,42 +97,14 @@ internal sealed class OfferCommandHandler
 
         if (product.SellerId != command.SellerId)
         {
-            // Le modèle retenu est « une fiche par vendeur » : une boutique ne
-            // peut proposer que ses propres produits. Sans ce contrôle, un
-            // vendeur créerait une offre sur la fiche d'un concurrent — et c'est
-            // lui qui recevrait la commande.
+            // Le modèle retenu est « une fiche par vendeur » : une boutique ne peut
+            // proposer que ses propres produits.
             return Result.Failure<Guid>(Error.Forbidden(
                 "products.offer.not_your_product",
                 "Vous ne pouvez créer une offre que sur vos propres fiches produit."));
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // LA VARIANTE EST VÉRIFIÉE ICI. C'EST TOUT L'OBJET DU CORRECTIF.
-        //
-        // L'ancien module Offers acceptait une CHAÎNE de SKU sans jamais
-        // consulter `product.Variants`. On pouvait créer une offre sur le produit
-        // A avec le SKU du produit B, et Inventory décomptait le stock de l'autre
-        // produit.
-        //
-        // DEUX GARDES DU MONOLITHE NE SONT PAS REPRISES, ET CE N'EST PAS UN
-        //    OUBLI — ELLES N'ONT PAS D'OBJET SUR CE MODÈLE.
-        //
-        //   • `variante.IsActive` — le `ProductVariant` de catalog-service n'a
-        //     AUCUN état d'activation. Celui du monolithe en avait un, et pouvait
-        //     donc refuser la mise en vente d'une déclinaison désactivée.
-        //     C'est une capacité EN MOINS, pas une simplification : ici, on ne
-        //     peut pas retirer une variante de la vente sans supprimer le
-        //     produit. Voir la tâche ouverte à ce sujet.
-        //
-        //   • `variante.Sku is null` — le `Sku` est NON NULLABLE dans
-        //     catalog-service. La garde y serait du code mort ; dans le
-        //     monolithe, le SKU était facultatif et une offre sans référence
-        //     était invendable sans que rien ne l'explique.
-        //
-        // Transposer ces deux tests tels quels aurait produit l'un une erreur de
-        // compilation, l'autre une condition toujours fausse — et personne
-        // n'aurait su qu'une protection avait disparu en chemin.
-        // ═════════════════════════════════════════════════════════════════════
         var variante = product.Variants.FirstOrDefault(v => v.Id == command.VariantId);
         if (variante is null)
         {
@@ -151,11 +114,6 @@ internal sealed class OfferCommandHandler
         }
 
         // LA GARDE ANNONCÉE PAR L'ENCADRÉ CI-DESSUS EXISTE ENFIN (tâche #230).
-        //
-        // Il expliquait que `variante.IsActive` n'avait pas été transposée « parce
-        // que le `ProductVariant` de catalog-service n'a aucun état d'activation ».
-        // Il en a un depuis #230, et la protection revient : sans elle, on remettrait
-        // en vente une déclinaison que le vendeur vient précisément d'en retirer.
         if (!variante.IsActive)
         {
             return Result.Failure<Guid>(Error.Validation(

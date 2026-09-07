@@ -3,36 +3,13 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Merchants.Contracts;
 using HBA.Financial.Wallet.Contracts.IntegrationEvents;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Communication.Notifications.Application.Notifications;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// Prévient le vendeur qu'un reversement lui a été versé.
-///
-/// ─────────────────────────────────────────────────────────────────────────────
-/// L'ÉVÉNEMENT ÉTAIT PUBLIÉ DEPUIS TOUJOURS, SANS AUCUN CONSOMMATEUR.
-///
-/// Le vendeur était payé — et n'en savait rien. Il devait ouvrir son application et
-/// comparer ses soldes pour deviner qu'un virement était parti. C'est précisément le
-/// message qu'un vendeur attend le plus, et le seul qui n'arrivait jamais.
-/// ─────────────────────────────────────────────────────────────────────────────
-/// </summary>
+/// <summary>Prévient le vendeur qu'un reversement lui a été versé.</summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.PayoutPaidNotificationHandler")]
 public sealed class PayoutPaidNotificationHandler : IIntegrationEventHandler<PayoutPaidIntegrationEvent>
 {
@@ -52,8 +29,8 @@ public sealed class PayoutPaidNotificationHandler : IIntegrationEventHandler<Pay
 
     public async Task HandleAsync(PayoutPaidIntegrationEvent e, CancellationToken cancellationToken = default)
     {
-        // Traduction SellerId → UserId : le jeton d'appareil est porté par le COMPTE,
-        // pas par la boutique (voir SellerOrderNotificationHandler).
+        // Traduction SellerId → UserId : le jeton d'appareil est porté par le
+        // COMPTE, pas par la boutique (voir SellerOrderNotificationHandler).
         var seller = await _sellers.GetSellerAsync(e.SellerId, cancellationToken);
         if (seller is null)
         {

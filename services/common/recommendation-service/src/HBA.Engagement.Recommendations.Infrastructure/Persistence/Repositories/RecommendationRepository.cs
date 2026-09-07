@@ -20,16 +20,6 @@ internal sealed class RecommendationRepository : IRecommendationRepository
         => await _dbContext.Recommendations
             .FirstOrDefaultAsync(r => r.Type == type && r.UserId == userId, cancellationToken);
 
-    /// <remarks>
-    /// LES ENTITÉS SONT MATÉRIALISÉES, PAS PROJETÉES, ET CE N'EST PAS UN OUBLI.
-    ///
-    /// `RecommendedProductIds` est un accesseur en lecture seule sur le champ
-    /// `_recommendedProductIds`, et la configuration l'IGNORE explicitement
-    /// (`builder.Ignore`) : seul le champ est mappé, sur une colonne `uuid[]`.
-    /// Une projection `Select` qui toucherait la propriété échouerait à la
-    /// traduction. Charger l'entité peuple le champ, et le mappage se fait
-    /// ensuite en mémoire.
-    /// </remarks>
     public async Task<(IReadOnlyList<Recommendation> Items, int Total, IReadOnlyDictionary<string, int> TypeCounts)>
         ListAsync(int page, int pageSize, RecommendationType? type, CancellationToken cancellationToken = default)
     {
@@ -45,8 +35,7 @@ internal sealed class RecommendationRepository : IRecommendationRepository
         var total = await filtre.CountAsync(cancellationToken);
 
         // Les plus récentes d'abord : une recommandation est un calcul daté, et
-        // celle qui compte est la dernière posée. C'est l'inverse d'une file de
-        // modération, qui se traite par le bas.
+        // celle qui compte est la dernière posée.
         var elements = await filtre
             .OrderByDescending(r => r.GeneratedAtUtc)
             .Skip((page - 1) * pageSize)

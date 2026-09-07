@@ -1,6 +1,6 @@
 namespace HBA.Merchants.Domain.Sellers;
 
-/// <summary>Statut commercial du vendeur (cf. dossier, Seller).</summary>
+/// <summary>Statut commercial du vendeur (cf.</summary>
 public enum SellerStatus
 {
     Pending = 0,
@@ -9,15 +9,13 @@ public enum SellerStatus
 
     /// <summary>
     /// Fermeture demandée par le vendeur (suppression partielle) : ses produits
-    /// sont retirés de la vente, mais le compte et son historique subsistent. La
-    /// suppression définitive relève de l'admin ; le vendeur garde un accès
-    /// restreint et peut demander une réactivation.
+    /// sont retirés de la vente, mais le compte et son historique subsistent.
     /// </summary>
     Closed = 3,
 
     /// <summary>
     /// Le vendeur a demandé la réactivation de son compte fermé ; en attente de
-    /// validation admin. (Nom court volontaire : la colonne Status est un varchar(20).)
+    /// validation admin.
     /// </summary>
     PendingReactivation = 4
 }

@@ -10,11 +10,10 @@ namespace HBA.Catalog.Infrastructure.Media;
 
 /// <summary>
 /// Traitement d'image via Cloudinary : upload signé de l'original, application du
-/// détourage IA (<c>e_background_removal</c>) aplati sur fond blanc (<c>b_white</c>,
-/// livré en JPEG), attente du rendu asynchrone (Cloudinary renvoie HTTP 423 tant
-/// que le traitement est en cours), puis récupération des octets traités. L'asset
-/// Cloudinary est ensuite détruit : Cloudinary ne sert qu'au traitement, l'image
-/// finale étant stockée dans Cloudflare R2 par le flux de création de produit.
+/// détourage IA (<c>e_background_removal</c>) aplati sur fond blanc
+/// (<c>b_white</c>, livré en JPEG), attente du rendu asynchrone (Cloudinary renvoie
+/// HTTP 423 tant que le traitement est en cours), puis récupération des octets
+/// traités.
 /// </summary>
 public sealed class CloudinaryImageProcessor : IImageProcessor, IImageProcessingAvailability
 {
@@ -50,8 +49,7 @@ public sealed class CloudinaryImageProcessor : IImageProcessor, IImageProcessing
                     $"Cloudinary : upload de l'original échoué — {uploadError}");
             }
 
-            // 2) Récupère la version détourée + fond blanc (JPEG). Le rendu IA est
-            //    asynchrone : Cloudinary renvoie 423 (Locked) tant qu'il n'est pas prêt.
+            // 2) Récupère la version détourée + fond blanc (JPEG).
             var url = $"https://res.cloudinary.com/{_options.CloudName}/image/upload/" +
                       $"e_background_removal,b_white/v{version}/{publicId}.jpg";
 
@@ -114,8 +112,7 @@ public sealed class CloudinaryImageProcessor : IImageProcessor, IImageProcessing
         };
 
         // Auth passée en QUERY-STRING : les champs multipart texte n'étaient pas
-        // reconnus par Cloudinary (upload traité comme « unsigned »). En query,
-        // api_key/timestamp/signature sont lus de façon fiable.
+        // reconnus par Cloudinary (upload traité comme « unsigned »).
         var url = $"https://api.cloudinary.com/v1_1/{_options.CloudName}/image/upload" +
                   $"?api_key={Uri.EscapeDataString(_options.ApiKey)}" +
                   $"&timestamp={Uri.EscapeDataString(timestamp)}" +

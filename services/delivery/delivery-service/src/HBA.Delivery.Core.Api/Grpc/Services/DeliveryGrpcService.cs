@@ -14,60 +14,11 @@ using ProtoSummary = HBA.Deliveries.Grpc.V1.DeliverySummary;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Deliveries.Api.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Deliveries.Api.Grpc.Services;
 
-/// <summary>
-/// Le moteur logistique, servi à ses donneurs d'ordre.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'INVARIANT DE `IDeliveryModuleApi` EST PRÉSERVÉ, PAS CONTOURNÉ.
-///
-/// Ce contrat déclare : « créer une course passe par une commande MediatR — un
-/// autre module ne doit pas pouvoir déclencher une livraison par un simple appel
-/// de méthode, sans validation ni événement. »
-///
-/// C'est exactement ce qui se passe ici : `CreateDelivery` construit un
-/// `CreateDeliveryCommand` et le passe à MediatR. Validation FluentValidation,
-/// règles du domaine — commune connue, téléphone béninois, repère obligatoire —
-/// et publication de `DeliveryCreatedIntegrationEvent` ont lieu comme par la
-/// route REST. Seul le transport change.
-///
-/// POURQUOI CE FICHIER N'EST PAS DANS `shared/contracts`.
-///
-/// Les autres serveurs gRPC y vivent parce qu'ils ne font que lire, via un
-/// `IXxxModuleApi` sans dépendance. Celui-ci a besoin de MediatR et de la couche
-/// Application de delivery-service. L'y placer ferait dépendre le socle partagé
-/// de l'intérieur d'un service, et tout appelant du client hériterait de cette
-/// dépendance.
-///
-/// LES ENTRÉES SONT DES CHAÎNES, ET ELLES SONT VALIDÉES ICI.
-///
-/// Le contrat proto ne connaît pas les énumérations du domaine — il ne doit pas
-/// les connaître, sous peine de rendre chaque ajout de valeur incompatible avec
-/// les clients déjà déployés. La traduction se fait donc à la frontière, et une
-/// valeur inconnue est REFUSÉE plutôt que ramenée à un défaut : « HbaFood » mal
-/// orthographié deviendrait sinon silencieusement « HbaExpress », et la course
-/// partirait dans le mauvais flux.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Le moteur logistique, servi à ses donneurs d'ordre.</summary>
 internal sealed class DeliveryGrpcService : DeliveryApi.DeliveryApiBase
 {
     private readonly ISender _sender;
@@ -85,9 +36,7 @@ internal sealed class DeliveryGrpcService : DeliveryApi.DeliveryApiBase
         var source = Enumeration<DeliverySource>(request.Source, nameof(request.Source));
         var type = Enumeration<DeliveryType>(request.Type, nameof(request.Type));
 
-        // `required_proof` A ÉTÉ RETIRÉ DU CONTRAT — ISSUE-057. La preuve
-        // n'est plus lue de la requête : `ProofPolicy` la déduit dans le domaine
-        // de ce que la course déclare transporter.
+        // `required_proof` A ÉTÉ RETIRÉ DU CONTRAT — ISSUE-057.
         var valeurDeclaree = request.HasDeclaredValue && !string.IsNullOrWhiteSpace(request.DeclaredValue)
             ? Montant(request.DeclaredValue)
             : (decimal?)null;
@@ -118,18 +67,6 @@ internal sealed class DeliveryGrpcService : DeliveryApi.DeliveryApiBase
         var resultat = await _sender.Send(commande, context.CancellationToken);
 
         // UN REFUS MÉTIER VOYAGE DANS LA RÉPONSE, PAS DANS UNE EXCEPTION.
-        //
-        // Commune inconnue, téléphone invalide, quota partenaire atteint : ce
-        // sont des réponses fréquentes et attendues. Les rendre en RpcException
-        // obligerait chaque appelant à distinguer « refusé » de « le service est
-        // tombé » en lisant un code de statut.
-        //
-        // LE CODE ET LE MESSAGE VOYAGENT DANS DEUX CHAMPS, PLUS DANS UN SEUL.
-        //
-        // `$"{Code} — {Message}"` empaquetait les deux dans `reason`. Personne ne
-        // le reparsait — ni ici, ni chez `FinancialGrpcService`, qui empaquetait
-        // d'ailleurs avec « : » au lieu de « — ». Le code normalisé, seul élément
-        // stable, était donc perdu au saut gRPC.
         return resultat.IsFailure
             ? new CreateDeliveryResponse
             {
@@ -146,34 +83,7 @@ internal sealed class DeliveryGrpcService : DeliveryApi.DeliveryApiBase
             };
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE DONNEUR D'ORDRE ANNULE SA COURSE.
-    ///
-    /// ON RÉSOUT LA RÉFÉRENCE ICI, PAS CHEZ L'APPELANT.
-    ///
-    /// Il ne connaît que « ORDER-… » ; l'identifiant de course, il ne l'a jamais
-    /// stocké. Lui faire enchaîner une lecture par référence puis une annulation
-    /// ferait deux allers-retours réseau là où l'un suffit — sur un chemin où
-    /// chaque minute est un trajet de livreur déjà engagé.
-    ///
-    /// « INTROUVABLE » N'EST PAS UNE ERREUR, ET UN REFUS NON PLUS.
-    ///
-    /// La plupart des commandes sont annulées AVANT confirmation, donc avant
-    /// qu'aucune course n'existe : c'est le cas le plus fréquent. Et un colis
-    /// déjà collecté ne s'annule plus — le domaine le refuse, à juste titre.
-    /// Rendre l'un ou l'autre en `RpcException` obligerait l'appelant à lire un
-    /// code de statut pour distinguer « rien à faire » de « le service est
-    /// tombé ».
-    ///
-    /// `RequiredPartnerId: null` EST UN CHOIX ÉCRIT, PAS UN OUBLI.
-    ///
-    /// La valeur par défaut a été retirée de `CancelDeliveryCommand` précisément
-    /// pour que ce choix ne puisse plus être fait par distraction : la surface
-    /// gRPC interne n'est joignable qu'avec la clé de service à service, et un
-    /// donneur d'ordre HBA ne peut désigner que ses propres références.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE DONNEUR D'ORDRE ANNULE SA COURSE.</summary>
     public override async Task<CancelDeliveryResponse> CancelDelivery(
         CancelDeliveryRequest request, ServerCallContext context)
     {
@@ -252,9 +162,7 @@ internal sealed class DeliveryGrpcService : DeliveryApi.DeliveryApiBase
             DriverPhone = suivi.DriverPhone ?? string.Empty
         };
 
-        // La position n'est renseignée que PENDANT le transport. Ce n'est pas
-        // une optimisation : suivre en continu la position d'une personne en
-        // dehors de la mission qui la justifie serait une collecte sans finalité.
+        // La position n'est renseignée que PENDANT le transport.
         if (suivi.DriverLatitude is { } lat)
         {
             reponse.DriverLatitude = lat;
@@ -350,16 +258,7 @@ internal sealed class DeliveryGrpcService : DeliveryApi.DeliveryApiBase
             stop.HasLatitude ? stop.Latitude : null,
             stop.HasLongitude ? stop.Longitude : null);
 
-    /// <summary>
-    /// Traduit une chaîne en valeur d'énumération, ou REFUSE.
-    /// </summary>
-    /// <remarks>
-    /// PAS DE REPLI SUR LA VALEUR PAR DÉFAUT.
-    ///
-    /// `Enum.TryParse` rendrait `false` et laisserait tenté de retomber sur la
-    /// première valeur. « HbaFood » mal orthographié deviendrait « HbaExpress »,
-    /// et la course partirait dans le mauvais flux sans que rien ne le dise.
-    /// </remarks>
+    /// <summary>Traduit une chaîne en valeur d'énumération, ou REFUSE.</summary>
     private static T Enumeration<T>(string valeur, string champ) where T : struct, Enum
         => Enum.TryParse<T>(valeur, ignoreCase: true, out var resultat)
             ? resultat
@@ -371,20 +270,7 @@ internal sealed class DeliveryGrpcService : DeliveryApi.DeliveryApiBase
 
     private static string Montant(decimal value) => value.ToString(CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Un montant venu du fil.
-    /// </summary>
-    /// <remarks>
-    /// REFUSAIT DE RENDRE ZÉRO — voir <see cref="MontantSurLeFil"/>. Cette
-    /// fonction s'écrivait « TryParse(…) ? valeur : 0m », comme six autres du
-    /// dépôt : un champ non posé par l'émetteur — donc la chaîne VIDE, il n'y a
-    /// pas de « non renseigné » pour un `string` protobuf 3 — se lisait « zéro
-    /// franc ».
-    ///
-    /// `champ` EST REMPLI PAR LE COMPILATEUR, pas à la main. Il reçoit le TEXTE
-    /// de l'expression passée — « order.AlreadyRefundedAmount » — donc un nom plus
-    /// précis qu'aucun littéral recopié, et qui suit les renommages tout seul.
-    /// </remarks>
+    /// <summary>Un montant venu du fil.</summary>
     private static decimal Montant(
         string value, [CallerArgumentExpression(nameof(value))] string champ = "")
         => MontantSurLeFil.Lire(value, champ);

@@ -11,28 +11,7 @@ public enum BrandRequestStatus
     Rejected = 2
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UNE DEMANDE DE MARQUE — TABLE <c>brand_requests</c> (§10, §20).
-///
-/// « Le vendeur ne crée pas directement une nouvelle marque officielle. »
-///
-/// C'est la phrase du §10, et elle a une raison qui se voit à l'usage : sans elle,
-/// « Samsung », « SAMSUNG », « Samsung Electronics » et « samsumg » cohabitent
-/// dans le référentiel au bout d'un mois. Le filtre par marque de la vitrine
-/// devient inutilisable, et fusionner après coup demande de retoucher chaque fiche.
-///
-/// Le vendeur demande donc, un administrateur tranche, et c'est l'approbation qui
-/// crée la marque.
-///
-/// L'APPROBATION NE CRÉE PAS TOUJOURS UNE MARQUE.
-///
-/// Un administrateur qui reçoit « samsumg » veut le rattacher au « Samsung » qui
-/// existe déjà, pas en créer un second. <see cref="Approve"/> accepte donc une
-/// marque EXISTANTE — c'est le cas le plus fréquent, et l'oublier reviendrait à
-/// laisser la porte que ce mécanisme ferme.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UNE DEMANDE DE MARQUE — TABLE <c>brand_requests</c> (§10, §20).</summary>
 public sealed class BrandRequest : AggregateRoot<Guid>
 {
     private BrandRequest()
@@ -119,15 +98,7 @@ public sealed class BrandRequest : AggregateRoot<Guid>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Refuse la demande.
-    ///
-    /// LE MOTIF EST OBLIGATOIRE, POUR LA MÊME RAISON QUE SUR UN REJET DE FICHE.
-    ///
-    /// Un vendeur qui apprend que sa marque est refusée sans savoir pourquoi
-    /// redemande la même chose la semaine suivante. Le plus souvent la réponse
-    /// tient en une phrase — « utilisez la marque Samsung, déjà au catalogue ».
-    /// </summary>
+    /// <summary>Refuse la demande.</summary>
     public Result Reject(string reason, Guid reviewedBy, DateTimeOffset nowUtc)
     {
         if (Status is not BrandRequestStatus.Pending)

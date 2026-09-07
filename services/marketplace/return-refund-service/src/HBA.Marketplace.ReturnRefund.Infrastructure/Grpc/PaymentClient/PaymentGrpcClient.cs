@@ -36,20 +36,7 @@ internal sealed class PaymentGrpcClient : IPaymentGrpcClient
 
         if (!response.Succeeded)
         {
-            // ═════════════════════════════════════════════════════════════════
             // LE CODE D'ERREUR DE PAYMENT SURVIT MAINTENANT AU SAUT gRPC.
-            //
-            // Il arrivait empaqueté dans `reason` sous la forme « code:message »,
-            // que personne ne reparsait : le refus était donc TOUJOURS rendu sous
-            // le même code local, `payment_refund_failed`. « Paiement déjà
-            // intégralement remboursé », « montant supérieur au remboursable » et
-            // « paiement introuvable » devenaient le même échec, indiscernables
-            // pour l'appelant comme pour l'exploitation.
-            //
-            // On préfixe plutôt que de recopier tel quel : le code reste
-            // attribuable à son émetteur — `return_refund.payment.<code>` dit à la
-            // fois où l'erreur a été constatée et qui l'a produite.
-            // ═════════════════════════════════════════════════════════════════
             var code = string.IsNullOrWhiteSpace(response.ReasonCode)
                 ? "return_refund.payment_refund_failed"
                 : $"return_refund.payment.{response.ReasonCode}";

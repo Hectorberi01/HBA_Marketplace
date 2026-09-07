@@ -21,18 +21,7 @@ internal sealed class ListAllProductsQueryHandler : IQueryHandler<ListAllProduct
 
     public ListAllProductsQueryHandler(IProductRepository productRepository) => _productRepository = productRepository;
 
-    /// <summary>
-    /// VOLONTAIREMENT NON MISE EN CACHE.
-    ///
-    /// C'est la vue de gouvernance admin : une poignée de personnes, qui viennent
-    /// précisément vérifier l'état RÉEL du catalogue — souvent juste après avoir
-    /// modifié quelque chose. Leur servir une vue vieille de cinq minutes, c'est leur
-    /// faire douter de leur propre action, et transformer un outil de contrôle en
-    /// source de confusion.
-    ///
-    /// Le trafic est négligeable ; le cache ne rapporterait rien et coûterait la
-    /// confiance. Toutes les mises en cache ne sont pas des gains.
-    /// </summary>
+    /// <summary>VOLONTAIREMENT NON MISE EN CACHE.</summary>
     public async Task<Result<PagedResult<ProductSummary>>> Handle(ListAllProductsQuery query, CancellationToken cancellationToken)
     {
         var (page, pageSize) = PageRequest.Normalize(query.Page, query.PageSize);

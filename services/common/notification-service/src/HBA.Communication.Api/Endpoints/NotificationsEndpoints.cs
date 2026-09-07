@@ -13,20 +13,6 @@ namespace HBA.Communication.Api.Endpoints;
 /// Endpoints HTTP de la tranche Notifications : boîte de réception, préférences,
 /// jetons d'appareil.
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// TOUT EST PORTÉ PAR LE JETON, JAMAIS PAR LE CORPS NI PAR L'URL.
-///
-/// Aucune de ces routes n'accepte un `userId` : il est systématiquement lu dans
-/// le jeton. Une boîte de réception dont l'identifiant du destinataire vient du
-/// client se lit avec l'identifiant d'un autre — et le service ne verrait rien
-/// d'anormal, puisqu'il ferait exactement ce qu'on lui demande.
-///
-/// C'est aussi pour cela que l'enregistrement d'un jeton d'appareil est ici et
-/// non côté administration : un jeton FCM associé au mauvais compte envoie les
-/// notifications d'un utilisateur sur le téléphone d'un autre.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public static class NotificationsEndpoints
 {
     public static IEndpointRouteBuilder MapNotificationsEndpoints(this IEndpointRouteBuilder app)
@@ -47,11 +33,6 @@ public static class NotificationsEndpoints
         preferences.MapPut("/", UpdatePreferencesAsync).WithName("UpdateNotificationPreferences");
 
         // CES DEUX ROUTES N'EXISTAIENT PAS DANS LE MONOLITHE.
-        //
-        // Les commandes `RegisterDeviceTokenCommand` / `UnregisterDeviceTokenCommand`
-        // y étaient écrites, la table existait, la migration aussi — mais aucune
-        // route ne les appelait. Le push était donc structurellement mort : FCM
-        // n'a rien à qui envoyer tant qu'aucun appareil ne s'est déclaré.
         var devices = app.MapAuthenticatedGroup("/api/notifications/devices")
             .WithTags("Communication · Notifications");
 
@@ -107,7 +88,7 @@ public static class NotificationsEndpoints
         => CurrentUserId(user) is not { } userId
             ? Results.Unauthorized()
             // `Results.Ok` en groupe de méthodes serait ambigu — deux surcharges,
-            // `Ok()` et `Ok(object?)`. La lambda lève l'ambiguïté.
+            // `Ok()` et `Ok(object?)`.
             : (await sender.Send(new GetNotificationPreferencesQuery(userId), ct))
                 .Match(preferences => Results.Ok(preferences));
 

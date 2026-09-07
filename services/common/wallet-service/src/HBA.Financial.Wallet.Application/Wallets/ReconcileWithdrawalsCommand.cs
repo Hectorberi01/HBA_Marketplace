@@ -8,15 +8,6 @@ namespace HBA.Financial.Wallet.Application.Wallets;
 
 /// <summary>
 /// Réconcilie les retraits « en cours » avec le statut RÉEL du dépôt chez le PSP.
-///
-/// Pourquoi c'est indispensable : accepter un <c>PUT /payouts/start</c> ne signifie que
-/// « started » chez FedaPay. Le cycle continue (processing → sent | failed). Sans cette
-/// réconciliation, un versement échoué laisserait le retrait marqué « payé » et le
-/// vendeur débité — sans jamais avoir reçu l'argent, et sans alerte.
-///
-/// Le webhook fait le même travail en temps réel ; ce balayage reste le FILET DE
-/// SÉCURITÉ, car un webhook peut se perdre, être rejeté, ou n'être jamais envoyé.
-/// Les deux passent par <see cref="WithdrawalSettlement"/>, qui est idempotent.
 /// </summary>
 public sealed record ReconcileWithdrawalsCommand(int BatchSize = 50) : ICommand<int>;
 
@@ -46,9 +37,8 @@ internal sealed class ReconcileWithdrawalsCommandHandler : ICommandHandler<Recon
 
         foreach (var withdrawal in pending)
         {
-            // Sans référence PSP, on ne peut RIEN interroger : le dépôt a peut-être été
-            // créé sans qu'on récupère son identifiant (timeout). On laisse le retrait en
-            // « Processing » pour arbitrage humain — surtout ne pas rembourser à l'aveugle.
+            // Sans référence PSP, on ne peut RIEN interroger : le dépôt a peut-être
+            // été créé sans qu'on récupère son identifiant (timeout).
             if (string.IsNullOrWhiteSpace(withdrawal.ProviderRef))
             {
                 continue;

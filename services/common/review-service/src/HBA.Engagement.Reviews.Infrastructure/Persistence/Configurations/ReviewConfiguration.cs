@@ -39,26 +39,7 @@ internal sealed class ReviewConfiguration : IEntityTypeConfiguration<Review>
         builder.HasIndex(r => r.ProductId);
         builder.HasIndex(r => new { r.BuyerId, r.ProductId, r.OrderId }).IsUnique();
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE CÔTÉ VENDEUR N'AVAIT AUCUN INDEX, ALORS QUE LE CÔTÉ PRODUIT EN A UN.
-        //
-        // Deux requêtes filtrent sur `SellerId` : le carnet d'avis du vendeur
-        // (`ListBySellerAsync`) et — beaucoup plus chaud — sa NOTE MOYENNE
-        // (`GetSellerRatingAsync`), affichée sur chaque fiche et chaque liste
-        // d'offres. La seconde balayait toute la table des avis de la plateforme
-        // pour en extraire ceux d'un vendeur.
-        //
-        // `(SellerId, Status)` ET NON `SellerId` SEUL : la note ne compte que les
-        // avis `Published`. Avec la seule colonne, PostgreSQL remonte aussi les avis
-        // en modération et les rejette ensuite — sur un vendeur populaire, c'est la
-        // moitié du travail fait pour rien. Le préfixe `SellerId` sert de toute
-        // façon la première requête.
-        //
-        // CE QUE CET INDEX NE CORRIGE PAS : `GetSellerRatingAsync` charge encore
-        // TOUTES les notes en mémoire pour en faire la moyenne, au lieu d'un `AVG()`
-        // exécuté par la base. L'index rend la lecture ciblée ; il ne la rend pas
-        // bornée. C'est le lot 8.4, et l'index y restera utile.
-        // ═════════════════════════════════════════════════════════════════════
         builder.HasIndex(r => new { r.SellerId, r.Status });
 
         builder.Ignore(r => r.DomainEvents);

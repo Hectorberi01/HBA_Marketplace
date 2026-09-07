@@ -3,16 +3,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Catalog.Domain.Products;
 
-/// <summary>
-/// État commercial déclaré (§9).
-///
-/// CETTE ÉNUMÉRATION N'EST NI LE STATUT DE PUBLICATION NI LE STOCK.
-///
-/// Le cahier ouvre le §9 par cette phrase, et elle mérite d'être répétée ici :
-/// un produit RECONDITIONNÉ peut être PUBLISHED et en rupture. Trois axes
-/// indépendants. Les mélanger — « occasion donc pas encore validé » — produit des
-/// fiches invisibles que le vendeur croit en ligne.
-/// </summary>
+/// <summary>État commercial déclaré (§9).</summary>
 public enum ProductConditionType
 {
     /// <summary>Neuf, jamais déballé.</summary>
@@ -36,15 +27,7 @@ public enum ProductFunctionalStatus
     FullyFunctional = 0,
     PartiallyFunctional = 1,
 
-    /// <summary>
-    /// Vendu pour pièces. Ne fonctionne pas.
-    ///
-    /// INATTEIGNABLE : aucune route n'accepte cette valeur (lot 9.2). La
-    /// chaîne « ForParts » n'apparaît nulle part dans le dépôt — ni dans un DTO,
-    /// ni dans un proto, ni dans une charge de test. Un vendeur ne peut donc pas
-    /// déclarer un article vendu pour pièces, alors que la grille d'état le
-    /// prévoit et que l'acheteur le verrait à l'écran.
-    /// </summary>
+    /// <summary>Vendu pour pièces. Ne fonctionne pas.</summary>
     ForParts = 2
 }
 
@@ -81,10 +64,7 @@ public readonly record struct DefautDeclare(
     string Description,
     ProductDefectSeverity Severity);
 
-/// <summary>
-/// Un défaut visible ou fonctionnel, déclaré fiche par fiche.
-/// Table <c>product_condition_defects</c> (§20).
-/// </summary>
+/// <summary>Un défaut visible ou fonctionnel, déclaré fiche par fiche.</summary>
 public sealed class ProductDefect : Entity<Guid>
 {
     private ProductDefect()
@@ -120,27 +100,7 @@ public sealed class ProductDefect : Entity<Guid>
     public ProductDefectSeverity Severity { get; private set; }
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CONDITION COMMERCIALE — TABLE <c>product_conditions</c> (§9, §20).
-///
-/// CE QUE CETTE CLASSE APPORTE TIENT DANS SES INCOHÉRENCES REFUSÉES.
-///
-/// Le cahier donne la forme des données, pas les règles qui les lient. Or ce sont
-/// ces liens qui protègent l'acheteur, et chacun correspond à une annonce qu'on
-/// voit passer sur toutes les marketplaces :
-///
-///   • « NEUF » avec trois défauts déclarés. Le formulaire l'accepte, l'acheteur
-///     lit « Neuf » en gros et les défauts en petit, puis ouvre un litige.
-///   • « RECONDITIONNÉ » sans reconditionneur. Le mot vaut prime de prix ; sans
-///     savoir QUI a remis à neuf, il ne vaut rien.
-///   • « PARTIELLEMENT FONCTIONNEL » sans dire ce qui ne marche pas. C'est la
-///     mention la plus inutile qui soit : elle inquiète sans informer.
-///
-/// Aucune de ces trois n'est une faute de code — ce sont des fiches parfaitement
-/// valides au sens du schéma. Elles se refusent ici ou nulle part.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>CONDITION COMMERCIALE — TABLE <c>product_conditions</c> (§9, §20).</summary>
 public sealed class ProductCondition : Entity<Guid>
 {
     private readonly List<ProductDefect> _defects = new();
@@ -181,17 +141,7 @@ public sealed class ProductCondition : Entity<Guid>
         BatteryReplaced = batteryReplaced;
     }
 
-    /// <summary>
-    /// Révision porteuse. Renseignée quand la condition est attachée.
-    ///
-    /// CLÉ ÉTRANGÈRE EXPLICITE, PAS UNE PROPRIÉTÉ FANTÔME.
-    ///
-    /// EF sait poser une FK invisible, et c'est ce que font déjà Variants et Media
-    /// via <c>HasForeignKey("ProductId")</c>. Ici on l'écrit, parce que la condition
-    /// est CONSTRUITE avant sa révision — le formulaire vendeur la valide à
-    /// l'étape 3 — et qu'une propriété fantôme ne peut pas être renseignée par le
-    /// domaine au moment du rattachement.
-    /// </summary>
+    /// <summary>Révision porteuse. Renseignée quand la condition est attachée.</summary>
     public Guid RevisionId { get; private set; }
 
     public ProductConditionType Type { get; private set; }
@@ -245,11 +195,6 @@ public sealed class ProductCondition : Entity<Guid>
         }
 
         // « isUsed » ET « isRefurbished » SONT DÉDUITS, PAS SAISIS.
-        //
-        // Le §9 les montre dans le JSON, ce qui invite à les recevoir du client.
-        // Les accepter tels quels autoriserait { "type": "NEW", "isUsed": true },
-        // c'est-à-dire deux affirmations contradictoires dont on ne saurait plus
-        // laquelle croire au moment de l'afficher. Le TYPE décide, seul.
         var isUsed = type is not (ProductConditionType.New or ProductConditionType.OpenBox);
         var isRefurbished = type is ProductConditionType.Refurbished;
 
@@ -292,11 +237,6 @@ public sealed class ProductCondition : Entity<Guid>
         }
 
         // « PARTIELLEMENT FONCTIONNEL » SANS DÉFAUT N'INFORME PERSONNE.
-        //
-        // C'est la mention qui fait hésiter sans permettre de décider : l'acheteur
-        // sait que quelque chose ne marche pas, et rien de plus. Exiger au moins un
-        // défaut transforme un avertissement vague en information utilisable — et
-        // c'est aussi ce qui rend un litige arbitrable.
         if (functionalStatus is not ProductFunctionalStatus.FullyFunctional && declares.Count == 0)
         {
             return Error.Validation(
@@ -351,10 +291,7 @@ public sealed class ProductCondition : Entity<Guid>
         return condition;
     }
 
-    /// <summary>
-    /// Rattache la condition à sa révision, et ses défauts à elle-même.
-    /// Appelé par <see cref="ProductRevision"/> seul.
-    /// </summary>
+    /// <summary>Rattache la condition à sa révision, et ses défauts à elle-même.</summary>
     internal void AttacherA(Guid revisionId)
     {
         RevisionId = revisionId;
@@ -364,22 +301,12 @@ public sealed class ProductCondition : Entity<Guid>
         }
     }
 
-    /// <summary>
-    /// Le neuf par défaut, pour une fiche qui ne déclare rien.
-    ///
-    /// CE DÉFAUT EST UN CHOIX, PAS UNE ABSENCE.
-    ///
-    /// Il fallait trancher : sans condition, l'affichage n'a rien à dire. « Neuf »
-    /// est ce que le vendeur voulait dire dans la quasi-totalité des cas, et c'est
-    /// aussi l'état le plus contraint — donc celui qui se corrige le plus vite si
-    /// l'on s'est trompé, puisqu'il refuse tout défaut.
-    /// </summary>
+    /// <summary>Le neuf par défaut, pour une fiche qui ne déclare rien.</summary>
     public static ProductCondition Neuf()
         => Create(ProductConditionType.New).Value;
 
     /// <summary>
     /// Vrai si le passage à l'autre condition est une modification critique (§6).
-    /// La condition figure explicitement dans la liste du cahier.
     /// </summary>
     public bool DiffereCritiquementDe(ProductCondition? autre)
         => autre is null

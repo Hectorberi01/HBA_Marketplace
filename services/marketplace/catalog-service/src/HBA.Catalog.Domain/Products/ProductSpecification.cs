@@ -12,10 +12,7 @@ public sealed record GroupeDeSpecifications(
     IReadOnlyList<SpecificationSaisie> Items,
     int DisplayOrder = 0);
 
-/// <summary>
-/// Une caractéristique — « Type : Super Retina XDR OLED ».
-/// Table <c>product_specifications</c> (§12, §20).
-/// </summary>
+/// <summary>Une caractéristique — « Type : Super Retina XDR OLED ».</summary>
 public sealed class ProductSpecification : Entity<Guid>
 {
     private ProductSpecification()
@@ -40,29 +37,8 @@ public sealed class ProductSpecification : Entity<Guid>
 }
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UN GROUPE DE CARACTÉRISTIQUES — TABLE <c>product_specification_groups</c> (§12).
-///
-/// « Écran », « Processeur », « Connectivité » : le §12 les montre groupés, et ce
-/// groupement est la seule chose qui rend une liste de trente caractéristiques
-/// lisible sur un téléphone.
-///
-/// POURQUOI DEUX TABLES PLUTÔT QU'UN jsonb.
-///
-/// Les attributs de catégorie sont dans un jsonb, et l'on pourrait faire pareil
-/// ici. La différence est l'ORDRE : ces lignes s'affichent dans un ordre choisi par
-/// le vendeur, groupe par groupe. Un objet JSON ne garantit pas l'ordre de ses
-/// clés — la sérialisation .NET le préserve aujourd'hui, PostgreSQL le réordonne
-/// en `jsonb`. La fiche s'afficherait donc dans un ordre différent de celui saisi,
-/// et changerait après chaque écriture, sans que rien ne le signale.
-///
-/// ELLES SONT PORTÉES PAR LA RÉVISION, PAS PAR LE PRODUIT.
-///
-/// Le §6 range les « caractéristiques essentielles » parmi les modifications
-/// critiques : les changer exige une nouvelle validation. Les mettre sur le produit
-/// permettrait de réécrire, sur une fiche en vente, la fiche technique qu'un
-/// administrateur avait relue.
-/// ═════════════════════════════════════════════════════════════════════════════
+/// UN GROUPE DE CARACTÉRISTIQUES — TABLE <c> product_specification_groups</c>
+/// (§12).
 /// </summary>
 public sealed class ProductSpecificationGroup : Entity<Guid>
 {
@@ -98,9 +74,6 @@ public sealed class ProductSpecificationGroup : Entity<Guid>
         var lignes = (saisie.Items ?? Array.Empty<SpecificationSaisie>()).ToList();
 
         // UN GROUPE VIDE EST UN TITRE SANS CONTENU.
-        //
-        // Il s'affiche comme un intertitre suivi de rien. Le refuser au moment de la
-        // saisie évite une fiche produit qui a l'air tronquée sans l'être.
         if (lignes.Count == 0)
         {
             return Error.Validation(
@@ -131,16 +104,7 @@ public sealed class ProductSpecificationGroup : Entity<Guid>
         return groupe;
     }
 
-    /// <summary>
-    /// Rattache le groupe à sa révision, et ses lignes à lui-même.
-    ///
-    /// MÊME MÉCANIQUE QUE `ProductCondition.AttacherA`, ET MÊME PIÈGE.
-    ///
-    /// Les groupes arrivent construits du formulaire, donc sans savoir à quelle
-    /// révision ils appartiendront. Oublier ce geste laisse un `RevisionId` à zéro :
-    /// EF insère, la contrainte de clé étrangère refuse, et le message parle d'une
-    /// violation sans dire quel champ n'a pas été rempli.
-    /// </summary>
+    /// <summary>Rattache le groupe à sa révision, et ses lignes à lui-même.</summary>
     internal void AttacherA(Guid revisionId)
     {
         RevisionId = revisionId;
@@ -152,10 +116,6 @@ public sealed class ProductSpecificationGroup : Entity<Guid>
 
     /// <summary>
     /// Une empreinte du contenu, pour décider si la modification est critique (§6).
-    ///
-    /// Comparer les objets ne suffirait pas : ce sont des entités, égales par leur
-    /// identifiant, et deux groupes reconstruits à l'identique portent des
-    /// identifiants différents. C'est le CONTENU qui doit être comparé.
     /// </summary>
     internal string Empreinte()
         => $"{DisplayOrder}:{Name}:" + string.Join(

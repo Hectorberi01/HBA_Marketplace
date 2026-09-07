@@ -5,19 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace HBA.Merchants.Infrastructure.Persistence.Configurations;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES RÔLES — SYSTÈME ET PERSONNALISÉS DANS LA MÊME TABLE.
-///
-/// `SellerId` EST NULLABLE, ET L'INDEX D'UNICITÉ EST FILTRÉ EN CONSÉQUENCE.
-///
-/// Un rôle système a `SellerId` nul et un nom unique globalement ; un rôle
-/// personnalisé a un nom unique DANS SON VENDEUR. Deux vendeurs peuvent donc
-/// nommer tous les deux un rôle « Préparateur ». Un index unique nu sur
-/// (SellerId, Name) laisserait passer plusieurs rôles système homonymes, parce
-/// que PostgreSQL considère deux NULL comme distincts — d'où les deux index.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES RÔLES — SYSTÈME ET PERSONNALISÉS DANS LA MÊME TABLE.</summary>
 internal sealed class SellerRoleConfiguration : IEntityTypeConfiguration<SellerRole>
 {
     public void Configure(EntityTypeBuilder<SellerRole> builder)
@@ -33,8 +21,8 @@ internal sealed class SellerRoleConfiguration : IEntityTypeConfiguration<SellerR
         builder.Property(r => r.Name).HasMaxLength(100).IsRequired();
         builder.Property(r => r.Description).HasMaxLength(255);
 
-        // EN ENTIER, PAS EN CHAÎNE — même raison que `StaffRole` côté food :
-        // une comparaison ou un filtre sur la portée doit tenir en SQL.
+        // EN ENTIER, PAS EN CHAÎNE — même raison que `StaffRole` côté food : une
+        // comparaison ou un filtre sur la portée doit tenir en SQL.
         builder.Property(r => r.Scope).HasConversion<int>().IsRequired();
 
         builder.Property(r => r.IsSystemRole).IsRequired();
@@ -73,23 +61,7 @@ internal sealed class SellerRoleConfiguration : IEntityTypeConfiguration<SellerR
     }
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES MEMBRES, LEURS RÔLES, ET LEURS AFFECTATIONS — TROIS TABLES IMBRIQUÉES.
-///
-/// `UX_seller_members_SellerId_UserId` : UN COMPTE NE FIGURE QU'UNE FOIS.
-///
-/// Sans lui, une invitation acceptée deux fois créerait deux appartenances au même
-/// vendeur, avec des rôles différents — et la résolution d'autorisation en
-/// choisirait une au hasard, selon l'ordre de la table.
-///
-/// `IX_seller_members_UserId` : C'EST L'INDEX DU CHEMIN CHAUD.
-///
-/// Chaque requête vendeur, sur cinq services, part d'un identifiant
-/// d'UTILISATEUR pour trouver son appartenance. Sans cet index, c'est un balayage
-/// complet à chaque appel autorisé de la plateforme.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES MEMBRES, LEURS RÔLES, ET LEURS AFFECTATIONS — TROIS TABLES IMBRIQUÉES.</summary>
 internal sealed class SellerMemberConfiguration : IEntityTypeConfiguration<SellerMember>
 {
     public void Configure(EntityTypeBuilder<SellerMember> builder)
@@ -117,37 +89,7 @@ internal sealed class SellerMemberConfiguration : IEntityTypeConfiguration<Selle
 
         builder.HasIndex(m => m.UserId).HasDatabaseName("IX_seller_members_UserId");
 
-        // ═════════════════════════════════════════════════════════════════════
         // VERROU OPTIMISTE — CONTRE L'ÉCRITURE CONCURRENTE SUR LA MÊME LIGNE.
-        //
-        // Deux administrateurs qui modifient les rôles du MÊME membre en même temps
-        // : le second échoue et rejoue. C'est ce que `xmin` sait faire, et c'est
-        // utile.
-        //
-        // CE COMMENTAIRE AFFIRMAIT QU'IL GARDAIT LE DERNIER PROPRIÉTAIRE. IL NE
-        // LE PEUT PAS.
-        //
-        // Le texte disait : « deux propriétaires qui se retirent simultanément
-        // liraient chacun "il en reste deux" ; `xmin` fait échouer la seconde
-        // écriture ». C'est faux. `xmin` est un jeton PAR LIGNE, et révoquer O1 puis
-        // O2 écrit DEUX LIGNES DIFFÉRENTES : il n'y a aucun conflit à détecter, les
-        // deux écritures réussissent, et le vendeur tombe à zéro propriétaire.
-        //
-        // La forme du défaut est « lire puis décider sur une autre ligne » —
-        // qu'aucun verrou optimiste n'attrape, faute de quoi que ce soit à comparer.
-        // La garde réelle est le verrou consultatif tenu par
-        // `ISellerUnitOfWork.ExecuteUnderSellerLockAsync` autour du décompte ET de
-        // la décision.
-        //
-        // ET CETTE PHRASE-LÀ A ÉTÉ FAUSSE PENDANT UN TEMPS, ELLE AUSSI. Elle
-        // nommait `LockSellerAsync`, qui prenait le verrou au fil d'un handler,
-        // hors de toute transaction — donc le relâchait aussitôt. Le texte décrivait
-        // une garde exacte dans son principe, portée par un appel qui ne la tenait
-        // pas. C'est le même défaut que celui qu'il corrigeait, d'un cran plus loin.
-        //
-        // Le commentaire est corrigé plutôt que supprimé : c'est lui qui avait fait
-        // passer la relecture.
-        // ═════════════════════════════════════════════════════════════════════
         builder.UsePostgresRowVersion();
 
         builder.OwnsMany<SellerMemberRole>("_sellerRoles", roles =>
@@ -164,9 +106,7 @@ internal sealed class SellerMemberConfiguration : IEntityTypeConfiguration<Selle
         });
 
         // UNE RELATION, PAS UNE POSSESSION — parce que `StoreMembership` a son
-        // propre identifiant et possède elle-même ses rôles. Deux niveaux de
-        // possession imbriqués obligeraient à nommer à la main des clés étrangères
-        // composées, ce que rien d'autre dans ce dépôt ne fait.
+        // propre identifiant et possède elle-même ses rôles.
         builder.HasMany<StoreMembership>("_storeMemberships")
             .WithOne()
             .HasForeignKey("SellerMemberId")
@@ -183,18 +123,7 @@ internal sealed class SellerMemberConfiguration : IEntityTypeConfiguration<Selle
     }
 }
 
-/// <summary>
-/// L'affectation d'un membre à une boutique.
-/// </summary>
-/// <remarks>
-/// LA COLONNE `Enforcement` DIT LA VÉRITÉ SUR LA PHASE 1.
-///
-/// `Prepared` signifie « l'affectation est écrite, la règle ne s'applique pas
-/// encore » : les permissions qu'elle porte valent aujourd'hui pour le VENDEUR
-/// ENTIER, parce qu'aucune commande et aucun article de stock ne connaît la
-/// boutique. Au lot G, elle passera à `Enforced` boutique par boutique — et ce qui
-/// change se lira en base plutôt que dans un journal de déploiement.
-/// </remarks>
+/// <summary>L'affectation d'un membre à une boutique.</summary>
 internal sealed class StoreMembershipConfiguration : IEntityTypeConfiguration<StoreMembership>
 {
     public void Configure(EntityTypeBuilder<StoreMembership> builder)
@@ -210,9 +139,9 @@ internal sealed class StoreMembershipConfiguration : IEntityTypeConfiguration<St
         builder.Property(a => a.CreatedOnUtc).IsRequired();
         builder.Property(a => a.UpdatedOnUtc);
 
-        // UN MEMBRE N'EST AFFECTÉ QU'UNE FOIS À UNE MÊME BOUTIQUE.
-        // Deux lignes donneraient deux jeux de rôles pour le même couple, et la
-        // résolution en choisirait un selon l'ordre de la table.
+        // UN MEMBRE N'EST AFFECTÉ QU'UNE FOIS À UNE MÊME BOUTIQUE. Deux lignes
+        // donneraient deux jeux de rôles pour le même couple, et la résolution en
+        // choisirait un selon l'ordre de la table.
         builder.HasIndex("SellerMemberId", nameof(StoreMembership.StoreId))
             .IsUnique()
             .HasDatabaseName("UX_store_memberships_SellerMemberId_StoreId");
@@ -236,25 +165,7 @@ internal sealed class StoreMembershipConfiguration : IEntityTypeConfiguration<St
     }
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES INVITATIONS.
-///
-/// L'INDEX UNIQUE SUR `TokenHash` FAIT DEUX CHOSES, PAS UNE.
-///
-/// Il rend la recherche à l'acceptation immédiate — c'est le seul chemin de
-/// lecture de cette table sur le parcours de l'invité — et il interdit que deux
-/// invitations partagent une empreinte, ce qui rendrait l'une d'elles
-/// inatteignable et l'autre ambiguë.
-///
-/// ET L'INDEX PARTIEL SUR (SellerId, Email) INTERDIT LES DOUBLONS EN ATTENTE.
-///
-/// Deux invitations vivantes pour la même personne, ce sont deux jetons valides et
-/// deux jeux de rôles concurrents : celui qui gagne dépend du lien ouvert en
-/// premier. Le contrôle existe aussi dans le handler ; le filtrer ici le rend vrai
-/// même en cas de double soumission simultanée, que le handler ne verrait pas.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES INVITATIONS.</summary>
 internal sealed class SellerInvitationConfiguration : IEntityTypeConfiguration<SellerInvitation>
 {
     public void Configure(EntityTypeBuilder<SellerInvitation> builder)
@@ -304,8 +215,7 @@ internal sealed class SellerInvitationConfiguration : IEntityTypeConfiguration<S
             affectations.HasKey(a => a.Id);
             affectations.Property(a => a.Id).ValueGeneratedOnAdd();
 
-            // Nul = rôle de niveau vendeur. Une colonne nullable plutôt qu'une
-            // seconde table : c'est le seul champ qui distingue les deux cas.
+            // Nul = rôle de niveau vendeur.
             affectations.Property(a => a.StoreId);
 
             affectations.Property(a => a.RoleId)

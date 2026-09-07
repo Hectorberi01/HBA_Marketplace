@@ -5,16 +5,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Food.Application.Restaurants;
 
-/// <summary>
-/// La file des dossiers en attente de validation.
-///
-/// SANS ELLE, LA VALIDATION SERAIT UN BOUTON SANS LISTE.
-///
-/// Le seul à connaître l'identifiant d'un établissement soumis est le
-/// restaurateur qui l'a soumis. L'exploitation n'aurait aucun moyen de savoir qui
-/// attend — et les dossiers dormiraient jusqu'à ce que quelqu'un se plaigne.
-/// C'est le défaut exact qui avait bloqué les livreurs pendant des semaines.
-/// </summary>
+/// <summary>La file des dossiers en attente de validation.</summary>
 public sealed record ListPendingRestaurantsQuery(int Take = 100) : IQuery<IReadOnlyList<RestaurantSummary>>;
 
 internal sealed class RestaurantQueryHandler
@@ -43,15 +34,6 @@ internal sealed class RestaurantQueryHandler
     private static RestaurantSummary Project(Restaurant r, DateTime nowUtc)
     {
         // SURCHARGE À UN SEUL PARAMÈTRE, DÉLIBÉRÉMENT.
-        //
-        // Cette file ne contient que des dossiers EN ATTENTE DE VALIDATION :
-        // CanAcceptOrders y répond « NotInService » quoi qu'il arrive, et
-        // interroger la carte ne changerait pas la réponse — ce serait une requête
-        // par dossier pour rien.
-        //
-        // Si cette projection servait un jour à lister des établissements ACTIFS,
-        // il faudrait la surcharge à deux paramètres, sous peine d'annoncer
-        // « ouvert » un restaurant dont tout est épuisé. Voir FoodModuleApi.
         var blocage = r.CanAcceptOrders(nowUtc);
 
         return new RestaurantSummary(
@@ -71,12 +53,6 @@ internal sealed class RestaurantQueryHandler
             r.MinimumOrderAmount,
 
             // CHARGE NON CALCULÉE, ET C'EST CORRECT ICI.
-            //
-            // Cette file ne contient que des dossiers EN ATTENTE DE VALIDATION :
-            // ils n'ont aucune commande en cours, et interroger le nombre de
-            // commandes actives serait une requête par dossier pour un zéro connu
-            // d'avance. Si cette projection servait un jour des établissements
-            // ACTIFS, il faudrait la calculer — comme le fait FoodModuleApi.
             nameof(KitchenLoadLevel.Normal),
             0,
 

@@ -6,10 +6,9 @@ using HBA.Identity.Domain.Users;
 namespace HBA.Identity.Application.Users;
 
 /// <summary>
-/// Émet une paire de jetons pour un utilisateur : résout ses rôles et
-/// permissions (pour les claims JWT), génère l'access token et un refresh token
-/// (dont seul le hash est stocké sur l'agrégat). Ne persiste pas — l'appelant
-/// committe via l'Unit of Work.
+/// Émet une paire de jetons pour un utilisateur : résout ses rôles et permissions
+/// (pour les claims JWT), génère l'access token et un refresh token (dont seul le
+/// hash est stocké sur l'agrégat).
 /// </summary>
 internal sealed class AuthTokenIssuer
 {
@@ -30,19 +29,7 @@ internal sealed class AuthTokenIssuer
         _tokenSettings = tokenSettings;
     }
 
-    /// <param name="session">
-    /// Quand et comment le titulaire s'est authentifié.
-    ///
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// PARAMÈTRE OBLIGATOIRE, SANS VALEUR PAR DÉFAUT, ET C'EST DÉLIBÉRÉ.
-    ///
-    /// Un défaut à `AuthenticationSnapshot.ByPassword(DateTime.UtcNow)` aurait
-    /// évité de toucher les deux appelants — et aurait fait exactement ce qu'il ne
-    /// faut pas au rafraîchissement : rajeunir `auth_time` à chaque rotation, ce
-    /// qui vide le step-up du §37. Le compilateur oblige donc chaque appelant à
-    /// dire lequel des deux cas il est.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </param>
+    /// <param name="session">Quand et comment le titulaire s'est authentifié.</param>
     public async Task<AuthTokens> IssueAsync(
         User user, AuthenticationSnapshot session, CancellationToken cancellationToken)
     {

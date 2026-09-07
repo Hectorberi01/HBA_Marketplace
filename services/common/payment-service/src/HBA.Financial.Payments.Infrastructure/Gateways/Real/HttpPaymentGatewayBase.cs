@@ -3,14 +3,7 @@ using HBA.Financial.Payments.Application.Abstractions.Gateways;
 
 namespace HBA.Financial.Payments.Infrastructure.Gateways.Real;
 
-/// <summary>
-/// Base des adaptateurs PSP qui font de vrais appels réseau. Contrairement à
-/// <see cref="SimulatedPaymentGateway"/> (qui ne touche pas le réseau), cette base
-/// résout un <see cref="HttpClient"/> nommé via <see cref="IHttpClientFactory"/>
-/// (durée de vie des handlers gérée par le framework — pas de socket exhaustion)
-/// et mutualise le parsing/vérification des webhooks. Chaque PSP implémente ses
-/// appels HTTP (token, charge, statut, remboursement).
-/// </summary>
+/// <summary>Base des adaptateurs PSP qui font de vrais appels réseau.</summary>
 public abstract class HttpPaymentGatewayBase : IPaymentGateway
 {
     private readonly IHttpClientFactory _httpClientFactory;
@@ -22,21 +15,13 @@ public abstract class HttpPaymentGatewayBase : IPaymentGateway
 
     public virtual bool RequiresPayerPhone => false;
 
-    /// <summary>
-    /// Vrai par défaut : un adaptateur HTTP est censé savoir rembourser. Les quatre
-    /// qui ne le savent PAS (FedaPay, MTN MoMo, Moov, PayPal) l'annoncent en
-    /// redéfinissant cette propriété — voir <see cref="IPaymentGateway.SupportsRefund"/>.
-    /// </summary>
+    /// <summary>Vrai par défaut : un adaptateur HTTP est censé savoir rembourser.</summary>
     public virtual bool SupportsRefund => true;
 
     /// <summary>Nom du client HTTP enregistré (AddHttpClient) pour ce PSP.</summary>
     protected abstract string HttpClientName { get; }
 
-    /// <summary>
-    /// Secret de signature des webhooks. Vide, le webhook est REJETÉ — sauf si
-    /// <see cref="GatewayWebhook.AllowUnsignedWhenSecretMissing"/> a été posé
-    /// explicitement au démarrage.
-    /// </summary>
+    /// <summary>Secret de signature des webhooks.</summary>
     protected abstract string WebhookSecret { get; }
 
     /// <summary>Champ du payload portant le type/statut d'événement.</summary>

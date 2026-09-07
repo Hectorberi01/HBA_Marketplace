@@ -8,11 +8,7 @@ using HBA.Catalog.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Catalog.Infrastructure.Persistence;
 
-/// <summary>
-/// Factory design-time pour les outils EF (migrations add / database update).
-/// Permet d'opérer sur le module sans démarrer toute l'application. La chaîne de
-/// connexion peut être surchargée via la variable d'env CATALOG_DB.
-/// </summary>
+/// <summary>Factory design-time pour les outils EF (migrations add / database update).</summary>
 public sealed class CatalogDbContextFactory : IDesignTimeDbContextFactory<CatalogDbContext>
 {
     public CatalogDbContext CreateDbContext(string[] args)

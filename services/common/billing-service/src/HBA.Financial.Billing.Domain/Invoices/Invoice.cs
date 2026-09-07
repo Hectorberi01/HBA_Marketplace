@@ -18,7 +18,7 @@ public enum InvoiceStatus
     Paid = 2
 }
 
-/// <summary>Ligne de facture (commission, service…). Entité enfant.</summary>
+/// <summary>Ligne de facture (commission, service…).</summary>
 public sealed class InvoiceLine : Entity<Guid>
 {
     private InvoiceLine()
@@ -36,10 +36,7 @@ public sealed class InvoiceLine : Entity<Guid>
     public decimal Amount { get; private set; }
 }
 
-/// <summary>
-/// Facture de frais émise à un vendeur pour une période (commissions, services).
-/// Agrégat racine : possède ses lignes.
-/// </summary>
+/// <summary>Facture de frais émise à un vendeur pour une période (commissions, services).</summary>
 public sealed class Invoice : AggregateRoot<InvoiceId>
 {
     private readonly List<InvoiceLine> _lines = new();

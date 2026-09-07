@@ -11,13 +11,7 @@ namespace HBA.Delivery.Pricing.Infrastructure.Persistence;
 
 public sealed class DeliveryPricingDbContext : ModuleDbContext, IOutboxDbContext
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // L'OUTBOX ET L'INBOX DE CE SERVICE — LEURS TABLES LUI APPARTIENNENT.
-    //
-    // Le socle draine la file d'evenements et exclut ces deux tables du journal
-    // d'audit ; il ne connait plus ni l'une ni l'autre. Ces trois membres sont ce
-    // qu'il appelle, et ils repondent avec les entites de `Persistence/`.
-    // ═════════════════════════════════════════════════════════════════════════
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
@@ -56,33 +50,10 @@ public sealed class DeliveryPricingDbContext : ModuleDbContext, IOutboxDbContext
 
     protected override string Schema => SchemaName;
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE JOURNAL D'AUDIT EST ACTIF ICI (lot 7.1, ISSUE-042 / ISSUE-043).
-    ///
-    /// `KeepsAuditTrail` VALAIT `false` SUR VINGT ET UN CONTEXTES SUR VINGT-QUATRE.
-    ///
-    /// Ce qui n'y laissait AUCUNE trace : la création, l'édition, l'activation et la
-    /// désactivation d'une RÈGLE DE TARIFICATION.
-    ///
-    /// Une grille éditée change le prix de toutes les courses suivantes. C'est le
-    /// geste au plus fort effet de levier de la plateforme, et le plus discret : rien
-    /// dans une course ne dit quelle version de la grille l'a chiffrée.
-    ///
-    /// Activé DANS LE MÊME COMMIT que la migration qui crée `delivery_pricing.audit_entries` —
-    /// l'inverse produirait une surcharge qui promet une table absente, et le défaut
-    /// ne se verrait qu'au premier `SaveChanges` en production.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE JOURNAL D'AUDIT EST ACTIF ICI (lot 7.1, ISSUE-042 / ISSUE-043).</summary>
     protected override bool KeepsAuditTrail => true;
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LE JOURNAL D'AUDIT DE CE SERVICE — L'ENTITE ET SA TABLE LUI APPARTIENNENT.
-    //
-    // Le socle collecte les mutations, resout l'acteur et fixe l'instant unique de
-    // la transaction ; il ne connait plus aucune table d'audit. Ces deux methodes
-    // sont ce qu'il appelle, et elles repondent avec l'entite de `Auditing/`.
-    // ═════════════════════════════════════════════════════════════════════════
     protected override void ConfigurerLeJournalDAudit(ModelBuilder modelBuilder)
         => modelBuilder.ApplyConfiguration(new AuditConfiguration());
 
@@ -121,9 +92,7 @@ public sealed class DeliveryPricingDbContext : ModuleDbContext, IOutboxDbContext
             entity.Property(quote => quote.PricingVersion).HasMaxLength(40);
 
             // Voir `SourcesEstimation` : ce qui a produit la distance et la durée
-            // qui ont chiffré ce devis. Colonne NOT NULL avec défaut vide — une
-            // chaîne vide se lit « on ne sait pas », ce qui est exact pour toute
-            // ligne écrite avant la migration.
+            // qui ont chiffré ce devis.
             entity.Property(quote => quote.SourceEstimation).HasMaxLength(40);
             entity.Property(quote => quote.FacteurCorrectionApplique).HasPrecision(4, 2);
         });

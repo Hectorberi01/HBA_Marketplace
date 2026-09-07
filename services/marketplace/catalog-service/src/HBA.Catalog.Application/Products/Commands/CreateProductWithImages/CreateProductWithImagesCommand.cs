@@ -5,15 +5,7 @@ using HBA.Catalog.Domain.Products;
 
 namespace HBA.Catalog.Application.Products.Commands.CreateProductWithImages;
 
-/// <summary>
-/// Image DÉJÀ DÉPOSÉE dans le service média, fournie à la création du produit.
-///
-/// CE RECORD PORTAIT LES OCTETS. Il ne porte plus qu'une référence.
-///
-/// Le dépôt a lieu avant, à la frontière HTTP : la commande de création n'a plus
-/// à réussir un appel réseau au milieu de son traitement. Un produit ne peut donc
-/// plus échouer à se créer parce que le stockage était lent.
-/// </summary>
+/// <summary>Image DÉJÀ DÉPOSÉE dans le service média, fournie à la création du produit.</summary>
 public sealed record ProductImageUpload(Guid MediaId, string Url, string? AltText = null);
 
 /// <summary>Résultat : id du produit créé + URLs publiques des images stockées.</summary>
@@ -22,8 +14,7 @@ public sealed record ProductWithImagesResult(Guid ProductId, IReadOnlyList<strin
 /// <summary>
 /// Crée un produit (Draft) et téléverse ses images vers le service média externe,
 /// puis associe les URLs renvoyées au produit (la première image devient
-/// principale). Les uploads sont faits AVANT la persistance : si un upload échoue,
-/// rien n'est créé.
+/// principale).
 /// </summary>
 public sealed record CreateProductWithImagesCommand(
     Guid SellerId,
@@ -38,12 +29,6 @@ public sealed record CreateProductWithImagesCommand(
     IReadOnlyList<string>? Tags,
     IReadOnlyList<ProductImageUpload> Images,
     // AJOUTÉS EN FIN DE LISTE, SANS VALEUR PAR DÉFAUT POUR LA TARIFICATION.
-    //
-    // Une révision ne peut pas exister sans prix de référence (§8, §23). Donner un
-    // défaut ici — « 0 », « à définir » — créerait des fiches que la soumission
-    // refuserait plus tard, sans que le vendeur sache pourquoi. Le compilateur
-    // signale les appelants ; il n'y en a aucun aujourd'hui, cette commande n'étant
-    // reliée à aucune route.
     TarificationSaisie Tarification = null!,
     ConditionSaisie? Condition = null,
     Guid? StoreId = null,
@@ -67,8 +52,8 @@ internal sealed class CreateProductWithImagesCommandHandler
         CreateProductWithImagesCommand command, CancellationToken cancellationToken)
     {
         // 1) Création du produit. Slug UNIQUE résolu ici : deux produits homonymes
-        //    (ou une reprise après un échec partiel de l'assistant) ne doivent pas
-        //    être bloqués — on suffixe « -2 », « -3 »… au lieu de refuser.
+        // (ou une reprise après un échec partiel de l'assistant) ne doivent pas
+        // être bloqués — on suffixe « -2 », « -3 »… au lieu de refuser.
         var slugResult = await SlugLibre.ResoudreAsync(_productRepository, command.Name, cancellationToken);
         if (slugResult.IsFailure)
         {
@@ -103,10 +88,8 @@ internal sealed class CreateProductWithImagesCommandHandler
 
         var product = result.Value;
 
-        // 2) Association des médias (la 1re image devient principale automatiquement).
-        //
-        // L'APPARTENANCE DES MÉDIAS EST VÉRIFIÉE PAR L'APPELANT, pas ici :
-        // Catalog ne connaît pas le service média. Voir `Product.AddMedia`.
+        // 2) Association des médias (la 1re image devient principale
+        // automatiquement).
         foreach (var image in command.Images)
         {
             var add = product.AddMedia(

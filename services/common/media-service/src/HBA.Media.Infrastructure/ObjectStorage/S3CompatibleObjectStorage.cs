@@ -9,20 +9,14 @@ using Microsoft.Extensions.Options;
 
 namespace HBA.Media.Infrastructure.ObjectStorage;
 
-/// <summary>
-/// Configuration d'un stockage compatible S3 : MinIO, AWS S3, Cloudflare R2.
-///
-/// DEUX BUCKETS, PAS UN. Le §9 l'impose : « les documents privés doivent être
-/// stockés dans des buckets privés ; ils ne doivent jamais être accessibles via
-/// une URL publique permanente ». Un seul bucket avec des ACL par objet marche
-/// jusqu'au jour où quelqu'un se trompe d'ACL — et personne ne s'en aperçoit,
-/// puisque rien n'échoue.
-/// </summary>
+/// <summary>Configuration d'un stockage compatible S3 : MinIO, AWS S3, Cloudflare R2.</summary>
 public sealed class ObjectStorageOptions
 {
     public const string SectionName = "Media:Storage";
 
-    /// <summary>Point d'entrée S3, sans bucket : « https://xxx.r2.cloudflarestorage.com ».</summary>
+    /// <summary>
+    /// Point d'entrée S3, sans bucket : « https://xxx.r2.cloudflarestorage.com ».
+    /// </summary>
     public string? Endpoint { get; set; }
 
     public string? AccessKeyId { get; set; }
@@ -34,12 +28,7 @@ public sealed class ObjectStorageOptions
     public string PublicBucket { get; set; } = "hba-public";
     public string PrivateBucket { get; set; } = "hba-private";
 
-    /// <summary>
-    /// Domaine servant les objets publics — CDN ou domaine personnalisé (§25).
-    ///
-    /// Distinct de l'<c>Endpoint</c> : on ne sert pas les images du catalogue par
-    /// l'API S3 signée. S'il est absent, l'URL publique retombe sur l'endpoint.
-    /// </summary>
+    /// <summary>Domaine servant les objets publics — CDN ou domaine personnalisé (§25).</summary>
     public string? PublicBaseUrl { get; set; }
 
     public bool IsConfigured =>
@@ -48,26 +37,7 @@ public sealed class ObjectStorageOptions
         && !string.IsNullOrWhiteSpace(SecretAccessKey);
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE STOCKAGE OBJET, EN SIGNATURE AWS V4 (cahier des charges §17).
-///
-/// CE FICHIER REMPLACE DEUX IMPLÉMENTATIONS EXISTANTES.
-///
-/// Le dépôt en contenait déjà deux — <c>CloudflareR2MediaStorage</c> pour les
-/// images du catalogue, <c>CloudflareR2KybStorage</c> pour les pièces des
-/// vendeurs. Deux copies du même algorithme cryptographique, dans deux modules
-/// qui s'ignorent : une correction de l'une n'aurait jamais atteint l'autre, et
-/// c'est le genre de divergence qu'on ne découvre que le jour où une signature
-/// est refusée en production.
-///
-/// C'est la raison d'être du service transverse, bien avant les miniatures.
-///
-/// AUCUN SDK AWS. La signature V4 tient en quarante lignes ; embarquer le SDK
-/// pour trois verbes ajouterait des dizaines de dépendances transitives à un
-/// monolithe qui en compte déjà assez. Le protocole, lui, est figé depuis 2012.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE STOCKAGE OBJET, EN SIGNATURE AWS V4 (cahier des charges §17).</summary>
 internal sealed class S3CompatibleObjectStorage : IObjectStorage
 {
     private const string Algorithme = "AWS4-HMAC-SHA256";
@@ -82,13 +52,7 @@ internal sealed class S3CompatibleObjectStorage : IObjectStorage
         _options = options.Value;
     }
 
-    /// <summary>
-    /// LE BUCKET DÉCOULE DE LA VISIBILITÉ, ET L'APPELANT NE CHOISIT PAS.
-    ///
-    /// C'est la seule garantie structurelle que le §9 soit respecté. Laisser le
-    /// bucket en paramètre, c'est attendre le jour où une CNI part dans celui que
-    /// sert le CDN — et rien n'échouera pour le signaler.
-    /// </summary>
+    /// <summary>LE BUCKET DÉCOULE DE LA VISIBILITÉ, ET L'APPELANT NE CHOISIT PAS.</summary>
     public string BucketFor(MediaVisibility visibility)
         => visibility == MediaVisibility.Public ? _options.PublicBucket : _options.PrivateBucket;
 
@@ -125,10 +89,9 @@ internal sealed class S3CompatibleObjectStorage : IObjectStorage
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            // ON NE LAISSE PAS FUIR L'EXCEPTION. Une panne de stockage est un
-            // cas NORMAL du point de vue métier — l'upload échoue proprement, et
-            // la commande n'écrit aucune métadonnée. Une exception non capturée
-            // remonterait en 500 sans que l'appelant sache s'il peut réessayer.
+            // ON NE LAISSE PAS FUIR L'EXCEPTION. Une panne de stockage est un cas
+            // NORMAL du point de vue métier — l'upload échoue proprement, et la
+            // commande n'écrit aucune métadonnée.
             return Error.Failure("media.storage.unreachable", $"Stockage injoignable : {ex.Message}");
         }
     }
@@ -209,18 +172,7 @@ internal sealed class S3CompatibleObjectStorage : IObjectStorage
         return $"{_options.Endpoint!.TrimEnd('/')}/{bucket}/{objectKey}";
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// URL SIGNÉE DE LECTURE (§10), EN « QUERY STRING » V4.
-    ///
-    /// LA DURÉE EST BORNÉE DES DEUX CÔTÉS.
-    ///
-    /// Trop courte, le document se ferme pendant qu'on le lit ; trop longue, une
-    /// URL collée dans un ticket de support sert encore la semaine suivante. Une
-    /// heure au maximum : au-delà, ce n'est plus une URL temporaire, c'est une
-    /// fuite à retardement.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>URL SIGNÉE DE LECTURE (§10), EN « QUERY STRING » V4.</summary>
     public Result<string> CreateSignedGetUrl(string bucket, string objectKey, int expiresSeconds = 300)
     {
         if (!_options.IsConfigured)
@@ -269,32 +221,12 @@ internal sealed class S3CompatibleObjectStorage : IObjectStorage
 
         var empreinteCorps = Convert.ToHexString(SHA256.HashData(corps)).ToLowerInvariant();
 
-        // ═════════════════════════════════════════════════════════════════════
         // `Authority` ET NON `Host` : LE PORT FAIT PARTIE DE LA SIGNATURE.
-        //
-        // `Uri.Host` rend « minio », `Uri.Authority` rend « minio:9000 ». Or
-        // HttpClient envoie un en-tête `Host: minio:9000` — il n'omet le port que
-        // s'il est celui par défaut du schéma. Signer « host:minio » alors que le
-        // serveur vérifie « host:minio:9000 » produit un condensé différent, et
-        // MinIO répond 403 `SignatureDoesNotMatch`.
-        //
-        // Le défaut était INVISIBLE sur la cible de production : R2 et S3 sont
-        // joints en HTTPS sur le port 443, donc `Host` et `Authority` rendent la
-        // même chaîne. Il n'apparaît que face à un port non standard — c'est-à-dire
-        // exactement MinIO en développement, le seul endroit où l'on pouvait
-        // l'attraper avant la mise en ligne.
-        //
-        // `Authority` est la bonne primitive et pas seulement un correctif :
-        // sa règle d'omission du port par défaut est précisément celle de
-        // l'en-tête `Host`. Concaténer « host + ":" + port » à la main
-        // réintroduirait l'écart dans l'autre sens, en signant « :443 » que
-        // HttpClient n'envoie pas.
-        // ═════════════════════════════════════════════════════════════════════
         var hote = requete.RequestUri!.Authority;
 
-        // `AbsolutePath` EST DÉJÀ PERCENT-ENCODÉ, ce qu'exige la requête
-        // canonique — et les barres obliques y restent littérales, comme SigV4 le
-        // demande pour un chemin (contrairement à la chaîne de requête).
+        // `AbsolutePath` EST DÉJÀ PERCENT-ENCODÉ, ce qu'exige la requête canonique
+        // — et les barres obliques y restent littérales, comme SigV4 le demande
+        // pour un chemin (contrairement à la chaîne de requête).
         var chemin = requete.RequestUri.AbsolutePath;
 
         requete.Headers.TryAddWithoutValidation("x-amz-date", amzDate);

@@ -6,17 +6,9 @@ namespace HBA.Merchants.Contracts;
 /// <param name="ClosesAt">Heure de fermeture, format « HH:mm ».</param>
 public sealed record StoreOpeningHourSummary(string Day, string OpensAt, string ClosesAt);
 
-/// <summary>
-/// Une boutique, telle que la voient son vendeur et l'administration.
-///
-/// PAS D'ADRESSE ICI. Le lieu physique vit dans Inventory
-/// (<c>FulfillmentLocation</c>) et n'est référencé que par son identifiant :
-/// recopier l'adresse créerait deux vérités pour un même lieu, qui divergeraient
-/// au premier déménagement. Les écrans qui ont besoin de l'adresse la demandent à
-/// Inventory à partir de <see cref="FulfillmentLocationId"/>.
-/// </summary>
+/// <summary>Une boutique, telle que la voient son vendeur et l'administration.</summary>
 /// <param name="IsSelling">
-/// <summary>Ses offres sont-elles achetables en ce moment ?</summary>
+/// <summary> Ses offres sont-elles achetables en ce moment ?</summary>
 /// </param>
 public sealed record StoreSummary(
     Guid Id,
@@ -34,22 +26,12 @@ public sealed record StoreSummary(
     IReadOnlyList<StoreOpeningHourSummary> OpeningHours,
     DateTime CreatedOnUtc)
 {
-    /// <summary>
-    /// Projette la vitrine PUBLIQUE d'une boutique.
-    ///
-    /// Ni motif de fermeture — il peut mentionner une sanction — ni identifiant de
-    /// lieu logistique. Tout ajout à ce record est une décision de divulgation.
-    /// </summary>
+    /// <summary>Projette la vitrine PUBLIQUE d'une boutique.</summary>
     public StorePublicSummary ToPublic()
         => new(Id, Name, LogoUrl, Description, ContactPhone, IsSelling, OpeningHours);
 }
 
-/// <summary>
-/// Vitrine PUBLIQUE d'une boutique — ce qu'un visiteur anonyme peut voir.
-///
-/// Le téléphone y figure volontairement : c'est un commerce, et c'est le numéro
-/// de la BOUTIQUE, pas celui du gérant (voir BusinessContact).
-/// </summary>
+/// <summary>Vitrine PUBLIQUE d'une boutique — ce qu'un visiteur anonyme peut voir.</summary>
 public sealed record StorePublicSummary(
     Guid Id,
     string Name,

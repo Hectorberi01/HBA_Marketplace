@@ -19,8 +19,8 @@ internal sealed class GetCategoryQueryHandler : IQueryHandler<GetCategoryQuery, 
 
     public async Task<Result<CategorySummary>> Handle(GetCategoryQuery query, CancellationToken cancellationToken)
     {
-        // Même clé que CatalogModuleApi.GetCategoryAsync : une seule entrée pour les
-        // deux chemins de lecture.
+        // Même clé que CatalogModuleApi.GetCategoryAsync : une seule entrée pour
+        // les deux chemins de lecture.
         var summary = await _cache.GetOrCreateAsync(
             CatalogCacheKeys.Category(query.CategoryId),
             async ct =>

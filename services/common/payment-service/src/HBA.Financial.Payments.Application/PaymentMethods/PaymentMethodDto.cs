@@ -1,9 +1,6 @@
 namespace HBA.Financial.Payments.Application.PaymentMethods;
 
-/// <summary>
-/// Projection client d'un moyen de paiement enregistré. <see cref="Display"/>
-/// est l'affichage masqué prêt à l'emploi (numéro Mobile Money ou « •••• 4242 »).
-/// </summary>
+/// <summary>Projection client d'un moyen de paiement enregistré.</summary>
 public sealed record PaymentMethodDto(
     Guid Id,
     string Type,

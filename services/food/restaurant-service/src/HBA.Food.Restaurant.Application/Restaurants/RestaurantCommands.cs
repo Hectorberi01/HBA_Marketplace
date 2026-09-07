@@ -7,54 +7,27 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Food.Application.Restaurants;
 
-/// <summary>
-/// Candidature d'un restaurateur.
-///
-/// OUVERTE À TOUT COMPTE AUTHENTIFIÉ, et c'est délibéré : s'inscrire est une
-/// CANDIDATURE. Le rôle FoodPartner n'est attribué qu'à la validation du dossier
-/// — sinon chacun se décernerait sa propre habilitation. Même raisonnement que
-/// pour les livreurs.
-/// </summary>
+/// <summary>Candidature d'un restaurateur.</summary>
 public sealed record RegisterRestaurantCommand(Guid OwnerUserId, string Name, string Phone) : ICommand<Guid>;
 
 public sealed record UpdateRestaurantProfileCommand(
     Guid RestaurantId, string Name, string? Description, string Phone) : ICommand;
 
-/// <summary>
-/// Rattache le logo et la couverture (§3), par IDENTIFIANT de média.
-///
-/// SÉPARÉE DU PROFIL, DÉLIBÉRÉMENT. Une image se téléverse d'abord, se
-/// rattache ensuite : les mélanger ferait passer une URL arbitraire là où l'on
-/// attend un média validé, et ferait perdre la photo à chaque changement de nom.
-/// </summary>
+/// <summary>Rattache le logo et la couverture (§3), par IDENTIFIANT de média.</summary>
 public sealed record SetRestaurantMediaCommand(
     Guid RestaurantId, Guid? LogoMediaId, Guid? CoverMediaId) : ICommand;
 
 public sealed record AttachRestaurantLocationCommand(Guid RestaurantId, Guid FulfillmentLocationId) : ICommand;
 
-/// <summary>
-/// Rattache le dossier vendeur qui encaissera les recettes de l'établissement.
-///
-/// L'EXISTENCE ET LA VALIDITÉ DU DOSSIER SONT VÉRIFIÉES PAR L'APPELANT.
-///
-/// Food ne connaît pas Sellers. C'est la route — la couche qui voit les deux —
-/// qui contrôle que le dossier appartient au propriétaire de l'établissement,
-/// qu'il est validé, et qu'il porte un compte de reversement. Sans ce contrôle,
-/// les recettes d'un restaurant partiraient sur le compte d'un tiers.
-/// </summary>
+/// <summary>Rattache le dossier vendeur qui encaissera les recettes de l'établissement.</summary>
 public sealed record AttachRestaurantPayoutSellerCommand(Guid RestaurantId, Guid SellerId) : ICommand;
 
 public sealed record SetPreparationTimeCommand(Guid RestaurantId, int Minutes) : ICommand;
 
-/// <summary>Manuel ou automatique (§3). Le mode voyage en chaîne depuis la route.</summary>
+/// <summary>Manuel ou automatique (§3).</summary>
 public sealed record SetAcceptanceModeCommand(Guid RestaurantId, OrderAcceptanceMode Mode) : ICommand;
 
-/// <summary>
-/// Minimum de commande et plafond de charge (§3, §14).
-///
-/// Les trois curseurs commerciaux de la même page de réglages : les séparer
-/// ferait trois appels pour un seul geste, et l'un des trois serait oublié.
-/// </summary>
+/// <summary>Minimum de commande et plafond de charge (§3, §14).</summary>
 public sealed record SetOrderLimitsCommand(
     Guid RestaurantId, decimal? MinimumOrderAmount, int? MaximumActiveOrders, bool BlockWhenSaturated) : ICommand;
 
@@ -64,24 +37,12 @@ public sealed record ServiceHoursInput(string Day, string OpensAt, string Closes
 public sealed record SetServiceHoursCommand(Guid RestaurantId, IReadOnlyList<ServiceHoursInput> Hours) : ICommand;
 
 /// <summary>Rattache le logo de l'établissement, ou le retire.</summary>
-/// <remarks>
-/// `Restaurant.SetMedia` EXISTAIT SANS AUCUN APPELANT — dixième occurrence de ce
-/// motif dans ce dépôt : une couche applicative écrite, joignable, et que rien
-/// n'atteint. Le sélecteur d'activité affiche donc les restaurants sans logo depuis
-/// le début, et le commentaire de `GetMerchantActivitiesHandler` l'attribuait à une
-/// limite du contrat plutôt qu'à une route manquante.
-///
-/// LE MÉDIA ET SON ADRESSE ENSEMBLE — voir `Restaurant.SetMedia`.
-/// </remarks>
 public sealed record SetRestaurantLogoCommand(
     Guid RestaurantId, Guid? LogoMediaId, string? LogoPublicUrl) : ICommand;
 
 /// <summary>
-/// Une exception d'horaire datée (§4) : « 15 août → fermé », « 31 décembre → 18 h – 23 h ».
-///
-/// <c>IsClosed</c> vrai ignore les heures. Date au format « aaaa-mm-jj », heures
-/// « HH:mm », en heure LOCALE du Bénin — c'est ainsi que le restaurateur les
-/// saisit, et les convertir en UTC décalerait un jour férié d'une heure.
+/// Une exception d'horaire datée (§4) : « 15 août → fermé », « 31 décembre → 18 h –
+/// 23 h ».
 /// </summary>
 public sealed record SetSpecialHoursCommand(
     Guid RestaurantId, string Date, bool IsClosed, string? OpensAt, string? ClosesAt, string? Reason) : ICommand;
@@ -141,10 +102,6 @@ internal sealed class RestaurantCommandHandler
     public async Task<Result<Guid>> Handle(RegisterRestaurantCommand command, CancellationToken cancellationToken)
     {
         // UN SEUL ÉTABLISSEMENT PAR COMPTE.
-        //
-        // L'index unique en base le garantit, mais un doublon y devient une
-        // exception de contrainte — illisible pour l'appelant. On répond ici par
-        // un conflit explicite.
         var existant = await _restaurants.GetByOwnerAsync(command.OwnerUserId, cancellationToken);
         if (existant is not null)
         {
@@ -160,18 +117,7 @@ internal sealed class RestaurantCommandHandler
 
         await _restaurants.AddAsync(restaurant.Value, cancellationToken);
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE FONDATEUR EST CRÉÉ ICI, DANS LA MÊME TRANSACTION.
-        //
-        // Sans cette ligne, l'établissement naîtrait sans personnel — et depuis
-        // que les routes de l'espace restaurateur autorisent sur l'APPARTENANCE
-        // et non plus sur `OwnerUserId`, son propre créateur ne pourrait plus y
-        // entrer. Il aurait déposé une candidature à laquelle il n'a pas accès.
-        //
-        // Même unité de travail, délibérément : un restaurant enregistré dont
-        // l'amorçage du personnel aurait échoué serait exactement cet
-        // établissement inaccessible, et rien ne le signalerait.
-        // ═════════════════════════════════════════════════════════════════════
         await _staff.AddAsync(
             RestaurantStaff.Founder(restaurant.Value.Id.Value, command.OwnerUserId), cancellationToken);
 
@@ -186,13 +132,13 @@ internal sealed class RestaurantCommandHandler
 
     public Task<Result> Handle(AttachRestaurantLocationCommand command, CancellationToken cancellationToken)
         // L'appartenance du lieu au restaurateur est vérifiée par l'appelant, qui
-        // voit Food ET Inventory. Ce module ne connaît pas Inventory.
+        // voit Food ET Inventory.
         => MutateAsync(command.RestaurantId, cancellationToken,
             r => r.AttachFulfillmentLocation(command.FulfillmentLocationId));
 
     public Task<Result> Handle(AttachRestaurantPayoutSellerCommand command, CancellationToken cancellationToken)
-        // La validité du dossier vendeur est vérifiée par l'appelant, qui voit
-        // Food ET Sellers. Ce module ne connaît pas Sellers.
+        // La validité du dossier vendeur est vérifiée par l'appelant, qui voit Food
+        // ET Sellers.
         => MutateAsync(command.RestaurantId, cancellationToken,
             r => r.AttachPayoutSeller(command.SellerId));
 
@@ -213,9 +159,7 @@ internal sealed class RestaurantCommandHandler
     public Task<Result> Handle(SetRestaurantLogoCommand command, CancellationToken cancellationToken)
         => MutateAsync(command.RestaurantId, cancellationToken, r =>
             // LA COUVERTURE EST PRÉSERVÉE, ET C'EST UN PIÈGE DE `SetMedia` : elle
-            // prend les DEUX médias et écrase celui qu'on ne lui passe pas. Envoyer
-            // `null` ici effacerait la photo de couverture à chaque changement de
-            // logo, sans que rien ne le signale.
+            // prend les DEUX médias et écrase celui qu'on ne lui passe pas.
             r.SetMedia(command.LogoMediaId, r.CoverMediaId, command.LogoPublicUrl));
 
     public Task<Result> Handle(SetServiceHoursCommand command, CancellationToken cancellationToken)
@@ -264,12 +208,6 @@ internal sealed class RestaurantCommandHandler
             }
 
             // LE MÉNAGE DES EXCEPTIONS PASSÉES SE FAIT ICI.
-            //
-            // Un jour férié par an et par restaurant, conservé pour toujours,
-            // finirait par peser — et les horaires du 15 août 2024 n'expliquent
-            // plus rien. Le faire à l'écriture plutôt que par une tâche de fond :
-            // le volume est minuscule, et une tâche de fond de plus serait une
-            // tâche de fond à surveiller.
             r.PurgePastSpecialHours(DateTime.UtcNow);
 
             if (command.IsClosed)
@@ -325,21 +263,7 @@ internal sealed class RestaurantCommandHandler
     public Task<Result> Handle(LiftRestaurantSuspensionCommand command, CancellationToken cancellationToken)
         => MutateAsync(command.RestaurantId, cancellationToken, r => r.LiftSuspension());
 
-    /// <summary>
-    /// Charge, applique, enregistre.
-    ///
-    /// AUCUN CONTRÔLE DE PROPRIÉTÉ ICI, ET C'EST UN CHOIX À CONNAÎTRE.
-    ///
-    /// Ces commandes sont appelées soit par le restaurateur lui-même — l'appelant
-    /// ayant alors résolu l'établissement DEPUIS SON JETON, donc sans identifiant
-    /// falsifiable —, soit par l'exploitation, qui agit légitimement sur
-    /// l'établissement d'autrui. Ajouter un OwnerId ici forcerait l'admin à en
-    /// fabriquer un.
-    ///
-    /// La conséquence : une route qui accepterait un RestaurantId venu du client
-    /// SANS le résoudre depuis le jeton ouvrirait un IDOR. C'est la règle que le
-    /// BFF doit tenir.
-    /// </summary>
+    /// <summary>Charge, applique, enregistre.</summary>
     private async Task<Result> MutateAsync(
         Guid restaurantId, CancellationToken cancellationToken, Func<Restaurant, Result> action)
     {

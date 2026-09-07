@@ -11,10 +11,7 @@ using HBA.Identity.Infrastructure.Security;
 
 namespace HBA.Identity.Infrastructure.Public;
 
-/// <summary>
-/// Implémentation in-process de l'API publique du module Identity. Lecture seule,
-/// projetée vers le DTO de Contracts. Les autres modules ne voient que ça.
-/// </summary>
+/// <summary>Implémentation in-process de l'API publique du module Identity.</summary>
 internal sealed class IdentityModuleApi : IIdentityModuleApi
 {
     private readonly IdentityDbContext _dbContext;
@@ -54,23 +51,7 @@ internal sealed class IdentityModuleApi : IIdentityModuleApi
         return user is null ? null : Map(user);
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// VALIDATION D'UN JETON D'ACCÈS — DEUX CONTRÔLES, PAS UN.
-    ///
-    /// 1. La SIGNATURE et les dates, comme le ferait n'importe quel service.
-    /// 2. Le SECURITY STAMP, que seul identity-service peut vérifier.
-    ///
-    /// Le second est la raison d'être de ce RPC. Le jeton porte le `security_stamp`
-    /// du compte au moment de son émission ; le compte fait tourner ce tampon à
-    /// chaque événement qui doit invalider les sessions — suspension, changement de
-    /// mot de passe, révocation explicite. Comparer les deux permet de refuser un
-    /// jeton cryptographiquement valide mais métier-mort.
-    ///
-    /// Sans ce contrôle, un compte suspendu conserve un accès complet pendant toute
-    /// la durée de vie de son jeton. Quinze minutes suffisent à vider un wallet.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>VALIDATION D'UN JETON D'ACCÈS — DEUX CONTRÔLES, PAS UN.</summary>
     public async Task<AccessTokenValidation> ValidateAccessTokenAsync(
         string accessToken, CancellationToken cancellationToken = default)
     {
@@ -87,10 +68,6 @@ internal sealed class IdentityModuleApi : IIdentityModuleApi
             ValidateLifetime = true,
 
             // Zéro tolérance d'horloge, contrairement aux cinq minutes par défaut.
-            //
-            // La valeur par défaut de la bibliothèque accepte un jeton expiré depuis
-            // cinq minutes. Sur un contrôle destiné aux paiements et aux retraits,
-            // c'est cinq minutes de sursis offertes à un jeton volé.
             ClockSkew = TimeSpan.Zero
         };
 
@@ -107,17 +84,11 @@ internal sealed class IdentityModuleApi : IIdentityModuleApi
         catch (Exception)
         {
             // Signature fausse, jeton illisible, algorithme inattendu : tout se
-            // ramène à « ce jeton n'est pas de nous ». Détailler la cause au client
-            // aiderait surtout celui qui essaie de forger.
+            // ramène à « ce jeton n'est pas de nous ».
             return Rejected(TokenRejectionReasons.SignatureInvalid);
         }
 
         // `FindFirst(...)?.Value` et non l'extension de confort d'ASP.NET Core.
-        //
-        // Celle-ci n'existe que dans les projets qui référencent Microsoft.AspNetCore.App.
-        // Ce projet est une bibliothèque de persistance : lui ajouter tout le framework
-        // web pour une méthode de confort serait un mauvais échange. Le BCL fait la
-        // même chose en un caractère de plus.
         var subject = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
                       ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -147,7 +118,7 @@ internal sealed class IdentityModuleApi : IIdentityModuleApi
         if (!string.Equals(stamp, user.SecurityStamp.ToString(), StringComparison.OrdinalIgnoreCase))
         {
             // Le tampon a tourné depuis l'émission : mot de passe changé, sessions
-            // révoquées, compte réactivé. Le jeton est valide et périmé à la fois.
+            // révoquées, compte réactivé.
             return Rejected(TokenRejectionReasons.UserSuspended);
         }
 
@@ -172,13 +143,6 @@ internal sealed class IdentityModuleApi : IIdentityModuleApi
     /// <summary>
     /// Révoque toutes les sessions : les jetons de rafraîchissement sont marqués
     /// révoqués ET le tampon de sécurité tourne.
-    ///
-    /// LES DEUX SONT NÉCESSAIRES, ET POUR DES RAISONS DIFFÉRENTES.
-    ///
-    /// Révoquer les jetons de rafraîchissement empêche d'obtenir un NOUVEAU jeton
-    /// d'accès. Faire tourner le tampon invalide ceux DÉJÀ ÉMIS. N'en faire qu'un
-    /// laisse une porte ouverte : sans rotation, l'attaquant garde son accès
-    /// jusqu'à expiration ; sans révocation, il le renouvelle indéfiniment.
     /// </summary>
     public async Task<int> RevokeUserSessionsAsync(
         Guid userId, CancellationToken cancellationToken = default)

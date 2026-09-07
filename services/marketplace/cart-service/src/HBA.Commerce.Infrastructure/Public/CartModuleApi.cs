@@ -4,10 +4,7 @@ using HBA.Commerce.Contracts;
 
 namespace HBA.Commerce.Infrastructure.Public;
 
-/// <summary>
-/// Implémentation in-process de l'API publique du module Cart. Délègue aux
-/// requêtes de l'Application (valorisation via Pricing) ; renvoie null si absent.
-/// </summary>
+/// <summary>Implémentation in-process de l'API publique du module Cart.</summary>
 internal sealed class CartModuleApi : ICartModuleApi
 {
     private readonly ISender _sender;

@@ -25,9 +25,8 @@ public sealed record SettlementBatchSummary(
 
 /// <summary>Relevé d'un vendeur sur une période (ventes, commissions, net).</summary>
 /// <param name="ProviderFees">
-/// AJOUTÉ APRÈS COUP. `GrossSales - Commissions` ne donne PAS `NetPayout` : il
-/// faut aussi retirer les frais du prestataire de paiement. Sans ce champ, le
-/// résumé ne s'équilibrait pas et rien ne permettait de savoir pourquoi.
+/// AJOUTÉ APRÈS COUP. `GrossSales - Commissions` ne donne PAS `NetPayout` : il faut
+/// aussi retirer les frais du prestataire de paiement.
 /// </param>
 public sealed record SellerStatementSummary(
     Guid SellerId,

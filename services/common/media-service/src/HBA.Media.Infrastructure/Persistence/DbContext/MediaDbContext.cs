@@ -12,27 +12,10 @@ using HBA.Media.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Media.Infrastructure.Persistence;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE SCHÉMA DU SERVICE MÉDIA.
-///
-/// UNE SEULE RACINE, ET AUCUNE CLÉ ÉTRANGÈRE VERS UN AUTRE MODULE.
-///
-/// C'est le §18 : « PostgreSQL contient uniquement les métadonnées et états. Les
-/// fichiers restent dans le stockage objet. » Et le §1 : aucune jointure avec
-/// Product, Food ou Seller. Le couple (OwnerType, OwnerId) suffit à dire à quoi
-/// un fichier se rattache — c'est ce qui rendra l'extraction possible.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE SCHÉMA DU SERVICE MÉDIA.</summary>
 public sealed class MediaDbContext : ModuleDbContext, IOutboxDbContext, IMediaUnitOfWork
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // L'OUTBOX ET L'INBOX DE CE SERVICE — LEURS TABLES LUI APPARTIENNENT.
-    //
-    // Le socle draine la file d'evenements et exclut ces deux tables du journal
-    // d'audit ; il ne connait plus ni l'une ni l'autre. Ces trois membres sont ce
-    // qu'il appelle, et ils repondent avec les entites de `Persistence/`.
-    // ═════════════════════════════════════════════════════════════════════════
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
@@ -64,13 +47,7 @@ public sealed class MediaDbContext : ModuleDbContext, IOutboxDbContext, IMediaUn
 
     public DbSet<MediaAsset> Assets => Set<MediaAsset>();
 
-    /// <summary>
-    /// Traces de consommation Kafka (§19.5).
-    ///
-    /// ELLE NE ROMPT PAS LA RÈGLE D'AU-DESSUS. Elle ne référence aucun autre
-    /// module : elle ne retient qu'un identifiant d'événement et un nom de
-    /// consommateur, exactement comme l'outbox ne retient qu'un type et un corps.
-    /// </summary>
+    /// <summary>Traces de consommation Kafka (§19.5).</summary>
     public DbSet<ConsumerInboxEntry> ConsumerInbox => Set<ConsumerInboxEntry>();
 
     protected override string Schema => SchemaName;
@@ -79,8 +56,7 @@ public sealed class MediaDbContext : ModuleDbContext, IOutboxDbContext, IMediaUn
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(MediaDbContext).Assembly);
         // Configuration du socle : elle vit dans un autre assembly, le balayage
-        // ci-dessus ne la trouve pas. Sans elle, `consumer_inbox` n'existe pas dans
-        // le modèle et `EfConsumerInbox` lèverait au premier message.
+        // ci-dessus ne la trouve pas.
         modelBuilder.ApplyConfiguration(new ConsumerInboxConfiguration());
 
         base.OnModelCreating(modelBuilder);
@@ -125,10 +101,6 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
         builder.Property(a => a.FailureReason).HasMaxLength(500);
 
         // UNE CLÉ D'OBJET NE DÉSIGNE QU'UN MÉDIA.
-        //
-        // Deux lignes pointant le même objet, et supprimer l'une effacerait les
-        // octets de l'autre. La clé est construite à partir du MediaId, donc unique
-        // par construction — l'index le garantit plutôt que de l'espérer.
         builder.HasIndex(a => a.ObjectKey)
             .IsUnique()
             .HasDatabaseName("ux_media_assets_object_key");
@@ -137,15 +109,13 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
         // galerie produit ou les photos d'un restaurant.
         builder.HasIndex(a => new { a.OwnerType, a.OwnerId });
 
-        // INDEX DE L'IDEMPOTENCE. Sans lui, chaque upload parcourt tous les
-        // médias du propriétaire pour chercher une empreinte — sur une galerie de
-        // cent images, à chaque envoi.
+        // INDEX DE L'IDEMPOTENCE. Sans lui, chaque upload parcourt tous les médias
+        // du propriétaire pour chercher une empreinte — sur une galerie de cent
+        // images, à chaque envoi.
         builder.HasIndex(a => new { a.OwnerType, a.OwnerId, a.Checksum })
             .HasDatabaseName("ix_media_assets_checksum");
 
-        // Le ménage de rétention balaie les supprimés par date. Index PARTIEL : la
-        // très grande majorité des lignes n'est pas supprimée, et les indexer
-        // toutes coûterait pour un balayage quotidien.
+        // Le ménage de rétention balaie les supprimés par date.
         builder.HasIndex(a => a.DeletedOnUtc)
             .HasFilter("\"DeletedOnUtc\" IS NOT NULL")
             .HasDatabaseName("ix_media_assets_deleted");
@@ -168,8 +138,7 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
 
         // CHAQUE COLLECTION POSSÉDÉE EXIGE DEUX GESTES : OwnsMany sur le CHAMP
         // PRIVÉ, et Ignore sur la propriété de LECTURE. Sans le second, EF refuse
-        // de construire le modèle — au scaffold, pas à la compilation. Food s'y est
-        // fait prendre sur `SpecialHours`.
+        // de construire le modèle — au scaffold, pas à la compilation.
         builder.Ignore(a => a.DomainEvents);
         builder.Ignore(a => a.Variants);
 
@@ -211,8 +180,7 @@ internal sealed class MediaAssetRepository : IMediaAssetRepository
     public MediaAssetRepository(MediaDbContext dbContext) => _dbContext = dbContext;
 
     // Les variantes sont un type « owned » : EF les charge avec la racine, sans
-    // Include. C'est ce qu'on veut — une purge qui ne verrait pas les variantes
-    // laisserait leurs octets derrière elle.
+    // Include.
     public async Task<MediaAsset?> GetByIdAsync(MediaAssetId id, CancellationToken cancellationToken = default)
         => await _dbContext.Assets.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
@@ -231,15 +199,7 @@ internal sealed class MediaAssetRepository : IMediaAssetRepository
                 a => a.OwnerType == ownerType && a.OwnerId == ownerId && a.Checksum == checksum,
                 cancellationToken);
 
-    /// <summary>
-    /// LE FILTRE DE RÉTENTION SE FAIT EN MÉMOIRE, ET C'EST ASSUMÉ.
-    ///
-    /// Le délai dépend de la NATURE du fichier — trente jours pour une photo, dix
-    /// ans pour une facture. L'exprimer en SQL demanderait un CASE par type,
-    /// recopié en base et divergeant de <c>MediaTypePolicy</c> au premier
-    /// changement. On présélectionne les supprimés par la date la plus permissive,
-    /// puis l'agrégat tranche — une seule source pour la règle.
-    /// </summary>
+    /// <summary>LE FILTRE DE RÉTENTION SE FAIT EN MÉMOIRE, ET C'EST ASSUMÉ.</summary>
     public async Task<IReadOnlyList<MediaAsset>> ListPurgeableAsync(
         DateTime nowUtc, int take, CancellationToken cancellationToken = default)
     {

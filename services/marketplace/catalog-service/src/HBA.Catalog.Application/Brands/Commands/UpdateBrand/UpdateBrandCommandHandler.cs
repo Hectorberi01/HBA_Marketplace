@@ -7,7 +7,10 @@ using HBA.Catalog.Domain.Products;
 
 namespace HBA.Catalog.Application.Brands.Commands.UpdateBrand;
 
-/// <summary>Charge la marque, vérifie l'unicité du slug si le nom change, met à jour puis persiste.</summary>
+/// <summary>
+/// Charge la marque, vérifie l'unicité du slug si le nom change, met à jour puis
+/// persiste.
+/// </summary>
 internal sealed class UpdateBrandCommandHandler : ICommandHandler<UpdateBrandCommand>
 {
     private readonly IBrandRepository _brandRepository;

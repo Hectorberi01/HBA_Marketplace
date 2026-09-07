@@ -4,19 +4,8 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Food.Domain.Menus;
 
 /// <summary>
-/// Un choix proposé sur un article : « Petite / Moyenne / Grande », « Piment »,
-/// « Accompagnement ».
-///
-/// LE PRIX EST UN ÉCART, PAS UN MONTANT.
-///
-/// « Grande » ne coûte pas 2 500 F : elle coûte 500 F DE PLUS que le prix de
-/// base. Stocker un montant absolu obligerait à réécrire chaque option à chaque
-/// changement de prix du plat — et la première option oubliée ferait payer un
-/// supplément au prix d'il y a six mois.
-///
-/// L'écart peut être NÉGATIF : « sans viande, −300 F » est une remise légitime.
-/// Le contrôle qui compte est ailleurs — voir MenuItem.PriceSelection, qui refuse
-/// qu'un total tombe sous zéro.
+/// Un choix proposé sur un article : « Petite / Moyenne / Grande », « Piment », «
+/// Accompagnement ».
 /// </summary>
 public sealed class MenuOption : Entity<Guid>
 {
@@ -34,16 +23,10 @@ public sealed class MenuOption : Entity<Guid>
 
     public string Name { get; private set; } = default!;
 
-    /// <summary>Écart appliqué au prix de base, en francs. Peut être négatif.</summary>
+    /// <summary>Écart appliqué au prix de base, en francs.</summary>
     public decimal PriceDelta { get; private set; }
 
-    /// <summary>
-    /// Disponibilité de l'option — plus de poulet, plus de fromage.
-    ///
-    /// DATÉE, PAS BOOLÉENNE. « Plus de fromage aujourd'hui » revient au service
-    /// suivant ; sans échéance, le supplément resterait absent des semaines parce
-    /// que personne ne pense à recocher une case. Voir ItemAvailability.
-    /// </summary>
+    /// <summary>Disponibilité de l'option — plus de poulet, plus de fromage.</summary>
     public ItemAvailability Availability { get; private set; } = ItemAvailability.Available();
 
     internal void Rename(string name, decimal priceDelta)
@@ -55,23 +38,7 @@ public sealed class MenuOption : Entity<Guid>
     internal void SetAvailability(ItemAvailability availability) => Availability = availability;
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UN GROUPE D'OPTIONS, ET SES RÈGLES DE SÉLECTION.
-///
-/// C'est ici que se joue la différence entre « choisissez une taille »
-/// (obligatoire, exactement une) et « suppléments » (facultatif, autant qu'on
-/// veut). Deux nombres suffisent à exprimer les deux, et tous les cas
-/// intermédiaires : « choisissez 2 accompagnements parmi 5 ».
-///
-/// CES RÈGLES DÉCIDENT DE CE QUI PART EN CUISINE.
-///
-/// Un groupe « taille » qui accepterait zéro choix laisserait une commande sans
-/// taille : le cuisinier devrait deviner, et il devinera mal une fois sur trois.
-/// Un groupe « sauce » qui accepterait trois choix ferait préparer un plat que le
-/// client n'a pas voulu — et qu'il renverra.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UN GROUPE D'OPTIONS, ET SES RÈGLES DE SÉLECTION.</summary>
 public sealed class OptionGroup : Entity<Guid>
 {
     private readonly List<MenuOption> _options = new();
@@ -91,13 +58,7 @@ public sealed class OptionGroup : Entity<Guid>
 
     public string Name { get; private set; } = default!;
 
-    /// <summary>
-    /// Nombre minimum de choix. Zéro = groupe facultatif.
-    ///
-    /// C'est ce nombre, et lui seul, qui rend un groupe obligatoire : un booléen
-    /// « IsRequired » séparé aurait pu contredire le minimum, et il aurait fallu
-    /// décider lequel des deux ment.
-    /// </summary>
+    /// <summary>Nombre minimum de choix. Zéro = groupe facultatif.</summary>
     public int MinSelections { get; private set; }
 
     /// <summary>Nombre maximum de choix.</summary>
@@ -177,16 +138,7 @@ public sealed class OptionGroup : Entity<Guid>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Ce groupe peut-il être satisfait aujourd'hui ?
-    ///
-    /// UN GROUPE OBLIGATOIRE DONT LES OPTIONS SONT TOUTES ÉPUISÉES REND
-    /// L'ARTICLE INCOMMANDABLE.
-    ///
-    /// Sans ce contrôle, un plat resterait affiché « disponible » alors qu'aucune
-    /// taille n'est servable : le client choisirait, verrait son panier refusé, et
-    /// ne comprendrait pas — l'écran lui disait que le plat était là.
-    /// </summary>
+    /// <summary>Ce groupe peut-il être satisfait aujourd'hui ?</summary>
     internal bool CanBeSatisfiedAt(DateTime nowUtc)
         => !IsRequired || _options.Count(o => o.Availability.IsAvailableAt(nowUtc)) >= MinSelections;
 }

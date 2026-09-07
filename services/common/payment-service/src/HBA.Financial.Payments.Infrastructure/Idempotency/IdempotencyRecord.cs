@@ -5,41 +5,12 @@ using HBA.Financial.Payments.Infrastructure.Persistence.Outbox;
 using HBA.Financial.Payments.Infrastructure.Persistence.Inbox;
 using HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Processors;
-// ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Idempotency`.
-//
-// La table `idempotency_records` de CE service est creee par SES migrations :
-// l'entite qui la decrit lui appartient. Le socle n'en garde que le port,
-// `IIdempotencyStore`, que `IdempotencyEndpointFilter` resout sur chaque route
-// annotee `AllowIdempotency()`.
-//
-// A REGENERER : l'instantane de modele de ce service reference encore le type du
-// socle sous forme de chaine. Il compile et les migrations s'appliquent — mais
-// modele et instantane divergent jusqu'a un `dotnet ef migrations add`, au diff
-// de schema vide.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Financial.Payments.Infrastructure.Idempotency;
 
 /// <summary>
-/// Résultat mémorisé d'une requête portant un en-tête <c>Idempotency-Key</c> (§5).
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUE CETTE TABLE EMPÊCHE, CONCRÈTEMENT.
-///
-/// Un client mobile poste `/api/v1/food/orders/checkout`, le réseau tombe pendant
-/// la réponse, l'application réessaie. Sans mémorisation, la seconde requête crée
-/// une SECONDE commande et un SECOND paiement. Le client est débité deux fois pour
-/// un repas, et aucune trace ne dit que c'était la même intention.
-///
-/// La clé est (clé d'idempotence, utilisateur, endpoint) et non la clé seule :
-/// deux utilisateurs peuvent légitimement générer la même clé, et une même clé
-/// rejouée sur un AUTRE endpoint est une erreur du client, pas une reprise.
-///
-/// L'empreinte de la requête est conservée pour détecter le cas vicieux : même clé,
-/// corps différent. Ce n'est pas une reprise, c'est une collision — elle doit
-/// rendre 409 CONFLICT, jamais la réponse mémorisée d'une autre requête.
-/// ═════════════════════════════════════════════════════════════════════════════
+/// Résultat mémorisé d'une requête portant un en-tête <c> Idempotency-Key</c> (§5).
 /// </summary>
 public sealed class IdempotencyRecord : IEnregistrementDIdempotence
 {
@@ -61,11 +32,7 @@ public sealed class IdempotencyRecord : IEnregistrementDIdempotence
     /// <summary>Corps de réponse mémorisé, rejoué tel quel aux tentatives suivantes.</summary>
     public string? ResponseBody { get; set; }
 
-    /// <summary>
-    /// Null tant que la première exécution est en cours. Une seconde requête qui
-    /// trouve une ligne non terminée ne doit ni attendre ni exécuter : elle rend
-    /// 409, parce que la première n'a pas encore de réponse à rejouer.
-    /// </summary>
+    /// <summary>Null tant que la première exécution est en cours.</summary>
     public DateTime? CompletedAtUtc { get; set; }
 
     public DateTime CreatedAtUtc { get; init; } = DateTime.UtcNow;

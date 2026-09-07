@@ -4,32 +4,10 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Deliveries.Domain.Deliveries;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA PREUVE DE REMISE — TROIS VALEURS QUI NE PROUVAIENT RIEN.
-///
-/// <c>ProofOfDeliveryKind</c> proposait Pin, Photo et Signature. Derrière, un seul
-/// <c>string? ProofValue</c> que le domaine se contentait de nettoyer. Concrètement :
-///
-///   • PIN : aucun code n'était jamais ÉMIS, et aucun n'était COMPARÉ. Le livreur
-///     tapait « 1 » et la course exigeant un code se fermait ;
-///   • PHOTO et SIGNATURE : rien n'était téléversé ni conservé. La « preuve » était
-///     le texte que le livreur voulait bien écrire.
-///
-/// Les trois donnaient donc exactement la même garantie — aucune — tout en
-/// affichant au client qu'une remise était vérifiée. C'est pire qu'une absence de
-/// preuve : c'est une absence de preuve qui se présente comme une preuve.
-///
-/// CE QUE CE TYPE CHANGE
-///
-/// La valeur attendue dépend maintenant du genre, et chaque genre est vérifiable :
-/// un PIN est comparé à un code émis à la création ; une photo ou une signature est
-/// une RÉFÉRENCE DE STOCKAGE, produite par un téléversement, pas une chaîne libre.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA PREUVE DE REMISE — TROIS VALEURS QUI NE PROUVAIENT RIEN.</summary>
 public sealed class ProofOfDelivery : ValueObject
 {
-    /// <summary>Longueur du code remis au destinataire. Quatre chiffres : ce qu'on retient sans le noter.</summary>
+    /// <summary>Longueur du code remis au destinataire.</summary>
     public const int PinLength = 4;
 
     private ProofOfDelivery(ProofOfDeliveryKind kind, string value, DateTime capturedAtUtc)
@@ -47,26 +25,12 @@ public sealed class ProofOfDelivery : ValueObject
 
     public ProofOfDeliveryKind Kind { get; private init; }
 
-    /// <summary>
-    /// Le code saisi, ou la référence du fichier téléversé. Jamais du texte libre.
-    /// </summary>
+    /// <summary>Le code saisi, ou la référence du fichier téléversé.</summary>
     public string Value { get; private init; }
 
     public DateTime CapturedAtUtc { get; private init; }
 
-    /// <summary>
-    /// Émet un code à quatre chiffres.
-    ///
-    /// <see cref="RandomNumberGenerator"/> et non <see cref="Random"/>. Un PIN
-    /// prévisible ne vaut pas mieux que pas de PIN : avec <c>Random</c>, deux courses
-    /// créées dans la même milliseconde partageraient leur code, et la suite entière
-    /// se rejoue à partir d'une seule valeur observée.
-    ///
-    /// Quatre chiffres, c'est dix mille possibilités — faible en absolu, mais le
-    /// code est à usage unique, il expire avec la course, et le livreur n'a qu'une
-    /// poignée de tentatives avant que le client n'appelle le support. La menace
-    /// n'est pas la force brute, c'est la prévisibilité.
-    /// </summary>
+    /// <summary>Émet un code à quatre chiffres.</summary>
     public static string IssuePin()
         => RandomNumberGenerator.GetInt32(0, 10_000).ToString("D" + PinLength);
 
@@ -110,9 +74,7 @@ public sealed class ProofOfDelivery : ValueObject
         if (string.IsNullOrWhiteSpace(expectedPin))
         {
             // La course exige un PIN mais aucun n'a été émis : c'est un défaut de
-            // création, pas une erreur du livreur. On refuse plutôt que d'accepter
-            // n'importe quoi — accepter reviendrait à revenir au comportement
-            // qu'on est en train de corriger.
+            // création, pas une erreur du livreur.
             return Result.Failure<ProofOfDelivery>(
                 Error.Conflict("delivery.proof.pin_not_issued",
                     "Aucun code n'a été émis pour cette course : contactez le support."));
@@ -137,9 +99,7 @@ public sealed class ProofOfDelivery : ValueObject
 
     /// <summary>
     /// Photo et signature : la valeur doit être une RÉFÉRENCE DE STOCKAGE, pas du
-    /// texte. On ne peut pas vérifier ici que le fichier existe — le domaine ne
-    /// connaît pas le stockage — mais on peut refuser tout ce qui n'en a pas la
-    /// forme, ce qui écarte le cas qui nous occupe : le livreur qui tape « ok ».
+    /// texte.
     /// </summary>
     private static Result<ProofOfDelivery> CaptureFile(ProofOfDeliveryKind kind, string reference, DateTime atUtc)
     {

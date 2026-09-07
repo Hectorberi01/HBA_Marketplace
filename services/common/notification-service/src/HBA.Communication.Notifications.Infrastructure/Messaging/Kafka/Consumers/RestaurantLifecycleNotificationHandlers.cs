@@ -1,41 +1,13 @@
 using HBA.Food.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Communication.Notifications.Application.Notifications;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUE HBA DÉCIDE DU DOSSIER D'UN RESTAURATEUR, IL DOIT L'APPRENDRE.
-///
-/// AUCUNE DE CES TROIS NOTIFICATIONS N'EXISTAIT.
-///
-/// Le module Food levait ses événements de domaine, correctement, et rien ne les
-/// publiait vers l'extérieur : refus de dossier, suspension, levée de suspension
-/// n'atteignaient personne. Le restaurateur voyait un statut changer sur son
-/// écran, sans motif, et sans savoir quoi corriger.
-///
-/// C'est le défaut exact relevé côté vendeurs (S5) et corrigé là-bas — reproduit
-/// ici en construisant Food sur la forme de ce qui venait d'être réparé, sans en
-/// reprendre les corrections.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>CE QUE HBA DÉCIDE DU DOSSIER D'UN RESTAURATEUR, IL DOIT L'APPRENDRE.</summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.RestaurantApprovedNotificationHandler")]
 public sealed class RestaurantApprovedNotificationHandler
     : IIntegrationEventHandler<RestaurantApprovedIntegrationEvent>
@@ -56,12 +28,7 @@ public sealed class RestaurantApprovedNotificationHandler
             alsoEmail: true);
 }
 
-/// <summary>
-/// Prévient le restaurateur que son dossier est REFUSÉ, et lui dit POURQUOI.
-///
-/// SANS LE MOTIF, LE REFUS EST UNE IMPASSE : il redépose le même dossier, la
-/// modération le refuse à nouveau, et les deux s'épuisent.
-/// </summary>
+/// <summary>Prévient le restaurateur que son dossier est REFUSÉ, et lui dit POURQUOI.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.RestaurantRejectedNotificationHandler")]
 public sealed class RestaurantRejectedNotificationHandler
     : IIntegrationEventHandler<RestaurantRejectedIntegrationEvent>
@@ -85,14 +52,7 @@ public sealed class RestaurantRejectedNotificationHandler
             alsoEmail: true);
 }
 
-/// <summary>
-/// Prévient le restaurateur que son établissement a été SUSPENDU.
-///
-/// Une suspension le retire de la vitrine : la découvrir par la chute de ses
-/// commandes lui ferait perdre des jours à chercher une panne qui n'existe pas.
-/// Doublée par e-mail — il n'ouvrira pas forcément l'application ce jour-là, et
-/// c'est justement le jour où il doit savoir.
-/// </summary>
+/// <summary>Prévient le restaurateur que son établissement a été SUSPENDU.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.RestaurantSuspendedNotificationHandler")]
 public sealed class RestaurantSuspendedNotificationHandler
     : IIntegrationEventHandler<RestaurantSuspendedIntegrationEvent>

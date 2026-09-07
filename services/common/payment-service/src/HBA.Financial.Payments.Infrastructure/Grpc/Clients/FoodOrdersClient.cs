@@ -12,24 +12,8 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using ContratsFoodOrders = HBA.FoodOrders.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
-// COPIE DEPUIS `HBA.FoodOrders.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
-//
-// `shared/` ne contient plus que les `.proto`. Ce service compile lui-meme le
-// contrat dont il a besoin, et porte donc sa propre traduction.
-//
-// LES TYPES GENERES SONT `internal` A CET ASSEMBLAGE. Deux services qui
-// compilent le meme proto obtiennent deux types CLR distincts ; les rendre
-// publics ferait, dans un hote compose, deux types publics du meme nom complet —
-// CS0433, a l'usage, loin de la cause. Les adaptateurs et mappings sont donc
-// `internal` eux aussi : un type public dont la signature expose un type interne
-// ne compile pas.
-//
-// CE QUE ÇA COUTE : cette traduction existe en 5 exemplaires dans le depot,
-// un par service qui appelle ce domaine. Elles sont identiques aujourd'hui et
-// rien n'empeche qu'elles divergent. C'est le prix de l'autonomie par service,
-// paye ici en connaissance de cause.
-// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.FoodOrders.Contracts.Grpc` (lot D — dissolution des assemblages
+// de contrats).
 
 namespace HBA.Financial.Payments.Infrastructure.Grpc.Clients;
 
@@ -85,16 +69,8 @@ internal sealed class FoodOrderGrpcClient : ContratsFoodOrders.IMealOrderModuleA
     }
 
     /// <summary>
-    /// Reconstitue l'adresse de remise, ou <c>null</c> si le message n'en porte
+    /// Reconstitue l'adresse de remise, ou <c> null</c> si le message n'en porte
     /// aucune.
-    ///
-    /// LE CRITÈRE EST LE REPÈRE, PAS LA CHAÎNE VIDE DE CHAQUE CHAMP.
-    ///
-    /// Le protobuf ne distingue pas « champ absent » de « chaîne vide » : les huit
-    /// champs sont vides aussi bien pour un producteur d'avant ce lot que pour une
-    /// commande sans adresse. On retient le repère parce qu'il est OBLIGATOIRE
-    /// côté domaine (`food_ordering.shipping_address_required`) : s'il est vide,
-    /// il n'y a rien d'exploitable, quoi que portent les autres champs.
     /// </summary>
     private static ContratsFoodOrders.MealOrderShippingAddressSummary? LireAdresse(Proto.MealOrderView o)
         => string.IsNullOrEmpty(o.ShipToLandmark)
@@ -109,14 +85,7 @@ internal sealed class FoodOrderGrpcClient : ContratsFoodOrders.IMealOrderModuleA
                 Latitude: ParseNullableDouble(o.ShipToLatitude),
                 Longitude: ParseNullableDouble(o.ShipToLongitude));
 
-    /// <summary>
-    /// Une coordonnée, ou <c>null</c>.
-    ///
-    /// NE JAMAIS RETOMBER SUR ZÉRO. `ParseDecimal`, plus bas, le fait pour les
-    /// montants — « zéro franc » y est un montant plausible. Ici, 0/0 est un point
-    /// réel du golfe de Guinée, à cinq cents kilomètres des côtes du Bénin : y
-    /// envoyer un livreur serait pire que de refuser la course.
-    /// </summary>
+    /// <summary>Une coordonnée, ou <c>null</c>.</summary>
     private static double? ParseNullableDouble(string? value)
         => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var valeur)
             ? valeur
@@ -135,20 +104,7 @@ internal sealed class FoodOrderGrpcClient : ContratsFoodOrders.IMealOrderModuleA
     private static Guid ParseGuid(string? value)
         => Guid.TryParse(value, out var id) ? id : Guid.Empty;
 
-    /// <summary>
-    /// Un montant venu du fil.
-    /// </summary>
-    /// <remarks>
-    /// REFUSAIT DE RENDRE ZÉRO — voir <see cref="MontantSurLeFil"/>. Cette
-    /// fonction s'écrivait « TryParse(…) ? valeur : 0m », comme six autres du
-    /// dépôt : un champ non posé par l'émetteur — donc la chaîne VIDE, il n'y a
-    /// pas de « non renseigné » pour un `string` protobuf 3 — se lisait « zéro
-    /// franc ».
-    ///
-    /// `champ` EST REMPLI PAR LE COMPILATEUR, pas à la main. Il reçoit le TEXTE
-    /// de l'expression passée — « order.AlreadyRefundedAmount » — donc un nom plus
-    /// précis qu'aucun littéral recopié, et qui suit les renommages tout seul.
-    /// </remarks>
+    /// <summary>Un montant venu du fil.</summary>
     private static decimal ParseDecimal(
         string? value, [CallerArgumentExpression(nameof(value))] string champ = "")
         => MontantSurLeFil.Lire(value, champ);

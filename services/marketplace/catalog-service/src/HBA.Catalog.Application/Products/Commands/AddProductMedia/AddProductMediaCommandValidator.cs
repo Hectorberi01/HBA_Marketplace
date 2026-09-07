@@ -14,9 +14,7 @@ public sealed class AddProductMediaCommandValidator : AbstractValidator<AddProdu
         RuleFor(c => c.MediaId).NotEmpty();
 
         // La règle sur `Url` a disparu avec le champ : l'adresse n'est plus fournie
-        // par l'appelant, elle est lue sur le média. Valider une URL du client
-        // n'aurait de toute façon jamais rien prouvé — une adresse bien formée peut
-        // pointer où elle veut.
+        // par l'appelant, elle est lue sur le média.
         RuleFor(c => c.Type)
             .Must(t => t is "Image" or "Video")
             .WithMessage("Type de média invalide (Image ou Video).");

@@ -6,7 +6,7 @@ namespace HBA.Identity.Domain.Roles;
 
 /// <summary>
 /// Droit granulaire au format « ressource.action » (ex : catalog.write,
-/// payout.read). Value Object porté par un rôle.
+/// payout.read).
 /// </summary>
 public sealed partial class Permission : ValueObject
 {

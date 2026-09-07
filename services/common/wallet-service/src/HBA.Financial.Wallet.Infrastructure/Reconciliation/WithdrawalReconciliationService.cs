@@ -9,16 +9,6 @@ namespace HBA.Financial.Wallet.Infrastructure.Reconciliation;
 /// <summary>
 /// Réconcilie périodiquement les retraits « en cours » avec le statut réel du dépôt
 /// chez le PSP (FedaPay).
-///
-/// C'est le filet de sécurité comptable de la marketplace. Un <c>PUT /payouts/start</c>
-/// accepté ne signifie que « started » : le versement peut encore échouer. Sans ce
-/// service, un vendeur pourrait être marqué « payé » et débité sans avoir jamais reçu
-/// son argent — en silence.
-///
-/// Tourne dans l'hôte API (un seul). En multi-instances, il faudra un verrou
-/// (SELECT … FOR UPDATE SKIP LOCKED) pour éviter que deux instances ne traitent le
-/// même retrait — le handler reste néanmoins idempotent (il n'agit que sur les statuts
-/// terminaux, et seulement depuis « Processing »).
 /// </summary>
 public sealed class WithdrawalReconciliationService : BackgroundService
 {
@@ -53,10 +43,10 @@ public sealed class WithdrawalReconciliationService : BackgroundService
                     _logger.LogInformation("Réconciliation des retraits : {Count} clôturé(s).", result.Value);
                 }
 
-                // Même filet de sécurité pour les remboursements CLIENT « en cours » :
-                // un payout FedaPay accepté n'est que « started » ; ce balayage clôture
-                // en Completed (statut « sent ») ou contre-passe le débit plateforme
-                // (statut « failed »). Idempotent, comme pour les retraits.
+                // Même filet de sécurité pour les remboursements CLIENT « en cours
+                // » : un payout FedaPay accepté n'est que « started » ; ce balayage
+                // clôture en Completed (statut « sent ») ou contre-passe le débit
+                // plateforme (statut « failed »).
                 var refunds = await sender.Send(new ReconcileCustomerRefundsCommand(BatchSize), stoppingToken);
                 if (refunds.IsSuccess && refunds.Value > 0)
                 {

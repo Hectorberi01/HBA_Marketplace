@@ -1,9 +1,8 @@
 namespace HBA.Identity.Application.Abstractions;
 
 /// <summary>
-/// Génère des jetons opaques aléatoires (refresh tokens, liens de vérification)
-/// et calcule leur hash. On ne stocke que le hash ; le jeton en clair n'est
-/// transmis qu'une fois au client.
+/// Génère des jetons opaques aléatoires (refresh tokens, liens de vérification) et
+/// calcule leur hash.
 /// </summary>
 public interface ISecureTokenGenerator
 {

@@ -3,10 +3,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Merchants.Domain.Sellers;
 
-/// <summary>
-/// Coordonnées de reversement d'un vendeur (mobile money ou compte bancaire).
-/// Value Object : on n'accepte que des comptes complets et valides.
-/// </summary>
+/// <summary>Coordonnées de reversement d'un vendeur (mobile money ou compte bancaire).</summary>
 public sealed class PayoutAccount : ValueObject
 {
     private PayoutAccount(PayoutProvider provider, string accountNumber, string accountName)

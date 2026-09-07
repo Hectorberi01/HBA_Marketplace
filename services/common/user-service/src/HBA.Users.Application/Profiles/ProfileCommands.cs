@@ -8,27 +8,10 @@ using HBA.Users.Contracts.IntegrationEvents;
 
 namespace HBA.Users.Application.Profiles;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CRÉE LE PROFIL D'UN COMPTE — IDEMPOTENT.
-///
-/// Appelée à l'inscription, depuis le composition root qui écoute
-/// <c>UserRegistered</c>. Le module User ne peut pas écouter cet événement
-/// lui-même : il ne connaît rien d'Identity, Contracts compris.
-///
-/// L'IDEMPOTENCE N'EST PAS DÉCORATIVE ICI.
-///
-/// L'outbox garantit une livraison AU MOINS UNE FOIS. Un événement d'inscription
-/// rejoué après un redémarrage rappellerait cette commande, et un second profil
-/// pour le même compte est impossible — la clé primaire est le UserId. Sans cette
-/// garde, le rejeu produirait une violation de contrainte, donc un message en
-/// lettre morte, et le profil resterait celui qui existait déjà : le symptôme
-/// serait une alerte pour un incident qui n'en est pas un.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>CRÉE LE PROFIL D'UN COMPTE — IDEMPOTENT.</summary>
 public sealed record CreateUserProfileCommand(Guid UserId, string? FirstName, string? LastName) : ICommand;
 
-/// <summary>Met à jour le nom affiché. Le compte, lui, ne bouge pas.</summary>
+/// <summary>Met à jour le nom affiché.</summary>
 public sealed record RenameUserProfileCommand(Guid UserId, string? FirstName, string? LastName) : ICommand;
 
 /// <summary>Change ou retire l'avatar.</summary>
@@ -68,9 +51,7 @@ internal sealed class ProfileCommandHandler
         var existant = await _profiles.GetByUserIdAsync(command.UserId, ct);
         if (existant is not null)
         {
-            // Rejeu : le profil est déjà là. On NE MET PAS À JOUR le nom au
-            // passage — l'événement porte le nom de l'INSCRIPTION, et l'écraser
-            // annulerait toute correction faite depuis par le titulaire.
+            // Rejeu : le profil est déjà là.
             return Result.Success();
         }
 
@@ -108,15 +89,6 @@ internal sealed class ProfileCommandHandler
         }
 
         // PUBLIÉ DEPUIS LE POINT DE PASSAGE COMMUN, PAS DEPUIS CHAQUE COMMANDE.
-        //
-        // `Rename` et `SetAvatar` passent tous deux par ici. Publier dans chacune
-        // aurait dupliqué la construction de l'événement, et la troisième mutation
-        // — celle qu'on ajoutera dans six mois — aurait toutes les chances d'oublier
-        // de le faire. Un événement qu'on oublie de publier ne casse rien à la
-        // compilation et ne se voit que chez le consommateur qui ne reçoit plus rien.
-        //
-        // L'écriture part dans l'outbox du même DbContext, donc dans la même
-        // transaction que la mutation : le SaveChanges ci-dessous valide les deux.
         await _publisher.PublishAsync(
             new UserProfileChangedIntegrationEvent
             {

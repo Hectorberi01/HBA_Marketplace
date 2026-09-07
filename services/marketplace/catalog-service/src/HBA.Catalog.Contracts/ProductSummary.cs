@@ -17,7 +17,6 @@ namespace HBA.Catalog.Contracts;
 /// <param name="StoreId">
 /// La boutique à laquelle la fiche est rattachée, ou <c>null</c>.
 /// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════
 /// C'EST CE QUI PERMET AU CADRAGE PAR BOUTIQUE DE MORDRE (lot F).
 ///
 /// `Product.StoreId` existe dans le domaine depuis longtemps ; il ne
@@ -57,17 +56,7 @@ public sealed record ProductSummary(
     IReadOnlyList<ProductSpecificationGroupSummary>? Specifications = null,
     Guid? StoreId = null);
 
-/// <summary>
-/// Un groupe de la fiche technique, vu de l'extérieur (§12).
-///
-/// <paramref name="DisplayOrder"/> N'EST PAS DÉCORATIF.
-///
-/// C'est la seule raison pour laquelle ces caractéristiques sont stockées en deux
-/// tables plutôt que dans un jsonb : le vendeur choisit l'ordre, et le client doit
-/// le respecter. Un client qui rendrait ces groupes dans l'ordre de réception sans
-/// trier afficherait, un jour, une fiche technique dans le désordre — sans que rien
-/// ne casse, et sans que personne ne signale autre chose qu'« une fiche mal faite ».
-/// </summary>
+/// <summary>Un groupe de la fiche technique, vu de l'extérieur (§12).</summary>
 public sealed record ProductSpecificationGroupSummary(
     Guid Id,
     string Name,
@@ -88,20 +77,7 @@ public sealed record ProductVariantSummary(
     string? Barcode,
     int WeightGrams);
 
-/// <summary>
-/// Une image de produit, vue de l'extérieur.
-///
-/// DEUX IDENTIFIANTS, ET ILS NE DÉSIGNENT PAS LA MÊME CHOSE.
-///
-/// <paramref name="Id"/> est celui de la LIGNE — c'est lui qu'on renvoie pour
-/// détacher l'image ou la promouvoir en principale. <paramref name="MediaId"/>
-/// est celui du FICHIER dans le service média — c'est lui qui sert à demander
-/// une variante ou à retrouver l'original. Les confondre donnerait un « média
-/// introuvable » sur des routes qui, elles, fonctionnent.
-///
-/// <paramref name="MediaId"/> vaut zéro pour une image d'avant la bascule : son
-/// fichier vit encore dans l'ancien stockage, et seule l'URL le désigne.
-/// </summary>
+/// <summary>Une image de produit, vue de l'extérieur.</summary>
 public sealed record ProductMediaSummary(
     Guid Id,
     Guid MediaId,

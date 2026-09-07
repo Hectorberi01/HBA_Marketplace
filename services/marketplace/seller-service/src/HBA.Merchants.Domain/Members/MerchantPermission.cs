@@ -1,7 +1,6 @@
 namespace HBA.Merchants.Domain.Members;
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// LE CATALOGUE DES PERMISSIONS — UNE ÉNUMÉRATION, ET UNE TABLE QUI LA PROJETTE.
 ///
 /// POURQUOI UNE ÉNUMÉRATION ALORS QUE LE CAHIER DEMANDE UNE TABLE.
@@ -30,7 +29,6 @@ namespace HBA.Merchants.Domain.Members;
 /// La valeur est persistée dans `role_permissions`. Retirer une permission puis
 /// donner son numéro à une autre transformerait silencieusement les droits déjà
 /// accordés. On ajoute à la fin ; on ne recycle pas.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public enum MerchantPermission
 {
@@ -43,23 +41,6 @@ public enum MerchantPermission
     ProductUnpublish = 5,
 
     // ── Offres ──────────────────────────────────────────────────────────────
-    //
-    // AJOUTÉES AU LOT D1 : SIX ROUTES D'OFFRE N'AVAIENT RIEN À EXIGER.
-    //
-    // Le cahier ne connaît que des permissions PRODUIT. Or une fiche produit et
-    // une offre ne sont pas la même chose dans ce dépôt : la fiche décrit l'objet
-    // (titre, photos, déclinaisons), l'offre le MET EN VENTE dans une boutique,
-    // à un prix. `catalog-service` expose les deux, et les ranger toutes sous
-    // `PRODUCT_UPDATE` reviendrait à dire qu'un rédacteur qui corrige une faute
-    // de frappe peut aussi casser les prix.
-    //
-    // ET LE PRIX EST À PART, MÊME PARMI LES OFFRES.
-    //
-    // Passer un article à 1 F CFA le liquide en une nuit ; le mal est fait avant
-    // qu'aucune alerte ne parte, et les commandes passées à ce prix sont dues.
-    // `OFFER_MANAGE` crée et retire une offre — visible immédiatement, réparable
-    // ; `OFFER_PRICE_UPDATE` touche à ce qui se facture. Les deux sont Sensibles,
-    // et le rôle qui porte l'une ne porte pas forcément l'autre.
     OfferManage = 6,
     OfferPriceUpdate = 7,
 
@@ -70,14 +51,6 @@ public enum MerchantPermission
     StockMovementView = 13,
 
     // AJOUTÉES AU LOT D1, PARCE QUE TROIS ROUTES N'AVAIENT RIEN À EXIGER.
-    //
-    // Le §10.1 du cahier a resserré la liste du §12 et perdu au passage
-    // `STOCK_LOCATION_VIEW` et `STOCK_LOCATION_MANAGE`. Or inventory-service
-    // expose `POST /locations`, `PUT /locations/{id}/address` et
-    // `DELETE /locations/{id}` : un lieu d'expédition est l'adresse d'où partent
-    // les colis, et la garder sous `INVENTORY_ADJUST` reviendrait à dire qu'un
-    // ajustement de stock et un changement d'adresse d'entrepôt sont le même
-    // geste. Une route sans permission à exiger ne peut pas être gardée.
     StockLocationView = 14,
     StockLocationManage = 15,
 
@@ -123,13 +96,6 @@ public enum MerchantPermission
     BankAccountUpdate = 75,
 
     // ── Le dossier vendeur lui-même ─────────────────────────────────────────
-    //
-    // CE BLOC N'EST PAS DANS LE §10.1 DU CAHIER, ET IL EST INDISPENSABLE.
-    //
-    // Le cahier énumère les permissions des services VOISINS. Or seller-service
-    // expose lui-même vingt et une routes — profil, KYB, boutiques, clôture — et
-    // le lot D1 doit pouvoir les garder. Sans ces valeurs, le premier service à
-    // migrer serait précisément celui qui porte le module.
     SellerProfileView = 80,
     SellerProfileUpdate = 81,
     KybManage = 82,
@@ -144,36 +110,10 @@ public enum MerchantPermission
     AuditView = 91,
 
     // ── Analytique ──────────────────────────────────────────────────────────
-    //
-    // AJOUTEE AVEC LE SERVICE QUI LA GARDE, DANS LE MEME COMMIT.
-    //
-    // Le controle `permissions` refuse une permission au catalogue qu'aucune
-    // route n'exige : la declarer « pour plus tard » aurait donc casse la
-    // barriere, ou oblige a l'inscrire dans `SansGardeAssumee` — c'est-a-dire a
-    // ecrire noir sur blanc qu'elle ne sert a rien. Elle garde
-    // `GET /api/sellers/{sellerId}/analytics/sales`, et rien d'autre pour
-    // l'instant.
-    //
-    // ELLE N'EST PAS `FINANCE_VIEW`, ET LA DISTINCTION COMPTE. `FINANCE_VIEW`
-    // ouvre le portefeuille et les versements — de l'argent qu'on peut sortir.
-    // Celle-ci n'ouvre que des CHIFFRES DE VENTE agreges : un commercial qui
-    // suit ses courbes n'a pas a voir le solde ni le compte de versement.
-    //
-    // IL N'Y A PAS DE `PLATFORM_ANALYTICS_VIEW` EN FACE. Ce catalogue decrit ce
-    // qu'un membre d'une EQUIPE VENDEUR peut faire chez SON vendeur ; les
-    // chiffres de la plateforme entiere sont gouvernes par le ROLE Admin, comme
-    // les vingt et une autres surfaces `/api/admin/*` du depot.
     SellerAnalyticsView = 92
 }
 
-/// <summary>
-/// Niveau de risque du §12 (<c>permissions.risk_level</c>).
-/// <para>
-/// <see cref="Critical"/> N'EST PAS UN COMMENTAIRE : c'est l'ensemble exact des
-/// actions que le lot 0b soumettra à la réauthentification récente (§37). Y ajouter
-/// une valeur, c'est décider qu'elle exigera un second facteur.
-/// </para>
-/// </summary>
+/// <summary>Niveau de risque du §12 (<c>permissions.risk_level</c>).</summary>
 public enum PermissionRisk
 {
     Normal = 0,
@@ -181,20 +121,7 @@ public enum PermissionRisk
     Critical = 2
 }
 
-/// <summary>
-/// Portée d'un rôle. C'est sa VOCATION, pas son application immédiate.
-/// <para>
-/// EN PHASE 1, UN RÔLE <see cref="Store"/> S'APPLIQUE AU NIVEAU DU VENDEUR.
-/// </para>
-/// <para>
-/// Ni le stock ni les commandes ne connaissent la boutique — <c>InventoryItem</c>
-/// dépend d'un <c>LocationId</c>, <c>OrderLine</c> ne porte qu'un <c>SellerId</c>.
-/// Un ORDER_MANAGER agit donc sur tout le vendeur. C'est sans conséquence tant que
-/// le vendeur n'a qu'une boutique, et c'est une escalade dès la deuxième : d'où le
-/// refus posé dans la couche Application (décision D27), et non ici, car le domaine
-/// ne compte pas les boutiques.
-/// </para>
-/// </summary>
+/// <summary>Portée d'un rôle. C'est sa VOCATION, pas son application immédiate.</summary>
 public enum RoleScope
 {
     Seller = 0,
@@ -205,16 +132,6 @@ public enum RoleScope
 /// Ce que le dépôt sait de chaque permission : son code public, son risque, et si
 /// elle est réservée au propriétaire.
 /// </summary>
-/// <remarks>
-/// UNE SEULE TABLE, ET NON QUATRE <c>switch</c> PARALLÈLES.
-///
-/// Le précédent de food écrit un <c>switch</c> par question. À sept permissions
-/// c'est lisible ; à cinquante-trois, deux tables divergent au premier ajout — et
-/// la divergence qui coûte est celle du drapeau « réservé au propriétaire », qu'on
-/// oublie sur la permission qu'on vient d'écrire. Ici l'ajout d'une valeur à
-/// l'énumération sans ligne correspondante fait échouer le constructeur statique,
-/// donc le démarrage du service, donc les tests.
-/// </remarks>
 public static class MerchantPermissions
 {
     private readonly record struct Entree(
@@ -228,13 +145,11 @@ public static class MerchantPermissions
         new(MerchantPermission.ProductSubmitForReview, "PRODUCT_SUBMIT_FOR_REVIEW", PermissionRisk.Normal, false),
 
         // NE CONTOURNE JAMAIS LA VALIDATION ADMINISTRATIVE DU CATALOGUE (§11).
-        // Elle autorise à publier une fiche DÉJÀ approuvée, rien de plus.
         new(MerchantPermission.ProductPublish, "PRODUCT_PUBLISH", PermissionRisk.Normal, false),
         new(MerchantPermission.ProductUnpublish, "PRODUCT_UNPUBLISH", PermissionRisk.Normal, false),
 
-        // SENSIBLES TOUTES DEUX : elles agissent sur la VITRINE et sur ce qui
-        // se facture, pas sur un brouillon interne. Voir l'énumération plus haut
-        // pour la raison de leur séparation.
+        // SENSIBLES TOUTES DEUX : elles agissent sur la VITRINE et sur ce qui se
+        // facture, pas sur un brouillon interne.
         new(MerchantPermission.OfferManage, "OFFER_MANAGE", PermissionRisk.Sensitive, false),
         new(MerchantPermission.OfferPriceUpdate, "OFFER_PRICE_UPDATE", PermissionRisk.Sensitive, false),
 
@@ -244,9 +159,8 @@ public static class MerchantPermissions
         new(MerchantPermission.StockMovementView, "STOCK_MOVEMENT_VIEW", PermissionRisk.Normal, false),
         new(MerchantPermission.StockLocationView, "STOCK_LOCATION_VIEW", PermissionRisk.Normal, false),
 
-        // SENSIBLE : un lieu d'expédition est l'adresse d'où partent les colis,
-        // et elle voyage jusqu'à delivery pour bâtir l'enlèvement coursier. La
-        // repointer détourne des marchandises, pas seulement des données.
+        // SENSIBLE : un lieu d'expédition est l'adresse d'où partent les colis, et
+        // elle voyage jusqu'à delivery pour bâtir l'enlèvement coursier.
         new(MerchantPermission.StockLocationManage, "STOCK_LOCATION_MANAGE", PermissionRisk.Sensitive, false),
 
         new(MerchantPermission.OrderView, "ORDER_VIEW", PermissionRisk.Normal, false),
@@ -260,11 +174,6 @@ public static class MerchantPermissions
         new(MerchantPermission.ReviewReply, "REVIEW_REPLY", PermissionRisk.Normal, false),
 
         // CES SIX-LÀ N'ONT RIEN À GARDER AUJOURD'HUI.
-        //
-        // `return-refund-service` est un squelette : quatre csproj, un Program.cs
-        // de dix-huit lignes, aucune entité. Elles sont déclarées parce que le
-        // cahier le demande explicitement (§27) et qu'un catalogue coûte une
-        // ligne ; elles ne seront appliquées que le jour où le service existera.
         new(MerchantPermission.ReturnView, "RETURN_VIEW", PermissionRisk.Normal, false),
         new(MerchantPermission.ReturnApprove, "RETURN_APPROVE", PermissionRisk.Sensitive, false),
         new(MerchantPermission.ReturnReject, "RETURN_REJECT", PermissionRisk.Sensitive, false),
@@ -289,13 +198,6 @@ public static class MerchantPermissions
         new(MerchantPermission.PayoutView, "PAYOUT_VIEW", PermissionRisk.Sensitive, false),
 
         // LES TROIS QUI DÉTOURNENT L'ARGENT, ET LA RAISON DE `OwnerOnly`.
-        //
-        // `PUT /{sellerId}/payout-account` fixe le numéro Mobile Money où partent
-        // les gains : un gérant qui pourrait le repointer annulerait tout ce que
-        // les gardes de propriété ont fermé. `WITHDRAWAL_REQUEST` n'est pas
-        // réservée — un comptable peut légitimement demander un retrait vers un
-        // compte qu'il ne contrôle pas — mais elle est critique, donc soumise à
-        // la réauthentification du lot 0b.
         new(MerchantPermission.PayoutConfigure, "PAYOUT_CONFIGURE", PermissionRisk.Critical, true),
         new(MerchantPermission.WithdrawalRequest, "WITHDRAWAL_REQUEST", PermissionRisk.Critical, false),
         new(MerchantPermission.BankAccountUpdate, "BANK_ACCOUNT_UPDATE", PermissionRisk.Critical, true),
@@ -317,22 +219,15 @@ public static class MerchantPermissions
 
         new(MerchantPermission.AuditView, "AUDIT_VIEW", PermissionRisk.Sensitive, false),
 
-        // NORMAL, PAS SENSIBLE : des chiffres de vente agreges, pas un
-        // mouvement d'argent. Voir la ligne de l'enumeration.
+        // NORMAL, PAS SENSIBLE : des chiffres de vente agreges, pas un mouvement
+        // d'argent.
         new(MerchantPermission.SellerAnalyticsView, "SELLER_ANALYTICS_VIEW", PermissionRisk.Normal, false)
     ];
 
     private static readonly Dictionary<MerchantPermission, Entree> ParPermission;
     private static readonly Dictionary<string, MerchantPermission> ParCode;
 
-    /// <summary>
-    /// LE GARDE-FOU QUI REND CETTE TABLE SÛRE.
-    ///
-    /// Ajouter une valeur à l'énumération sans sa ligne ici fait échouer le
-    /// constructeur statique — donc le démarrage du service et toute la suite de
-    /// tests, immédiatement et avec le nom manquant. Sans lui, l'oubli se
-    /// manifesterait par une permission sans code, au premier refus à expliquer.
-    /// </summary>
+    /// <summary>LE GARDE-FOU QUI REND CETTE TABLE SÛRE.</summary>
     static MerchantPermissions()
     {
         ParPermission = Catalogue.ToDictionary(e => e.Permission);
@@ -360,12 +255,17 @@ public static class MerchantPermissions
     public static IReadOnlyList<MerchantPermission> All { get; }
         = [.. Catalogue.Select(e => e.Permission)];
 
-    /// <summary>Le code public — celui qui voyage dans <c>error.details.requiredPermission</c>.</summary>
+    /// <summary>
+    /// Le code public — celui qui voyage dans <c>
+    /// error.details.requiredPermission</c>.
+    /// </summary>
     public static string ToCode(this MerchantPermission permission) => ParPermission[permission].Code;
 
     public static PermissionRisk RiskOf(this MerchantPermission permission) => ParPermission[permission].Risk;
 
-    /// <summary>Réservée au propriétaire : aucun rôle, même personnalisé, ne peut la porter.</summary>
+    /// <summary>
+    /// Réservée au propriétaire : aucun rôle, même personnalisé, ne peut la porter.
+    /// </summary>
     public static bool IsOwnerOnly(this MerchantPermission permission) => ParPermission[permission].OwnerOnly;
 
     /// <summary>Le code public d'une permission, ou <c>null</c> si le code est inconnu.</summary>
@@ -380,25 +280,8 @@ public static class MerchantPermissions
         = Catalogue.Where(e => e.OwnerOnly).Select(e => e.Permission).ToHashSet();
 
     /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
     /// LES PERMISSIONS QUI NE GARDENT AUCUNE ROUTE — DÉCLARÉES, ET SEULEMENT
     /// CELLES-LÀ.
-    ///
-    /// ÉCRIT PARCE QU'IL Y EN AVAIT SEPT, ET QUE PERSONNE NE POUVAIT LE SAVOIR.
-    ///
-    /// Une permission qu'aucun code n'interroge est un droit affiché au vendeur,
-    /// cochable dans un rôle personnalisé, et sans le moindre effet. Le catalogue
-    /// en comptait sept ; il fallait croiser cinquante-sept déclarations avec tous
-    /// les appels du dépôt pour s'en apercevoir. le contrôle `permissions` le
-    /// fait désormais à chaque exécution, et compare le résultat à CETTE liste :
-    /// toute divergence, dans un sens ou dans l'autre, est une anomalie.
-    ///
-    /// CETTE LISTE N'EST PAS UNE EXCUSE, C'EST UN ENGAGEMENT.
-    ///
-    /// Y inscrire une permission demande d'écrire POURQUOI elle ne garde rien. Les
-    /// cinq ci-dessous ont chacune une raison différente, et deux d'entre elles
-    /// sont de vrais doublons qu'il faudra trancher.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     public static IReadOnlySet<MerchantPermission> SansGardeAssumee { get; } = new HashSet<MerchantPermission>
     {
@@ -410,77 +293,30 @@ public static class MerchantPermissions
         // La fonctionnalité EXISTE, SOUS UNE GARDE PLUS LARGE, et c'est correct :
         // `GET /api/engagement/reviews/seller/{id}` est ouvert à tout compte
         // authentifié parce que les avis sont PUBLICS — un acheteur les lit sur la
-        // fiche produit. Cette permission visait une console vendeur qui n'existe
-        // pas. La brancher sur la lecture publique fermerait un accès légitime.
+        // fiche produit.
         MerchantPermission.ReviewView,
 
-        // DOUBLON SÉMANTIQUE de `MEMBER_ASSIGN_ROLE`, qui garde bien
-        // `PUT /members/{id}/roles`. Deux codes pour un geste : le jour où l'un
-        // serait retiré d'un rôle et pas l'autre, personne ne saurait lequel fait
-        // foi. À RETIRER — mais le retrait touche des lignes `role_permissions`
-        // déjà en base, donc une reprise de données, pas un lot de code.
+        // DOUBLON SÉMANTIQUE de `MEMBER_ASSIGN_ROLE`, qui garde bien `PUT
+        // /members/{id}/roles`.
         MerchantPermission.RoleAssign,
 
-        // MÊME CAS : `PUT /{sellerId}/payout-account` exige `PAYOUT_CONFIGURE`,
-        // et `BankAccount` n'est qu'une valeur de `PayoutProvider`. Deux
-        // permissions critiques et réservées au propriétaire pour un seul geste.
+        // MÊME CAS : `PUT /{sellerId}/payout-account` exige `PAYOUT_CONFIGURE`, et
+        // `BankAccount` n'est qu'une valeur de `PayoutProvider`.
         MerchantPermission.BankAccountUpdate,
 
         // Sans objet tant que `seller_security_policies` n'existe pas — c'est déjà
-        // écrit à sa ligne de catalogue. La seule des cinq dont l'absence de garde
-        // était documentée avant ce lot.
+        // écrit à sa ligne de catalogue.
         MerchantPermission.SecurityPolicyUpdate
     };
 
-    /// <summary>Les permissions critiques — l'ensemble exact que le lot 0b soumettra au step-up (§37).</summary>
+    /// <summary>
+    /// Les permissions critiques — l'ensemble exact que le lot 0b soumettra au
+    /// step-up (§37).
+    /// </summary>
     public static IReadOnlySet<MerchantPermission> Critical { get; }
         = Catalogue.Where(e => e.Risk == PermissionRisk.Critical).Select(e => e.Permission).ToHashSet();
 
-    /// <summary>
-    /// Les permissions dont l'application est RÉELLEMENT cadrée par boutique.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// CE N'EST PAS « CE QUI CONCERNE UNE BOUTIQUE », C'EST « CE QUE LE CODE
-    /// SAIT SITUER ».
-    ///
-    /// La nuance décide de la sécurité de tout le lot G. `INVENTORY_ADJUST`
-    /// concerne évidemment une boutique dans l'esprit du cahier — mais
-    /// `FulfillmentLocation` ne porte aucun `StoreId`, et inventory-service n'a
-    /// donc littéralement rien à comparer. L'inscrire ici parce que « ça devrait »
-    /// rendrait la garde de la décision D27 permissive sur exactement le cas
-    /// qu'elle protège.
-    ///
-    /// Une permission n'entre ici QUE si un service appelle `CanInStore` avec un
-    /// identifiant de boutique lu sur la ressource ou sur la route :
-    ///
-    ///   PRODUCT_*        catalog · `Product.StoreId` traverse `ProductSummary`
-    ///   OFFER_*          catalog · `OfferSummary.StoreId`, jamais nul
-    ///   STORE_VIEW/…     merchant · `{storeId}` est dans le gabarit de route
-    ///
-    /// CE QUI N'Y EST PAS, ET POURQUOI ÇA N'Y SERA PAS DEMAIN.
-    ///
-    ///   INVENTORY_*, STOCK_*   un lieu d'expédition est une infrastructure de
-    ///                          VENDEUR, pas de boutique — un entrepôt sert
-    ///                          souvent plusieurs magasins. Lui greffer un
-    ///                          `StoreId` serait une fiction de modélisation, pas
-    ///                          un correctif.
-    ///   ORDER_*                `OrderLine` référence une offre, qui connaît sa
-    ///                          boutique — mais order-service ne la remonte pas,
-    ///                          et une commande peut mêler plusieurs boutiques.
-    ///                          C'est un vrai travail, pas un oubli.
-    ///   REVIEW_*               un avis porte un produit et un vendeur, jamais
-    ///                          une boutique.
-    ///   RETURN_*               le service est un squelette.
-    ///   FINANCE_*, MEMBER_*    ces objets sont de niveau vendeur par nature.
-    ///
-    /// TOUTE ADDITION ICI DOIT S'ACCOMPAGNER DE SON APPEL À `CanInStore`.
-    ///
-    /// Ajouter une ligne sans le code qui va avec ne casse rien de visible : elle
-    /// AUTORISE simplement une attribution que plus rien ne cadre. C'est le défaut
-    /// le moins détectable du module.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Les permissions dont l'application est RÉELLEMENT cadrée par boutique.</summary>
     public static IReadOnlySet<MerchantPermission> StoreScoped { get; } = new HashSet<MerchantPermission>
     {
         MerchantPermission.ProductView,

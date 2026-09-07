@@ -7,43 +7,6 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Catalog.Application.Products.Commands.SetVariantActive;
 
 /// <summary>Retire une déclinaison de la vente, ou l'y remet.</summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// POURQUOI CETTE COMMANDE EXISTE (tâche #230).
-///
-/// IL N'Y AVAIT QUE `RemoveProductVariantCommand`, ET SUPPRIMER N'EST PAS
-///    RETIRER DE LA VENTE.
-///
-/// Un vendeur dont la taille 42 est épuisée pour la saison n'a qu'une option : la
-/// supprimer. Or une commande passée référence cette déclinaison par son
-/// identifiant — l'effacer laisse un historique qui pointe vers rien, et le SKU
-/// libéré peut être réattribué. Il perd aussi ses attributs, son code-barres, son
-/// poids : tout à ressaisir en septembre.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// DÉSACTIVER ARCHIVE LES OFFRES. C'EST LE CŒUR DE LA COMMANDE.
-///
-/// Sans cela, la déclinaison serait « retirée de la vente » et resterait pourtant
-/// achetable : les offres existantes ne consultent pas l'état de la variante à
-/// chaque affichage — la Buy Box lit `ProductOffer.Status`. Le vendeur croirait
-/// avoir fermé, et les commandes continueraient d'arriver.
-///
-/// C'est précisément ce qu'attendait `IProductOfferRepository.ListByVariantAsync`,
-/// dont le commentaire annonce « l'appelant archive ces offres quand la variante
-/// est désactivée » — et qui n'avait AUCUN appelant. Le voici.
-///
-/// L'ARCHIVAGE EST TERMINAL, DONC LA RÉACTIVATION NE REND RIEN.
-///
-/// `OfferStatus.Archived` ne se quitte pas. Réactiver la déclinaison ne remet donc
-/// aucune offre en vitrine : le vendeur devra recréer sa mise en vente, au prix du
-/// jour. Rétablir automatiquement afficherait un prix décidé six mois plus tôt —
-/// et sur un marché où le sac de riz change de prix chaque mois, ce serait vendre à
-/// perte sans s'en apercevoir.
-///
-/// La commande le dit dans son résultat : `ArchivedOffers` compte ce qui a été
-/// fermé, pour que l'interface puisse avertir avant plutôt que surprendre après.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 /// <param name="Active">
 /// `false` retire de la vente et archive les offres ; `true` remet la déclinaison
 /// proposable, sans rien rétablir.
@@ -67,7 +30,7 @@ internal sealed class SetVariantActiveCommandHandler : ICommandHandler<SetVarian
         _unitOfWork = unitOfWork;
     }
 
-    /// <returns>Le nombre d'offres archivées. Zéro à la réactivation.</returns>
+    /// <returns>Le nombre d'offres archivées.</returns>
     public async Task<Result<int>> Handle(SetVariantActiveCommand command, CancellationToken ct)
     {
         var product = await _products.GetByIdAsync(new ProductId(command.ProductId), ct);
@@ -105,7 +68,7 @@ internal sealed class SetVariantActiveCommandHandler : ICommandHandler<SetVarian
 
             // LES OFFRES SONT SUIVIES PAR EF (`ListByVariantAsync` n'est pas
             // `AsNoTracking`) : les muter suffit, le `SaveChanges` ci-dessous les
-            // emporte. C'est écrit dans le dépôt, et c'est pour CE cas.
+            // emporte.
             var offres = await _offers.ListByVariantAsync(command.VariantId, ct);
             foreach (var offre in offres)
             {
@@ -120,10 +83,7 @@ internal sealed class SetVariantActiveCommandHandler : ICommandHandler<SetVarian
             }
         }
 
-        // UNE SEULE TRANSACTION pour la variante ET ses offres. Deux
-        // enregistrements laisseraient, entre eux, une déclinaison retirée dont les
-        // offres restent actives — précisément l'état qu'on cherche à rendre
-        // impossible.
+        // UNE SEULE TRANSACTION pour la variante ET ses offres.
         await _unitOfWork.SaveChangesAsync(ct);
 
         return Result.Success(archivees);

@@ -8,34 +8,13 @@ using HBA.Merchants.Contracts;
 
 namespace HBA.Catalog.Application.Products.Commands.AddProductMedia;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// RATTACHE UN MÉDIA DÉJÀ DÉPOSÉ À UNE FICHE (§12, §14).
-///
-/// LE CONTRÔLE D'APPARTENANCE ÉTAIT DEMANDÉ PAR LE DOMAINE ET FAIT PAR PERSONNE.
-///
-/// `Product.AddMedia` porte cet encadré depuis toujours :
-///
-///     « Catalog ne connaît pas le service média. C'est l'appelant — la couche qui
-///       voit les deux — qui contrôle que le média est de nature `ProductImage` et
-///       qu'il appartient bien à ce produit. Sans ce contrôle en amont, un vendeur
-///       rattacherait à sa fiche l'image d'un autre. »
-///
-/// L'appelant, c'était ce handler, et il ne contrôlait rien : il acceptait un
-/// identifiant ET une URL fournis par le client. Un vendeur pouvait donc afficher
-/// sur sa fiche la photo d'un concurrent — ou n'importe quelle URL, y compris hors
-/// de la plateforme.
-///
-/// L'URL VIENT DÉSORMAIS DU SERVICE MÉDIA, PAS DU CLIENT.
-///
-/// C'est la moitié la plus importante de la correction. Vérifier l'identifiant tout
-/// en recopiant l'URL du client laisserait afficher n'importe quelle image sous
-/// couvert d'un média valide.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>RATTACHE UN MÉDIA DÉJÀ DÉPOSÉ À UNE FICHE (§12, §14).</summary>
 internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProductMediaCommand, Guid>
 {
-    /// <summary>Les formats du §12. Le service média applique les mêmes ; on ne le croit pas sur parole.</summary>
+    /// <summary>
+    /// Les formats du §12. Le service média applique les mêmes ; on ne le croit pas
+    /// sur parole.
+    /// </summary>
     private static readonly string[] TypesAcceptes = { "image/jpeg", "image/png", "image/webp" };
 
     private readonly IProductRepository _productRepository;
@@ -78,9 +57,6 @@ internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProduct
         }
 
         // LE MÉDIA DOIT APPARTENIR À CE PRODUIT, PAS SEULEMENT EXISTER.
-        //
-        // Sans cette comparaison, il suffirait de connaître l'identifiant d'un média
-        // — que la vitrine rend dans chaque fiche — pour l'afficher sur la sienne.
         if (!string.Equals(media.OwnerType, "Product", StringComparison.OrdinalIgnoreCase)
             || media.OwnerId != command.ProductId)
         {
@@ -89,7 +65,6 @@ internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProduct
                 "Ce média n'appartient pas à ce produit.");
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // ET IL DOIT AVOIR ÉTÉ DÉPOSÉ PAR CELUI QUI LE RATTACHE (audit 2.2).
         //
         // POURQUOI LE CONTRÔLE PRÉCÉDENT NE SUFFIT PAS — ET C'EST LE POINT.
@@ -125,7 +100,6 @@ internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProduct
         // méthode existe, et le jour où quelqu'un l'emploie, ces lignes
         // apparaîtront dans le dossier de leur victime. Le remède est au dépôt,
         // pas ici.
-        // ═════════════════════════════════════════════════════════════════════
         if (command.RequestedByUserId == Guid.Empty)
         {
             return Error.Forbidden(
@@ -133,7 +107,6 @@ internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProduct
                 "Appelant inconnu : impossible de vérifier qui a déposé ce fichier.");
         }
 
-        // ─────────────────────────────────────────────────────────────────────
         // « LE MÊME COMPTE » AURAIT ÉTÉ TROP STRICT, ET AURAIT CASSÉ UNE ÉQUIPE.
         //
         // Une première version exigeait `CreatedByUserId == RequestedByUserId`.
@@ -150,7 +123,6 @@ internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProduct
         // LE CHEMIN RAPIDE ÉVITE UN APPEL. Dans le cas courant — la même personne
         // dépose et rattache — la question est déjà tranchée, et on n'ouvre pas
         // un aller-retour vers seller-service pour se le confirmer.
-        // ─────────────────────────────────────────────────────────────────────
         if (media.CreatedByUserId != command.RequestedByUserId)
         {
             var deposantAutorise = await _merchants.HasCapabilityAsync(
@@ -168,9 +140,7 @@ internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProduct
             }
         }
 
-        // Le §12 réserve les images produit à cette nature. Un justificatif de
-        // livraison ou une pièce d'identité déposés ailleurs ne doivent pas pouvoir
-        // se retrouver en vitrine.
+        // Le §12 réserve les images produit à cette nature.
         if (!string.Equals(media.MediaType, "ProductImage", StringComparison.OrdinalIgnoreCase))
         {
             return Error.Validation(
@@ -187,11 +157,6 @@ internal sealed class AddProductMediaCommandHandler : ICommandHandler<AddProduct
         }
 
         // UN MÉDIA PAS ENCORE PRÊT N'EST PAS UN MÉDIA ABSENT.
-        //
-        // Le traitement — vignettes, retrait EXIF, scan de sécurité (§12) — est
-        // asynchrone. Rattacher avant la fin afficherait une image que le CDN ne sert
-        // pas encore, et le vendeur croirait à une erreur de sa part. Le message dit
-        // d'attendre, pas de recommencer.
         if (!string.Equals(media.Status, "Ready", StringComparison.OrdinalIgnoreCase))
         {
             return Error.BusinessRule(

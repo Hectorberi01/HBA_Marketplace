@@ -7,13 +7,7 @@ using HBA.Catalog.Domain.Categories;
 
 namespace HBA.Catalog.Application.Attributes;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // LE RÉFÉRENTIEL D'ATTRIBUTS (§10) ET LE SCHÉMA DE CATÉGORIE.
-//
-// Ce qui rend ce lot utile n'est pas d'avoir deux tables de plus : c'est que
-// `SubmitForReview` refuse désormais une fiche dont les attributs requis manquent
-// (§23), et que le formulaire vendeur (§13, étape 8) sait quoi afficher.
-// ═════════════════════════════════════════════════════════════════════════════
 
 /// <summary>Crée une définition d'attribut réutilisable (§10).</summary>
 public sealed record CreateAttributeDefinitionCommand(
@@ -80,10 +74,6 @@ internal sealed class AttributeUseCases
         }
 
         // CONTRÔLE D'UNICITÉ AVANT L'INDEX, POUR LE MESSAGE.
-        //
-        // L'index unique sur `Code` refuserait de toute façon le doublon — mais par
-        // une violation de contrainte PostgreSQL, qui remonte en 500. L'administrateur
-        // doit savoir qu'un attribut porte déjà ce code, et lequel.
         var existante = await _definitions.GetByCodeAsync(command.Code, cancellationToken);
         if (existante is not null)
         {
@@ -110,12 +100,6 @@ internal sealed class AttributeUseCases
         AssignAttributeToCategoryCommand command, CancellationToken cancellationToken)
     {
         // LES DEUX EXISTENCES SONT VÉRIFIÉES, ET AUCUNE CLÉ ÉTRANGÈRE NE LE FAIT.
-        //
-        // `category_attributes` ne porte pas de contrainte vers `categories` ni vers
-        // `attribute_definitions` — ce sont des agrégats distincts. Sans ces deux
-        // contrôles, un identifiant erroné produit une ligne orpheline : le
-        // formulaire vendeur affiche un champ vide, et la validation exige un
-        // attribut dont plus personne ne connaît la définition.
         var categorie = await _categories.GetByIdAsync(new CategoryId(command.CategoryId), cancellationToken);
         if (categorie is null)
         {
@@ -136,8 +120,7 @@ internal sealed class AttributeUseCases
         if (existant is not null)
         {
             // Idempotent : réassigner met à jour les trois réglages plutôt que de
-            // rendre un conflit. Une console d'administration renvoie l'état complet
-            // du formulaire à chaque enregistrement.
+            // rendre un conflit.
             existant.Update(command.Required, command.Variant, command.DisplayOrder);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return Result.Success();
@@ -165,16 +148,11 @@ internal sealed class AttributeUseCases
 
         if (rattachement is null)
         {
-            // Idempotent : retirer ce qui n'est pas là est un succès. L'inverse
-            // ferait échouer un second clic sur « supprimer ».
+            // Idempotent : retirer ce qui n'est pas là est un succès.
             return Result.Success();
         }
 
         // LES FICHES EXISTANTES GARDENT LEURS VALEURS.
-        //
-        // Elles vivent dans `product_revisions.attributes`, pas ici. Retirer un
-        // attribut du schéma cesse de l'EXIGER et de l'afficher ; il ne l'efface
-        // nulle part. C'est ce qui rend l'opération réversible.
         _rattachements.Remove(rattachement);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();

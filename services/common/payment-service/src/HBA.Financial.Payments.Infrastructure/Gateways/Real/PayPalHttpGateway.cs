@@ -7,19 +7,7 @@ using HBA.Financial.Payments.Application.Abstractions.Gateways;
 
 namespace HBA.Financial.Payments.Infrastructure.Gateways.Real;
 
-/// <summary>
-/// Adaptateur PayPal RÉEL (Orders v2). Authentification OAuth client_credentials
-/// (Basic ClientId:Secret), création d'une commande (redirection vers le lien
-/// « approve »), puis capture au retour. PayPal étant basé sur la redirection,
-/// les deux flux logiques (checkout / intent) renvoient une URL d'approbation.
-///
-/// Renseigne « Payments:PayPal:ClientId » et « Secret » pour activer cet
-/// adaptateur à la place du stub.
-///
-/// Note webhook : la vérification réelle PayPal passe par l'API
-/// verify-webhook-signature (en-têtes de transmission + WebhookId). Ici on
-/// s'appuie sur le secret HMAC partagé (à durcir avant production).
-/// </summary>
+/// <summary>Adaptateur PayPal RÉEL (Orders v2).</summary>
 public sealed class PayPalHttpGateway : HttpPaymentGatewayBase
 {
     private static readonly HashSet<string> ZeroDecimalCurrencies = new(StringComparer.OrdinalIgnoreCase)
@@ -39,17 +27,7 @@ public sealed class PayPalHttpGateway : HttpPaymentGatewayBase
 
     public override string Provider => "PayPal";
 
-    /// <summary>
-    /// CET ADAPTATEUR NE REMBOURSE PAS, ET IL LE DIT AU DÉMARRAGE.
-    ///
-    /// Le remboursement PayPal cible la CAPTURE (v2/payments/captures/{id}/refund),
-    /// dont l'identifiant diffère de celui de l'order que nous conservons. Sans suivi
-    /// des captures, il n'y a rien à appeler : aucun remboursement PayPal ne part.
-    ///
-    /// La constante est lue par `PaymentsModuleInstaller` AVANT toute instanciation :
-    /// c'est elle qui fait refuser le démarrage en production, et qui produit
-    /// l'annonce bruyante ailleurs.
-    /// </summary>
+    /// <summary>CET ADAPTATEUR NE REMBOURSE PAS, ET IL LE DIT AU DÉMARRAGE.</summary>
     public const bool RefundSupported = false;
 
     /// <inheritdoc />
@@ -113,7 +91,8 @@ public sealed class PayPalHttpGateway : HttpPaymentGatewayBase
         getResponse.EnsureSuccessStatusCode();
         var order = await getResponse.Content.ReadFromJsonAsync<PayPalOrder>(ct);
 
-        // Au retour de redirection, l'acheteur a approuvé : on capture pour encaisser.
+        // Au retour de redirection, l'acheteur a approuvé : on capture pour
+        // encaisser.
         if (string.Equals(order?.status, "APPROVED", StringComparison.OrdinalIgnoreCase))
         {
             using var capture = new HttpRequestMessage(HttpMethod.Post, $"v2/checkout/orders/{providerReference}/capture")
@@ -131,8 +110,9 @@ public sealed class PayPalHttpGateway : HttpPaymentGatewayBase
     }
 
     public override Task<GatewayRefundResult> RefundAsync(string providerReference, CancellationToken ct = default)
-        // Le remboursement PayPal cible la capture (v2/payments/captures/{id}/refund),
-        // dont l'id diffère de l'order : à brancher avec le suivi des captures.
+        // Le remboursement PayPal cible la capture
+        // (v2/payments/captures/{id}/refund), dont l'id diffère de l'order : à
+        // brancher avec le suivi des captures.
         => Task.FromResult(new GatewayRefundResult(Success: false, providerReference, "Remboursement PayPal non pris en charge pour l'instant."));
 
     private async Task<string> GetAccessTokenAsync(CancellationToken ct)

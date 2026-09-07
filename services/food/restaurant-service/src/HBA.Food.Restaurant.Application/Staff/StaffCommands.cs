@@ -6,11 +6,6 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Food.Application.Staff;
 
 // TOUTES CES COMMANDES PORTENT L'ACTEUR, ET IL VIENT DU JETON.
-//
-// Le domaine refuse de muter un membre sans savoir qui agit : la signature de
-// RestaurantStaff l'impose. Ces commandes ne font que transporter cette exigence
-// jusqu'à la route, où l'acteur est le porteur du jeton — jamais un champ du
-// corps de la requête, qui se réécrit.
 
 public sealed record HireStaffCommand(
     Guid RestaurantId, Guid ActorUserId, Guid UserId, StaffRole Role) : ICommand<Guid>;
@@ -60,11 +55,6 @@ internal sealed class StaffCommandHandler
         }
 
         // UN COMPTE NE FIGURE QU'UNE FOIS DANS UN RESTAURANT.
-        //
-        // L'index unique le garantit, mais un doublon y devient une exception de
-        // contrainte, illisible pour l'appelant. Et le cas courant n'est pas une
-        // erreur : c'est un ancien employé qui revient. On le dit, plutôt que de
-        // créer une seconde ligne dont les deux jeux de droits se contrediraient.
         var existant = await _staff.GetMembershipAsync(command.RestaurantId, command.UserId, cancellationToken);
         if (existant is not null)
         {
@@ -98,15 +88,6 @@ internal sealed class StaffCommandHandler
         var (acteur, cible) = paire.Value;
 
         // LA GARDE DU DERNIER PROPRIÉTAIRE, PREMIER VERSANT.
-        //
-        // Rétrograder le dernier propriétaire actif laisserait un établissement
-        // que PLUS PERSONNE ne peut administrer : ni embaucher, ni promouvoir, ni
-        // se rendre le droit perdu. Un incident que seul un accès direct à la base
-        // réparerait.
-        //
-        // L'invariant porte sur l'ENSEMBLE du personnel : l'agrégat ne le voit
-        // pas, il se tient ici. Même forme que le refus de supprimer une section
-        // encore garnie.
         if (cible.Role == StaffRole.Owner && command.Role != StaffRole.Owner)
         {
             var restants = await _staff.CountActiveOwnersAsync(command.RestaurantId, cancellationToken);
@@ -201,14 +182,7 @@ internal sealed class StaffCommandHandler
         "C'est le dernier propriétaire actif de l'établissement. "
         + "Nommez-en un autre avant de retirer celui-ci.");
 
-    /// <summary>
-    /// Charge l'acteur ET la cible, tous deux rattachés au même restaurant.
-    ///
-    /// Le <c>RestaurantId</c> ne vient PAS du client : la route le résout depuis
-    /// l'appartenance du porteur du jeton. La cible est ensuite cherchée dans CE
-    /// restaurant — c'est le cloisonnement du §20, et il tient ici autant que dans
-    /// le domaine, qui le revérifie.
-    /// </summary>
+    /// <summary>Charge l'acteur ET la cible, tous deux rattachés au même restaurant.</summary>
     private async Task<Result<(RestaurantStaff Actor, RestaurantStaff Target)>> LoadAsync(
         Guid restaurantId, Guid actorUserId, Guid staffId, CancellationToken cancellationToken)
     {

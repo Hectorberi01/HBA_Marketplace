@@ -4,20 +4,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace HBA.Communication.Infrastructure.Messaging.Kafka.Configuration;
 
-/// <summary>
-/// REFUSE LE DEMARRAGE SI LE MODULE DE MESSAGERIE N'A PAS ETE BRANCHE.
-///
-/// L'outbox n'est plus enregistree par l'installeur — que le composition root
-/// appelle toujours — mais par `AjouterMessagerieCommunication()`, qu'il peut
-/// oublier. Un oubli ne casserait rien de visible : les messages internes
-/// s'ecriraient dans l'outbox et n'en sortiraient jamais.
-///
-/// `IHostedService` et non `BackgroundService` : une exception levee dans
-/// `StartAsync` arrete l'hote, la meme dans `ExecuteAsync` est avalee.
-///
-/// CE QU'ELLE NE COUVRE PAS. Elle verifie que le module a ete appele, pas qu'il
-/// est complet.
-/// </summary>
+/// <summary>REFUSE LE DEMARRAGE SI LE MODULE DE MESSAGERIE N'A PAS ETE BRANCHE.</summary>
 internal sealed class GardeDeCablage(IServiceProvider services) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)

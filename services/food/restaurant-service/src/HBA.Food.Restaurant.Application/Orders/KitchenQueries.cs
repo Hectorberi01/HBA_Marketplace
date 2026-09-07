@@ -6,33 +6,12 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Food.Application.Orders;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'ÉCRAN DE CUISINE (cahier des charges §13).
-///
-/// <paramref name="StationId"/> découpe l'écran : le grillardin ne voit que ses
-/// grillades, le barman que ses boissons. Nul = tout le restaurant, ce qu'affiche
-/// le passe.
-///
-/// UN TICKET FILTRÉ RESTE UN TICKET ENTIER.
-///
-/// Filtrer par poste retire les LIGNES des autres postes, jamais la commande.
-/// Le grillardin doit voir qu'il fait partie d'un ensemble : sans cela, il pose
-/// ses deux burgers sur le passe, considère son travail fini, et personne ne
-/// s'étonne que le sac attende ses boissons.
-///
-/// Chaque ticket porte donc <c>OtherStationsPending</c> — combien de lignes
-/// travaillent ailleurs.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>L'ÉCRAN DE CUISINE (cahier des charges §13).</summary>
 public sealed record GetKitchenBoardQuery(Guid RestaurantId, Guid? StationId) : IQuery<KitchenBoardView>;
 
 /// <summary>
-/// La file des commandes en attente de décision (§18 : <c>GET /restaurants/{id}/orders</c>).
-///
-/// SANS ELLE, L'ACCEPTATION SERAIT UN BOUTON SANS LISTE — le défaut exact qui
-/// avait bloqué les dossiers de livreurs pendant des semaines, et celui que la
-/// file de validation des restaurants a déjà corrigé.
+/// La file des commandes en attente de décision (§18 : <c> GET
+/// /restaurants/{id}/orders</c>).
 /// </summary>
 public sealed record ListPendingFoodOrdersQuery(Guid RestaurantId) : IQuery<IReadOnlyList<FoodOrderView>>;
 
@@ -116,9 +95,9 @@ internal sealed class KitchenQueryHandler
         }
 
         IReadOnlyList<KitchenTicketView> ordonnes = tickets
-            // PRIORITÉ D'ABORD, ANCIENNETÉ ENSUITE. L'inverse rendrait la
-            // priorité décorative : une commande remontée à la main resterait
-            // derrière les vingt autres arrivées avant elle.
+            // PRIORITÉ D'ABORD, ANCIENNETÉ ENSUITE. L'inverse rendrait la priorité
+            // décorative : une commande remontée à la main resterait derrière les
+            // vingt autres arrivées avant elle.
             .OrderByDescending(t => t.Priority)
             .ThenBy(t => t.ReceivedAtUtc)
             .ToList();

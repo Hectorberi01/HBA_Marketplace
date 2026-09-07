@@ -4,7 +4,7 @@ namespace HBA.Catalog.Application.Products.Commands.CreateProduct;
 
 /// <summary>
 /// Validation d'entrée (forme), exécutée par le ValidationBehavior avant le
-/// handler. Les invariants métier profonds restent dans l'agrégat Product.
+/// handler.
 /// </summary>
 public sealed class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
 {

@@ -9,8 +9,7 @@ namespace HBA.Identity.Infrastructure.Security;
 
 /// <summary>
 /// Émet un JWT signé (HMAC-SHA256) portant l'identité, les rôles et les
-/// permissions. Le « security_stamp » permet d'invalider les tokens après un
-/// changement sensible (mot de passe, MFA).
+/// permissions.
 /// </summary>
 internal sealed class JwtTokenGenerator : IJwtTokenGenerator
 {
@@ -45,23 +44,7 @@ internal sealed class JwtTokenGenerator : IJwtTokenGenerator
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(SecurityStampClaimType, user.SecurityStamp.ToString()),
 
-            // ═════════════════════════════════════════════════════════════════
             // `auth_time` EST DISTINCT DE `iat`, ET C'EST TOUT LE MÉCANISME.
-            //
-            // `iat` naît avec ce jeton-ci ; `auth_time` remonte à la connexion qui
-            // l'autorise, et traverse les rotations sans bouger. Les dériver du
-            // même instant rendrait le step-up du §37 décoratif : un client qui
-            // rafraîchit toutes les quatre minutes paraîtrait indéfiniment
-            // fraîchement authentifié, et l'exigence de mot de passe récent avant
-            // un virement se contournerait en attendant.
-            //
-            // TYPE `Integer64` EXPLICITE.
-            //
-            // Sans lui, le sérialiseur écrit la valeur en CHAÎNE — `"1755600000"`
-            // au lieu de `1755600000`. C'est conforme au JWT mais pas à OIDC, qui
-            // impose un NumericDate, et les bibliothèques clientes qui typent le
-            // claim en nombre lèvent au lieu de lire.
-            // ═════════════════════════════════════════════════════════════════
             new(
                 AuthTimeClaimType,
                 new DateTimeOffset(
@@ -71,9 +54,9 @@ internal sealed class JwtTokenGenerator : IJwtTokenGenerator
                 ClaimValueTypes.Integer64)
         };
 
-        // UN CLAIM PAR MÉTHODE : `amr` est un TABLEAU dans OIDC. Concaténées
-        // dans une seule valeur, `"pwd otp"` serait lu comme une méthode unique
-        // de ce nom, qui n'existe dans aucun registre.
+        // UN CLAIM PAR MÉTHODE : `amr` est un TABLEAU dans OIDC. Concaténées dans
+        // une seule valeur, `"pwd otp"` serait lu comme une méthode unique de ce
+        // nom, qui n'existe dans aucun registre.
         claims.AddRange(session.MethodList().Select(m => new Claim(AuthMethodsClaimType, m)));
 
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));

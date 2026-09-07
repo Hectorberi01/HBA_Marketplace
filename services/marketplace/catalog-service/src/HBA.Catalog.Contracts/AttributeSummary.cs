@@ -9,13 +9,7 @@ public sealed record AttributeDefinitionSummary(
     string? Unit,
     IReadOnlyList<string> Options);
 
-/// <summary>
-/// Un attribut TEL QUE LA CATÉGORIE LE DEMANDE (§10, §13 étape 8).
-///
-/// C'est ce que le formulaire vendeur consomme pour construire ses champs
-/// dynamiques : le libellé et le type viennent de la définition, `Required`,
-/// `Variant` et `DisplayOrder` du rattachement.
-/// </summary>
+/// <summary>Un attribut TEL QUE LA CATÉGORIE LE DEMANDE (§10, §13 étape 8).</summary>
 public sealed record CategoryAttributeSummary(
     Guid AttributeDefinitionId,
     string Code,

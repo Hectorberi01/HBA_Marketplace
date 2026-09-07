@@ -32,23 +32,7 @@ internal sealed class ListCommissionRulesQueryHandler : IQueryHandler<ListCommis
     }
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'APERÇU DÉLÈGUE AU MOTEUR, IL NE LE RÉIMPLÉMENTE PAS.
-///
-/// CE HANDLER RÉSOLVAIT LUI-MÊME, ET RENDAIT 0 QUAND AUCUNE RÈGLE NE MATCHAIT.
-///
-/// Il recopiait `GetCandidatesAsync` + `CommissionResolver.Resolve` de
-/// `CommissionModuleApi`, à un détail près : le repli. Le moteur applique le taux
-/// par défaut ; cette copie rendait `0m`. Sur une plateforme où aucune règle n'est
-/// définie — le cas courant —, l'écran d'administration annonçait donc « commission :
-/// 0 » pendant que la comptabilisation prélevait 10 %. L'aperçu servait justement à
-/// vérifier avant de créer une règle, et il mentait précisément là où on le consultait.
-///
-/// Deux copies d'un calcul monétaire divergent toujours : l'une évolue sans l'autre.
-/// Il n'en reste qu'une, et c'est celle que l'argent emploie.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>L'APERÇU DÉLÈGUE AU MOTEUR, IL NE LE RÉIMPLÉMENTE PAS.</summary>
 internal sealed class ComputeCommissionQueryHandler : IQueryHandler<ComputeCommissionQuery, CommissionResult>
 {
     private readonly ICommissionModuleApi _commissions;

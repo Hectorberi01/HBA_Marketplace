@@ -5,16 +5,7 @@ using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Food.Application.Restaurants;
 
-/// <summary>
-/// Publie « établissement validé ».
-///
-/// SANS CE PUBLICATEUR, RestaurantApprovedDomainEvent MOURAIT DANS L'AGRÉGAT.
-///
-/// L'événement était levé, correctement, et personne ne l'écoutait : le rôle
-/// FoodPartner n'était jamais attribué. Le jour où une route l'aurait exigé,
-/// aucun restaurateur validé ne l'aurait eu — et personne n'aurait relié la panne
-/// à un événement sans écouteur, écrit des mois plus tôt.
-/// </summary>
+/// <summary>Publie « établissement validé ».</summary>
 public sealed class RestaurantApprovedDomainEventHandler : IDomainEventHandler<RestaurantApprovedDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;
@@ -33,9 +24,7 @@ public sealed class RestaurantApprovedDomainEventHandler : IDomainEventHandler<R
             cancellationToken);
 }
 
-/// <summary>
-/// Publie « dossier refusé ». Le motif voyage avec — c'est tout l'intérêt.
-/// </summary>
+/// <summary>Publie « dossier refusé ».</summary>
 public sealed class RestaurantRejectedDomainEventHandler : IDomainEventHandler<RestaurantRejectedDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;

@@ -4,11 +4,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Identity.Domain.Users;
 
-/// <summary>
-/// Numéro de téléphone normalisé. Clé majeure sur le marché visé (SMS, mobile
-/// money). On garde un format E.164 simplifié : « + » optionnel suivi de 8 à 15
-/// chiffres. Value Object.
-/// </summary>
+/// <summary>Numéro de téléphone normalisé.</summary>
 public sealed partial class PhoneNumber : ValueObject
 {
     private PhoneNumber(string value) => Value = value;

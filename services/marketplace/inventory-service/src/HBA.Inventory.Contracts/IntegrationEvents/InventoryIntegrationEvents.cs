@@ -12,7 +12,10 @@ public sealed record StockReservedIntegrationEvent : IntegrationEvent
     public required int Quantity { get; init; }
 }
 
-/// <summary>Un SKU est en rupture (consommé par Offers pour passer l'offre OutOfStock, Search…).</summary>
+/// <summary>
+/// Un SKU est en rupture (consommé par Offers pour passer l'offre OutOfStock,
+/// Search…).
+/// </summary>
 [HbaEvent("inventory.stock.depleted")]
 public sealed record StockDepletedIntegrationEvent : IntegrationEvent
 {
@@ -21,13 +24,7 @@ public sealed record StockDepletedIntegrationEvent : IntegrationEvent
     public required Guid LocationId { get; init; }
 }
 
-/// <summary>
-/// Le stock d'un SKU repasse au-dessus de zéro.
-///
-/// Consommé par le composition root pour relancer les offres que la rupture avait
-/// retirées de la vente. Sans lui, un réassort ne remet rien en vente : le
-/// vendeur doit s'en apercevoir et relancer chaque offre à la main.
-/// </summary>
+/// <summary>Le stock d'un SKU repasse au-dessus de zéro.</summary>
 [HbaEvent("inventory.stock.replenished")]
 public sealed record StockReplenishedIntegrationEvent : IntegrationEvent
 {

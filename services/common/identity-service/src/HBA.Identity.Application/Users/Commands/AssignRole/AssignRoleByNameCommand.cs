@@ -7,28 +7,7 @@ using HBA.Identity.Domain.Users;
 
 namespace HBA.Identity.Application.Users.Commands.AssignRole;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ATTRIBUE UN RÔLE DÉSIGNÉ PAR SON NOM.
-///
-/// POURQUOI CETTE VARIANTE EXISTE À CÔTÉ DE <c>AssignRoleCommand</c>
-///
-/// Celle-ci s'adresse aux appelants qui savent QUEL rôle attribuer mais pas son
-/// identifiant : les adaptateurs du composition root, qui réagissent à un fait
-/// métier — « ce livreur est vérifié » — et n'ont aucune raison de connaître les
-/// clés primaires de la table des rôles.
-///
-/// L'alternative aurait été d'exposer une recherche de rôle par nom dans l'API
-/// publique d'Identity. Elle donnerait à tous les modules le moyen de lire le
-/// catalogue des rôles pour, en pratique, un seul usage — et le premier qui s'en
-/// servirait écrirait la chaîne « Driver » dans son propre code.
-///
-/// LE NOM EST COMPARÉ TEL QUEL. Il vient d'une constante, jamais d'une saisie.
-/// Un rôle introuvable est une ERREUR, pas un silence : le seul cas où cela
-/// arrive est un semis incomplet, et l'avaler laisserait des livreurs vérifiés
-/// sans rôle, donc bloqués par la première route qui l'exigera.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ATTRIBUE UN RÔLE DÉSIGNÉ PAR SON NOM.</summary>
 public sealed record AssignRoleByNameCommand(Guid UserId, string RoleName) : ICommand;
 
 internal sealed class AssignRoleByNameCommandHandler : ICommandHandler<AssignRoleByNameCommand>
@@ -64,8 +43,7 @@ internal sealed class AssignRoleByNameCommandHandler : ICommandHandler<AssignRol
         }
 
         // AssignRole est IDEMPOTENTE côté agrégat : un rôle déjà porté n'est pas
-        // ajouté deux fois et ne lève pas d'événement. Un rejeu de l'outbox — qui
-        // livre au moins une fois — ne produit donc rien.
+        // ajouté deux fois et ne lève pas d'événement.
         var result = user.AssignRole(role.Id.Value);
         if (result.IsFailure)
         {

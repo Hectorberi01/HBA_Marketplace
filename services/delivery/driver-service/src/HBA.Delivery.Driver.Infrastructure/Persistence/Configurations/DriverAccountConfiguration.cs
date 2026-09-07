@@ -5,35 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace HBA.Drivers.Infrastructure.Persistence.Configurations;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE DOSSIER LIVREUR EN BASE.
-///
-/// L'INDEX UNIQUE SUR `UserId` EST LA VRAIE CORRECTION D'ISSUE-029.
-///
-/// Le contrôle applicatif de `RegisterDriverCommandHandler` ne suffit pas : deux
-/// inscriptions concurrentes du même compte — double-clic, réessai du client
-/// mobile après une échéance — le passent toutes les deux, et la plateforme se
-/// retrouve avec deux dossiers pour une personne. Lequel des deux l'exploitation
-/// vérifierait-elle ? Lequel la route `/me` rendrait-elle ? C'est la base qui
-/// tranche, et c'est le seul arbitre qui voie les deux écritures.
-///
-/// CET INDEX N'EST PAS PARTIEL, CONTRAIREMENT À `ux_deliveries_engaged_driver`.
-///
-/// Là-bas, la contrainte ne vaut que pour les états ENGAGÉS, parce qu'un livreur a
-/// évidemment le droit d'avoir livré mille courses. Ici, la règle est
-/// inconditionnelle et le restera : un compte HBA n'a qu'un dossier livreur, quel
-/// que soit son état — refusé, suspendu ou vérifié. Un dossier refusé se redépose,
-/// il ne se recrée pas.
-///
-/// LES ÉNUMÉRATIONS SONT PERSISTÉES EN TOUTES LETTRES.
-///
-/// Un entier en base rend toute lecture SQL d'exploitation illisible — et
-/// surtout, réordonner une énumération en C# réinterprète silencieusement toutes
-/// les lignes déjà écrites. Le coût est quelques octets par ligne sur une table
-/// qui compte des milliers de lignes, pas des millions.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE DOSSIER LIVREUR EN BASE.</summary>
 internal sealed class DriverAccountConfiguration : IEntityTypeConfiguration<DriverAccount>
 {
     public void Configure(EntityTypeBuilder<DriverAccount> builder)
@@ -43,10 +15,7 @@ internal sealed class DriverAccountConfiguration : IEntityTypeConfiguration<Driv
 
         // `ValueGeneratedNever` : l'identifiant est tiré DANS le domaine
         // (`DriverAccount.Register`), et il est repris tel quel par la projection
-        // de delivery-service. Laisser EF croire que la base le génère ferait
-        // écrire un identifiant différent de celui que l'événement a annoncé —
-        // deux identités pour un même livreur. Même réglage que
-        // `DeliveryConfiguration` sur ses propositions.
+        // de delivery-service.
         builder.Property(account => account.Id).ValueGeneratedNever();
 
         builder.Property(account => account.UserId).IsRequired();
@@ -67,16 +36,6 @@ internal sealed class DriverAccountConfiguration : IEntityTypeConfiguration<Driv
             .HasDatabaseName("ix_driver_accounts_status");
 
         // COLLECTIONS POSSÉDÉES ET NON ENTITÉS INDÉPENDANTES.
-        //
-        // Une pièce et un véhicule n'ont aucune vie hors du dossier : rien ne les
-        // charge seuls, rien ne les référence, et les supprimer avec lui est la
-        // seule conduite correcte. `OwnsMany` donne exactement cela — cascade de
-        // suppression et chargement systématique avec le parent — sans qu'aucun
-        // appelant puisse les obtenir sans passer par l'agrégat.
-        //
-        // CONSÉQUENCE À CONNAÎTRE : elles sont TOUJOURS chargées. C'est voulu ;
-        // l'agrégat en a besoin pour juger de la complétude du dossier, et une
-        // lecture qui n'en voudrait pas rendrait `SubmitForReview` faux.
         builder.OwnsMany(account => account.Documents, document =>
         {
             document.ToTable("driver_documents", DriverDbContext.SchemaName);
@@ -90,9 +49,7 @@ internal sealed class DriverAccountConfiguration : IEntityTypeConfiguration<Driv
             document.Property(item => item.RejectionReason).HasMaxLength(500);
 
             // Une seule pièce par type et par dossier : le dépôt d'une nouvelle
-            // version REMPLACE la précédente (voir `SubmitDocument`). Sans cette
-            // contrainte, un rejeu de la requête empilerait deux exemplaires, et le
-            // vérificateur validerait l'un des deux au hasard.
+            // version REMPLACE la précédente (voir `SubmitDocument`).
             document.HasIndex(item => new { item.DriverId, item.Type })
                 .IsUnique()
                 .HasDatabaseName("ux_driver_documents_type");
@@ -115,12 +72,5 @@ internal sealed class DriverAccountConfiguration : IEntityTypeConfiguration<Driv
         });
 
         // PAS DE `UsePropertyAccessMode(Field)` ICI, ET CE N'EST PAS UN OUBLI.
-        //
-        // `Documents` et `Vehicles` n'exposent qu'une vue en lecture seule
-        // (`_documents.AsReadOnly()`), donc EF DOIT passer par le champ. Il le
-        // fait par convention — le champ `_documents` correspond à la propriété
-        // `Documents` —, exactement comme `DeliveryConfiguration` avec
-        // `_assignments`. Le déclarer à la main ici et pas là-bas ferait croire
-        // que les deux modules ne suivent pas la même règle.
     }
 }

@@ -27,7 +27,6 @@ internal sealed class ProductMediaConfiguration : IEntityTypeConfiguration<Produ
         builder.Property(m => m.LegacyExternalId).HasMaxLength(200);
 
         // Propriété CALCULÉE : elle se dérive du MediaId et n'a rien en base.
-        // Sans cet Ignore, EF réclamerait une colonne « IsLegacy ».
         builder.Ignore(m => m.IsLegacy);
     }
 }

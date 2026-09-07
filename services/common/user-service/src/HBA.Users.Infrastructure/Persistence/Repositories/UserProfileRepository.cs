@@ -13,26 +13,14 @@ internal sealed class UserProfileRepository : IUserProfileRepository
     public async Task<UserProfile?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         => await _dbContext.UserProfiles.FirstOrDefaultAsync(p => p.Id == userId, cancellationToken);
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LA LECTURE EN LOT — ELLE EXISTE POUR UNE RAISON PRÉCISE.
-    ///
-    /// Depuis que le nom a quitté <c>UserSummary</c>, toute liste qui affiche un
-    /// nom par ligne — commandes d'un vendeur, utilisateurs de la console — ferait
-    /// un appel par ligne. C'est le N+1 classique, et il n'apparaît qu'en
-    /// production, quand la liste dépasse dix éléments.
-    ///
-    /// <c>AsNoTracking</c> : ces profils sont lus pour être affichés, jamais
-    /// modifiés. Les suivre ferait grossir le change tracker à chaque page.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LA LECTURE EN LOT — ELLE EXISTE POUR UNE RAISON PRÉCISE.</summary>
     public async Task<IReadOnlyList<UserProfile>> ListByUserIdsAsync(
         IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken = default)
     {
         if (userIds.Count == 0)
         {
             // Sans cette sortie, EF produit « WHERE id IN () », que PostgreSQL
-            // refuse. Le cas arrive dès qu'une page n'a aucune ligne.
+            // refuse.
             return [];
         }
 
@@ -55,10 +43,6 @@ internal sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserPr
         builder.ToTable("user_profiles");
 
         // LA CLÉ PRIMAIRE EST LE UserId D'IDENTITY, PAS UN IDENTIFIANT PROPRE.
-        //
-        // C'est ce qui rend « deux profils pour un compte » impossible sans index
-        // unique supplémentaire ni règle à faire respecter. ValueGeneratedNever :
-        // la valeur vient d'Identity, la base ne doit surtout pas en inventer une.
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Id).ValueGeneratedNever();
 
@@ -69,9 +53,7 @@ internal sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserPr
         builder.Property(p => p.CreatedOnUtc).IsRequired();
         builder.Property(p => p.UpdatedOnUtc);
 
-        // DisplayName est CALCULÉ, jamais persisté. Une colonne « nom complet »
-        // diverge dès qu'un nom de famille est corrigé sans que la concaténation
-        // soit refaite — et c'est le nom affiché au client qui devient faux.
+        // DisplayName est CALCULÉ, jamais persisté.
         builder.Ignore(p => p.DisplayName);
     }
 }

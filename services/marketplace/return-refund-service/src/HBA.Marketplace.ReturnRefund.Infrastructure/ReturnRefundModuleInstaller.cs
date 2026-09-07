@@ -35,24 +35,19 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheMarketplaceReturnRefund(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteMarketplaceReturnRefund(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaine de connexion Default absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
-        // `AjouterMessagerieMarketplaceReturnRefund()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieMarketplaceReturnRefund()`, que le composition root
+        // peut oublier.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<ReturnRefundDbContext>(options =>
@@ -72,96 +67,16 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
         services.AddScoped<IDeliveryGrpcClient, DeliveryGrpcClient>();
         services.AddScoped<IMediaGrpcClient, MediaValidationClient>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // TROIS DE CES CINQ ADAPTATEURS NE PARLENT À PERSONNE.
-        //
-        // `OrderGrpcClient` et `PaymentGrpcClient` appellent réellement leur
-        // interlocuteur — ils ont un champ injecté et un constructeur. Les trois
-        // autres sont des BOUCHONS INTÉGRAUX : aucun champ, aucun constructeur,
-        // une expression-corps qui fabrique un succès sur place et le rend.
-        //
-        //   • InventoryGrpcClient.ProcessReturnedStockAsync rend
-        //     `Task.FromResult(Result.Success())`. `InspectReturnCommandHandler` le
-        //     croit, boucle sur les articles, et enchaîne. LA MARCHANDISE RETOURNÉE
-        //     N'ENTRE JAMAIS À L'INVENTAIRE : elle est inspectée, déclarée remettable
-        //     en rayon, physiquement présente à l'entrepôt — et invisible au
-        //     catalogue. Elle ne sera jamais revendue, et rien n'indiquera pourquoi.
-        //
-        //   • DeliveryGrpcClient.CreateReturnDeliveryAsync fabrique la chaîne
-        //     `RET-DELIVERY-{guid}`. `RegisterReturnShipmentCommandHandler` l'inscrit
-        //     sur le retour et la rend au client. AUCUNE COURSE D'ENLÈVEMENT N'EST
-        //     CRÉÉE : le client attend un livreur que personne n'a commandé, avec un
-        //     numéro de suivi qu'aucun système ne connaît.
-        //
-        //   • MediaGrpcClient.ValidateMediaAsync vérifie que la chaîne n'est pas
-        //     vide, et rien d'autre — ni l'existence du média, ni son propriétaire.
-        //     `AddEvidenceCommandHandler` accepte donc n'importe quel identifiant
-        //     comme preuve photo, y compris celui du média d'un autre client.
-        //
-        // CE QUE CE GARDE-FOU FAIT, ET CE QU'IL NE FAIT PAS.
-        //
-        // Il N'IMPLÉMENTE PAS les vrais appels gRPC : ceux-là demandent des `.proto`,
-        // des serveurs en face et des décisions de contrat qui ne sont pas dans ce
-        // lot. Il applique la règle que ce dépôt s'est déjà donnée aux vagues 0.3 et
-        // 3.2, pour `SimulatedPayoutGateway` et pour les passerelles sans
-        // remboursement : UN ADAPTATEUR QUI SIMULE REFUSE DE DÉMARRER EN PRODUCTION.
-        //
-        // Le périmètre honnête est donc : la limite est DÉCLARÉE, elle refuse la
-        // production, et elle s'ANNONCE bruyamment partout ailleurs.
-        //
-        // POURQUOI PAS UN DRAPEAU DE CONFIGURATION POUR PASSER OUTRE.
-        //
-        // C'est exactement la variable qu'on recopie d'un fichier d'environnement de
-        // recette vers celui de production. Et il n'y aurait rien à assumer : ces
-        // trois méthodes n'ont pas de version dégradée acceptable, elles ont une
-        // version FAUSSE. Un service qui ne démarre pas se répare en une journée ;
-        // un stock jamais réapprovisionné se découvre à l'inventaire annuel, et
-        // plus rien ne permet alors de savoir quels retours auraient dû l'alimenter.
-        //
-        // CE QUI L'AVAIT LAISSÉ PASSER.
-        //
-        // le contrôle `grpc-stubs` balayait `<dépôt>/src`, dossier hérité du
-        // monolithe et inexistant ici : il rendait « 0 bouchon » depuis toujours.
-        // Réparé, il désigne ces trois classes — et sait désormais reconnaître le
-        // cas « classe *GrpcClient sans aucun champ client », qui est précisément
-        // celui qui passait entre les mailles.
-        // ═════════════════════════════════════════════════════════════════════
         GuardSimulatedGrpcAdapters(configuration);
 
-        // ═════════════════════════════════════════════════════════════════════
         // LES DEUX TRAVAILLEURS SONT CE QUI FAIT AVANCER LE MODULE.
-        //
-        // Ils étaient enregistrés — et vides. `RefundRetryWorker` est le SEUL
-        // émetteur d'`ExecuteRefundCommand` : sans lui, une décision de
-        // remboursement reste une ligne en base et l'argent ne part jamais.
-        // ═════════════════════════════════════════════════════════════════════
         services.AddHostedService<ExpireReturnsWorker>();
         services.AddHostedService<RefundRetryWorker>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // `OutboxPublisherWorker` A ÉTÉ SUPPRIMÉ, PAS IMPLÉMENTÉ.
-        //
-        // `AddOutboxProcessor<ReturnRefundDbContext>()` — deux lignes plus bas —
-        // enregistre DÉJÀ `OutboxProcessor<ReturnRefundDbContext>` et son purgeur.
-        // Écrire un second drain aurait donné deux processus lisant la même table
-        // sans `SELECT … FOR UPDATE SKIP LOCKED` : chaque message publié DEUX FOIS,
-        // donc chaque gain vendeur contre-passé deux fois par wallet-service.
-        //
-        // La coquille disait ce qu'elle aurait dû faire ; ce qu'elle aurait dû
-        // faire existe déjà ailleurs. Le bon geste est de la retirer.
-        // ═════════════════════════════════════════════════════════════════════
 
-        // ═════════════════════════════════════════════════════════════════════
         // SANS CES DEUX LIGNES, LES ÉVÉNEMENTS DU MODULE NE SORTENT PAS.
-        //
-        // `DomainEventDispatcher` résout ses gestionnaires par le conteneur :
-        // un gestionnaire non enregistré n'est pas une erreur de démarrage, c'est
-        // un silence. `ReturnRefundApprovedIntegrationEvent` et
-        // `ReturnRefundedIntegrationEvent` — dont wallet-service et
-        // notification-service ont les consommateurs prêts depuis toujours — ne
-        // seraient jamais publiés, et le vendeur garderait son gain sur une vente
-        // remboursée.
-        // ═════════════════════════════════════════════════════════════════════
         services.AddScoped<IDomainEventHandler<RefundRequestedDomainEvent>, RefundRequestedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<RefundSucceededDomainEvent>, RefundSucceededDomainEventHandler>();
 
@@ -172,27 +87,6 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
     /// Refuse le démarrage en production tant qu'un adaptateur gRPC de ce module
     /// simule sa réponse ; l'annonce bruyamment partout ailleurs.
     /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// MÊME RÈGLE QUE `PaymentsModuleInstaller`, MÊME RAISON.
-    ///
-    /// Un adaptateur silencieux ne fait pas « tourner la plateforme en mode
-    /// dégradé » : il la fait tourner dans un ÉTAT FAUX, que rien ne distingue
-    /// après coup d'un état vrai. Il n'existe aucun moyen de retrouver, dans six
-    /// mois, quels retours auraient dû réapprovisionner le stock ni quels clients
-    /// ont reçu un numéro d'enlèvement imaginaire : ces appels n'ont laissé
-    /// aucune trace, puisqu'ils n'ont jamais eu lieu.
-    ///
-    /// LA LISTE EST ÉCRITE À LA MAIN, ET C'EST SA FAIBLESSE.
-    ///
-    /// Elle ne se met pas à jour toute seule. Implémenter réellement l'un de ces
-    /// trois adaptateurs SANS retirer sa ligne d'ici bloquerait la production
-    /// pour rien — l'inverse du défaut qu'on corrige, mais un défaut quand même.
-    /// le contrôle `grpc-stubs` est le filet : il liste les bouchons réels à
-    /// chaque exécution de `scripts/check-all.sh`, et l'écart entre sa sortie et
-    /// cette liste se voit en une lecture.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
     private static void GuardSimulatedGrpcAdapters(IConfiguration configuration)
     {
         // (adaptateur, conséquence métier) — la conséquence, pas le symptôme
@@ -204,14 +98,6 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
             ("DeliveryGrpcClient.CreateReturnDeliveryAsync",
              "AUCUNE course d'enlèvement n'est créée ; le numéro rendu au client ne correspond à rien"),
             // MediaGrpcClient.ValidateMediaAsync A ÉTÉ ÉCRIT LE 29 AOÛT 2026.
-            //
-            // Il contacte réellement media-service par le RPC `Get`, vérifie que
-            // le média existe ET qu'il appartient au bon dossier, et distingue
-            // une indisponibilité du service d'un refus de preuve.
-            //
-            // Sa ligne est retirée d'ici, et c'est obligatoire : le commentaire
-            // de cette méthode le dit lui-même — laisser un adaptateur réellement
-            // implémenté dans cette liste bloquerait la production pour rien.
         };
 
         var details = string.Join(
@@ -237,10 +123,7 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
                 + " retirer leur ligne de GuardSimulatedGrpcAdapters.");
         }
 
-        // Bruyant, et volontairement. En production ce cas est impossible (voir
-        // ci-dessus) ; ailleurs, il faut qu'un développeur qui déroule un retour de
-        // bout en bout sache qu'une partie du parcours est une FICTION — sans quoi
-        // il conclura que « ça marche ».
+        // Bruyant, et volontairement.
         Console.WriteLine(
             "[ReturnRefund]  ADAPTATEURS gRPC SIMULÉS ACTIFS :" + Environment.NewLine
             + details + Environment.NewLine
@@ -248,32 +131,10 @@ public sealed class ReturnRefundModuleInstaller : IModuleInstaller
             + " n'ont AUCUNE contrepartie réelle. Le démarrage est refusé en production.");
     }
 
-    /// <summary>
-    /// Sommes-nous en production ?
-    /// </summary>
-    /// <remarks>
-    /// L'installeur ne reçoit qu'un <see cref="IConfiguration"/> — les modules
-    /// s'installent avant que l'hôte ne soit construit, donc pas
-    /// d'<c>IHostEnvironment</c>. La règle elle-même vit dans
-    /// <c>EnvironnementDeploiement</c>, en un seul exemplaire.
-    ///
-    /// CE PARAGRAPHE DÉCRIVAIT AUPARAVANT UN FAIL-OPEN ASSUMÉ : « l'inconnu est
-    /// traité comme pas la production, sinon un nom mal orthographié empêcherait
-    /// de travailler ». Ce n'est plus vrai, et ce n'était pas défendable : une
-    /// variable ABSENTE tombait du même côté qu'une faute de frappe, alors
-    /// qu'ASP.NET Core considère une variable absente comme la production.
-    /// Désormais l'inconnu et l'absent sont la production ; seuls les noms
-    /// explicitement listés en dispensent.
-    /// </remarks>
+    /// <summary>Sommes-nous en production ?</summary>
     private static bool IsProduction(IConfiguration configuration)
     {
         // DÉLÉGUÉ À `EnvironnementDeploiement`, ET C'EST LA CORRECTION.
-        //
-        // Ce corps était une copie parmi six d'une règle FAIL-OPEN : tout ce qui
-        // n'était pas littéralement « Production » — variable absente, chaîne
-        // vide, faute de frappe — était traité comme du développement, alors
-        // qu'ASP.NET Core, lui, considère une variable absente comme la
-        // production. Voir l'encadré de `EnvironnementDeploiement`.
         return EnvironnementDeploiement.EstProduction(configuration);
     }
 }

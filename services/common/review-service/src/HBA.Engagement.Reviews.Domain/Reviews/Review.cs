@@ -4,11 +4,7 @@ using HBA.Engagement.Reviews.Domain.Reviews.Events;
 
 namespace HBA.Engagement.Reviews.Domain.Reviews;
 
-/// <summary>
-/// Avis d'un acheteur sur un produit. Marqué « achat vérifié » lorsqu'il est
-/// rattaché à une commande confirmée de l'acheteur. Publié à la création
-/// (modération a posteriori : un admin peut le signaler ou le rejeter).
-/// </summary>
+/// <summary>Avis d'un acheteur sur un produit.</summary>
 public sealed class Review : AggregateRoot<ReviewId>
 {
     private Review()

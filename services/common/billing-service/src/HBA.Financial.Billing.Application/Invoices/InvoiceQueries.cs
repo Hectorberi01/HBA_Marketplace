@@ -13,15 +13,6 @@ public sealed record GetInvoiceQuery(Guid InvoiceId) : IQuery<InvoiceSummary>;
 public sealed record ListInvoicesBySellerQuery(Guid SellerId) : IQuery<IReadOnlyList<InvoiceSummary>>;
 
 /// <summary>La page des factures, tous vendeurs confondus (administration).</summary>
-/// <remarks>
-/// TROIS STATUTS SEULEMENT, ET C'EST `Issued` QUI COMPTE.
-///
-/// `Draft` est une facture en cours de composition — on lui ajoute des lignes ;
-/// `Issued` est émise et attend son paiement ; `Paid` est soldée. La seule file
-/// qui demande une action est donc `Issued`, et c'est ce que l'écran met en
-/// avant. Le filtre reste un paramètre : relire une facture payée est un usage
-/// légitime.
-/// </remarks>
 public sealed record ListInvoicesQuery(
     int Page = 1,
     int PageSize = PageRequest.DefaultPageSize,
@@ -62,8 +53,7 @@ internal sealed class ListInvoicesQueryHandler : IQueryHandler<ListInvoicesQuery
 
         // Un statut illisible est ignoré plutôt que refusé : la liste complète se
         // voit, et le compte par statut rendu avec la page permet de vérifier ce
-        // qui a filtré. Même choix que les listes voisines d'identity et de
-        // return-refund.
+        // qui a filtré.
         InvoiceStatus? statut = Enum.TryParse<InvoiceStatus>(query.Status, ignoreCase: true, out var lu)
             ? lu
             : null;

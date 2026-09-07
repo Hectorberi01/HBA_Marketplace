@@ -22,8 +22,8 @@ internal sealed class ListBrandsQueryHandler : IQueryHandler<ListBrandsQuery, IR
 
     public async Task<Result<IReadOnlyList<BrandSummary>>> Handle(ListBrandsQuery query, CancellationToken cancellationToken)
     {
-        // Donnée de référence, comme les catégories : lue sans cesse, écrite presque
-        // jamais.
+        // Donnée de référence, comme les catégories : lue sans cesse, écrite
+        // presque jamais.
         var summaries = await _cache.GetOrCreateAsync(
             CatalogCacheKeys.AllBrands,
             async ct =>

@@ -18,35 +18,10 @@ public readonly record struct PartnerId(Guid Value)
 /// <param name="Prefix">Partie publique, conservée pour identifier la clé sans la révéler.</param>
 public readonly record struct IssuedApiKey(string Key, string Prefix);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UNE CLÉ D'API — STOCKÉE COMME UN MOT DE PASSE, JAMAIS EN CLAIR.
-///
-/// POURQUOI UN PRÉFIXE PUBLIC EN PLUS DU CONDENSAT
-///
-/// Si l'on ne stockait que le condensat, authentifier une requête exigerait de
-/// comparer la clé reçue à CHAQUE clé de la base — un balayage complet à chaque
-/// appel. Le préfixe est la partie publique de la clé : il est indexé, il
-/// désigne une seule ligne, et le condensat n'est vérifié qu'ensuite.
-///
-/// Il sert aussi à l'humain : « hba_live_7f3a… » s'affiche dans une console
-/// d'administration et dans les journaux sans rien révéler.
-///
-/// POURQUOI SHA-256 ET NON BCRYPT
-///
-/// BCrypt est lent PAR CONSTRUCTION — c'est sa raison d'être face à un mot de
-/// passe humain de faible entropie. Une clé d'API, elle, porte 256 bits
-/// d'aléa : aucune attaque par dictionnaire n'a de prise, et la lenteur ne
-/// protège de rien. En revanche, elle se paierait à CHAQUE requête du partenaire.
-/// BCrypt ici serait un déni de service que l'on s'inflige.
-///
-/// La comparaison reste à temps constant : un condensat se compare avec
-/// <see cref="CryptographicOperations.FixedTimeEquals"/>, jamais avec « == ».
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UNE CLÉ D'API — STOCKÉE COMME UN MOT DE PASSE, JAMAIS EN CLAIR.</summary>
 public sealed class PartnerApiKey : Entity<Guid>
 {
-    /// <summary>Longueur du préfixe public. Assez pour être unique, trop court pour aider une attaque.</summary>
+    /// <summary>Longueur du préfixe public.</summary>
     private const int PrefixLength = 12;
 
     /// <summary>Octets d'aléa du secret. 32 octets = 256 bits.</summary>
@@ -68,7 +43,7 @@ public sealed class PartnerApiKey : Entity<Guid>
         Hash = string.Empty;
     }
 
-    /// <summary>Partie publique, indexée. Sert à retrouver la clé sans la révéler.</summary>
+    /// <summary>Partie publique, indexée.</summary>
     public string Prefix { get; private set; }
 
     /// <summary>Condensat SHA-256 de la clé complète, en base64.</summary>
@@ -92,8 +67,7 @@ public sealed class PartnerApiKey : Entity<Guid>
 
     /// <summary>
     /// Émet une clé. Le secret en clair n'est renvoyé QU'ICI : il n'est stocké
-    /// nulle part et ne pourra jamais être retrouvé. Un partenaire qui perd sa
-    /// clé en obtient une nouvelle ; il ne la « récupère » pas.
+    /// nulle part et ne pourra jamais être retrouvé.
     /// </summary>
     internal static (PartnerApiKey Key, IssuedApiKey Issued) Issue(string environmentTag, string? label)
     {
@@ -127,8 +101,7 @@ public sealed class PartnerApiKey : Entity<Guid>
 
     /// <summary>
     /// Note l'usage. Volontairement APPROXIMATIF : on n'écrit qu'une fois par
-    /// heure. Horodater chaque appel transformerait la table des clés en journal
-    /// d'accès, avec une écriture par requête partenaire.
+    /// heure.
     /// </summary>
     public bool TouchIfStale()
     {
@@ -141,7 +114,7 @@ public sealed class PartnerApiKey : Entity<Guid>
         return true;
     }
 
-    /// <summary>Extrait le préfixe public d'une clé présentée. Nul si la forme ne correspond pas.</summary>
+    /// <summary>Extrait le préfixe public d'une clé présentée.</summary>
     public static string? ExtractPrefix(string? key)
     {
         if (string.IsNullOrWhiteSpace(key))

@@ -6,8 +6,7 @@ namespace HBA.Communication.Domain.Conversations;
 
 /// <summary>
 /// Fil de discussion entre participants (acheteur ↔ vendeur, ou support),
-/// optionnellement rattaché à un contexte (produit, commande). Agrégat racine :
-/// possède ses messages.
+/// optionnellement rattaché à un contexte (produit, commande).
 /// </summary>
 public sealed class Conversation : AggregateRoot<ConversationId>
 {
@@ -78,15 +77,10 @@ public sealed class Conversation : AggregateRoot<ConversationId>
         }
 
         // UNE SEULE NORMALISATION, ET AVANT TOUT USAGE.
-        //
-        // La version précédente testait `attachments` ici puis écrivait
-        // `attachments ?? Array.Empty<…>()` vingt lignes plus bas : le garde-fou
-        // arrivait après le déréférencement qu'il prétendait couvrir.
         var pieces = attachments ?? Array.Empty<MessageAttachmentInput>();
 
         // Une photo sans légende est un message légitime : on n'exige un corps de
-        // texte QUE s'il n'y a aucune pièce jointe. On refuse seulement le message
-        // totalement vide (ni texte, ni pièce jointe).
+        // texte QUE s'il n'y a aucune pièce jointe.
         var hasAttachment = pieces.Any(a => a.MediaId != Guid.Empty);
         if (string.IsNullOrWhiteSpace(body) && !hasAttachment)
         {
@@ -117,10 +111,7 @@ public sealed class Conversation : AggregateRoot<ConversationId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Réagit à un message (emoji de la palette autorisée). Une seule réaction par
-    /// personne : re-cliquer le même emoji la retire, en cliquer un autre la remplace.
-    /// </summary>
+    /// <summary>Réagit à un message (emoji de la palette autorisée).</summary>
     public Result ReactToMessage(Guid messageId, Guid userId, string emoji)
     {
         if (_participants.All(p => p.UserId != userId))
@@ -150,8 +141,7 @@ public sealed class Conversation : AggregateRoot<ConversationId>
 
     /// <summary>
     /// Supprime un message POUR TOUT LE MONDE. Réservé à l'auteur : on ne peut pas
-    /// effacer la parole d'autrui. Le corps reste stocké (preuve/support) ; c'est la
-    /// projection qui affiche « Message supprimé ». Idempotent.
+    /// effacer la parole d'autrui.
     /// </summary>
     public Result DeleteMessageForEveryone(Guid messageId, Guid userId)
     {
@@ -177,8 +167,6 @@ public sealed class Conversation : AggregateRoot<ConversationId>
 
     /// <summary>
     /// Masque un message POUR CE PARTICIPANT UNIQUEMENT (« supprimer pour moi »).
-    /// N'importe quel message du fil, y compris ceux reçus. L'autre continue de le voir.
-    /// Idempotent.
     /// </summary>
     public Result HideMessageForUser(Guid messageId, Guid userId)
     {

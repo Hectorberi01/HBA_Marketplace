@@ -44,24 +44,18 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheIdentity(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteIdentity(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
         // `AjouterMessagerieIdentity()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<IdentityDbContext>(options =>
@@ -73,15 +67,7 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IMfaChallengeRepository, MfaChallengeRepository>();
 
-        // Socle du §5 et du §19.5.
-        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
-        //
-        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
-        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
-        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
-        // désormais indissociables — voir `IdempotencyRegistration` pour la
-        // raison, qui tient en une phrase : un huitième service qui ne copierait
-        // que la première ligne n'aurait jamais de purge, sans rien signaler.
+        // Socle du §5 et du §19.5. LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
         services.AjouterIdempotenceIdentity();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IIdentityModuleApi, IdentityModuleApi>();
@@ -96,7 +82,6 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
         services.AddSingleton<IAuthTokenSettings, AuthTokenSettings>();
 
         // Politique d'activation des comptes (section « Identity:Registration »).
-        // Section absente = valeurs par défaut = les plus strictes.
         services.AddSingleton(BuildRegistrationOptions(configuration));
         services.AddSingleton<IRegistrationPolicy, RegistrationPolicy>();
 
@@ -130,13 +115,8 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
     }
 
     /// <summary>
-    /// Lit « Identity:Registration » à la main, comme <see cref="BuildJwtOptions"/>.
-    ///
-    /// Pas de <c>Bind()</c> : ce projet ne référence que
-    /// <c>Microsoft.Extensions.Configuration.Abstractions</c>, où l'extension
-    /// n'existe pas — elle vit dans le paquet <c>…Configuration.Binder</c>. Ajouter
-    /// une dépendance pour lire deux booléens serait disproportionné, et créerait
-    /// deux façons de lire la configuration dans le même fichier.
+    /// Lit « Identity:Registration » à la main, comme <see cref="BuildJwtOptions"/>
+    /// .
     /// </summary>
     private static RegistrationOptions BuildRegistrationOptions(IConfiguration configuration)
     {
@@ -152,14 +132,7 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
     private static int ParseInt(string? value, int fallback)
         => int.TryParse(value, out var parsed) ? parsed : fallback;
 
-    /// <summary>
-    /// Tolère « 1 » et « 0 » en plus de « true »/« false ».
-    ///
-    /// Ces valeurs arrivent d'un fichier .env, pas d'un JSON typé : quelqu'un
-    /// écrira <c>REQUIRE_APPROVAL_BUYERS=1</c> un jour, et un <c>bool.TryParse</c>
-    /// seul répondrait « false » en silence — c'est-à-dire l'exact contraire de
-    /// l'intention, sur un réglage de sécurité.
-    /// </summary>
+    /// <summary>Tolère « 1 » et « 0 » en plus de « true »/« false ».</summary>
     private static bool ParseBool(string? value, bool fallback)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -173,7 +146,8 @@ public sealed class IdentityModuleInstaller : IModuleInstaller
             return parsed;
         }
 
-        // Minuscules : « YES » et « ON » sont des réponses aussi valables que « yes ».
+        // Minuscules : « YES » et « ON » sont des réponses aussi valables que « yes
+        // ».
         return normalized.ToLowerInvariant() switch
         {
             "1" or "yes" or "on" => true,

@@ -25,34 +25,22 @@ internal sealed class SellerConfiguration : IEntityTypeConfiguration<Seller>
         builder.Property(s => s.KybStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
 
         // NULLABLE, ET CE N'EST PAS DE L'HISTORIQUE.
-        //
-        // La colonne ne porte une valeur QUE pendant une suspension : elle dit d'où
-        // le compte vient, pour que la levée le rende là plutôt que de le poser en
-        // `Active` d'office. Elle est effacée une fois consommée.
-        //
-        // Les comptes suspendus AVANT son introduction l'auront nulle — voir le
-        // repli documenté dans `Seller.LiftSuspension`. Une migration de données ne
-        // peut pas deviner un statut qui n'a jamais été écrit.
         builder.Property(s => s.SuspendedFromStatus).HasConversion<string>().HasMaxLength(20);
 
         // Le motif du refus. Nullable : aucun refus, ou refus antérieur à ce champ.
-        // C'est ce texte que le vendeur relira sur sa fiche quand la notification
-        // sera loin.
         builder.Property(s => s.KybRejectionReason).HasMaxLength(500);
         builder.Property(s => s.CommissionRate).HasColumnType("numeric(5,4)").IsRequired();
         builder.Property(s => s.Rating).HasColumnType("numeric(3,2)").IsRequired();
         builder.Property(s => s.SalesCount).IsRequired();
         builder.Property(s => s.CreatedOnUtc).IsRequired();
 
-        // PayoutAccount (VO nullable) sérialisé en jsonb. Cast vers le converter
-        // non générique car la propriété est nullable.
+        // PayoutAccount (VO nullable) sérialisé en jsonb.
         builder.Property(s => s.PayoutAccount)
             .HasConversion((ValueConverter)new PayoutAccountJsonConverter())
             .HasColumnType("jsonb")
             .HasColumnName("payout_account");
 
-        // Metadata société (VO nullable) en jsonb, null par défaut. Comme PayoutAccount,
-        // le converter n'est appliqué qu'aux valeurs non nulles ; NULL reste NULL.
+        // Metadata société (VO nullable) en jsonb, null par défaut.
         builder.Property(s => s.Metadata)
             .HasConversion((ValueConverter)new SellerCompanyInfoJsonConverter())
             .HasColumnType("jsonb")

@@ -8,32 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HBA.Food.Infrastructure.Public;
 
-/// <summary>
-/// Lecture de la vitrine. Lecture seule, sans cache.
-/// </summary>
-/// <remarks>
-/// DÉPEND DE <see cref="IFoodModuleApi"/> POUR LA FICHE, ET C'EST LÉGITIME ICI.
-///
-/// La projection complète d'un établissement — charge de cuisine, blocage,
-/// fermeture exceptionnelle du jour, carte réellement servie à cette heure — est
-/// subtile et existe DÉJÀ, une fois, dans <c>FoodModuleApi</c>. La réécrire
-/// donnerait une seconde version qui divergerait au premier changement de règle.
-///
-/// Cette dépendance est acceptable parce qu'on est dans Infrastructure : la
-/// couche Application, elle, ne connaît que <see cref="IStorefrontReader"/>.
-/// </remarks>
+/// <summary>Lecture de la vitrine. Lecture seule, sans cache.</summary>
 internal sealed class StorefrontReader : IStorefrontReader
 {
-    /// <summary>
-    /// Plafond d'une page de vitrine.
-    /// </summary>
-    /// <remarks>
-    /// BORNE CÔTÉ SERVICE, EN PLUS DE CELLE DE LA PASSERELLE.
-    ///
-    /// La passerelle borne déjà `pageSize`. S'en remettre à elle supposerait
-    /// qu'elle soit le SEUL appelant — une limite qui n'existe qu'au bord se
-    /// contourne en entrant par une autre porte.
-    /// </remarks>
+    /// <summary>Plafond d'une page de vitrine.</summary>
     private const int MaxPageSize = 50;
 
     private readonly FoodDbContext _dbContext;
@@ -45,27 +23,6 @@ internal sealed class StorefrontReader : IStorefrontReader
         _food = food;
     }
 
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// DEUX REQUÊTES POUR TOUTE LA PAGE, ET NON DEUX PAR ÉTABLISSEMENT.
-    ///
-    /// Réutiliser la projection complète ici aurait été le geste évident. Il
-    /// aurait coûté, PAR établissement, un comptage des commandes actives et
-    /// jusqu'à quatre lectures de carte — quatre-vingts requêtes pour une page de
-    /// vingt, sur l'écran d'entrée de l'application. C'est le N+1 dont personne ne
-    /// s'aperçoit avant la mise en charge.
-    ///
-    /// D'où : une requête pour les établissements, une requête GROUPÉE pour les
-    /// commandes actives de la page, et aucune lecture de carte.
-    ///
-    /// CONSÉQUENCE ASSUMÉE : `IsOpenNow` NE VÉRIFIE PAS LA CARTE.
-    ///
-    /// Un établissement ouvert dont tout est épuisé apparaîtra « ouvert » dans la
-    /// liste. La fiche, elle, rend la réponse ferme. C'est pourquoi le champ
-    /// s'appelle `IsOpenNow` et non `AcceptsOrdersNow` — le nom porte la promesse
-    /// exacte, ni plus, ni moins.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
     public async Task<IReadOnlyList<RestaurantCardView>> ListAsync(
         int skip, int take, CancellationToken cancellationToken = default)
     {
@@ -101,8 +58,8 @@ internal sealed class StorefrontReader : IStorefrontReader
             .Select(g => new { RestaurantId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.RestaurantId, x => x.Count, cancellationToken);
 
-        // L'heure est lue UNE fois pour toute la page : la relire par
-        // établissement ferait qu'un même écran répondrait à deux instants.
+        // L'heure est lue UNE fois pour toute la page : la relire par établissement
+        // ferait qu'un même écran répondrait à deux instants.
         var maintenant = DateTime.UtcNow;
         var aujourdhui = BeninTime.LocalDate(maintenant);
 
@@ -112,7 +69,7 @@ internal sealed class StorefrontReader : IStorefrontReader
                 chargeParRestaurant.GetValueOrDefault(restaurant.Id.Value, 0));
 
             // Surcharge à UN paramètre : lieu, horaires, pause, fermeture
-            // exceptionnelle. La carte n'est pas interrogée — cf. remarques.
+            // exceptionnelle.
             var blocage = restaurant.CanAcceptOrders(maintenant);
 
             return new RestaurantCardView(
@@ -138,12 +95,6 @@ internal sealed class StorefrontReader : IStorefrontReader
         var restaurant = await _food.GetRestaurantAsync(restaurantId, cancellationToken);
 
         // LE FILTRE EST ICI, ET IL EST TOUT L'ÉCART AVEC LA LECTURE INTERNE.
-        //
-        // `GetRestaurantAsync` rend N'IMPORTE QUEL établissement, y compris un
-        // dossier en brouillon ou suspendu : c'est ce qu'il faut à l'espace du
-        // restaurateur et à la file de validation. L'exposer tel quel sur une
-        // route anonyme laisserait consulter un établissement écarté de la
-        // plateforme.
         return restaurant?.IsPubliclyVisible == true ? restaurant : null;
     }
 }

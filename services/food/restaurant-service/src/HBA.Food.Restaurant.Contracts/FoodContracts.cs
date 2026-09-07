@@ -1,24 +1,9 @@
 namespace HBA.Food.Contracts;
 
-/// <summary>Un créneau de service, tel qu'affiché. Heures au format « HH:mm ».</summary>
+/// <summary>Un créneau de service, tel qu'affiché.</summary>
 public sealed record ServiceHoursSummary(string Day, string OpensAt, string ClosesAt);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'APPARTENANCE D'UN COMPTE AU PERSONNEL D'UN RESTAURANT.
-///
-/// C'est ce que la couche HTTP lit pour répondre à deux questions à la fois :
-/// DE QUEL établissement s'agit-il, et cette personne a-t-elle le droit de faire
-/// ce qu'elle demande ?
-///
-/// LES RÔLES ET PERMISSIONS VOYAGENT EN CHAÎNES.
-///
-/// Ce sont les codes du cahier des charges — <c>restaurant.order.accept</c> — et
-/// non les énumérations du domaine. Un appelant qui devrait référencer
-/// <c>StaffRole</c> ferait exactement la dépendance que la frontière du module
-/// interdit ; et ces codes-là sont ceux qui figureront dans les journaux d'audit.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>L'APPARTENANCE D'UN COMPTE AU PERSONNEL D'UN RESTAURANT.</summary>
 public sealed record FoodStaffMembership(
     Guid RestaurantId,
     Guid StaffId,
@@ -29,9 +14,8 @@ public sealed record FoodStaffMembership(
     IReadOnlyList<string> Permissions)
 {
     /// <summary>
-    /// UN MEMBRE DÉSACTIVÉ N'A AUCUNE PERMISSION — le domaine rend déjà une
-    /// liste vide. Ce test reste explicite ici pour que le contrôle ne dépende pas
-    /// de ce qu'on a bien voulu mettre dans la liste.
+    /// UN MEMBRE DÉSACTIVÉ N'A AUCUNE PERMISSION — le domaine rend déjà une liste
+    /// vide.
     /// </summary>
     public bool Can(string permissionCode)
         => IsActive && Permissions.Contains(permissionCode, StringComparer.Ordinal);
@@ -39,18 +23,14 @@ public sealed record FoodStaffMembership(
 
 /// <summary>Un membre du personnel, tel qu'affiché dans l'espace du restaurateur.</summary>
 /// <param name="IsFounder">
-/// <summary>Le compte à l'origine de l'établissement : ni rétrogradable, ni désactivable.</summary>
+/// <summary> Le compte à l'origine de l'établissement : ni rétrogradable, ni
+/// désactivable.</summary>
 /// </param>
 /// <param name="Permissions">
-/// <summary>Ce que ce membre peut RÉELLEMENT faire : son rôle, corrigé de ses dérogations.</summary>
+/// <summary> Ce que ce membre peut RÉELLEMENT faire : son rôle, corrigé de ses
+/// dérogations.</summary>
 /// </param>
-/// <param name="Overrides">
-/// Les seules dérogations NOMMÉES, sans les défauts du rôle.
-///
-/// Sans cette distinction, l'écran ne pourrait pas montrer ce qu'un
-/// propriétaire a décidé pour cette personne — tout se confondrait avec ce que
-/// le rôle donne, et personne ne saurait quoi retirer pour revenir au défaut.
-/// </param>
+/// <param name="Overrides">Les seules dérogations NOMMÉES, sans les défauts du rôle.</param>
 public sealed record StaffMemberSummary(
     Guid Id,
     Guid UserId,
@@ -62,7 +42,7 @@ public sealed record StaffMemberSummary(
 
     DateTime CreatedOnUtc);
 
-/// <summary>Une dérogation nominative. <c>IsGranted</c> distingue l'octroi du retrait.</summary>
+/// <summary>Une dérogation nominative.</summary>
 public sealed record StaffPermissionOverrideSummary(string Permission, bool IsGranted);
 
 // ── Postes de préparation (§9) ──────────────────────────────────────────────
@@ -75,13 +55,7 @@ public sealed record PreparationStationView(
 
 public sealed record FoodOrderItemOptionView(string GroupName, string OptionName, decimal PriceDelta);
 
-/// <summary>
-/// Une ligne de commande, FIGÉE (§13).
-///
-/// <paramref name="NameSnapshot"/> et <paramref name="UnitPrice"/> sont ceux du
-/// moment de l'achat, pas ceux de la carte d'aujourd'hui. C'est ce qui permet de
-/// supprimer un plat sans réécrire l'histoire.
-/// </summary>
+/// <summary>Une ligne de commande, FIGÉE (§13).</summary>
 public sealed record FoodOrderItemView(
     Guid Id,
     Guid MenuItemId,
@@ -96,15 +70,7 @@ public sealed record FoodOrderItemView(
 
 public sealed record FoodOrderRejectionView(string Reason, string? Comment, DateTime RejectedAtUtc);
 
-/// <summary>
-/// Une commande, côté restaurant.
-///
-/// DEUX STATUTS, ET ILS NE DISENT PAS LA MÊME CHOSE.
-/// <paramref name="Status"/> est le cycle opérationnel de la commande ;
-/// <paramref name="KitchenStatus"/> est l'état du ticket, DÉRIVÉ de ses lignes.
-/// Les confondre ferait annoncer « prête » une commande dont le bar n'a pas
-/// commencé.
-/// </summary>
+/// <summary>Une commande, côté restaurant.</summary>
 public sealed record FoodOrderView(
     Guid Id,
     Guid OrderId,
@@ -126,7 +92,8 @@ public sealed record FoodOrderView(
 
 /// <summary>Une ligne du ticket, telle qu'affichée en cuisine.</summary>
 /// <param name="Options">
-/// <summary>« Taille : Grande », « Sauce : Mayo » — déjà mises en forme pour l'écran.</summary>
+/// <summary> « Taille : Grande », « Sauce : Mayo » — déjà mises en forme pour
+/// l'écran.</summary>
 /// </param>
 public sealed record KitchenTicketItemView(
     Guid Id,
@@ -138,14 +105,7 @@ public sealed record KitchenTicketItemView(
     int PreparationMinutes,
     IReadOnlyList<string> Options);
 
-/// <summary>
-/// Un ticket sur l'écran de cuisine (§13).
-///
-/// <paramref name="OtherStationsPending"/> EST CE QUI EMPÊCHE UN POSTE DE
-/// CROIRE QU'IL A FINI. Filtré par poste, un ticket ne montre que ses lignes — le
-/// grillardin poserait ses burgers sur le passe et considérerait la commande
-/// terminée, sans savoir que le bar n'a pas commencé.
-/// </summary>
+/// <summary>Un ticket sur l'écran de cuisine (§13).</summary>
 public sealed record KitchenTicketView(
     Guid FoodOrderId,
     Guid OrderId,
@@ -167,23 +127,7 @@ public sealed record KitchenBoardView(
     IReadOnlyList<PreparationStationView> Stations,
     IReadOnlyList<KitchenTicketView> Tickets);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES CODES DE PERMISSION DU CAHIER DES CHARGES (§2).
-///
-/// CES CONSTANTES DOUBLENT <c>FoodPermission.ToCode()</c>, ET C'EST SUBI.
-///
-/// Le domaine ne peut pas référencer les contrats — la règle qui rend le module
-/// extractible l'interdit dans ce sens comme dans l'autre. La couche HTTP, elle,
-/// a besoin de ces chaînes pour déclarer ce que chaque route exige, et faire
-/// transiter une énumération du domaine jusqu'à elle rouvrirait la dépendance.
-///
-/// La duplication est donc structurelle. Ce qui ne l'est pas, c'est la DÉRIVE :
-/// un test — <c>Les_codes_de_permission_des_contrats_correspondent_au_domaine</c>
-/// — compare les deux listes, valeur par valeur et en nombre. Renommer d'un côté
-/// sans l'autre casse la compilation des tests, pas la production en silence.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES CODES DE PERMISSION DU CAHIER DES CHARGES (§2).</summary>
 public static class FoodPermissionCodes
 {
     public const string OrderAccept = "restaurant.order.accept";
@@ -194,7 +138,10 @@ public static class FoodPermissionCodes
     public const string SettingsManage = "restaurant.settings.manage";
     public const string AnalyticsRead = "restaurant.analytics.read";
 
-    /// <summary>Les sept codes, pour les tests de correspondance et les écrans d'administration.</summary>
+    /// <summary>
+    /// Les sept codes, pour les tests de correspondance et les écrans
+    /// d'administration.
+    /// </summary>
     public static IReadOnlyList<string> All { get; } =
     [
         OrderAccept, OrderReject, MenuManage, StaffManage, KitchenManage, SettingsManage, AnalyticsRead
@@ -307,7 +254,6 @@ public sealed record RestaurantSummary(
 /// Une carte d'établissement dans la VITRINE — la liste que parcourt un client.
 /// </summary>
 /// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// CE N'EST PAS UN <see cref="RestaurantSummary"/> ALLÉGÉ. C'EST UNE PROMESSE
 ///    PLUS FAIBLE, ET DÉLIBÉRÉMENT.
 ///
@@ -326,7 +272,6 @@ public sealed record RestaurantSummary(
 /// Les deux noms disent deux choses différentes, et le second engage. Un client
 /// qui traverse la ville sur la foi d'une liste, pour découvrir que tout est
 /// épuisé, ne revient pas. La liste dit « ouvert » ; la fiche dit « commandable ».
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
 /// <param name="LogoMediaId">
 /// <summary>Identifiant de média (§6). L'URL se résout hors du module.</summary>
@@ -368,83 +313,21 @@ public interface IFoodModuleApi
 
     Task<RestaurantSummary?> GetRestaurantByOwnerAsync(Guid ownerUserId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// OÙ CE COMPTE TRAVAILLE-T-IL, ET AVEC QUELS DROITS ?
-    ///
-    /// C'EST CETTE MÉTHODE QUI REMPLACE <c>GetRestaurantByOwnerAsync</c> POUR
-    /// AUTORISER LES ROUTES DE L'ESPACE RESTAURATEUR.
-    ///
-    /// Tant que le personnel n'existait pas, « le restaurateur » était le compte
-    /// qui avait créé l'établissement, et lui seul : un manager, un caissier ou un
-    /// cuisinier n'avait accès à RIEN. Résoudre l'établissement par le
-    /// propriétaire revenait donc à interdire l'application à tout le personnel du
-    /// restaurant.
-    ///
-    /// Rend <c>null</c> si le compte n'appartient à aucun établissement — y compris
-    /// lorsqu'il y a travaillé et en a été retiré.
-    /// </summary>
+    /// <summary>OÙ CE COMPTE TRAVAILLE-T-IL, ET AVEC QUELS DROITS ?</summary>
     Task<FoodStaffMembership?> GetStaffMembershipAsync(Guid userId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// À QUELLE COMMANDE ET À QUEL RESTAURANT CE TICKET SE RATTACHE-T-IL ?
-    ///
-    /// EXISTE POUR LE RETOUR DE COURSE, ET SEULEMENT POUR LUI.
-    ///
-    /// Quand HBA Delivery annonce qu'un sac a été remis, il ne connaît qu'une
-    /// chaîne de référence — « FOOD-… ». Il faut retrouver la commande commerciale
-    /// pour la clore, et donc libérer l'escrow. Sans cette lecture, l'argent du
-    /// client resterait immobilisé après un repas déjà mangé.
-    ///
-    /// Volontairement MAIGRE : ni lignes, ni prix, ni ticket de cuisine. Ce que
-    /// l'extérieur a le droit de savoir d'une commande de restaurant se limite à
-    /// ses rattachements et à son état.
-    /// </summary>
+    /// <summary>À QUELLE COMMANDE ET À QUEL RESTAURANT CE TICKET SE RATTACHE-T-IL ?</summary>
     Task<FoodOrderRef?> GetOrderAsync(Guid foodOrderId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// UN ARTICLE DE CARTE, AVEC SES GROUPES D'OPTIONS ET LEURS ÉCARTS DE PRIX.
-    ///
-    /// EXISTE POUR QUE LE PANIER CALCULE LE PRIX AU LIEU DE LE RECEVOIR.
-    ///
-    /// Tant que les repas transitaient par le panier de la marketplace, celui-ci
-    /// n'avait aucun client Food : `AddFoodItemToCartCommand` acceptait un
-    /// `UnitBaseAmount` venu du corps HTTP, et son propre commentaire admettait
-    /// que ni la disponibilité, ni les options, ni le prix n'étaient vérifiés.
-    /// Un client pouvait commander à son prix.
-    ///
-    /// food-cart-service appartient au domaine restauration : il lit la carte,
-    /// vérifie que chaque option appartient bien à un groupe de CE plat, que les
-    /// groupes obligatoires ont reçu leur choix, et additionne les écarts. Le
-    /// montant n'entre plus par la porte du client.
-    ///
-    /// Rend <c>null</c> si l'article n'existe pas, ou n'appartient pas à ce
-    /// restaurant — la même réponse pour les deux, afin de ne pas dire lequel
-    /// des deux identifiants était le bon.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>UN ARTICLE DE CARTE, AVEC SES GROUPES D'OPTIONS ET LEURS ÉCARTS DE PRIX.</summary>
     Task<MenuItemView?> GetMenuItemAsync(
         Guid restaurantId, Guid menuItemId, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// Les rattachements d'un ticket de cuisine, vus de l'extérieur du module.
-/// </summary>
+/// <summary>Les rattachements d'un ticket de cuisine, vus de l'extérieur du module.</summary>
 /// <param name="Origin">
 /// De quel univers vient <paramref name="OrderId"/> — voir
-/// <see cref="IntegrationEvents.FoodOrderOrigins"/>.
-///
-/// SANS LUI, `OrderId` NE DÉSIGNAIT RIEN. `HoldOrderOnDeliveryCancelledHandler`
-/// (order-service) relit ce type après une course `FOOD-` annulée, pour mettre
-/// la commande en arbitrage. Il envoyait donc un identifiant de `MealOrder` à
-/// order-service, qui ne le connaît pas — et la mise en arbitrage d'une
-/// commande de repas n'a jamais fonctionné.
-///
-/// OPTIONNEL, « Marketplace » PAR DÉFAUT (D32) : les appelants positionnels
-/// existants compilent inchangés, et le défaut décrit exactement les tickets
-/// déjà en base.
+/// <see cref="IntegrationEvents.FoodOrderOrigins"/> .
 /// </param>
 public sealed record FoodOrderRef(
     Guid FoodOrderId,
@@ -458,13 +341,7 @@ public sealed record FoodOrderRef(
 /// <summary>Une option, et son écart de prix.</summary>
 public sealed record OptionView(Guid Id, string Name, decimal PriceDelta, bool IsAvailable);
 
-/// <summary>
-/// Un groupe de choix, avec ses règles.
-///
-/// <paramref name="IsRequired"/> est DÉRIVÉ de MinSelections, jamais stocké : un
-/// booléen séparé aurait pu contredire le minimum, et il aurait fallu décider
-/// lequel des deux ment.
-/// </summary>
+/// <summary>Un groupe de choix, avec ses règles.</summary>
 public sealed record OptionGroupView(
     Guid Id, string Name, int MinSelections, int MaxSelections, bool IsRequired, IReadOnlyList<OptionView> Options);
 
@@ -532,28 +409,7 @@ public sealed record MenuItemView(
 public sealed record MenuSectionView(
     Guid Id, string Name, string? Description, bool IsActive, IReadOnlyList<MenuItemView> Items);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UNE CARTE : « Menu du midi », « Carte du soir », « Carte d'été ».
-///
-/// NIVEAU NOUVEAU. La réponse ne portait qu'une liste de sections ; elle porte
-/// désormais des CARTES qui portent les sections (cahier §5).
-///
-/// <paramref name="IsServedNow"/> ET <paramref name="IsActive"/> DISENT DEUX
-/// CHOSES DIFFÉRENTES, et l'écran doit les traiter différemment :
-///
-///   • « inactive » est une décision du restaurateur, qui dure jusqu'à ce qu'il
-///     la reprenne — la carte d'été remisée en novembre ;
-///   • « pas servie maintenant » se lève tout seul à 11 h le lendemain.
-///
-/// Les confondre ferait afficher « carte désactivée » à un client de 20 h devant
-/// un menu du midi parfaitement actif.
-///
-/// Les bornes sont rendues en CHAÎNES formatées — « 11:00 », « 2026-06-01 » — et
-/// non en types date : elles s'affichent, elles ne se calculent pas côté client,
-/// et un fuseau appliqué deux fois décalerait le menu du midi d'une heure.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UNE CARTE : « Menu du midi », « Carte du soir », « Carte d'été ».</summary>
 public sealed record MenuView(
     Guid Id,
     string Name,
@@ -575,43 +431,12 @@ public sealed record RestaurantMenuView(
     int PreparationMinutes,
     IReadOnlyList<MenuView> Menus);
 
-/// <summary>
-/// L'établissement du compte connecté, et son rôle dedans.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE CONTRAT MANQUAIT, ET IL BLOQUAIT LE SÉLECTEUR D'ACTIVITÉ.
-///
-/// HBA Partner doit afficher, au démarrage, TOUT ce que le compte gère :
-/// boutiques et restaurants. Les boutiques se lisent par
-/// <c>GET /api/merchants/{sellerId}/stores</c>. Les restaurants, eux, n'avaient
-/// aucune route : <c>GetStaffMembershipAsync</c> existait en interne, mais rien
-/// ne l'exposait — et la fiche publique refuse un établissement en brouillon,
-/// c'est-à-dire précisément celui qu'un nouveau restaurateur doit voir.
-///
-/// UN COMPTE = AU PLUS UN ÉTABLISSEMENT, AUJOURD'HUI.
-///
-/// <c>GetStaffMembershipAsync</c> rend une appartenance unique. Le jour où un
-/// même compte travaillera dans deux restaurants, ce contrat devra rendre une
-/// liste — et le sélecteur d'activité de l'application le suppose déjà.
-///
-/// NI CHIFFRE D'AFFAIRES, NI DOSSIER DE REVERSEMENT AU-DELÀ DE L'IDENTIFIANT.
-///
-/// Ce contrat sert à CHOISIR une activité, pas à la piloter. Le tableau de bord
-/// a ses propres lectures, et un caissier qui n'a pas la permission des finances
-/// ne doit pas apprendre le chiffre du jour en ouvrant l'application.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
-/// <param name="Role">
-/// <summary>« Owner », « Manager », « Cashier », « Cook »…</summary>
-/// </param>
+/// <summary>L'établissement du compte connecté, et son rôle dedans.</summary>
+/// <param name="Role"><summary>« Owner », « Manager », « Cashier », « Cook »…</summary></param>
 /// <param name="Permissions">
-/// <summary>Permissions effectives, dérogations comprises.</summary>
+/// <summary> Permissions effectives, dérogations comprises.</summary>
 /// </param>
-/// <param name="PayoutSellerId">
-/// Le dossier vendeur qui encaisse. Nul tant qu'aucun n'est rattaché — et
-/// l'établissement ne peut alors pas entrer en service.
-/// </param>
+/// <param name="PayoutSellerId">Le dossier vendeur qui encaisse.</param>
 public sealed record PartnerRestaurantView(
     Guid RestaurantId,
     string Name,

@@ -3,13 +3,6 @@ namespace HBA.Returns.Contracts;
 /// <summary>Vue publique d'une demande de retour.</summary>
 /// <param name="RefundableAmount">
 /// PLAFOND remboursable — total de la ligne de commande, figé à la création.
-///
-/// À ne pas confondre avec <see cref="RefundAmount"/>, qui est le montant
-/// effectivement décidé (null tant qu'aucun remboursement n'a été validé).
-/// C'est cette confusion qui a empêché l'application vendeur de borner sa saisie :
-/// elle n'avait à sa disposition que le second, et l'a pris pour le premier.
-///
-/// Vaut 0 pour les retours antérieurs à ce champ : traiter alors comme inconnu.
 /// </param>
 public sealed record ReturnRequestSummary(
     Guid Id,
@@ -30,7 +23,7 @@ public sealed record ReturnRequestSummary(
 
 /// <summary>
 /// Un remboursement effectif (retour au statut Refunded) : commande concernée,
-/// montant remboursé et date du remboursement. Utilisé par le relevé finances.
+/// montant remboursé et date du remboursement.
 /// </summary>
 public sealed record SellerRefundLine(
     Guid OrderId,
@@ -38,19 +31,7 @@ public sealed record SellerRefundLine(
     string Currency,
     DateTime RefundedAtUtc);
 
-/// <summary>
-/// Un remboursement VALIDÉ dont l'argent n'est PAS ENCORE PARTI.
-///
-/// C'est une ligne de la file de travail de l'administrateur : il doit exécuter ce
-/// versement dans le tableau de bord FedaPay (qui n'expose aucune API de
-/// remboursement), puis en saisir la référence pour clore l'opération.
-///
-/// <para>
-/// <c>ApprovedAtUtc</c> n'est pas décoratif : c'est lui qui dit depuis combien de
-/// temps le client attend. Une ligne vieille de trois jours n'est plus une tâche,
-/// c'est un litige.
-/// </para>
-/// </summary>
+/// <summary>Un remboursement VALIDÉ dont l'argent n'est PAS ENCORE PARTI.</summary>
 public sealed record PendingRefundLine(
     Guid ReturnRequestId,
     Guid OrderId,

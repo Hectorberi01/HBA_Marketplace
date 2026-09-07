@@ -32,7 +32,10 @@ using HBA.Financial.Payments.Infrastructure.Observability;
 using HBA.Financial.Payments.Infrastructure.Idempotency;
 namespace HBA.Financial.Payments.Infrastructure;
 
-/// <summary>Enregistre le module Payments : DbContext, repository, API publique, handlers, validators, outbox.</summary>
+/// <summary>
+/// Enregistre le module Payments : DbContext, repository, API publique, handlers,
+/// validators, outbox.
+/// </summary>
 public sealed class PaymentsModuleInstaller : IModuleInstaller
 {
     public string ModuleName => "Payments";
@@ -41,24 +44,19 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheFinancialPayments(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteFinancialPayments(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
-        // `AjouterMessagerieFinancialPayments()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieFinancialPayments()`, que le composition root peut
+        // oublier.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<PaymentsDbContext>(options =>
@@ -70,29 +68,15 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         services.AddScoped<IPaymentRepository, PaymentRepository>();
 
         // LA LECTURE DE LA COMMANDE À PAYER PASSE PAR UN SEUL POINT (lot 6.1).
-        //
-        // Il délègue à `IOrderingModuleApi` ou à `IMealOrderModuleApi` selon
-        // l'univers annoncé. Les deux sont des clients gRPC enregistrés par l'hôte
-        // (`AddOrderingGrpcClient`, `AddFoodOrdersGrpcClient`) : si l'un des deux
-        // manque, c'est le démarrage qui échoue, pas le premier paiement.
         services.AddScoped<IPayableOrderReader, PayableOrderReader>();
 
         // Socle du §5 et du §19.5 — mêmes enregistrements que user-service et
         // identity-service, pour que les trois se comportent pareil.
-        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
-        //
-        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
-        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
-        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
-        // désormais indissociables — voir `IdempotencyRegistration` pour la
-        // raison, qui tient en une phrase : un huitième service qui ne copierait
-        // que la première ligne n'aurait jamais de purge, sans rien signaler.
         services.AjouterIdempotenceFinancialPayments();
         services.AddScoped<ISavedPaymentMethodRepository, SavedPaymentMethodRepository>();
         services.AddScoped<IPaymentsModuleApi, PaymentsModuleApi>();
 
         // Prestataires de paiement : adaptateurs + résolveur par nom.
-        // Options liées manuellement depuis la config (aucune dépendance IOptions).
         var stripeOptions = BindStripeOptions(configuration);
         var paypalOptions = BindPayPalOptions(configuration);
         var mtnOptions = BindMtnMomoOptions(configuration);
@@ -104,32 +88,7 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         services.AddSingleton(moovOptions);
         services.AddSingleton(fedapayOptions);
 
-        // ─────────────────────────────────────────────────────────────────────────
         // LE GARDE-FOU LE PLUS IMPORTANT DE TOUT LE PROJET.
-        //
-        // AVANT : chaque PSP non configuré retombait SILENCIEUSEMENT sur une passerelle
-        // SIMULÉE. Or les clés sont vides par défaut dans appsettings.json. Un
-        // déploiement qui oubliait d'injecter les secrets démarrait donc normalement…
-        // et simulait TOUS les paiements :
-        //
-        //   • SimulatedPaymentGateway.GetStatusAsync() renvoie TOUJOURS « Captured » ;
-        //   • RefundAsync() renvoie TOUJOURS « Success » ;
-        //   • la vérification de signature des webhooks est court-circuitée.
-        //
-        // Autrement dit : la plateforme encaissait des commandes marquées PAYÉES sans
-        // qu'un seul franc ne bouge, et acceptait n'importe quel faux webhook. Aucune
-        // erreur, aucun log, aucun symptôme — jusqu'à ce qu'un vendeur réclame l'argent
-        // d'une vente qui n'a jamais été payée.
-        //
-        // DÉSORMAIS : en PRODUCTION, une passerelle simulée n'est JAMAIS enregistrée.
-        // Un PSP non configuré est simplement ABSENT du conteneur, et le résolveur
-        // renvoie une erreur franche (« Prestataire de paiement non pris en charge »).
-        // Un paiement impossible vaut infiniment mieux qu'un paiement imaginaire.
-        //
-        // Et si AUCUNE passerelle réelle n'est configurée en production, on refuse de
-        // démarrer (voir plus bas). Une plateforme qui ne boote pas se répare en cinq
-        // minutes ; une plateforme qui simule ses encaissements, jamais tout à fait.
-        // ─────────────────────────────────────────────────────────────────────────
         var isProduction = IsProduction(configuration);
 
         ConfigureUnsignedWebhookPolicy(configuration, isProduction);
@@ -138,7 +97,7 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         var simulatedGateways = new List<string>();
 
         // Passerelles RÉELLES enregistrées dont `RefundAsync` ne fait aucun appel :
-        // elles répondent « échec » en dur. Voir le garde-fou plus bas.
+        // elles répondent « échec » en dur.
         var gatewaysSansRemboursement = new List<string>();
 
         RegisterGateway(
@@ -200,8 +159,7 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
             gatewaysSansRemboursement: gatewaysSansRemboursement);
 
         // En production, une plateforme SANS aucun moyen d'encaisser n'est pas une
-        // plateforme : c'est un catalogue. On refuse de démarrer plutôt que d'accepter
-        // des commandes qu'on ne saura jamais faire payer.
+        // plateforme : c'est un catalogue.
         if (isProduction && realGateways.Count == 0)
         {
             throw new InvalidOperationException(
@@ -212,9 +170,7 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
                 "Vérifiez l'injection des secrets (vault Ansible / variables d'environnement du conteneur).");
         }
 
-        // Bruyant, et volontairement. En production ce cas est impossible (voir
-        // ci-dessus) ; ailleurs, il faut qu'un développeur qui teste un paiement sache
-        // qu'il teste une FICTION — sans quoi il conclura que « ça marche ».
+        // Bruyant, et volontairement.
         if (simulatedGateways.Count > 0)
         {
             Console.WriteLine(
@@ -225,36 +181,8 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
                     : "AUCUNE passerelle réelle configurée."));
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // UNE PASSERELLE QUI NE SAIT PAS REMBOURSER LE DIT AU DÉMARRAGE, PAS LE
         // JOUR OÙ UN CLIENT RÉCLAME SON ARGENT.
-        //
-        // `FedaPayHttpGateway.RefundAsync`, et ses équivalents MTN, Moov et PayPal,
-        // renvoient `Success:false` EN DUR : aucun appel n'est fait, aucun argent ne
-        // repart par le chemin qui l'a apporté. Ce n'est pas une lacune du code —
-        // FedaPay n'expose pas d'API de remboursement.
-        //
-        // CE GARDE-FOU REFUSAIT LE DÉMARRAGE EN PRODUCTION. IL NE LE FAIT PLUS,
-        // ET LA RAISON N'EST PAS UN ASSOUPLISSEMENT.
-        //
-        // Sa prémisse était : « aucun client payé par eux ne sera JAMAIS remboursé
-        // automatiquement ». Elle était vraie, et elle a cessé de l'être. Depuis la
-        // décision D33, `RefundPaymentCommandHandler` rend l'argent sur le
-        // PORTEFEUILLE du client quand le prestataire ne sait pas le faire : le
-        // client est remboursé quoi qu'il arrive, immédiatement, et demande un
-        // virement Mobile Money quand il le veut.
-        //
-        // Le drapeau `Payments:AllowGatewaysWithoutRefund` a disparu avec la
-        // prémisse. Il n'actait plus rien : il n'y a plus de dette à assumer.
-        //
-        // CE QUI RESTE, ET POURQUOI ON LE DIT QUAND MÊME.
-        //
-        // Le chemin de retour change. Un exploitant doit savoir qu'avec ces
-        // prestataires l'argent ne repart PAS sur le moyen de paiement du client
-        // mais sur son solde interne — c'est ce qui explique les demandes de
-        // virement qui arriveront dans la file d'administration, et c'est ce qui
-        // fait que la plateforme porte désormais une dette envers ses clients.
-        // ═════════════════════════════════════════════════════════════════════
         if (gatewaysSansRemboursement.Count > 0)
         {
             Console.WriteLine(
@@ -266,9 +194,7 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
 
         // Une clé et une URL qui ne désignent pas le même monde, c'est le pire des
         // cas : soit tout échoue en 403 sans qu'on comprenne pourquoi, soit — si la
-        // clé est live — de l'argent RÉEL part alors qu'on croyait tester. On refuse
-        // de démarrer. Une plateforme de paiement qui ne boote pas se répare en cinq
-        // minutes ; une plateforme qui paie au mauvais endroit, jamais tout à fait.
+        // clé est live — de l'argent RÉEL part alors qu'on croyait tester.
         if (fedapayOptions.IsConfigured && !fedapayOptions.KeyMatchesEnvironment)
         {
             throw new InvalidOperationException(
@@ -279,12 +205,6 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
 
         // Versements (payouts vendeur) : réels via FedaPay UNIQUEMENT en LIVE, clé
         // configurée et flag activé — voir FedaPayOptions.CanPayout.
-        //
-        // Le bac à sable FedaPay N'EXÉCUTE PAS les dépôts Mobile Money : il refuse la
-        // création avec « 403 Opération non autorisée ». Y activer les payouts ne
-        // produisait qu'une file de retraits en échec, remboursés, et un vendeur
-        // persuadé que la plateforme lui devait de l'argent. On simule donc, et on le
-        // DIT — plutôt que d'échouer en silence.
         if (fedapayOptions.CanPayout)
         {
             services.AddSingleton<IPayoutGateway, FedaPayPayoutGateway>();
@@ -302,26 +222,7 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
                     "activer les dépôts sur le compte marchand par FedaPay.");
             }
 
-            // ═════════════════════════════════════════════════════════════════
             // EN PRODUCTION, ON REFUSE DE DÉMARRER PLUTÔT QUE DE SIMULER.
-            //
-            // `SimulatedPayoutGateway` clôt le retrait en « payé ». Le solde du
-            // vendeur est débité, la ligne de versement est marquée réussie, et
-            // AUCUN ARGENT NE PART. Le vendeur constate un solde à zéro et
-            // n'a rien reçu ; le système, lui, croit l'avoir payé. Il n'existe
-            // aucun moyen de distinguer après coup un versement simulé d'un
-            // versement réel qui se serait perdu — il faut rapprocher les
-            // relevés du prestataire à la main, dossier par dossier.
-            //
-            // C'est la même règle que pour les encaissements (`realGateways.Count
-            // == 0` plus haut) et que pour l'e-mail côté Notifications : un
-            // adaptateur silencieux fait « tourner » la plateforme dans un état
-            // faux. Un démarrage refusé se remarque tout de suite, et se corrige
-            // en une variable de configuration.
-            //
-            // Le repli simulé reste disponible partout ailleurs qu'en production :
-            // un développeur doit pouvoir dérouler un retrait de bout en bout.
-            // ═════════════════════════════════════════════════════════════════
             if (isProduction)
             {
                 throw new InvalidOperationException(
@@ -340,11 +241,6 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         services.AddSingleton<IPaymentGatewayResolver, PaymentGatewayResolver>();
 
         // ENREGISTREMENT EXPLICITE, DONC OUBLIABLE.
-        //
-        // Le répartiteur résout `IDomainEventHandler<T>` par le conteneur : un
-        // handler non enregistré n'est pas appelé, et RIEN ne le signale — ni
-        // compilation, ni exception, ni journal. L'événement part dans le vide.
-        // C'est ainsi que `payment.created` a manqué jusqu'ici.
         services.AddScoped<IDomainEventHandler<PaymentInitiatedDomainEvent>, PaymentInitiatedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<PaymentCapturedDomainEvent>, PaymentCapturedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<PaymentFailedDomainEvent>, PaymentFailedDomainEventHandler>();
@@ -360,30 +256,8 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
 
     /// <summary>
     /// Décide si un webhook NON SIGNÉ peut être accepté lorsque le secret du
-    /// prestataire est absent. Défaut : non.
+    /// prestataire est absent.
     /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// L'INTERRUPTEUR EXISTAIT ET N'ÉTAIT BRANCHÉ NULLE PART.
-    ///
-    /// `GatewayWebhook.AllowUnsignedWhenSecretMissing` était déclaré, documenté,
-    /// et jamais posé — pendant que les adaptateurs concrets décidaient seuls et
-    /// répondaient `true` sur secret vide (« sandbox permissif »).
-    ///
-    /// Ce qui cassait concrètement : `POST /api/financial/payments/webhooks/{p}`
-    /// est `AllowAnonymous` — un PSP ne présente pas de JWT — et les secrets sont
-    /// vides par défaut dans appsettings.json. N'importe qui pouvait donc poster
-    /// un « payment_intent.succeeded » et faire passer une commande en payée :
-    /// stock décrémenté, gains vendeur provisionnés, escrow en route. Sans une
-    /// ligne de log.
-    ///
-    /// EN PRODUCTION, LE DRAPEAU EST IGNORÉ, MÊME POSÉ À `true`.
-    ///
-    /// C'est exactement la variable qu'on recopie d'un fichier d'environnement de
-    /// recette vers celui de production. Un secret manquant en production est une
-    /// erreur d'injection de secrets : elle se répare, elle ne se contourne pas.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
     private static void ConfigureUnsignedWebhookPolicy(IConfiguration configuration, bool isProduction)
     {
         var demande = bool.TryParse(
@@ -489,8 +363,7 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
             ApiKey = section["ApiKey"] ?? string.Empty,
             WebhookSecret = section["WebhookSecret"] ?? string.Empty,
             CallbackUrl = section["CallbackUrl"] ?? string.Empty,
-            // Active les versements réels FedaPay (sinon payout simulé). Clé lue
-            // depuis Payments__FedaPay__EnablePayouts (« true »/« false »).
+            // Active les versements réels FedaPay (sinon payout simulé).
             EnablePayouts = bool.TryParse(section["EnablePayouts"], out var enablePayouts) && enablePayouts
         };
         if (!string.IsNullOrWhiteSpace(section["BaseUrl"]))
@@ -501,8 +374,7 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         {
             options.Currency = section["Currency"]!;
         }
-        // Méthode de transfert payout (« mode » FedaPay). Lue depuis
-        // Payments__FedaPay__PayoutMode. Défaut mtn_open (MTN Mobile Money Bénin).
+        // Méthode de transfert payout (« mode » FedaPay).
         if (!string.IsNullOrWhiteSpace(section["PayoutMode"]))
         {
             options.PayoutMode = section["PayoutMode"]!;
@@ -510,18 +382,13 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         return options;
     }
 
-    // BaseAddress doit finir par « / » pour que les URI relatifs des requêtes se concatènent correctement.
+    // BaseAddress doit finir par « / » pour que les URI relatifs des requêtes se
+    // concatènent correctement.
     private static string EnsureTrailingSlash(string url) => url.EndsWith('/') ? url : url + "/";
 
     /// <summary>
-    /// Enregistre un PSP : l'adaptateur RÉEL s'il est configuré ; sinon la simulation —
-    /// et UNIQUEMENT hors production.
-    ///
-    /// En production, un PSP non configuré n'est pas remplacé : il est ABSENT. Le
-    /// résolveur renverra alors « Prestataire de paiement non pris en charge », ce qui
-    /// est une erreur honnête. Le remplacer par une simulation produirait, à l'inverse,
-    /// un encaissement fictif — un mensonge silencieux, et le pire bug possible pour
-    /// une plateforme qui manipule de l'argent.
+    /// Enregistre un PSP : l'adaptateur RÉEL s'il est configuré ; sinon la
+    /// simulation — et UNIQUEMENT hors production.
     /// </summary>
     private static void RegisterGateway(
         IServiceCollection services,
@@ -560,32 +427,10 @@ public sealed class PaymentsModuleInstaller : IModuleInstaller
         simulatedGateways.Add(providerName);
     }
 
-    /// <summary>
-    /// Sommes-nous en production ?
-    /// </summary>
-    /// <remarks>
-    /// L'installeur ne reçoit qu'un <see cref="IConfiguration"/> — les modules
-    /// s'installent avant que l'hôte ne soit construit, donc pas
-    /// d'<c>IHostEnvironment</c>. La règle elle-même vit dans
-    /// <c>EnvironnementDeploiement</c>, en un seul exemplaire.
-    ///
-    /// CE PARAGRAPHE DÉCRIVAIT AUPARAVANT UN FAIL-OPEN ASSUMÉ : « l'inconnu est
-    /// traité comme pas la production, sinon un nom mal orthographié empêcherait
-    /// de travailler ». Ce n'est plus vrai, et ce n'était pas défendable : une
-    /// variable ABSENTE tombait du même côté qu'une faute de frappe, alors
-    /// qu'ASP.NET Core considère une variable absente comme la production.
-    /// Désormais l'inconnu et l'absent sont la production ; seuls les noms
-    /// explicitement listés en dispensent.
-    /// </remarks>
+    /// <summary>Sommes-nous en production ?</summary>
     private static bool IsProduction(IConfiguration configuration)
     {
         // DÉLÉGUÉ À `EnvironnementDeploiement`, ET C'EST LA CORRECTION.
-        //
-        // Ce corps était une copie parmi six d'une règle FAIL-OPEN : tout ce qui
-        // n'était pas littéralement « Production » — variable absente, chaîne
-        // vide, faute de frappe — était traité comme du développement, alors
-        // qu'ASP.NET Core, lui, considère une variable absente comme la
-        // production. Voir l'encadré de `EnvironnementDeploiement`.
         return EnvironnementDeploiement.EstProduction(configuration);
     }
 

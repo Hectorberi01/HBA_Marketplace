@@ -18,9 +18,8 @@ public enum PaymentMethod
 }
 
 /// <summary>
-/// Mode d'interaction avec le prestataire (PSP) :
-/// - HostedCheckout : page de paiement hébergée par le PSP (redirection).
-/// - PaymentIntent : intention créée côté serveur, confirmée côté client (SDK).
+/// Mode d'interaction avec le prestataire (PSP) : - HostedCheckout : page de
+/// paiement hébergée par le PSP (redirection).
 /// </summary>
 public enum PaymentFlow
 {
@@ -29,30 +28,10 @@ public enum PaymentFlow
 }
 
 /// <summary>Statut du paiement, piloté par le Saga de commande.</summary>
-/// <summary>
-/// Univers métier de la commande payée (§10.12, colonne <c>order_type</c>).
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// SANS CETTE COLONNE, `OrderId` EST AMBIGU ENTRE DEUX SERVICES.
-///
-/// `marketplace-order-service` et `food-order-service` tiennent chacun leurs
-/// commandes, dans leur propre base, avec leurs propres identifiants. Un
-/// `payment.succeeded` qui ne porte que `OrderId` oblige donc les DEUX à chercher
-/// cet identifiant chez eux, et celui qui ne le trouve pas ne peut pas distinguer
-/// « ce paiement n'est pas pour moi » de « ma commande a disparu ».
-///
-/// Aujourd'hui le problème est latent : seul le Marketplace consomme l'événement.
-/// Il devient réel au premier paiement Food — c'est-à-dire au moment où il coûtera
-/// le plus cher à diagnostiquer.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Univers métier de la commande payée (§10.12, colonne <c>order_type</c>).</summary>
 public enum PaymentOrderType
 {
-    /// <summary>
-    /// Valeur zéro, donc valeur des lignes déjà en base après migration. C'est
-    /// exact : tous les paiements existants sont des commandes Marketplace, le
-    /// Food n'ayant pas encore de chemin de paiement.
-    /// </summary>
+    /// <summary>Valeur zéro, donc valeur des lignes déjà en base après migration.</summary>
     Marketplace = 0,
 
     Food = 1

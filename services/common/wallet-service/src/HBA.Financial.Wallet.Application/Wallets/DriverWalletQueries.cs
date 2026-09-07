@@ -32,16 +32,6 @@ internal sealed class DriverWalletQueryHandler
         var wallet = await _wallets.GetByDriverAsync(query.DriverId, cancellationToken);
 
         // ZÉRO PLUTÔT QUE 404.
-        //
-        // Le portefeuille naît à la première course. Un livreur fraîchement vérifié
-        // qui ouvre son écran « mes gains » n'en a donc pas encore — et lui répondre
-        // « introuvable » lui ferait croire à une panne le jour même où il commence.
-        // Un solde de zéro est la réponse EXACTE à sa question : il n'a rien gagné
-        // pour l'instant.
-        //
-        // La nuance qui rend ce choix légitime : ici l'absence de ligne signifie
-        // vraiment « aucun mouvement ». Ce n'est pas un repli qui masque une donnée
-        // manquante, c'est la traduction d'un état connu.
         return wallet is null
             ? Result.Success(new DriverWalletView(query.DriverId, 0m, 0m, "XOF"))
             : Result.Success(new DriverWalletView(
@@ -51,9 +41,9 @@ internal sealed class DriverWalletQueryHandler
     public async Task<Result<IReadOnlyList<WalletTransactionView>>> Handle(
         ListDriverWalletTransactionsQuery query, CancellationToken cancellationToken)
     {
-        // Le grand livre est indexé par OwnerId : l'identifiant du livreur y suffit,
-        // aucun risque de collision avec un vendeur puisque ce sont des identifiants
-        // distincts, portant de surcroît un OwnerType différent.
+        // Le grand livre est indexé par OwnerId : l'identifiant du livreur y
+        // suffit, aucun risque de collision avec un vendeur puisque ce sont des
+        // identifiants distincts, portant de surcroît un OwnerType différent.
         var transactions = await _ledger.ListByOwnerAsync(
             query.DriverId, Math.Clamp(query.Take, 1, MaxTake), cancellationToken);
 

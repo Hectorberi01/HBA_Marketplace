@@ -11,19 +11,7 @@ namespace HBA.Marketplace.ReturnRefund.Application.Queries;
 public sealed record GetReturnQuery(Guid ReturnId) : IQuery<ReturnRequestDto>;
 public sealed record GetCustomerReturnsQuery(Guid CustomerId, int Page, int PageSize) : IQuery<PagedResult<ReturnRequestDto>>;
 public sealed record GetSellerReturnsQuery(Guid SellerId, int Page, int PageSize) : IQuery<PagedResult<ReturnRequestDto>>;
-/// <summary>
-/// La page des dossiers de retour, toutes boutiques confondues (administration).
-/// </summary>
-/// <remarks>
-/// IL N'Y A PAS DE « FILE DES LITIGES » AU SENS STRICT, ET C'EST VOULU.
-///
-/// `ReturnStatus` compte SEIZE états. Décider ici lesquels forment « un litige »
-/// figerait dans le serveur un jugement qui appartient à l'exploitation : selon
-/// le jour, ce qui presse est `ManualReview`, ou `RefundPending` qui traîne, ou
-/// `InspectionPending`. La requête rend donc TOUS les dossiers, filtrables par
-/// statut, avec le compte de chaque statut — et c'est l'écran qui met en avant ce
-/// qui doit l'être.
-/// </remarks>
+/// <summary>La page des dossiers de retour, toutes boutiques confondues (administration).</summary>
 public sealed record ListAdminReturnsQuery(
     int Page = 1,
     int PageSize = PageRequest.DefaultPageSize,
@@ -58,13 +46,8 @@ internal sealed class GetCustomerReturnsQueryHandler : IQueryHandler<GetCustomer
         var (page, pageSize) = PageRequest.Normalize(query.Page, query.PageSize);
         var items = await _returns.ListCustomerAsync(query.CustomerId, page, pageSize, cancellationToken);
 
-        // `items.Count` ÉTAIT PASSÉ EN GUISE DE TOTAL, ET C'ÉTAIT LA TAILLE DE
-        //    LA PAGE.
-        //
-        // `PagedResult.TotalPages` en déduisait toujours UNE page : le client
-        // n'affichait jamais de bouton « suivant », et un client qui avait plus de
-        // vingt retours ne voyait que les vingt premiers — sans rien qui indique
-        // qu'il en existait d'autres.
+        // `items.Count` ÉTAIT PASSÉ EN GUISE DE TOTAL, ET C'ÉTAIT LA TAILLE DE LA
+        // PAGE.
         var total = await _returns.CountCustomerAsync(query.CustomerId, cancellationToken);
 
         return new PagedResult<ReturnRequestDto>(items.Select(r => r.ToDto()).ToList(), total, page, pageSize);
@@ -101,12 +84,6 @@ internal sealed class ListAdminReturnsQueryHandler : IQueryHandler<ListAdminRetu
         var (page, pageSize) = PageRequest.Normalize(query.Page, query.PageSize);
 
         // UN STATUT ILLISIBLE EST IGNORÉ, IL NE FAIT PAS ÉCHOUER LA REQUÊTE.
-        //
-        // Même choix que `ListUsersQuery` d'identity-service. Le refuser
-        // obligerait chaque client à connaître les seize valeurs de l'énumération ;
-        // l'ignorer rend la liste complète, ce qui se voit. Ce qu'il NE FAUT PAS
-        // faire, en revanche, c'est laisser croire au filtre : le compte par statut
-        // rendu avec la page permet à l'écran de vérifier qu'il a bien filtré.
         ReturnStatus? statut = Enum.TryParse<ReturnStatus>(query.Status, ignoreCase: true, out var lu)
             ? lu
             : null;
@@ -139,28 +116,6 @@ internal sealed class GetOrderReturnSummaryQueryHandler : IQueryHandler<GetOrder
 
     public GetOrderReturnSummaryQueryHandler(IReturnRequestRepository returns) => _returns = returns;
 
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// CE CORPS NE LISAIT RIEN (audit du 27 août, constat 1.5).
-    ///
-    /// Il valait exactement ceci :
-    ///
-    ///     return Task.FromResult&lt;Result&lt;OrderReturnSummaryDto&gt;&gt;(
-    ///         new OrderReturnSummaryDto(query.OrderId, 0m, "XOF", 0));
-    ///
-    /// Le dépôt était injecté et jamais appelé. Toutes les commandes de la
-    /// plateforme affichaient « 0 remboursé, 0 retour actif », y compris celles
-    /// remboursées la veille — et un zéro se lit comme une réponse, pas comme une
-    /// absence de réponse.
-    ///
-    /// AUCUN `NotFound` ICI, ET C'EST VOULU. Une commande sans aucun retour est le
-    /// cas NORMAL, pas une erreur : elle rend un résumé à zéro, qui est alors la
-    /// vérité. Ce service ne connaît d'ailleurs pas les commandes — il ne saurait
-    /// pas distinguer « commande inexistante » de « commande sans retour », et
-    /// prétendre le contraire demanderait un appel à order-service pour une
-    /// information que l'écran a déjà.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
     public async Task<Result<OrderReturnSummaryDto>> Handle(GetOrderReturnSummaryQuery query, CancellationToken cancellationToken)
     {
         var (montant, devise, actifs) = await _returns.GetOrderSummaryAsync(query.OrderId, cancellationToken);

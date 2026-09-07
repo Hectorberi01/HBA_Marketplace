@@ -11,13 +11,8 @@ public readonly record struct RestaurantStaffId(Guid Value)
 }
 
 /// <summary>
-/// Une dérogation nominative : ce membre a, ou n'a pas, cette permission, quel
-/// que soit son rôle.
-///
-/// LE « NON » EST STOCKÉ AUTANT QUE LE « OUI ». Un retrait ne peut pas se
-/// représenter par une absence : l'absence signifie déjà « ce que le rôle
-/// prévoit ». Retirer <c>OrderAccept</c> à un caissier en particulier demande de
-/// l'écrire.
+/// Une dérogation nominative : ce membre a, ou n'a pas, cette permission, quel que
+/// soit son rôle.
 /// </summary>
 public sealed class StaffPermissionOverride
 {
@@ -33,39 +28,13 @@ public sealed class StaffPermissionOverride
 
     public FoodPermission Permission { get; private set; }
 
-    /// <summary>Vrai = accordée en plus du rôle. Faux = retirée malgré le rôle.</summary>
+    /// <summary>Vrai = accordée en plus du rôle.</summary>
     public bool IsGranted { get; private set; }
 
     internal void Set(bool isGranted) => IsGranted = isGranted;
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UN MEMBRE DU PERSONNEL D'UN RESTAURANT (cahier des charges §8).
-///
-/// Avant ce type, un restaurant n'avait qu'UNE seule personne : le compte qui
-/// l'avait créé. Pas de manager, pas de caissier, pas de cuisinier — et donc
-/// aucune des routes de commande et de cuisine que décrit le cahier ne pouvait
-/// être écrite correctement, puisqu'aucune ne savait QUI agissait.
-///
-/// CE MODULE NE STOCKE AUCUNE DONNÉE D'AUTHENTIFICATION.
-///
-/// <c>UserId</c> vient d'Identity et n'est qu'une référence. Le cahier l'exige
-/// (§8) et la frontière du module l'impose : Food ne référence aucun autre
-/// module, pas même ses contrats.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA SIGNATURE DES MUTATIONS EXIGE UN ACTEUR, ET C'EST DÉLIBÉRÉ.
-///
-/// <c>ChangeRole</c>, <c>GrantPermission</c>, <c>Deactivate</c> — aucune ne peut
-/// être appelée sans nommer QUI agit. C'est la leçon directe du défaut F7 :
-/// <c>LiftSuspension</c> s'appuyait sur un invariant garanti ailleurs, et rien
-/// n'empêchait de contourner l'endroit qui le tenait.
-///
-/// Ici, la garde ne peut pas être oubliée parce qu'il n'existe aucune surcharge
-/// sans acteur. Le compilateur refuse l'appel non gardé.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UN MEMBRE DU PERSONNEL D'UN RESTAURANT (cahier des charges §8).</summary>
 public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
 {
     private readonly List<StaffPermissionOverride> _overrides = new();
@@ -87,20 +56,12 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
 
     public Guid RestaurantId { get; private set; }
 
-    /// <summary>Compte HBA de la personne. Vient d'Identity — jamais créé ici.</summary>
+    /// <summary>Compte HBA de la personne.</summary>
     public Guid UserId { get; private set; }
 
     public StaffRole Role { get; private set; }
 
-    /// <summary>
-    /// Le compte qui a DÉPOSÉ la candidature du restaurant.
-    ///
-    /// INTOUCHABLE : ni rétrogradable, ni désactivable, même par un autre
-    /// propriétaire. C'est la clé de dernier recours. Sans elle, deux copropriétaires
-    /// en conflit peuvent se désactiver mutuellement, et l'établissement se retrouve
-    /// sans personne pour y entrer — un incident que seul un accès direct à la base
-    /// permettrait de réparer.
-    /// </summary>
+    /// <summary>Le compte qui a DÉPOSÉ la candidature du restaurant.</summary>
     public bool IsFounder { get; private set; }
 
     /// <summary>
@@ -118,9 +79,6 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
     /// <summary>
     /// Ce que ce membre peut RÉELLEMENT faire : les défauts de son rôle, plus ses
     /// dérogations accordées, moins ses dérogations retirées.
-    ///
-    /// Un membre désactivé ne peut plus rien : la porte est fermée avant qu'on ne
-    /// regarde le trousseau.
     /// </summary>
     public IReadOnlySet<FoodPermission> EffectivePermissions
     {
@@ -153,28 +111,11 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
 
     // ── Création ────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Le fondateur, créé AVEC le restaurant.
-    ///
-    /// SEULE CRÉATION SANS ACTEUR DE TOUT CE TYPE, et elle n'a qu'un appelant :
-    /// l'enregistrement d'un établissement. À cet instant il n'existe encore
-    /// personne pour autoriser quoi que ce soit — exiger un acteur rendrait le
-    /// premier membre impossible à créer.
-    ///
-    /// Sans cet amorçage, un restaurant naîtrait sans personnel : son propriétaire
-    /// ne pourrait ni gérer sa carte, ni embaucher, ni entrer dans son propre
-    /// espace.
-    /// </summary>
+    /// <summary>Le fondateur, créé AVEC le restaurant.</summary>
     public static RestaurantStaff Founder(Guid restaurantId, Guid ownerUserId)
         => new(RestaurantStaffId.New(), restaurantId, ownerUserId, StaffRole.Owner, isFounder: true);
 
-    /// <summary>
-    /// Embauche par un membre habilité.
-    ///
-    /// L'unicité de <c>UserId</c> dans un restaurant n'est PAS vérifiée ici — elle
-    /// porte sur l'ensemble du personnel, que cet agrégat ne voit pas. Elle est
-    /// tenue par l'appelant et par un index unique en base.
-    /// </summary>
+    /// <summary>Embauche par un membre habilité.</summary>
     public static Result<RestaurantStaff> Hire(RestaurantStaff actor, Guid userId, StaffRole role)
     {
         if (userId == Guid.Empty)
@@ -231,11 +172,6 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
         Role = newRole;
 
         // LES DÉROGATIONS SONT EFFACÉES AU CHANGEMENT DE RÔLE.
-        //
-        // Elles ont été accordées à un caissier, en connaissance de son périmètre.
-        // Les laisser survivre à un passage en cuisine donnerait à un cuisinier
-        // l'accès au chiffre d'affaires — l'interdiction la plus explicite du
-        // cahier (§2) — sans que personne ne l'ait décidé.
         _overrides.Clear();
         Touch();
 
@@ -255,11 +191,6 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
         }
 
         // ON NE DONNE PAS CE QU'ON N'A PAS.
-        //
-        // Sans cette ligne, un manager s'inventerait un adjoint doté de
-        // « restaurant.settings.manage », puis se ferait accorder la même chose
-        // par lui. L'escalade ne demanderait pas deux minutes, et aucune trace ne
-        // dirait qu'elle a eu lieu — chaque geste, pris seul, serait légitime.
         if (!actor.Has(permission))
         {
             return Result.Failure(Error.Forbidden(
@@ -274,13 +205,7 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Retire nommément une permission que le rôle donne.
-    ///
-    /// N'exige PAS que l'acteur détienne lui-même la permission : retirer réduit
-    /// le privilège, et l'exiger empêcherait un propriétaire de reprendre un droit
-    /// qu'il s'est lui-même retiré.
-    /// </summary>
+    /// <summary>Retire nommément une permission que le rôle donne.</summary>
     public Result RevokePermission(RestaurantStaff actor, FoodPermission permission)
     {
         var garde = EnsureCanAdminister(actor);
@@ -311,14 +236,7 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Le membre quitte le restaurant.
-    ///
-    /// L'INVARIANT « AU MOINS UN PROPRIÉTAIRE ACTIF » N'EST PAS VÉRIFIÉ ICI :
-    /// il porte sur l'ENSEMBLE du personnel, que cet agrégat ne voit pas. Il est
-    /// tenu par le gestionnaire de commande, qui compte avant de désactiver — même
-    /// forme que la garde de suppression d'une section garnie.
-    /// </summary>
+    /// <summary>Le membre quitte le restaurant.</summary>
     public Result Deactivate(RestaurantStaff actor)
     {
         var garde = EnsureCanAdminister(actor);
@@ -361,23 +279,10 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
 
     // ── Les gardes ──────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// L'ACTEUR A-T-IL LE DROIT D'AGIR SUR CE MEMBRE-CI ?
-    ///
-    /// Cinq conditions, chacune fermant une porte différente. Elles sont dans
-    /// l'ordre du moins au plus révélateur : on ne dit pas « ce membre existe mais
-    /// vous êtes trop bas » à quelqu'un qui n'est même pas du restaurant.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>L'ACTEUR A-T-IL LE DROIT D'AGIR SUR CE MEMBRE-CI ?</summary>
     private Result EnsureCanAdminister(RestaurantStaff actor)
     {
         // 1. LE CLOISONNEMENT PAR RESTAURANT (§20 du cahier).
-        //
-        // L'identifiant du membre vient du client. Sans cette comparaison, un
-        // manager licencierait le personnel d'un concurrent avec un simple GUID.
-        // « Introuvable » et non « interdit » : distinguer les deux dirait à qui
-        // teste des identifiants lesquels existent.
         if (actor.RestaurantId != RestaurantId)
         {
             return Result.Failure(Error.NotFound("food.staff.not_found", "Membre introuvable."));
@@ -396,10 +301,6 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
         }
 
         // 2. ON NE S'ADMINISTRE PAS SOI-MÊME.
-        //
-        // Dans un sens cela évite l'auto-promotion, dans l'autre l'auto-exclusion
-        // accidentelle — un propriétaire qui se retire « staff.manage » ne peut
-        // plus se le rendre.
         if (actor.Id == Id)
         {
             return Result.Failure(Error.Forbidden(
@@ -415,11 +316,6 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
         }
 
         // 4. LA HIÉRARCHIE. Strictement plus haut, sauf entre propriétaires.
-        //
-        // Sans elle, un manager rétrograderait le propriétaire et prendrait la
-        // main sur l'établissement. L'exception entre propriétaires est nécessaire :
-        // un associé parti doit pouvoir être retiré par l'autre — et le fondateur
-        // reste protégé par la condition précédente.
         var acteurEstProprietaire = actor.Role == StaffRole.Owner;
         var cibleEstProprietaire = Role == StaffRole.Owner;
 
@@ -439,14 +335,7 @@ public sealed class RestaurantStaff : AggregateRoot<RestaurantStaffId>
             : Result.Failure(Error.Forbidden(
                 "food.staff.forbidden", "Vous n'êtes pas habilité à gérer le personnel."));
 
-    /// <summary>
-    /// Peut-on attribuer CE rôle ?
-    ///
-    /// Strictement inférieur au sien, sauf qu'un propriétaire peut en nommer un
-    /// autre. Autoriser l'égalité ailleurs laisserait un manager se cloner : deux
-    /// pairs dont aucun ne peut plus agir sur l'autre, et un privilège qui se
-    /// multiplie sans jamais franchir de palier.
-    /// </summary>
+    /// <summary>Peut-on attribuer CE rôle ?</summary>
     private Result EnsureCanAssign(StaffRole role)
     {
         if (Role < role || (Role == StaffRole.Owner && role == StaffRole.Owner))
@@ -487,21 +376,17 @@ public interface IRestaurantStaffRepository
     Task<RestaurantStaff?> GetMembershipAsync(
         Guid restaurantId, Guid userId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Le restaurant où ce compte travaille.
-    ///
-    /// UN COMPTE, UN RESTAURANT. C'est ce qui permet aux routes de l'espace
-    /// restaurateur de résoudre l'établissement DEPUIS LE JETON, sans identifiant
-    /// falsifiable dans l'URL. Le jour où un cuisinier travaillera dans deux
-    /// maquis, il faudra un identifiant explicite et cette méthode disparaîtra.
-    /// </summary>
+    /// <summary>Le restaurant où ce compte travaille.</summary>
     Task<RestaurantStaff?> GetActiveMembershipByUserAsync(
         Guid userId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<RestaurantStaff>> ListByRestaurantAsync(
         Guid restaurantId, CancellationToken cancellationToken = default);
 
-    /// <summary>Combien de propriétaires ACTIFS reste-t-il ? Voir la garde du dernier propriétaire.</summary>
+    /// <summary>
+    /// Combien de propriétaires ACTIFS reste-t-il ? Voir la garde du dernier
+    /// propriétaire.
+    /// </summary>
     Task<int> CountActiveOwnersAsync(Guid restaurantId, CancellationToken cancellationToken = default);
 
     Task AddAsync(RestaurantStaff staff, CancellationToken cancellationToken = default);

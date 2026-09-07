@@ -22,9 +22,9 @@ internal sealed class ListCategoriesQueryHandler : IQueryHandler<ListCategoriesQ
 
     public async Task<Result<IReadOnlyList<CategorySummary>>> Handle(ListCategoriesQuery query, CancellationToken cancellationToken)
     {
-        // Le cache le plus rentable de tout le système : quelques dizaines de lignes,
-        // modifiées quelques fois par an, relues à CHAQUE ouverture de l'application.
-        // Le rapport lecture/écriture se compte en millions pour un.
+        // Le cache le plus rentable de tout le système : quelques dizaines de
+        // lignes, modifiées quelques fois par an, relues à CHAQUE ouverture de
+        // l'application.
         var summaries = await _cache.GetOrCreateAsync(
             CatalogCacheKeys.AllCategories,
             async ct =>

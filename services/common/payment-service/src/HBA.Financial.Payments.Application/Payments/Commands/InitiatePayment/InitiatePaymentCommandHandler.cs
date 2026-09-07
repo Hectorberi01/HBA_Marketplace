@@ -11,8 +11,8 @@ namespace HBA.Financial.Payments.Application.Payments.Commands.InitiatePayment;
 /// <summary>
 /// Initie un paiement : lit le montant de la commande via Ordering (Contracts),
 /// refuse si la commande n'attend pas de paiement ou si un paiement est déjà en
-/// cours, crée le paiement (Pending), puis ouvre la session auprès du PSP
-/// (checkout hébergé ou intention) et rattache sa référence pour la corrélation.
+/// cours, crée le paiement (Pending), puis ouvre la session auprès du PSP (checkout
+/// hébergé ou intention) et rattache sa référence pour la corrélation.
 /// </summary>
 internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePaymentCommand, InitiatePaymentResult>
 {
@@ -48,11 +48,8 @@ internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePa
             return Result.Failure<InitiatePaymentResult>(Error.Validation("payments.flow_invalid", "Flux de paiement inconnu (HostedCheckout / PaymentIntent)."));
         }
 
-        // L'univers se lit comme le moyen et le flux : une chaîne du corps, analysée
-        // tôt, refusée si elle ne désigne rien. On ne retombe PAS sur la valeur par
-        // défaut de l'énumération en cas d'échec — `Marketplace` valant zéro, une
-        // chaîne fantaisiste ferait alors payer une commande de repas comme une
-        // commande marketplace, et le paiement deviendrait introuvable pour les deux.
+        // L'univers se lit comme le moyen et le flux : une chaîne du corps,
+        // analysée tôt, refusée si elle ne désigne rien.
         if (!Enum.TryParse<PaymentOrderType>(command.OrderType, ignoreCase: true, out var orderType))
         {
             return Result.Failure<InitiatePaymentResult>(
@@ -77,21 +74,7 @@ internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePa
             return Result.Failure<InitiatePaymentResult>(Error.NotFound("payments.order.not_found", "Commande introuvable."));
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // SEUL L'ACHETEUR PAIE SA COMMANDE.
-        //
-        // `order.BuyerId` vient d'order-service : c'est l'acheteur réel. Le
-        // comparer à l'appelant est la seule chose qui empêchait un tiers de
-        // créer un paiement `Pending` sur une commande qui n'est pas la sienne —
-        // et de la rendre impayable pour toujours.
-        //
-        // Le refus se présente comme une commande introuvable : répondre « ce
-        // n'est pas la vôtre » confirmerait que cet identifiant existe et attend
-        // un règlement.
-        //
-        // L'administration n'a pas de dérogation ici : initier un paiement AU NOM
-        // d'un acheteur n'est pas un geste d'exploitation, c'est un débit.
-        // ═════════════════════════════════════════════════════════════════════
         if (command.RequestedByUserId is not { } demandeur || order.BuyerId != demandeur)
         {
             return Result.Failure<InitiatePaymentResult>(
@@ -105,27 +88,7 @@ internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePa
 
         var existing = await _paymentRepository.GetByOrderAsync(orderType, command.OrderId, cancellationToken);
 
-        // ─────────────────────────────────────────────────────────────────────────────
         // ON VÉRIFIE AUPRÈS DU PSP AVANT DE DÉCLARER UN PAIEMENT « EN COURS ».
-        //
-        // Un paiement reste `Pending` tant qu'un webhook ne l'a pas conclu. Or le
-        // webhook peut ne jamais arriver : réseau coupé, endpoint momentanément
-        // indisponible, signature rejetée, acheteur qui ferme la page. Le paiement
-        // reste alors `Pending` POUR TOUJOURS — et cette garde, prise au mot, interdit
-        // définitivement toute nouvelle tentative sur cette commande.
-        //
-        // Constaté en production : côté FedaPay la transaction était « Annulée », côté
-        // plateforme elle était encore « en attente de paiement ». L'acheteur voyait une
-        // commande bloquée, sans aucun moyen de payer, et rien dans l'interface ne
-        // pouvait l'en sortir.
-        //
-        // On interroge donc le prestataire pour connaître l'état RÉEL avant de refuser.
-        // Si la transaction est terminée (échouée, annulée), le paiement passe à `Failed`
-        // et la tentative suivante est autorisée juste en dessous.
-        //
-        // Best-effort : si le PSP est injoignable, on retombe sur l'ancien comportement,
-        // pessimiste mais sûr. Mieux vaut un refus temporaire qu'un double débit.
-        // ─────────────────────────────────────────────────────────────────────────────
         if (existing is { Status: PaymentStatus.Pending } && !string.IsNullOrWhiteSpace(existing.ProviderReference))
         {
             await ReconcileWithProviderAsync(existing, cancellationToken);
@@ -143,16 +106,6 @@ internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePa
         }
 
         // L'UNIVERS VIENT DE LA COMMANDE REÇUE, PLUS D'UNE CONSTANTE.
-        //
-        // Il valait `Marketplace` en dur, avec un commentaire qui annonçait
-        // exactement ce lot : « le jour où food-order-service ouvrira son chemin de
-        // paiement, il lui faudra SA propre commande d'initiation ou un paramètre
-        // explicite ici ». C'est le paramètre explicite qui a été retenu — voir
-        // `IPayableOrderReader` pour pourquoi un seul chemin plutôt que deux.
-        //
-        // Ce champ n'est pas décoratif : `PaymentCapturedIntegrationEvent.OrderType`
-        // en découle, et c'est LUI que food-order-service et order-service filtrent
-        // pour savoir si un paiement les concerne.
         var paymentResult = Payment.Create(
             order.OrderId, orderType, order.BuyerId, amountResult.Value,
             method, gatewayResult.Value.Provider, flow);
@@ -187,8 +140,7 @@ internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePa
 
     /// <summary>
     /// Aligne un paiement resté <see cref="PaymentStatus.Pending"/> sur l'état réel
-    /// connu du prestataire. Ne remonte jamais d'erreur : c'est une amélioration
-    /// opportuniste du diagnostic, pas une étape dont dépend l'initiation.
+    /// connu du prestataire.
     /// </summary>
     private async Task ReconcileWithProviderAsync(Payment existing, CancellationToken cancellationToken)
     {
@@ -197,19 +149,15 @@ internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePa
             var previousGateway = _gatewayResolver.Resolve(existing.Provider);
             if (previousGateway.IsFailure)
             {
-                // Prestataire retiré de la configuration depuis la tentative : on ne
-                // peut plus rien lui demander. Le paiement restera Pending, et le refus
-                // ci-dessous s'appliquera — cas assez rare pour ne pas être traité ici.
+                // Prestataire retiré de la configuration depuis la tentative : on
+                // ne peut plus rien lui demander.
                 return;
             }
 
             var current = await previousGateway.Value.GetStatusAsync(existing.ProviderReference!, cancellationToken);
             // Le journal de l'appelant, et non un `NullLogger` : c'est ici que
             // remontent les refus d'imputation d'un remboursement — devise
-            // incohérente, montant absent (voir `GatewayOutcomeApplier`). Les
-            // taire ferait disparaître, dans le silence d'une réconciliation
-            // « opportuniste », la seule trace d'un argent rendu dont on ignore
-            // le montant.
+            // incohérente, montant absent (voir `GatewayOutcomeApplier`).
             if (GatewayOutcomeApplier.Apply(existing, current, _logger).IsSuccess)
             {
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -217,10 +165,7 @@ internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePa
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Le PSP est injoignable ou répond n'importe quoi. On ne laisse PAS cette
-            // panne faire échouer l'initiation d'un paiement tout neuf : on retombe
-            // simplement sur la garde pessimiste. Le `when` laisse passer l'annulation,
-            // qui n'est pas une erreur du prestataire.
+            // Le PSP est injoignable ou répond n'importe quoi.
             _logger.LogWarning(
                 ex,
                 "Réconciliation impossible auprès de {Provider} pour le paiement {PaymentId}. La garde « paiement déjà en cours » s'applique telle quelle.",

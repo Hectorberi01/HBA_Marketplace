@@ -20,7 +20,10 @@ using HBA.Communication.Infrastructure.Observability;
 using HBA.Communication.Infrastructure.Persistence.Outbox;
 namespace HBA.Communication.Infrastructure;
 
-/// <summary>Enregistre le module Messaging : DbContext, repository, handlers, validators, outbox.</summary>
+/// <summary>
+/// Enregistre le module Messaging : DbContext, repository, handlers, validators,
+/// outbox.
+/// </summary>
 public sealed class MessagingModuleInstaller : IModuleInstaller
 {
     public string ModuleName => "Messaging";
@@ -29,13 +32,10 @@ public sealed class MessagingModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheCommunication(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteCommunication(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
@@ -55,14 +55,6 @@ public sealed class MessagingModuleInstaller : IModuleInstaller
         services.AddValidatorsFromAssembly(ApplicationAssembly, includeInternalTypes: true);
 
         // L'EXCEPTION EST FERMEE : CE MODULE A DESORMAIS LE SIEN.
-        //
-        // `AddOutboxProcessor` est descendu dans `Messaging/Kafka/Outbox/`, comme
-        // dans les vingt-quatre autres services. Il n'est donc plus enregistre par
-        // cet installeur — que le composition root appelle toujours — mais par
-        // `AjouterMessagerieCommunication()`, qu'il peut oublier. Un oubli ne
-        // casserait rien de visible : les messages s'ecriraient dans l'outbox et
-        // n'en sortiraient jamais. La garde ci-dessous, elle, est enregistree ici :
-        // elle doit exister quand ce qu'elle verifie est absent.
         services.AddHostedService<GardeDeCablage>();
     }
 }

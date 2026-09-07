@@ -5,9 +5,7 @@ namespace HBA.Financial.Payments.Infrastructure.Gateways.Simulation;
 
 /// <summary>
 /// Stub sandbox FedaPay : simule la page de paiement hébergée (renvoie une URL de
-/// redirection factice) sans toucher le réseau. Permet de faire tourner le parcours
-/// complet sans clé FedaPay. Dès qu'une clé est configurée, l'installer bascule sur
-/// <see cref="Real.FedaPayHttpGateway"/>.
+/// redirection factice) sans toucher le réseau.
 /// </summary>
 public sealed class FedaPayPaymentGateway : SimulatedPaymentGateway
 {

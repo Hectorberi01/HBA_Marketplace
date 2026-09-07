@@ -8,26 +8,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Marketplace.ReturnRefund.Application.Commands.CreateReturn;
 
-/// <summary>
-/// Ouverture d'un dossier de retour par le client.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// `RequestedByUserId` A ÉTÉ AJOUTÉ PARCE QUE N'IMPORTE QUI OUVRAIT UN RETOUR
-/// SUR LA COMMANDE DE N'IMPORTE QUI.
-///
-/// La commande ne portait aucune identité. Le client du dossier était simplement
-/// LU dans la commande désignée (`context.Value.CustomerId`) : fournir
-/// l'identifiant de commande d'un tiers suffisait à ouvrir un retour en son nom,
-/// à voir le détail de ses lignes, et à engager un remboursement sur sa vente.
-/// L'endpoint était bien authentifié — il ne transmettait simplement pas QUI
-/// parlait.
-///
-/// Le paramètre est nullable parce que `CurrentUserId` peut échouer à lire le
-/// jeton ; le handler refuse alors, plutôt que de laisser passer un `Guid.Empty`
-/// qui ne correspondrait à personne — mais qui, un jour, correspondrait à
-/// quelqu'un.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Ouverture d'un dossier de retour par le client.</summary>
 public sealed record CreateReturnCommand(
     CreateReturnRequestDto Request,
     Guid? RequestedByUserId) : ICommand<ReturnCreatedDto>;
@@ -70,15 +51,6 @@ internal sealed class CreateReturnCommandHandler : ICommandHandler<CreateReturnC
         if (existing is not null)
         {
             // LA REPRISE PAR CLÉ D'IDEMPOTENCE EST AUSSI UNE LECTURE.
-            //
-            // Elle rend le dossier existant sans passer par aucune autre garde :
-            // une clé devinée ou réutilisée révélait le numéro de retour, le
-            // statut et le montant estimé du dossier d'un tiers. Une clé
-            // d'idempotence sert à ne pas dupliquer un effet, pas à autoriser
-            // une lecture.
-            //
-            // Le refus se présente comme une non-correspondance : dire « cette clé
-            // appartient à quelqu'un d'autre » confirmerait qu'elle existe.
             if (existing.CustomerId != demandeur)
             {
                 return Error.Validation(
@@ -96,15 +68,6 @@ internal sealed class CreateReturnCommandHandler : ICommandHandler<CreateReturnC
         }
 
         // C'EST ICI QUE LA GARDE MORD.
-        //
-        // `context.Value.CustomerId` vient d'order-service : c'est l'acheteur
-        // RÉEL de la commande. Le comparer à l'appelant est la seule façon de
-        // savoir que le demandeur a le droit d'ouvrir ce retour — le dossier ne
-        // sera créé qu'après.
-        //
-        // Le refus est une validation « commande introuvable » plutôt qu'un 403 :
-        // répondre « ce n'est pas votre commande » confirmerait à un inconnu que
-        // cet identifiant de commande existe.
         if (context.Value.CustomerId != demandeur)
         {
             return Error.Validation(
@@ -112,18 +75,7 @@ internal sealed class CreateReturnCommandHandler : ICommandHandler<CreateReturnC
                 "Aucune commande eligible ne correspond a cette demande.");
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // CE QUE LA COMMANDE DIT NE SUFFIT PAS (ISSUE-014).
-        //
-        // `line.AlreadyReturnedQuantity` compte les retours ABOUTIS : order-service
-        // n'apprend un retour qu'au moment où l'argent part. Entre l'ouverture d'un
-        // dossier et son versement — accord du vendeur, transport, réception,
-        // inspection — il ne voit rien.
-        //
-        // Ouvrir deux dossiers d'affilée sur le même article passait donc les deux
-        // contrôles, et le même exemplaire finissait remboursé deux fois. Ces
-        // dossiers-là, nous les possédons : nous les comptons.
-        // ═════════════════════════════════════════════════════════════════════
         var enCours = await _returns.ListOpenQuantitiesByOrderAsync(
             command.Request.OrderId, exceptReturnId: null, cancellationToken);
 

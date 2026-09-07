@@ -28,8 +28,7 @@ internal sealed class PayoutAccountJsonConverter : ValueConverter<PayoutAccount,
 
 /// <summary>
 /// Convertit le Value Object <see cref="SellerCompanyInfo"/> (infos société
-/// déclarées) en jsonb. Le record n'ayant que des champs nullables simples, la
-/// (dé)sérialisation est directe.
+/// déclarées) en jsonb.
 /// </summary>
 internal sealed class SellerCompanyInfoJsonConverter : ValueConverter<SellerCompanyInfo, string>
 {

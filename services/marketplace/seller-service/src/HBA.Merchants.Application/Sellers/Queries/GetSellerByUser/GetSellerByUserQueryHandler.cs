@@ -32,10 +32,6 @@ internal sealed class GetSellerByUserQueryHandler : IQueryHandler<GetSellerByUse
         }
 
         // LES BOUTIQUES AUSSI, COMME SUR `GET /merchants/{id}`.
-        //
-        // `/me` et la fiche par identifiant servent le même écran, atteint par deux
-        // chemins. Les faire diverger obligerait l'application à savoir lequel des
-        // deux porte `stores` — et le §10.3 les veut imbriquées dans les deux cas.
         var stores = await _stores.ListBySellerAsync(seller.Id.Value, cancellationToken);
 
         return SellerMapper.ToDetail(

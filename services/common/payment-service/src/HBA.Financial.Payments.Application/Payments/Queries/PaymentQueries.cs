@@ -12,7 +12,9 @@ public sealed record GetPaymentQuery(Guid PaymentId) : IQuery<PaymentSummary>;
 /// <summary>Récupère le paiement d'une commande.</summary>
 public sealed record GetPaymentByOrderQuery(Guid OrderId) : IQuery<PaymentSummary>;
 
-/// <summary>Agrégats de paiements (montants + compteurs) pour les indicateurs de la console.</summary>
+/// <summary>
+/// Agrégats de paiements (montants + compteurs) pour les indicateurs de la console.
+/// </summary>
 public sealed record GetPaymentStatsQuery(string? Search = null) : IQuery<PaymentStatsSummary>;
 
 internal sealed class GetPaymentStatsQueryHandler : IQueryHandler<GetPaymentStatsQuery, PaymentStatsSummary>
@@ -30,7 +32,10 @@ internal sealed class GetPaymentStatsQueryHandler : IQueryHandler<GetPaymentStat
     }
 }
 
-/// <summary>Page de paiements pour la console admin (filtre statut, recherche par identifiant).</summary>
+/// <summary>
+/// Page de paiements pour la console admin (filtre statut, recherche par
+/// identifiant).
+/// </summary>
 public sealed record ListPaymentsQuery(
     int Page = 1,
     int PageSize = PageRequest.DefaultPageSize,
@@ -82,7 +87,7 @@ internal sealed class GetPaymentByOrderQueryHandler : IQueryHandler<GetPaymentBy
     public async Task<Result<PaymentSummary>> Handle(GetPaymentByOrderQuery query, CancellationToken cancellationToken)
     {
         // Consultation, pas action : l'appelant ne dit pas de quel univers vient la
-        // commande, et cette route ne l'a jamais demandé. Voir `FindByOrderIdAsync`.
+        // commande, et cette route ne l'a jamais demandé.
         var payment = await _repository.FindByOrderIdAsync(query.OrderId, cancellationToken);
         return payment is null
             ? Error.NotFound("payments.not_found", "Aucun paiement pour cette commande.")

@@ -16,26 +16,7 @@ public enum PartnerStatus
     Suspended = 2
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UN SITE MARCHAND TIERS QUI CONSOMME HBA DELIVERY.
-///
-/// C'est ce qui transforme le moteur logistique en PRODUIT : sans partenaire, il
-/// ne sert que HBAExpress et HBA Food, et le principe directeur du cahier — « ne
-/// pas connaître la nature commerciale de ce qui est livré » — n'aurait aucune
-/// contrepartie.
-///
-/// PLUSIEURS CLÉS PAR PARTENAIRE, ET C'EST INDISPENSABLE.
-///
-/// Avec une seule clé, la faire tourner impose une coupure : on révoque, le site
-/// tombe, on redéploie. Personne ne le fait, et la clé reste dix ans. Avec
-/// plusieurs, la rotation est sans interruption — émettre, déployer, révoquer
-/// l'ancienne — et une clé compromise se coupe sans arrêter le partenaire.
-///
-/// Le quota est porté ici, et non dans une passerelle : il est PAR PARTENAIRE,
-/// pas par adresse IP, et seul le domaine sait à qui appartient une clé.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UN SITE MARCHAND TIERS QUI CONSOMME HBA DELIVERY.</summary>
 public sealed class Partner : AggregateRoot<PartnerId>
 {
     private readonly List<PartnerApiKey> _apiKeys = new();
@@ -61,21 +42,17 @@ public sealed class Partner : AggregateRoot<PartnerId>
 
     public string ContactEmail { get; private set; }
 
-    /// <summary>Nombre de livraisons créables par jour. 0 = illimité.</summary>
+    /// <summary>Nombre de livraisons créables par jour.</summary>
     public int DailyQuota { get; private set; }
 
     public PartnerStatus Status { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
 
-    /// <summary>URL de rappel des webhooks. Nulle tant que le partenaire n'en veut pas.</summary>
+    /// <summary>URL de rappel des webhooks.</summary>
     public string? WebhookUrl { get; private set; }
 
-    /// <summary>
-    /// Secret de signature des webhooks. Le partenaire s'en sert pour vérifier
-    /// que l'appel vient bien de nous — sans lui, n'importe qui peut lui annoncer
-    /// une livraison terminée.
-    /// </summary>
+    /// <summary>Secret de signature des webhooks.</summary>
     public string? WebhookSecret { get; private set; }
 
     public IReadOnlyCollection<PartnerApiKey> ApiKeys => _apiKeys.AsReadOnly();
@@ -121,8 +98,8 @@ public sealed class Partner : AggregateRoot<PartnerId>
     }
 
     /// <summary>
-    /// Émet une clé. Le secret en clair n'existe QUE dans la valeur renvoyée :
-    /// il n'est stocké nulle part et ne pourra pas être retrouvé.
+    /// Émet une clé. Le secret en clair n'existe QUE dans la valeur renvoyée : il
+    /// n'est stocké nulle part et ne pourra pas être retrouvé.
     /// </summary>
     public Result<IssuedApiKey> IssueApiKey(string environmentTag, string? label = null)
     {
@@ -133,7 +110,7 @@ public sealed class Partner : AggregateRoot<PartnerId>
         }
 
         // Plafond volontairement bas : au-delà, ce ne sont plus des clés de
-        // rotation mais un oubli de révocation. Chaque clé active est une porte.
+        // rotation mais un oubli de révocation.
         if (_apiKeys.Count(k => k.IsActive) >= 5)
         {
             return Result.Failure<IssuedApiKey>(
@@ -163,7 +140,7 @@ public sealed class Partner : AggregateRoot<PartnerId>
     public PartnerApiKey? FindActiveKey(string prefix)
         => _apiKeys.FirstOrDefault(k => k.IsActive && k.Prefix == prefix);
 
-    /// <summary>Configure le rappel des webhooks. Le secret est fourni par l'appelant.</summary>
+    /// <summary>Configure le rappel des webhooks.</summary>
     public Result ConfigureWebhook(string? url, string? secret)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -176,9 +153,7 @@ public sealed class Partner : AggregateRoot<PartnerId>
         if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed)
             || parsed.Scheme != Uri.UriSchemeHttps)
         {
-            // HTTPS EXIGÉ, sans exception. Un webhook porte l'état d'une commande
-            // et une référence client ; en clair, il est lisible et modifiable par
-            // tout intermédiaire réseau.
+            // HTTPS EXIGÉ, sans exception.
             return Result.Failure(
                 Error.Validation("partner.webhook_https_required", "L'URL de rappel doit être en HTTPS."));
         }

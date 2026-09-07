@@ -36,8 +36,9 @@ internal sealed class UpdateCategoryCommandHandler : ICommandHandler<UpdateCateg
             return Result.Failure(slugResult.Error);
         }
 
-        // Le chemin du parent doit être connu AVANT le contrôle d'unicité : c'est lui
-        // qui distingue « /animaux/chiens/alimentation » de « /animaux/chats/alimentation ».
+        // Le chemin du parent doit être connu AVANT le contrôle d'unicité : c'est
+        // lui qui distingue « /animaux/chiens/alimentation » de «
+        // /animaux/chats/alimentation ».
         string? parentPath = null;
         if (category.ParentId is { } parentId)
         {
@@ -55,31 +56,7 @@ internal sealed class UpdateCategoryCommandHandler : ICommandHandler<UpdateCateg
                 $"Une catégorie « {command.Name} » existe déjà à cet emplacement."));
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // LES DESCENDANTS SONT RELUS AVANT LA MUTATION, PAS APRÈS (audit 2.4).
-        //
-        // CE QUI ÉTAIT CASSÉ. `Update()` recalculait le chemin de la catégorie
-        // modifiée et d'AUCUN descendant. Renommer « Animaux » (`/animaux`) en
-        // « Animaux domestiques » donnait `/animaux-domestiques` à la racine, et
-        // laissait ses enfants en `/animaux/chiens`, `/animaux/chats`.
-        //
-        // `ListDescendantsAsync` cherche par PRÉFIXE : la branche entière devenait
-        // introuvable. Publication et dépublication en cascade ne l'atteignaient
-        // plus, et les filtres par catégorie la perdaient — sans une erreur, sans
-        // une ligne de journal. La méthode nécessaire existait pourtant, et
-        // `PublishCategoryCommandHandler` s'en servait déjà : seul le renommage
-        // l'oubliait.
-        //
-        // L'ORDRE EST LE POINT DÉLICAT. `category.Path` est la CLÉ DE RECHERCHE
-        // des descendants. Muter d'abord et chercher ensuite ne ramènerait rien —
-        // on chercherait sous le nouveau chemin, où personne n'habite encore. On
-        // capture donc l'ancien chemin et on charge la branche AVANT `Update()`.
-        //
-        // Les entités rendues sont SUIVIES par EF (`ListDescendantsAsync` n'appelle
-        // pas `AsNoTracking`), donc la réécriture part au `SaveChangesAsync` final,
-        // dans la MÊME transaction que la racine. Une branche à moitié déplacée
-        // serait pire que pas de cascade du tout.
-        // ═════════════════════════════════════════════════════════════════════
         var ancienChemin = category.Path;
 
         // Chemin inchangé — l'appelant n'a touché qu'à l'image ou au schéma : on
@@ -97,10 +74,7 @@ internal sealed class UpdateCategoryCommandHandler : ICommandHandler<UpdateCateg
             return updateResult;
         }
 
-        // LE PRÉFIXE PORTE LE SÉPARATEUR, comme dans `ListDescendantsAsync`. Sans
-        // lui, `/animaux` → `/animaux-domestiques` transformerait aussi le chemin
-        // d'un `/animaux-sauvages` qui n'est pas un descendant — et qui n'est
-        // d'ailleurs pas dans la liste, d'où le refus explicite de `RebasePath`.
+        // LE PRÉFIXE PORTE LE SÉPARATEUR, comme dans `ListDescendantsAsync`.
         var ancienPrefixe = ancienChemin.TrimEnd('/') + "/";
         var nouveauPrefixe = category.Path.TrimEnd('/') + "/";
 
@@ -111,11 +85,6 @@ internal sealed class UpdateCategoryCommandHandler : ICommandHandler<UpdateCateg
             if (rebase.IsFailure)
             {
                 // ON ÉCHOUE LA COMMANDE ENTIÈRE, ON NE SAUTE PAS.
-                //
-                // Un descendant qui refuse la réécriture signale que la liste ne
-                // correspond pas à l'arbre — donc que le résultat serait une
-                // branche incohérente. Rien n'ayant encore été persisté, échouer
-                // ici laisse la catégorie telle qu'elle était.
                 return rebase;
             }
         }

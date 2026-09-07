@@ -12,20 +12,7 @@ public sealed record PreferencesDto(
     bool PushEnabled,
     bool MarketingOptIn);
 
-/// <summary>
-/// Lit les préférences, en les créant au passage si elles n'existent pas encore.
-///
-/// UNE REQUÊTE QUI ÉCRIT — L'EXCEPTION EST ASSUMÉE ET LIMITÉE.
-///
-/// Les comptes créés avant cette fonctionnalité n'ont aucune ligne de préférences.
-/// Les alternatives étaient : une migration de données rétroactive sur tous les
-/// comptes, ou renvoyer 404 sur un utilisateur parfaitement valide. La première
-/// crée des lignes pour des comptes qui ne consulteront jamais leurs préférences ;
-/// la seconde oblige chaque client à traiter un cas d'absence qui n'a aucun sens
-/// métier — un utilisateur A des préférences, ne serait-ce que par défaut.
-///
-/// L'écriture est idempotente et se produit une seule fois par compte.
-/// </summary>
+/// <summary>Lit les préférences, en les créant au passage si elles n'existent pas encore.</summary>
 public sealed record GetPreferencesQuery(Guid UserId) : IQuery<PreferencesDto>;
 
 internal sealed class GetPreferencesQueryHandler : IQueryHandler<GetPreferencesQuery, PreferencesDto>
@@ -64,7 +51,7 @@ internal sealed class GetPreferencesQueryHandler : IQueryHandler<GetPreferencesQ
         => new(p.Language, p.Currency, p.PushEnabled, p.MarketingOptIn);
 }
 
-/// <summary>Met à jour les préférences. Tout champ null reste inchangé.</summary>
+/// <summary>Met à jour les préférences.</summary>
 public sealed record UpdatePreferencesCommand(
     Guid UserId,
     string? Language,

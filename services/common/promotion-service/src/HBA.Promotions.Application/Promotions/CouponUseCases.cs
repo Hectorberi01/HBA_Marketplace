@@ -12,15 +12,8 @@ public sealed record CouponReservationView(
 // ══════════════════════════════════════════════════════════════════ Évaluation
 
 /// <summary>
-/// Valide un coupon pour un panier SANS RIEN CONSOMMER (§10.16,
-/// `POST /api/v1/promotions/validate` et `EvaluatePromotion`).
-///
-/// CETTE OPÉRATION EST EN LECTURE PURE, ET C'EST CE QUI LA REND UTILISABLE.
-///
-/// L'écran du panier la rappelle à chaque changement de quantité. Si elle
-/// réservait, dix modifications de panier consommeraient dix fois le budget et
-/// épuiseraient une campagne sans qu'aucune commande ne soit passée. La
-/// réservation est une opération distincte, déclenchée au checkout.
+/// Valide un coupon pour un panier SANS RIEN CONSOMMER (§10.16, `POST
+/// /api/v1/promotions/validate` et `EvaluatePromotion`).
 /// </summary>
 public sealed record ValidateCouponQuery(
     string? Code, PromotionScope Scope, long Subtotal, long DeliveryFee,
@@ -47,25 +40,10 @@ internal sealed class ValidateCouponQueryHandler
         var evaluation = await EvaluerAsync(_coupons, _promotions, query.Code, contexte, cancellationToken);
 
         // UN COUPON REFUSÉ N'EST PAS UNE ERREUR HTTP.
-        //
-        // Le §10.16 attend un 200 avec `"valid": false` : saisir un code périmé
-        // est un usage normal du champ, pas une requête malformée. Rendre 422
-        // ferait apparaître chaque frappe d'un client dans les alertes d'erreur du
-        // service, et l'application devrait traiter un échec pour afficher un
-        // message qui n'a rien d'exceptionnel.
         return Result.Success(evaluation);
     }
 
-    /// <summary>
-    /// Le chemin d'évaluation, partagé entre la validation et la réservation.
-    ///
-    /// UN SEUL ENDROIT, PARCE QUE LES DEUX DOIVENT DIRE LA MÊME CHOSE.
-    ///
-    /// Un panier validé à l'écran puis refusé au checkout est le pire des deux
-    /// mondes : le client a vu le prix remisé. Dupliquer la séquence — coupon,
-    /// campagne, applicabilité, calcul — les aurait fait diverger au premier
-    /// ajout de condition.
-    /// </summary>
+    /// <summary>Le chemin d'évaluation, partagé entre la validation et la réservation.</summary>
     internal static async Task<PromotionEvaluation> EvaluerAsync(
         ICouponRepository coupons,
         IPromotionRepository promotions,
@@ -83,10 +61,6 @@ internal sealed class ValidateCouponQueryHandler
         if (coupon is null)
         {
             // MÊME MESSAGE QU'UN COUPON EXPIRÉ, DÉLIBÉRÉMENT.
-            //
-            // Distinguer « ce code n'existe pas » de « ce code ne s'applique pas »
-            // transformerait le champ en oracle : quelques milliers de requêtes
-            // suffiraient à énumérer les codes valides d'une campagne.
             return Refuse(contexte, "promotions.coupon.not_applicable", "Ce code n'est pas utilisable.");
         }
 
@@ -114,11 +88,6 @@ internal sealed class ValidateCouponQueryHandler
         }
 
         // LA RÉPARTITION EST DEMANDÉE AU DOMAINE, PAS RECALCULÉE ICI.
-        //
-        // `SplitDiscount` porte la règle d'arrondi (le reste va à la plateforme).
-        // La refaire ici la ferait diverger de celle du report en commande au
-        // premier partage cofinancé, et deux chemins donneraient deux
-        // `SellerDiscount` pour la même vente.
         var imputation = promotion.SplitDiscount(remise.Total);
 
         return new PromotionEvaluation(
@@ -149,15 +118,7 @@ internal sealed class ValidateCouponQueryHandler
 
 // ═════════════════════════════════════════════════════════════════ Réservation
 
-/// <summary>
-/// Retient un coupon pour un panier (§10.16, `ReserveCoupon`).
-///
-/// C'EST ICI QUE LE BUDGET SE CONSOMME, PAS AU PAIEMENT.
-///
-/// Attendre le paiement laisserait une fenêtre pendant laquelle mille paniers
-/// simultanés se croiraient tous dans l'enveloppe. La contrepartie — un panier
-/// abandonné immobilise du budget — est bornée par l'expiration de la retenue.
-/// </summary>
+/// <summary>Retient un coupon pour un panier (§10.16, `ReserveCoupon`).</summary>
 public sealed record ReserveCouponCommand(
     string? Code, Guid UserId, Guid CartId, PromotionScope Scope,
     long Subtotal, long DeliveryFee, string Currency = "XOF") : ICommand<CouponReservationView>;
@@ -189,11 +150,6 @@ internal sealed class ReserveCouponCommandHandler
         if (!evaluation.Valid)
         {
             // ICI, EN REVANCHE, C'EST BIEN UNE ERREUR.
-            //
-            // La validation répond « valide ou non » à un écran ; la réservation est
-            // demandée au checkout, où le client a déjà vu son prix. Un refus doit
-            // interrompre le flux, pas rendre 200 avec un champ que l'appelant
-            // pourrait ne pas lire.
             return Result.Failure<CouponReservationView>(Error.BusinessRule(
                 evaluation.Reason ?? "promotions.coupon.not_applicable", evaluation.Message));
         }
@@ -204,16 +160,6 @@ internal sealed class ReserveCouponCommandHandler
         var promotion = (await _promotions.GetByIdAsync(coupon.PromotionId, cancellationToken))!;
 
         // ON COMPTE LES RETENUES AVANT, ET CE N'EST PAS UN DÉTAIL.
-        //
-        // `Reserve` est idempotent par panier : sur un double-clic, il rend la MÊME
-        // retenue sans rien créer. Le budget, lui, ne l'est pas — le débiter à
-        // chaque appel consommerait deux fois l'enveloppe pour une seule remise, et
-        // la campagne s'éteindrait à la moitié de son budget réel.
-        //
-        // Le nombre de retenues est le seul signal fiable que le domaine expose
-        // pour distinguer « créée » de « déjà là ». Le déduire de l'état ou de la
-        // date ne marcherait pas : une retenue rendue par la branche idempotente a
-        // exactement le même état et la même date qu'une retenue neuve.
         var avant = coupon.Reservations.Count;
 
         var retenue = coupon.Reserve(command.UserId, command.CartId, evaluation.Discount, DateTime.UtcNow);
@@ -277,10 +223,6 @@ internal sealed class CommitCouponCommandHandler : ICommandHandler<CommitCouponC
         }
 
         // AUCUNE CONSOMMATION DE BUDGET ICI.
-        //
-        // Elle a eu lieu à la réservation. La refaire à l'engagement compterait la
-        // remise deux fois, et une campagne s'éteindrait à la moitié de son budget
-        // réel — le genre d'erreur qu'on impute d'abord au marketing.
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
@@ -323,11 +265,6 @@ internal sealed class ReleaseCouponCommandHandler : ICommandHandler<ReleaseCoupo
         }
 
         // LE MONTANT EST LU AVANT LA LIBÉRATION, ET SEULEMENT SI ELLE EST VIVANTE.
-        //
-        // Après `Release`, le statut vaut `Released` et l'on ne saurait plus si du
-        // budget avait été engagé. Et sur un rejeu — retenue déjà libérée — le
-        // montant est 0 : sans cette condition, chaque rejeu recréditerait la
-        // campagne, qui finirait par ne jamais s'épuiser.
         var montant = retenue.Status == CouponReservationStatus.Held ? retenue.DiscountAmount : 0;
 
         var resultat = coupon.Release(command.ReservationId);

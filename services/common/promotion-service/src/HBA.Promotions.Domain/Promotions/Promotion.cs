@@ -4,27 +4,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Promotions.Domain.Promotions;
 
-/// <summary>
-/// Campagne promotionnelle (§10.16, table <c>promotions</c>).
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE BUDGET EST LA SEULE CHOSE QUI EMPÊCHE UNE PROMOTION DE COÛTER L'INFINI.
-///
-/// Une remise sans plafond global est une promesse ouverte : si le code fuite sur
-/// un réseau social, la plateforme paie autant de fois qu'il est utilisé. Les
-/// plafonds par coupon et par utilisateur ne suffisent pas — mille comptes
-/// respectant chacun sa limite épuisent quand même la trésorerie.
-///
-/// Le budget se consomme donc EN RÉSERVATION, pas au paiement. Réserver au
-/// checkout et engager au paiement ferme la fenêtre pendant laquelle mille paniers
-/// simultanés pourraient tous se croire dans le budget.
-///
-/// CONTREPARTIE ASSUMÉE : UN PANIER ABANDONNÉ IMMOBILISE DU BUDGET.
-///
-/// C'est pourquoi une réservation EXPIRE. Sans expiration, quelques milliers
-/// d'abandons suffiraient à éteindre une campagne qui n'a rien coûté.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Campagne promotionnelle (§10.16, table <c>promotions</c>).</summary>
 public sealed class Promotion : AggregateRoot<Guid>
 {
     private readonly List<PromotionRule> _rules = new();
@@ -68,7 +48,9 @@ public sealed class Promotion : AggregateRoot<Guid>
 
     public DateTime EndsAtUtc { get; private set; }
 
-    /// <summary>Enveloppe totale. Null = pas de plafond global (à n'utiliser qu'en interne).</summary>
+    /// <summary>
+    /// Enveloppe totale. Null = pas de plafond global (à n'utiliser qu'en interne).
+    /// </summary>
     public long? Budget { get; private set; }
 
     /// <summary>Part du budget déjà réservée ou engagée.</summary>
@@ -76,61 +58,16 @@ public sealed class Promotion : AggregateRoot<Guid>
 
     public string Currency { get; private set; }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LA PART DE LA REMISE SUPPORTÉE PAR LE VENDEUR, EN POINTS DE BASE (D28).
-    ///
-    /// 0 = la plateforme paie tout. 10 000 = le vendeur paie tout. Toute valeur
-    /// intermédiaire est une remise COFINANCÉE — c'est exactement ce que D28
-    /// exigeait de pouvoir exprimer « plus tard sans migration supplémentaire ».
-    ///
-    /// CE N'EST PAS UN CONFORT DE MODÉLISATION, C'EST LA COLONNE QUI EMPÊCHE
-    /// LE PRÉLÈVEMENT SILENCIEUX.
-    ///
-    /// wallet calcule le gain du vendeur sur `UnitBasePrice - SellerDiscount`.
-    /// Sans cette part, le producteur de `PriceBreakdownDto` n'a aucun moyen de
-    /// décider ce qu'il écrit dans `SellerDiscount` : il écrit 0 (et la remise
-    /// n'est imputée à personne), ou il écrit le total (et le vendeur paie les
-    /// campagnes de la plateforme). Les deux sont faux, et aucun des deux ne
-    /// laisse de trace.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LA PART DE LA REMISE SUPPORTÉE PAR LE VENDEUR, EN POINTS DE BASE (D28).</summary>
     public int SellerFundedShareBps { get; private set; }
 
     /// <summary>
-    /// Le vendeur à qui la campagne APPARTIENT. <c>null</c> = campagne de la
+    /// Le vendeur à qui la campagne APPARTIENT. <c> null</c> = campagne de la
     /// plateforme.
     /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LA PART NE SUFFIT PAS À FONDER LA GARDE D'APPARTENANCE. IL FAUT UN NOM.
-    ///
-    /// D28 dit qu'un financeur donne enfin la question à poser — « cette promotion
-    /// est-elle la vôtre ? ». Une PART répond « un vendeur paie », jamais
-    /// « LEQUEL ». Sans ce champ, `/api/v1/merchant/promotions` resterait fermée à
-    /// `RequireAdmin` faute de pouvoir distinguer deux marchands, ce qui est
-    /// précisément l'état que l'encadré de `PromotionEndpoints` décrit.
-    ///
-    /// PAS DE `OwnerType`, ET C'EST DÉLIBÉRÉ.
-    ///
-    /// `PromotionSummary` (HBA.Pricing.Contracts) porte un couple
-    /// `OwnerType` / `OwnerId`. Il n'existe ici qu'un seul type de propriétaire
-    /// non-plateforme — le vendeur — et `null` dit déjà « la plateforme ». Une
-    /// colonne de discrimination qui ne discrimine rien serait une colonne à
-    /// tenir, à indexer et à expliquer, pour aucune question qu'on sache poser.
-    ///
-    /// PROPRIÉTAIRE ET FINANCEUR SONT DEUX CHOSES, ET LEUR ÉCART EST LÉGITIME.
-    ///
-    /// Une campagne peut appartenir à un vendeur et être payée par la plateforme
-    /// (`SellerFundedShareBps = 0`) : c'est un geste commercial de la place de
-    /// marché sur la boutique de quelqu'un. L'inverse est en revanche INTERDIT —
-    /// une part vendeur non nulle sans propriétaire désignerait un payeur que
-    /// personne ne peut nommer. Voir <see cref="Create"/>.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
     public Guid? OwnerSellerId { get; private set; }
 
-    /// <summary>Lecture de <see cref="SellerFundedShareBps"/>. Non persistée.</summary>
+    /// <summary>Lecture de <see cref="SellerFundedShareBps"/>.</summary>
     public PromotionFunder Funder => SellerFundedShareBps switch
     {
         PromotionFunding.PlatformOnly => PromotionFunder.Platform,
@@ -142,24 +79,14 @@ public sealed class Promotion : AggregateRoot<Guid>
 
     public DateTime CreatedAtUtc { get; private set; }
 
-    /// <summary>Budget encore disponible. `long.MaxValue` si la campagne n'a pas de plafond.</summary>
+    /// <summary>Budget encore disponible.</summary>
     public long BudgetRemaining => Budget is null ? long.MaxValue : Budget.Value - BudgetConsumed;
 
     /// <summary>Conditions d'éligibilité (§10.16, table <c>promotion_rules</c>).</summary>
     public IReadOnlyCollection<PromotionRule> Rules => _rules.AsReadOnly();
 
     /// <summary>
-    /// LES DEUX DERNIERS PARAMÈTRES ONT UN DÉFAUT, ET IL FAIT PAYER LA
-    /// PLATEFORME.
-    ///
-    /// C'est le même défaut que celui posé aux lignes DÉJÀ EN BASE par la
-    /// migration `20260901000100_FinanceurDePromotion`, et pour la même raison :
-    /// une campagne dont personne n'a désigné le financeur n'a pas de vendeur à
-    /// qui la facturer. Le défaut inverse — part vendeur — prélèverait sur des
-    /// marchands qui n'ont rien signé, par un chemin (le calcul des gains) où le
-    /// prélèvement ne se voit pas.
-    ///
-    /// Les appelants qui savent — l'API marchand — passent la part explicitement.
+    /// LES DEUX DERNIERS PARAMÈTRES ONT UN DÉFAUT, ET IL FAIT PAYER LA PLATEFORME.
     /// </summary>
     public static Result<Promotion> Create(
         string? name, PromotionScope scope, PromotionType type, long value,
@@ -186,10 +113,6 @@ public sealed class Promotion : AggregateRoot<Guid>
         }
 
         // Une remise de plus de 100 % rendrait de l'argent à l'acheteur.
-        //
-        // Refuser ici plutôt que plafonner au calcul : plafonner masquerait une
-        // campagne saisie à 150 % qui continuerait d'exister en base, et que
-        // quelqu'un « corrigerait » un jour en levant le plafond.
         if (type == PromotionType.Percent && value > 100)
         {
             return Result.Failure<Promotion>(Error.Validation(
@@ -211,19 +134,10 @@ public sealed class Promotion : AggregateRoot<Guid>
         }
 
         // `Guid.Empty` n'est pas un vendeur : c'est la valeur qu'un appelant
-        // produit quand il n'a rien à mettre. La traiter comme « aucun
-        // propriétaire » évite qu'une campagne se retrouve rattachée à un
-        // identifiant que la garde d'appartenance ne pourra jamais faire
-        // correspondre à personne — donc invisible et inannulable par son auteur.
+        // produit quand il n'a rien à mettre.
         var proprietaire = ownerSellerId is { } candidat && candidat != Guid.Empty ? candidat : (Guid?)null;
 
         // UN PAYEUR SANS NOM EST REFUSÉ ICI, PAS RATTRAPÉ PLUS TARD.
-        //
-        // Une part vendeur non nulle sans propriétaire décrit une remise que
-        // « le vendeur » paie, sans dire lequel. Le producteur de
-        // `PriceBreakdownDto` n'aurait alors le choix qu'entre l'imputer à
-        // n'importe quel vendeur du panier — donc au mauvais — et l'ignorer, donc
-        // rendre la part décorative. Les deux se découvrent sur un relevé.
         if (sellerFundedShareBps > PromotionFunding.PlatformOnly && proprietaire is null)
         {
             return Result.Failure<Promotion>(Error.Validation(
@@ -244,16 +158,7 @@ public sealed class Promotion : AggregateRoot<Guid>
         return promotion;
     }
 
-    /// <summary>
-    /// Ajoute une condition d'éligibilité.
-    ///
-    /// REFUSÉE APRÈS LE DÉMARRAGE DE LA CAMPAGNE.
-    ///
-    /// Restreindre une campagne déjà active change la règle sous les pieds des
-    /// clients : celui qui a rempli son panier pour atteindre un minimum qui
-    /// n'existait pas hier ne comprendra pas le refus, et le support non plus.
-    /// Une nouvelle condition, c'est une nouvelle campagne.
-    /// </summary>
+    /// <summary>Ajoute une condition d'éligibilité.</summary>
     public Result AddRule(string? ruleType, string? ruleJson)
     {
         if (Status is not (PromotionStatus.Draft or PromotionStatus.Scheduled))
@@ -274,16 +179,7 @@ public sealed class Promotion : AggregateRoot<Guid>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Dit si la campagne peut s'appliquer à ce contexte, sans rien consommer.
-    ///
-    /// LE CODE D'ERREUR EST DÉLIBÉRÉMENT PRÉCIS ICI.
-    ///
-    /// « Ce coupon ne s'applique pas » est vrai pour six raisons différentes, et le
-    /// client ne peut réagir qu'à la sienne : ajouter un article s'il manque un
-    /// minimum, revenir demain si la campagne n'a pas commencé, renoncer si elle
-    /// est épuisée. Un message unique les prive tous du seul renseignement utile.
-    /// </summary>
+    /// <summary>Dit si la campagne peut s'appliquer à ce contexte, sans rien consommer.</summary>
     public Result EnsureApplicable(PromotionContext context, DateTime nowUtc)
     {
         if (Status is PromotionStatus.Cancelled or PromotionStatus.Draft)
@@ -324,10 +220,6 @@ public sealed class Promotion : AggregateRoot<Guid>
         }
 
         // TOUTES LES CONDITIONS, ET LA PREMIÈRE QUI ÉCHOUE DÉCIDE.
-        //
-        // Un type de règle inconnu refuse ici — voir l'encadré de `PromotionRule`.
-        // C'est le seul endroit où une condition d'éligibilité est consultée : la
-        // dupliquer dans l'appelant ferait diverger les deux au premier ajout.
         foreach (var regle in _rules)
         {
             var verdict = regle.Evaluate(context);
@@ -341,15 +233,7 @@ public sealed class Promotion : AggregateRoot<Guid>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Calcule la remise pour ce contexte, sans rien consommer.
-    ///
-    /// LA REMISE NE PEUT JAMAIS DÉPASSER CE QU'ELLE RÉDUIT.
-    ///
-    /// Une remise fixe de 5 000 sur un panier de 3 000 produirait un total négatif —
-    /// donc un remboursement à quelqu'un qui n'a rien payé. Le plafonnement se fait
-    /// ici, une fois, plutôt que dans chaque appelant.
-    /// </summary>
+    /// <summary>Calcule la remise pour ce contexte, sans rien consommer.</summary>
     public PromotionDiscount ComputeDiscount(PromotionContext context)
         => Type switch
         {
@@ -364,31 +248,7 @@ public sealed class Promotion : AggregateRoot<Guid>
             _ => PromotionDiscount.None
         };
 
-    /// <summary>
-    /// Répartit une remise accordée entre le vendeur et la plateforme.
-    ///
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// C'EST LE SEUL ENDROIT OÙ LA RÉPARTITION SE CALCULE.
-    ///
-    /// La recopier chez l'appelant — dans le fournisseur de tarification, dans le
-    /// report en commande, dans wallet — la ferait diverger au premier partage
-    /// cofinancé, et la divergence produirait des `SellerDiscount` différents
-    /// selon le chemin emprunté par la même vente. Personne ne trouve cela en
-    /// lisant du code : on le trouve en rapprochant deux relevés.
-    ///
-    /// ARITHMÉTIQUE ENTIÈRE, ET LE RESTE VA À LA PLATEFORME.
-    ///
-    /// Les montants sont en unités monétaires entières (§2). `1 001 × 5 000 / 10 000`
-    /// vaut 500 en division entière, pas 500,5 : l'unité perdue est reprise par la
-    /// plateforme, qui reçoit `total - partVendeur`. La somme des deux parts vaut
-    /// donc TOUJOURS exactement la remise accordée — aucune unité n'apparaît, aucune
-    /// ne disparaît — et le sens de l'arrondi favorise systématiquement le vendeur.
-    ///
-    /// C'est un choix, pas une fatalité : arrondir au plus proche aurait fait porter
-    /// au vendeur un franc de plus une fois sur deux, pour un gain de justesse nul et
-    /// une ligne de relevé inexplicable.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>Répartit une remise accordée entre le vendeur et la plateforme.</summary>
     public FundedDiscount SplitDiscount(long discountAmount)
     {
         if (discountAmount <= 0)
@@ -402,14 +262,8 @@ public sealed class Promotion : AggregateRoot<Guid>
     }
 
     /// <summary>
-    /// Consomme du budget. Refuse si le reste ne couvre pas la remise, et bascule en
-    /// `Exhausted` dès que le budget est atteint.
-    ///
-    /// ON NE SERT PAS UNE REMISE PARTIELLE.
-    ///
-    /// Accorder 300 quand il reste 300 sur une remise de 1 000 donnerait au client un
-    /// montant qu'il n'a pas demandé, sans qu'aucun écran ne l'explique. Mieux vaut
-    /// refuser franchement : la campagne est épuisée.
+    /// Consomme du budget. Refuse si le reste ne couvre pas la remise, et bascule
+    /// en `Exhausted` dès que le budget est atteint.
     /// </summary>
     public Result ConsumeBudget(long amount)
     {
@@ -421,7 +275,8 @@ public sealed class Promotion : AggregateRoot<Guid>
 
         if (Budget is not null && BudgetRemaining < amount)
         {
-            // Le budget ne couvre plus une remise entière : la campagne s'arrête ici.
+            // Le budget ne couvre plus une remise entière : la campagne s'arrête
+            // ici.
             Epuiser();
 
             return Result.Failure(Error.BusinessRule(
@@ -442,26 +297,7 @@ public sealed class Promotion : AggregateRoot<Guid>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Bascule en « épuisée » et l'annonce, à la TRANSITION seulement.
-    ///
-    /// SANS CETTE GARDE, CHAQUE CHECKOUT REFUSÉ REPUBLIERAIT L'ALERTE.
-    ///
-    /// Ce n'est pas un cas limite, c'est le cas courant : une fois le budget
-    /// épuisé, TOUTE tentative de réservation suivante rappelle `ConsumeBudget`,
-    /// retombe sur la branche « budget insuffisant », et arrive ici. Une campagne
-    /// populaire qui vient de s'épuiser reçoit des dizaines d'appels par minute —
-    /// et publierait autant d'événements `promotion.exhausted`, noyant la seule
-    /// notification qui demande une décision humaine : remettre au budget, ou
-    /// laisser mourir.
-    ///
-    /// UNE RÉOUVERTURE SUIVIE D'UN NOUVEL ÉPUISEMENT RÉ-ANNONCE, ET C'EST VOULU.
-    ///
-    /// `ReleaseBudget` peut rendre la campagne active — panier abandonné, commande
-    /// annulée. Si elle s'épuise de nouveau ensuite, c'est un fait nouveau : le
-    /// budget rendu a été reconsommé. Le taire laisserait le marketing sur une
-    /// information périmée.
-    /// </summary>
+    /// <summary>Bascule en « épuisée » et l'annonce, à la TRANSITION seulement.</summary>
     private void Epuiser()
     {
         if (Status == PromotionStatus.Exhausted)
@@ -475,11 +311,6 @@ public sealed class Promotion : AggregateRoot<Guid>
 
     /// <summary>
     /// Rend du budget quand une réservation expire ou qu'une commande est annulée.
-    ///
-    /// LA CAMPAGNE REDEVIENT ACTIVE SI ELLE ÉTAIT ÉPUISÉE.
-    ///
-    /// Sans cela, un seul panier abandonné au mauvais moment éteindrait
-    /// définitivement une campagne dont le budget est intact.
     /// </summary>
     public void ReleaseBudget(long amount)
     {

@@ -40,8 +40,8 @@ internal sealed class CreateCategoryCommandHandler : ICommandHandler<CreateCateg
 
         var category = result.Value;
 
-        // Unicité par CHEMIN, pas par slug : « Alimentation » peut exister sous
-        // « Chiens » et sous « Chats », mais pas deux fois sous le même parent.
+        // Unicité par CHEMIN, pas par slug : « Alimentation » peut exister sous «
+        // Chiens » et sous « Chats », mais pas deux fois sous le même parent.
         if (await _categoryRepository.PathExistsAsync(category.Path, excludeId: null, cancellationToken))
         {
             return Error.Conflict(

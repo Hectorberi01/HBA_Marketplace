@@ -3,17 +3,7 @@ using HBA.Shared.Infrastructure.Kafka;
 
 namespace HBA.Communication.Infrastructure.Messaging.Kafka.Producers;
 
-/// <summary>
-/// CE QUE LA MESSAGERIE INTERNE PUBLIE — UN SEUL EVENEMENT.
-///
-/// `MessageSent` est consomme par le module Notifications, compose dans le meme
-/// hote. Il passe malgre tout par Kafka et non par un appel direct : les deux
-/// modules ont chacun leur base, et un appel en memoire lierait leur
-/// transaction — un message enregistre sans notification, ou l'inverse.
-///
-/// LES PUBLICATIONS RESTENT DANS `Application`. Ce dossier DECLARE, il ne publie
-/// pas : voir `user-service` pour la raison.
-/// </summary>
+/// <summary>CE QUE LA MESSAGERIE INTERNE PUBLIE — UN SEUL EVENEMENT.</summary>
 public static class EvenementsPublies
 {
     public static readonly IReadOnlyList<Type> Types =
@@ -21,12 +11,7 @@ public static class EvenementsPublies
         typeof(MessageSentIntegrationEvent),
     ];
 
-    /// <summary>
-    /// PLUS AUCUN EVENEMENT PUBLIE NE MANQUE DE `[HbaEvent]`.
-    ///
-    /// Y inscrire un evenement serait une derogation : son nom sur le fil
-    /// tomberait sur un repli le jour ou le nommage canonique sera branche.
-    /// </summary>
+    /// <summary>PLUS AUCUN EVENEMENT PUBLIE NE MANQUE DE `[HbaEvent]`.</summary>
     public static readonly IReadOnlyList<Type> SansDescripteur = [];
 
     /// <summary>Refuse le demarrage si un evenement de `Types` n'a pas `[HbaEvent]`.</summary>

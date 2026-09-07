@@ -6,8 +6,7 @@ namespace HBA.Catalog.Application.Products.Commands.ProcessImage;
 
 /// <summary>
 /// Traite une image produit (détourage IA + fond blanc) AVANT création du produit,
-/// pour permettre au vendeur de valider le rendu. Ne persiste rien : renvoie les
-/// octets traités, qui seront ensuite téléversés vers R2 lors de la création.
+/// pour permettre au vendeur de valider le rendu.
 /// </summary>
 public sealed record ProcessImageCommand(
     string FileName, string ContentType, byte[] Content) : ICommand<ProcessedImage>;

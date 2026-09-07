@@ -11,18 +11,7 @@ public readonly record struct SellerRoleId(Guid Value)
     public override string ToString() => Value.ToString();
 }
 
-/// <summary>
-/// Une permission portée par un rôle — une ligne de <c>role_permissions</c>.
-/// </summary>
-/// <remarks>
-/// POURQUOI UNE CLASSE POUR CE QUI POURRAIT ÊTRE UN `List&lt;MerchantPermission&gt;`.
-///
-/// Parce que le §12 demande une table, et qu'une table sert à quelque chose ici :
-/// « combien de membres portent ce rôle » et « quels rôles portent cette
-/// permission » sont des questions qu'on posera. Rangées dans une colonne tableau
-/// ou en JSON, elles deviendraient des requêtes qu'EF ne traduit pas, ou qu'il
-/// traduit mal. C'est le même choix que <c>StaffPermissionOverride</c> côté food.
-/// </remarks>
+/// <summary>Une permission portée par un rôle — une ligne de <c>role_permissions</c>.</summary>
 public sealed class SellerRolePermission
 {
     private SellerRolePermission()
@@ -34,26 +23,7 @@ public sealed class SellerRolePermission
     public MerchantPermission Permission { get; private set; }
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UN RÔLE — SYSTÈME OU PERSONNALISÉ, ET C'EST LE MÊME AGRÉGAT.
-///
-/// `SellerId` NUL SIGNIFIE « RÔLE SYSTÈME », PARTAGÉ PAR TOUS LES VENDEURS.
-///
-/// C'est la seule différence structurelle entre les deux, et elle porte toutes
-/// les autres : un rôle système ne se modifie pas, ne se supprime pas, et son
-/// identifiant est FIXE (voir <see cref="SystemSellerRoles"/>) parce que du code
-/// le désigne — <c>SellerMember.IsOwner</c> compare à celui du propriétaire.
-///
-/// UN RÔLE PERSONNALISÉ NE PEUT PAS PORTER UNE PERMISSION RÉSERVÉE.
-///
-/// Le §11 dit « restent Owner-only par défaut », ce qui laisse entendre qu'une
-/// politique pourrait l'assouplir. Ici c'est absolu : `seller_security_policies`
-/// n'existe pas, et une réserve qu'on peut lever par configuration absente n'est
-/// pas une réserve. Le jour où la table existera, ce refus sera le seul endroit
-/// à rouvrir.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UN RÔLE — SYSTÈME OU PERSONNALISÉ, ET C'EST LE MÊME AGRÉGAT.</summary>
 public sealed class SellerRole : AggregateRoot<SellerRoleId>
 {
     private readonly List<SellerRolePermission> _permissions = [];
@@ -83,7 +53,10 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
 
     public string? Description { get; private set; }
 
-    /// <summary>La VOCATION du rôle. En Phase 1, un rôle <see cref="RoleScope.Store"/> s'applique au vendeur.</summary>
+    /// <summary>
+    /// La VOCATION du rôle. En Phase 1, un rôle <see cref="RoleScope.Store"/>
+    /// s'applique au vendeur.
+    /// </summary>
     public RoleScope Scope { get; private set; }
 
     public bool IsSystemRole { get; private set; }
@@ -92,15 +65,7 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
 
     public DateTime? UpdatedOnUtc { get; private set; }
 
-    /// <summary>
-    /// Les permissions du rôle.
-    /// <para>
-    /// RECALCULÉE À CHAQUE APPEL, ET C'EST ASSUMÉ. Un rôle porte quelques
-    /// dizaines de valeurs, et l'ensemble effectif d'un membre sera de toute façon
-    /// mis en cache par `CheckMerchantCapability` (lot C). Mémoriser ici
-    /// introduirait un état à invalider pour un gain nul.
-    /// </para>
-    /// </summary>
+    /// <summary>Les permissions du rôle.</summary>
     public IReadOnlySet<MerchantPermission> Permissions
         => _permissions.Select(p => p.Permission).ToHashSet();
 
@@ -109,21 +74,15 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
 
     // ── Création ────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Un rôle système, à identifiant imposé. Appelé UNIQUEMENT par l'amorçage.
-    /// </summary>
+    /// <summary>Un rôle système, à identifiant imposé.</summary>
     internal static SellerRole System(
         SellerRoleId id, string name, string? description,
         RoleScope scope, IEnumerable<MerchantPermission> permissions)
         => new(id, sellerId: null, name, description, scope, isSystemRole: true, permissions);
 
-    /// <summary>
-    /// Un rôle taillé par le vendeur (§18).
-    /// </summary>
+    /// <summary>Un rôle taillé par le vendeur (§18).</summary>
     /// <param name="acteurPermissions">
-    /// Les permissions effectives de celui qui crée le rôle. Le paramètre est
-    /// obligatoire, et c'est délibéré : il n'existe aucune surcharge sans acteur,
-    /// donc aucun appel non gardé ne compile.
+    /// Les permissions effectives de celui qui crée le rôle.
     /// </param>
     public static Result<SellerRole> Custom(
         Guid sellerId,
@@ -188,10 +147,6 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
         }
 
         // ON REVÉRIFIE À CHAQUE MODIFICATION, PAS SEULEMENT À LA CRÉATION.
-        //
-        // Sinon un gérant crée un rôle avec ce qu'il a, perd une permission, puis
-        // ajoute par modification ce qu'il n'a plus. Le contrôle porte sur l'état
-        // de l'acteur AU MOMENT DE L'ÉCRITURE, jamais sur l'historique du rôle.
         var refus = EnsureDelegatable(acteurPermissions, permissions);
         if (refus.IsFailure)
         {
@@ -207,18 +162,7 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Recale les permissions d'un rôle SYSTÈME sur celles du code.
-    /// </summary>
-    /// <remarks>
-    /// APPELÉE UNIQUEMENT PAR L'AMORÇAGE, ET REFUSÉE SUR UN RÔLE PERSONNALISÉ.
-    ///
-    /// Elle est publique parce que l'amorçage vit dans l'assemblage Infrastructure,
-    /// pas parce qu'elle est ouverte à tous : sans acteur ni contrôle de
-    /// délégation, l'appliquer à un rôle de vendeur reviendrait à réécrire ses
-    /// droits sans que personne ne l'ait décidé. D'où le refus, qui est le seul
-    /// garde-fou possible ici.
-    /// </remarks>
+    /// <summary>Recale les permissions d'un rôle SYSTÈME sur celles du code.</summary>
     public Result SyncSystemPermissions(IReadOnlyCollection<MerchantPermission> permissions)
     {
         if (!IsSystemRole)
@@ -236,34 +180,10 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
     }
 
     /// <summary>
-    /// Un rôle système ne se supprime pas ; un rôle encore attribué non plus ; et un
-    /// rôle portant plus que l'acteur non plus.
+    /// Un rôle système ne se supprime pas ; un rôle encore attribué non plus ; et
+    /// un rôle portant plus que l'acteur non plus.
     /// </summary>
-    /// <param name="acteurPermissions">
-    /// Les permissions effectives de celui qui supprime.
-    /// </param>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LA DÉLÉGATION VAUT AUSSI POUR LA SUPPRESSION, ET CE N'EST PAS ÉVIDENT.
-    ///
-    /// `ROLE_DELETE` seul suffirait à effacer un rôle portant des permissions que
-    /// l'acteur ne détient pas. Ce n'est pas une escalade — on ne gagne rien à
-    /// supprimer — mais c'est un DÉGÂT que le §11 est censé borner : un
-    /// gestionnaire de catalogue pourrait effacer le rôle du comptable, et le rôle
-    /// ne se recrée qu'en le retapant permission par permission.
-    ///
-    /// La règle est donc symétrique à la création : l'autorité d'un acteur sur un
-    /// rôle se mesure aux permissions que ce rôle porte, jamais au verbe HTTP.
-    ///
-    /// ET ELLE VIT ICI PLUTÔT QUE DANS LE HANDLER.
-    ///
-    /// Elle y était d'abord. Le handler est aujourd'hui le seul appelant — mais
-    /// `EnsureDeletable` est publique, et un second chemin de suppression (reprise
-    /// de données, commande d'administration) recopierait les deux premiers refus
-    /// en oubliant le troisième. Les trois raisons de refuser une suppression
-    /// tiennent dans une seule méthode, ou aucune ne tient.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <param name="acteurPermissions">Les permissions effectives de celui qui supprime.</param>
     public Result EnsureDeletable(
         int membresPortantCeRole, IReadOnlySet<MerchantPermission> acteurPermissions)
     {
@@ -274,9 +194,7 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
         }
 
         // `Cast<MerchantPermission?>` AVANT `FirstOrDefault` : sans lui, le défaut
-        // d'une énumération est `0`, c'est-à-dire `PRODUCT_VIEW`. Le test « aucune
-        // permission hors portée » deviendrait « la première hors portée est-elle
-        // PRODUCT_VIEW », et le refus tomberait exactement à l'envers.
+        // d'une énumération est `0`, c'est-à-dire `PRODUCT_VIEW`.
         var horsPortee = Permissions
             .Where(p => !acteurPermissions.Contains(p))
             .Cast<MerchantPermission?>()
@@ -299,10 +217,6 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
         }
 
         // SUPPRIMER UN RÔLE ATTRIBUÉ EST UNE RÉVOCATION SILENCIEUSE.
-        //
-        // Les membres qui le portaient se retrouveraient sans permission, sans
-        // événement, sans trace — et le propriétaire chercherait la panne du côté
-        // des comptes. On exige de détacher d'abord.
         if (membresPortantCeRole > 0)
         {
             return Result.Failure(Error.Conflict(
@@ -317,16 +231,7 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
 
     // ── La règle anti-escalade (§11 et §36) ─────────────────────────────────
 
-    /// <summary>
-    /// ON NE DONNE PAS CE QU'ON N'A PAS, ET JAMAIS CE QUI EST RÉSERVÉ.
-    /// </summary>
-    /// <remarks>
-    /// C'est ce qui remplace, ici, la hiérarchie par ordinal de
-    /// <c>RestaurantStaff</c>. Un rang dit « je suis plus haut que toi » ; une
-    /// inclusion d'ensembles dit « je ne peux pas donner ce que je n'ai pas ».
-    /// La seconde est plus forte : elle tient aussi entre deux membres de même
-    /// rang aux permissions différentes, ce qu'un ordinal ne sait pas exprimer.
-    /// </remarks>
+    /// <summary>ON NE DONNE PAS CE QU'ON N'A PAS, ET JAMAIS CE QUI EST RÉSERVÉ.</summary>
     private static Result EnsureDelegatable(
         IReadOnlySet<MerchantPermission> acteurPermissions,
         IReadOnlyCollection<MerchantPermission> demandees)
@@ -359,27 +264,7 @@ public sealed class SellerRole : AggregateRoot<SellerRoleId>
     }
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES RÔLES SYSTÈME — IDENTIFIANTS FIXES, ET POURQUOI ILS LE SONT.
-///
-/// CES GUID SONT ÉCRITS EN BASE, DANS `seller_member_roles`. ILS NE CHANGENT
-///    JAMAIS.
-///
-/// Un rôle système semé avec un identifiant aléatoire obligerait chaque lecture à
-/// le retrouver par son nom — et un renommage casserait tout. Ici l'amorçage est
-/// idempotent parce que l'identité est connue d'avance, et `IsOwner` est une
-/// comparaison, pas une requête.
-///
-/// LA COLONNE `Scope` EST LA VOCATION, PAS L'APPLICATION (décision D27).
-///
-/// Les cinq rôles marqués `Store` s'appliquent aujourd'hui au VENDEUR ENTIER,
-/// faute de rattachement boutique dans order et inventory. C'est sans effet chez
-/// un vendeur mono-boutique — tous le sont aujourd'hui, la migration de reprise
-/// en a créé exactement une par vendeur — et c'est une escalade dès la deuxième.
-/// D'où le refus d'attribution posé dans la couche Application.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES RÔLES SYSTÈME — IDENTIFIANTS FIXES, ET POURQUOI ILS LE SONT.</summary>
 public static class SystemSellerRoles
 {
     public static readonly SellerRoleId OwnerId = new(Guid.Parse("a5100001-0000-4000-8000-000000000001"));
@@ -392,17 +277,17 @@ public static class SystemSellerRoles
     public static readonly SellerRoleId FinanceManagerId = new(Guid.Parse("a5100008-0000-4000-8000-000000000008"));
     public static readonly SellerRoleId EmployeeId = new(Guid.Parse("a5100009-0000-4000-8000-000000000009"));
 
-    /// <summary>Le catalogue tel qu'il est semé. Ordre d'affichage compris.</summary>
+    /// <summary>Le catalogue tel qu'il est semé.</summary>
     public static IReadOnlyList<SellerRole> Catalogue { get; } =
     [
-        // LE PROPRIÉTAIRE PORTE TOUT, Y COMPRIS LES PERMISSIONS RÉSERVÉES.
-        // Ce n'est pas une délégation : c'est son propre dossier.
+        // LE PROPRIÉTAIRE PORTE TOUT, Y COMPRIS LES PERMISSIONS RÉSERVÉES. Ce n'est
+        // pas une délégation : c'est son propre dossier.
         SellerRole.System(
             OwnerId, "OWNER", "Propriétaire du dossier vendeur. Contrôle complet.",
             RoleScope.Seller, MerchantPermissions.All),
 
-        // TOUT SAUF LE RÉSERVÉ — c'est exactement la définition du §10
-        // (« administration générale hors actions réservées Owner »).
+        // TOUT SAUF LE RÉSERVÉ — c'est exactement la définition du §10 («
+        // administration générale hors actions réservées Owner »).
         SellerRole.System(
             SellerAdminId, "SELLER_ADMIN", "Administration générale, hors actions réservées au propriétaire.",
             RoleScope.Seller, MerchantPermissions.All.Where(p => !p.IsOwnerOnly())),
@@ -456,8 +341,8 @@ public static class SystemSellerRoles
                 MerchantPermission.ProductView, MerchantPermission.StoreView
             ]),
 
-        // NI `INVENTORY_ADJUST`, NI `MEMBER_*` — c'est le test §24 qui le dit :
-        // « Order Manager peut confirmer une commande mais pas ajuster le stock ».
+        // NI `INVENTORY_ADJUST`, NI `MEMBER_*` — c'est le test §24 qui le dit : «
+        // Order Manager peut confirmer une commande mais pas ajuster le stock ».
         SellerRole.System(
             OrderManagerId, "ORDER_MANAGER", "Commandes et préparation.",
             RoleScope.Store,
@@ -483,12 +368,6 @@ public static class SystemSellerRoles
             ]),
 
         // PAS DE `WITHDRAWAL_REQUEST` PAR DÉFAUT, ET C'EST UN CHOIX.
-        //
-        // Le cahier l'autorise à ce rôle. Un comptable lit un relevé ; demander un
-        // virement vers un compte qu'il ne contrôle pas est un autre métier. Les
-        // défauts d'un rôle sont un plancher sûr : le propriétaire peut l'ajouter
-        // explicitement, et l'ajout laissera une trace que l'implicite n'aurait
-        // pas laissée.
         SellerRole.System(
             FinanceManagerId, "FINANCE_MANAGER", "Lecture des finances et des règlements.",
             RoleScope.Seller,
@@ -509,15 +388,24 @@ public static class SystemSellerRoles
     ];
 }
 
-/// <summary>Accès aux rôles. L'interface vit dans le fichier de l'agrégat, comme <c>IStoreRepository</c>.</summary>
+/// <summary>
+/// Accès aux rôles. L'interface vit dans le fichier de l'agrégat, comme <c>
+/// IStoreRepository</c>.
+/// </summary>
 public interface ISellerRoleRepository
 {
     Task<SellerRole?> GetByIdAsync(SellerRoleId id, CancellationToken cancellationToken = default);
 
-    /// <summary>Les rôles système ET ceux du vendeur — l'ensemble de ce qu'il peut attribuer.</summary>
+    /// <summary>
+    /// Les rôles système ET ceux du vendeur — l'ensemble de ce qu'il peut
+    /// attribuer.
+    /// </summary>
     Task<IReadOnlyList<SellerRole>> ListAvailableAsync(Guid sellerId, CancellationToken cancellationToken = default);
 
-    /// <summary>Résout un lot d'identifiants ; les inconnus sont simplement absents du résultat.</summary>
+    /// <summary>
+    /// Résout un lot d'identifiants ; les inconnus sont simplement absents du
+    /// résultat.
+    /// </summary>
     Task<IReadOnlyList<SellerRole>> ListByIdsAsync(
         IReadOnlyCollection<SellerRoleId> ids, CancellationToken cancellationToken = default);
 

@@ -3,54 +3,13 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
 using HBA.Merchants.Contracts;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Communication.Notifications.Application.Notifications;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// Prévient CHAQUE VENDEUR concerné qu'une commande payée l'attend.
-///
-/// ─────────────────────────────────────────────────────────────────────────────
-/// CE HANDLER N'EXISTAIT PAS. C'ÉTAIT LE TROU.
-///
-/// Toute l'infrastructure de push était en place — jetons d'appareil, FcmPushSender,
-/// purge des jetons morts, et le BFF vendeur exposait déjà l'enregistrement du jeton.
-/// Mais les trois handlers de commande notifiaient tous `e.BuyerId`. L'acheteur, et
-/// seulement lui. Un vendeur pouvait vendre sans jamais l'apprendre.
-///
-/// Et l'événement lui-même ne permettait pas de le corriger : `OrderConfirmedIntegrationEvent`
-/// ne transportait que l'acheteur et l'identifiant de commande. Il fallait donc
-/// commencer par lui faire porter la répartition par vendeur — sans quoi ce handler
-/// n'aurait eu personne à prévenir.
-/// ─────────────────────────────────────────────────────────────────────────────
-///
-/// <para>
-/// POURQUOI À LA CONFIRMATION, ET NON À LA COMMANDE.
-///
-/// Une commande « passée » n'est encore qu'une intention : le paiement FedaPay peut
-/// être abandonné. Prévenir les vendeurs à ce moment-là, ce serait les faire préparer
-/// — voire expédier — une marchandise qui ne sera jamais payée, et les noyer sous des
-/// alertes sans suite. Ils cesseraient de les lire, et manqueraient les vraies.
-///
-/// La confirmation signifie « l'argent est encaissé ». C'est le seul moment où
-/// l'alerte est actionnable.
-/// </para>
-/// </summary>
+/// <summary>Prévient CHAQUE VENDEUR concerné qu'une commande payée l'attend.</summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerOrderConfirmedNotificationHandler")]
 public sealed class SellerOrderConfirmedNotificationHandler : IIntegrationEventHandler<OrderConfirmedIntegrationEvent>
 {
@@ -71,12 +30,6 @@ public sealed class SellerOrderConfirmedNotificationHandler : IIntegrationEventH
     public async Task HandleAsync(OrderConfirmedIntegrationEvent e, CancellationToken cancellationToken = default)
     {
         // UNE COMMANDE DE REPAS N'A PAS DE VENDEUR, ET CE N'EST PAS UN BUG.
-        //
-        // Sans cette sortie, l'avertissement ci-dessous — qui dit littéralement
-        // « c'est un bug en amont » — se déclencherait à CHAQUE commande de
-        // restauration. Deux dégâts : le journal se remplit de fausses alertes, et
-        // le jour où le cas réellement anormal survient — une commande de
-        // marchandise sans part vendeur — personne ne le distingue du bruit.
         if (string.Equals(e.Kind, "Food", StringComparison.Ordinal))
         {
             return;
@@ -84,9 +37,7 @@ public sealed class SellerOrderConfirmedNotificationHandler : IIntegrationEventH
 
         if (e.SellerShares.Count == 0)
         {
-            // Ne devrait pas arriver : une commande sans ligne n'existe pas. Si cela
-            // se produit, c'est un bug en amont — et le silence serait le pire des
-            // symptômes, puisque le vendeur, lui, ne saurait jamais qu'on l'a oublié.
+            // Ne devrait pas arriver : une commande sans ligne n'existe pas.
             _logger.LogWarning(
                 "Commande {OrderId} confirmée sans aucun vendeur : aucune notification vendeur envoyée.",
                 e.OrderId);
@@ -98,14 +49,6 @@ public sealed class SellerOrderConfirmedNotificationHandler : IIntegrationEventH
             try
             {
                 // TRADUCTION SellerId → UserId.
-                //
-                // Une commande connaît des VENDEURS (SellerId). Un push s'adresse à un
-                // COMPTE (UserId) : c'est sur le compte que le jeton d'appareil est
-                // enregistré, par /seller/notifications/devices. Sans cette étape, on
-                // notifierait un identifiant qui ne possède aucun appareil, et le push
-                // partirait dans le vide — sans la moindre erreur.
-                //
-                // L'appel est quasi gratuit : les vendeurs sont en cache (SellersCacheKeys).
                 var seller = await _sellers.GetSellerAsync(share.SellerId, cancellationToken);
 
                 if (seller is null)
@@ -129,9 +72,7 @@ public sealed class SellerOrderConfirmedNotificationHandler : IIntegrationEventH
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // Un vendeur injoignable ne doit pas priver les AUTRES de leur
-                // notification. Sur une commande multi-vendeurs, laisser l'exception
-                // remonter ferait perdre toutes les alertes suivantes — la boucle
-                // s'arrêterait au premier échec.
+                // notification.
                 _logger.LogError(
                     ex,
                     "Commande {OrderId} : échec de la notification du vendeur {SellerId}. Les autres vendeurs sont tout de même prévenus.",

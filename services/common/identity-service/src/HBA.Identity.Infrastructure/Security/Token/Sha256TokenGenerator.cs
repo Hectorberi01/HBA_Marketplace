@@ -4,10 +4,7 @@ using HBA.Identity.Application.Abstractions;
 
 namespace HBA.Identity.Infrastructure.Security;
 
-/// <summary>
-/// Génère des jetons opaques (256 bits, base64url) et calcule leur hash SHA-256.
-/// On ne stocke que le hash ; le jeton en clair n'est transmis qu'une fois.
-/// </summary>
+/// <summary>Génère des jetons opaques (256 bits, base64url) et calcule leur hash SHA-256.</summary>
 internal sealed class Sha256TokenGenerator : ISecureTokenGenerator
 {
     public (string Raw, string Hash) Generate()

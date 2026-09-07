@@ -19,7 +19,8 @@ internal sealed class DeviceTokenConfiguration : IEntityTypeConfiguration<Device
         builder.Property(d => d.CreatedAtUtc).IsRequired();
         builder.Property(d => d.LastSeenAtUtc).IsRequired();
 
-        // Un jeton (installation d'app) est unique ; recherche rapide par utilisateur.
+        // Un jeton (installation d'app) est unique ; recherche rapide par
+        // utilisateur.
         builder.HasIndex(d => d.Token).IsUnique();
         builder.HasIndex(d => d.UserId);
     }

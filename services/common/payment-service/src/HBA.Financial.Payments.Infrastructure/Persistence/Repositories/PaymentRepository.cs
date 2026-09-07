@@ -90,8 +90,8 @@ internal sealed class PaymentRepository : IPaymentRepository
             baseQuery = baseQuery.Where(p => p.Id == paymentId || p.OrderId == g);
         }
 
-        // Un seul GROUP BY : compteur + somme des montants par statut (Amount est une
-        // colonne « amount » via OwnsOne, donc SUM est traduisible en SQL).
+        // Un seul GROUP BY : compteur + somme des montants par statut (Amount est
+        // une colonne « amount » via OwnsOne, donc SUM est traduisible en SQL).
         var rows = await baseQuery
             .GroupBy(p => p.Status)
             .Select(gr => new { Status = gr.Key, Count = gr.Count(), Amount = gr.Sum(x => x.Amount.Amount) })

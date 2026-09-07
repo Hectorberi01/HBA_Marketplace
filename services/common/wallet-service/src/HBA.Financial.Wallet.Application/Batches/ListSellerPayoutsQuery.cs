@@ -5,9 +5,7 @@ using HBA.Financial.Wallet.Domain.Batches;
 
 namespace HBA.Financial.Wallet.Application.Batches;
 
-/// <summary>
-/// Liste les reversements (payouts) d'un vendeur, tous lots confondus.
-/// </summary>
+/// <summary>Liste les reversements (payouts) d'un vendeur, tous lots confondus.</summary>
 public sealed record ListSellerPayoutsQuery(Guid SellerId) : IQuery<IReadOnlyList<PayoutSummary>>;
 
 internal sealed class ListSellerPayoutsQueryHandler

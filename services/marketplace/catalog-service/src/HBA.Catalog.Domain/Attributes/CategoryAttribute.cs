@@ -4,19 +4,8 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Catalog.Domain.Attributes;
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE RATTACHEMENT D'UN ATTRIBUT À UNE CATÉGORIE — TABLE <c>category_attributes</c>.
-///
-/// C'est ce qui pilote le formulaire vendeur (§13, étape 8 : « caractéristiques
-/// dynamiques de catégorie ») et les filtres de vitrine (§17).
-///
-/// `Required` ET `Variant` VIVENT ICI, PAS SUR LA DÉFINITION.
-///
-/// La même « Couleur » est obligatoire et formante pour un téléphone, facultative
-/// et décorative pour un meuble. Les porter sur la définition obligerait à créer
-/// deux attributs « couleur » — et c'est exactement le doublon que la séparation
-/// des deux tables évite.
-/// ═════════════════════════════════════════════════════════════════════════════
+/// LE RATTACHEMENT D'UN ATTRIBUT À UNE CATÉGORIE — TABLE <c>
+/// category_attributes</c>.
 /// </summary>
 public sealed class CategoryAttribute : Entity<Guid>
 {
@@ -42,16 +31,7 @@ public sealed class CategoryAttribute : Entity<Guid>
     /// <summary>Le vendeur doit le renseigner avant de soumettre (§23).</summary>
     public bool Required { get; private set; }
 
-    /// <summary>
-    /// L'attribut distingue les variantes (§11 : couleur, stockage).
-    ///
-    /// CE DRAPEAU NE VALIDE RIEN AUJOURD'HUI, IL DÉCRIT.
-    ///
-    /// Il dit au formulaire quels champs proposer par déclinaison plutôt qu'une
-    /// fois pour la fiche. Faire de lui une contrainte — « toute variante DOIT
-    /// porter tous les attributs formants » — casserait les fiches existantes, dont
-    /// les variantes ont été saisies avant que ces définitions n'existent.
-    /// </summary>
+    /// <summary>L'attribut distingue les variantes (§11 : couleur, stockage).</summary>
     public bool Variant { get; private set; }
 
     public int DisplayOrder { get; private set; }

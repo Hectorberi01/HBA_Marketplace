@@ -6,8 +6,7 @@ using HBA.Merchants.Domain.Stores.Events;
 namespace HBA.Merchants.Application.Stores;
 
 /// <summary>
-/// Publie « boutique fermée » — c'est ce message qui retire ses offres de la
-/// vente. Sans lui, StoreStatus ne serait qu'une colonne.
+/// Publie « boutique fermée » — c'est ce message qui retire ses offres de la vente.
 /// </summary>
 public sealed class StoreClosedDomainEventHandler : IDomainEventHandler<StoreClosedDomainEvent>
 {
@@ -64,11 +63,7 @@ public sealed class StoreSuspendedDomainEventHandler : IDomainEventHandler<Store
             cancellationToken);
 }
 
-/// <summary>
-/// Publie « sanction levée ». La boutique reste FERMÉE : c'est le vendeur qui
-/// rouvre. Un consommateur qui l'avait exclue d'un classement doit la réintégrer
-/// dans ses règles sans pour autant la considérer comme ouverte.
-/// </summary>
+/// <summary>Publie « sanction levée ».</summary>
 public sealed class StoreSuspensionLiftedDomainEventHandler
     : IDomainEventHandler<StoreSuspensionLiftedDomainEvent>
 {

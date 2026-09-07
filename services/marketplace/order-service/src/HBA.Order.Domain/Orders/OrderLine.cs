@@ -2,15 +2,12 @@ using HBA.Shared.Domain.Primitives;
 
 namespace HBA.Orders.Domain.Orders;
 
-/// <summary>Une option de plat à figer dans la commande. Voir `OrderLineOption`.</summary>
+/// <summary>Une option de plat à figer dans la commande.</summary>
 public sealed record OrderLineOptionDraft(Guid OptionGroupId, Guid OptionId);
 
 /// <summary>
 /// Données d'une ligne à figer au moment de la commande (snapshot prix issu de
-/// Pricing). Sert d'entrée à la création de la commande.
-///
-/// DEUX NATURES DANS UN SEUL BROUILLON. Les champs de la nature opposée
-/// restent vides — c'est <paramref name="Kind"/> qui dit lesquels lire.
+/// Pricing).
 /// </summary>
 public sealed record OrderLineDraft(
     Guid OfferId,
@@ -32,9 +29,8 @@ public sealed record OrderLineDraft(
     IReadOnlyList<OrderLineOptionDraft>? Options = null);
 
 /// <summary>
-/// Ligne de commande : un snapshot figé du prix au moment de l'achat (prix de
-/// base, réductions par financeur, prix final). Les prix ne bougent plus après
-/// la commande — base d'un payout vendeur auditable. Entité enfant de Order.
+/// Ligne de commande : un snapshot figé du prix au moment de l'achat (prix de base,
+/// réductions par financeur, prix final).
 /// </summary>
 public sealed class OrderLine : Entity<Guid>
 {
@@ -69,15 +65,15 @@ public sealed class OrderLine : Entity<Guid>
         FinalUnitPrice = draft.FinalUnitPrice;
     }
 
-    /// <summary>Marchandise ou restauration. Décide de tout ce qui suit le paiement.</summary>
+    /// <summary>Marchandise ou restauration.</summary>
     public OrderLineKind Kind { get; private set; }
 
     // ── Restauration ────────────────────────────────────────────────────────
 
-    /// <summary>L'établissement qui préparera ce plat. Vide pour une marchandise.</summary>
+    /// <summary>L'établissement qui préparera ce plat.</summary>
     public Guid RestaurantId { get; private set; }
 
-    /// <summary>Le plat dans la carte du restaurant. Vide pour une marchandise.</summary>
+    /// <summary>Le plat dans la carte du restaurant.</summary>
     public Guid MenuItemId { get; private set; }
 
     /// <summary>« Sans piment ». Destiné à la cuisine, figé avec la commande.</summary>
@@ -101,15 +97,6 @@ public sealed class OrderLine : Entity<Guid>
     /// <summary>Total payé pour la ligne (prix final unitaire × quantité).</summary>
     public decimal LineTotal => FinalUnitPrice * Quantity;
 
-    /// <summary>
-    /// Cette ligne doit-elle passer par la réservation de stock ?
-    ///
-    /// LA QUESTION SE POSE ICI PLUTÔT QUE CHEZ L'APPELANT.
-    ///
-    /// La saga de checkout parcourt les lignes une à une. Écrire le test sur place
-    /// — `if (line.Kind == Goods)` — marcherait, et se recopierait ensuite dans la
-    /// compensation, dans la confirmation, dans le retour marchandise. Quatre
-    /// endroits, dont trois qu'on oublie le jour où une troisième nature apparaît.
-    /// </summary>
+    /// <summary>Cette ligne doit-elle passer par la réservation de stock ?</summary>
     public bool RequiresStockReservation => Kind == OrderLineKind.Goods;
 }

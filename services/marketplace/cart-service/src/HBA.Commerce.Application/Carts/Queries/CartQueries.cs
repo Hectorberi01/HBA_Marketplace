@@ -34,8 +34,7 @@ internal sealed class GetActiveCartQueryHandler : IQueryHandler<GetActiveCartQue
 
     public async Task<Result<CartSummary>> Handle(GetActiveCartQuery query, CancellationToken cancellationToken)
     {
-        // Cache-aside : le panier valorisé est une lecture chaude. Invalidé à chaque
-        // mutation du panier (read-your-writes garanti côté commandes).
+        // Cache-aside : le panier valorisé est une lecture chaude.
         var key = CartCacheKeys.Active(query.BuyerId);
         var cached = await _cache.GetAsync<CartSummary>(key, cancellationToken);
         if (cached is not null)
@@ -48,8 +47,6 @@ internal sealed class GetActiveCartQueryHandler : IQueryHandler<GetActiveCartQue
         {
             // Panier inexistant : on renvoie un panier vide (et non une erreur),
             // pour que le client affiche un panier vide plutôt qu'un échec.
-            // Nature nulle : un panier vide n'en a pas encore, et c'est ce qui
-            // autorise le premier ajout, quel qu'il soit.
             return new CartSummary(
                 Guid.Empty, query.BuyerId, "XOF", "Active", null,
                 Array.Empty<CartLineSummary>(), 0m, 0m, 0m, 0m);

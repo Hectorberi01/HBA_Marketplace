@@ -27,12 +27,6 @@ internal sealed class AttributeDefinitionConfiguration : IEntityTypeConfiguratio
         builder.Property(a => a.CreatedAtUtc).IsRequired();
 
         // LE CODE EST UNIQUE, ET C'EST TOUTE LA RAISON D'ÊTRE DE CETTE TABLE.
-        //
-        // Sans cette contrainte, `color`, `couleur` et `Colour` coexistent selon qui
-        // a rempli le formulaire — trois filtres de vitrine au lieu d'un, et une
-        // recherche par couleur qui ne trouve qu'un tiers du catalogue. La
-        // normalisation en minuscules se fait dans `AttributeDefinition.Create` ;
-        // l'index la rend obligatoire.
         builder.HasIndex(a => a.Code).IsUnique();
 
         builder.Ignore(a => a.DomainEvents);
@@ -55,11 +49,6 @@ internal sealed class CategoryAttributeConfiguration : IEntityTypeConfiguration<
         builder.Property(a => a.DisplayOrder).IsRequired();
 
         // UN ATTRIBUT NE SE RATTACHE QU'UNE FOIS À UNE CATÉGORIE.
-        //
-        // Deux lignes pour le même couple donneraient deux fois le même champ dans
-        // le formulaire vendeur, avec des caractères obligatoires potentiellement
-        // contradictoires — et la validation lirait celui que la base rend en
-        // premier, donc pas toujours le même.
         builder.HasIndex(a => new { a.CategoryId, a.AttributeDefinitionId }).IsUnique();
 
         builder.HasIndex(a => a.CategoryId);
@@ -85,18 +74,11 @@ internal sealed class BrandRequestConfiguration : IEntityTypeConfiguration<Brand
         builder.Property(r => r.RequestedAtUtc).IsRequired();
         builder.Property(r => r.ReviewedAtUtc);
 
-        // La file d'attente de l'administrateur, triée du plus ancien au plus récent.
+        // La file d'attente de l'administrateur, triée du plus ancien au plus
+        // récent.
         builder.HasIndex(r => new { r.Status, r.RequestedAtUtc });
 
         // INDEX PARTIEL SUR LES DEMANDES EN ATTENTE, PAS UNE CONTRAINTE UNIQUE.
-        //
-        // Un même vendeur ne doit pas avoir deux demandes VIVANTES pour le même nom
-        // — le double-clic sur le formulaire suffit à les produire. Mais il doit
-        // pouvoir redemander après un refus, une fois le motif corrigé. Une contrainte
-        // unique simple le lui interdirait pour toujours.
-        //
-        // Même forme que `ux_product_revisions_published_slug` et
-        // `ux_coupon_usages_live_hold` : l'unicité ne vaut que sur l'état actif.
         builder.HasIndex(r => new { r.SellerId, r.Name })
             .IsUnique()
             .HasFilter("\"Status\" = 'Pending'")

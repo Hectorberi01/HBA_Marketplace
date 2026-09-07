@@ -3,12 +3,7 @@ using HBA.Financial.Payments.Application.Abstractions.Gateways;
 
 namespace HBA.Financial.Payments.Infrastructure.Gateways.Simulation;
 
-/// <summary>
-/// Adaptateur Stripe (stub sandbox). Mappe les types d'événements Stripe vers
-/// les résultats normalisés et lit la référence sous <c>data.object.id</c>.
-/// Pour passer en réel : injecter Stripe.net, utiliser SessionService /
-/// PaymentIntentService et EventUtility.ConstructEvent pour la signature.
-/// </summary>
+/// <summary>Adaptateur Stripe (stub sandbox).</summary>
 public sealed class StripePaymentGateway : SimulatedPaymentGateway
 {
     private readonly StripeOptions _options;

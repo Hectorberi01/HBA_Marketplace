@@ -24,19 +24,12 @@ public sealed class NotificationTemplateConfiguration : IEntityTypeConfiguration
         builder.Property(t => t.CreatedAtUtc).IsRequired();
 
         // UNICITÉ SUR (code, canal, locale, version), ET LA VERSION EN FAIT PARTIE.
-        //
-        // Sans la version, publier une nouvelle formulation obligerait à ÉCRASER
-        // l'ancienne — et l'on perdrait le texte réellement envoyé aux destinataires
-        // d'hier. Avec elle, les versions coexistent : la notification archivée
-        // pointe vers celle qui l'a produite, et une réclamation se tranche sur
-        // pièce.
         builder.HasIndex(t => new { t.Code, t.Channel, t.Locale, t.Version })
             .IsUnique()
             .HasDatabaseName("ux_notification_templates_code_channel_locale_version");
 
         // La recherche du gabarit actif est le chemin chaud : elle a lieu à chaque
-        // notification émise. Index partiel — les versions retirées, majoritaires
-        // avec le temps, n'y entrent jamais.
+        // notification émise.
         builder.HasIndex(t => new { t.Code, t.Channel, t.Locale })
             .HasFilter("\"IsActive\" = TRUE")
             .HasDatabaseName("ix_notification_templates_active");

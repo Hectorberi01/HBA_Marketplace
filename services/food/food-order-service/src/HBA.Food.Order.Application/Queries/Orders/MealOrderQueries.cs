@@ -6,17 +6,8 @@ using OrderAggregate = HBA.FoodOrders.Domain.Orders.MealOrder;
 
 namespace HBA.FoodOrders.Application.Orders.Queries;
 
-/// <summary>
-/// Une commande de repas.
-/// </summary>
-/// <param name="RequesterId">
-/// L'acheteur, quand la lecture vient d'une route client. Nul pour un appel
-/// interne — l'API publique du service, lue par la cuisine ou la comptabilité.
-///
-/// « INTROUVABLE » ET NON « INTERDIT » pour la commande d'un tiers : un 403
-/// confirmerait qu'elle existe, et permettrait d'énumérer les commandes de la
-/// plateforme en essayant des identifiants.
-/// </param>
+/// <summary>Une commande de repas.</summary>
+/// <param name="RequesterId">L'acheteur, quand la lecture vient d'une route client.</param>
 public sealed record GetMealOrderQuery(Guid OrderId, Guid? RequesterId = null) : IQuery<MealOrderSummary>;
 
 /// <summary>Mes commandes de repas.</summary>
@@ -112,9 +103,7 @@ internal static class MealOrderMapper
                 .ToList(),
 
             // LE LIBELLÉ DE COMMUNE, PAS LE CODE — voir
-            // `MealOrderShippingAddressSummary`. `ShipToCommuneName` est la
-            // propriété dérivée de l'agrégat, qui passe par `BeninGeography` : une
-            // seule traduction, ici, plutôt qu'une seconde chez le consommateur.
+            // `MealOrderShippingAddressSummary`.
             ShippingAddress: new MealOrderShippingAddressSummary(
                 commande.ShipToRecipient,
                 commande.ShipToPhone,

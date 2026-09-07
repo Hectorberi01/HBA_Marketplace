@@ -6,8 +6,8 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Catalog.Domain.Products;
 
 /// <summary>
-/// SKU : référence unique d'une variante, contrat partagé avec Inventory et
-/// Pricing (cf. dossier). Value Object normalisé en majuscules.
+/// SKU : référence unique d'une variante, contrat partagé avec Inventory et Pricing
+/// (cf.
 /// </summary>
 public sealed partial class Sku : ValueObject
 {
@@ -38,12 +38,9 @@ public sealed partial class Sku : ValueObject
     }
 
     /// <summary>
-    /// Génère un SKU automatiquement quand le vendeur n'en saisit pas : préfixe =
-    /// 6 premiers caractères de l'ID vendeur (repère d'origine, lisible dans les
-    /// exports), suivi d'un code aléatoire cryptographique. L'entropie (8 car.
-    /// base36 ≈ 2,8·10¹² combinaisons) rend une collision négligeable ; l'unicité
-    /// finale reste garantie par l'index unique en base et le contrôle par produit.
-    /// Le format respecte par construction le motif ^[A-Z0-9_-]+$.
+    /// Génère un SKU automatiquement quand le vendeur n'en saisit pas : préfixe = 6
+    /// premiers caractères de l'ID vendeur (repère d'origine, lisible dans les
+    /// exports), suivi d'un code aléatoire cryptographique.
     /// </summary>
     public static Sku Generate(Guid sellerId)
     {

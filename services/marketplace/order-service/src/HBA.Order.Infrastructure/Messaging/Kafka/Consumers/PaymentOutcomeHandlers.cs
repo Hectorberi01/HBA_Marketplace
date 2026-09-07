@@ -5,11 +5,6 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Application.Orders.Commands;
 using HBA.Financial.Payments.Contracts.IntegrationEvents;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Orders.Application.Orders.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Orders.Application.Orders;
 using HBA.Orders.Application.Orders.EventHandlers;
 
@@ -17,38 +12,9 @@ namespace HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
 /// Suite du Saga côté commande : à la capture du paiement, confirme la commande
-/// (solde le stock) ; à l'échec, l'annule (libère le stock). Ordering ne dépend
-/// que des Contracts de Payments.
+/// (solde le stock) ; à l'échec, l'annule (libère le stock).
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CES DEUX GESTIONNAIRES SONT LES DEUX QUI TIENNENT L'ARGENT.
-///
-/// Ils s'écrivaient en une flèche, sans inspecter le résultat :
-///
-///     => _sender.Send(new ConfirmOrderPaymentCommand(e.OrderId), ct);
-///
-/// La commande pouvait refuser — commande introuvable, déjà annulée, stock
-/// insuffisant — et le message Kafka était acquitté quand même. Paiement
-/// encaissé, commande jamais confirmée, silence complet. Sur l'échec de
-/// paiement, même chose à l'envers : le stock réservé n'était jamais libéré.
-///
-/// C'était invisible sur une carte des événements : le câblage était correct.
-/// Seul l'EFFET manquait.
-///
-/// La règle de tri — journaliser un échec d'état, lever sur une cause
-/// passagère — vit dans <see cref="SagaOutcome"/>, avec son argumentaire.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Orders.Application.Orders.EventHandlers.ConfirmOrderOnPaymentCapturedHandler")]
 public sealed class ConfirmOrderOnPaymentCapturedHandler : IIntegrationEventHandler<PaymentCapturedIntegrationEvent>
 {
@@ -75,17 +41,7 @@ public sealed class ConfirmOrderOnPaymentCapturedHandler : IIntegrationEventHand
     }
 }
 
-/// <summary>
-/// À l'échec du paiement, annule la commande et libère les réservations.
-/// </summary>
-/// <remarks>
-/// L'ÉCHEC ICI IMMOBILISE DU STOCK.
-///
-/// Sans annulation, les réservations posées au checkout restent en place :
-/// des articles disponibles cessent d'être vendables, sans que rien ne
-/// l'explique. C'est moins spectaculaire qu'un débit sans commande, et cela se
-/// découvre encore plus tard.
-/// </remarks>
+/// <summary>À l'échec du paiement, annule la commande et libère les réservations.</summary>
 [NomDeConsommateur("HBA.Orders.Application.Orders.EventHandlers.CancelOrderOnPaymentFailedHandler")]
 public sealed class CancelOrderOnPaymentFailedHandler : IIntegrationEventHandler<PaymentFailedIntegrationEvent>
 {

@@ -42,22 +42,7 @@ internal sealed class UpdateProductCommandHandler : ICommandHandler<UpdateProduc
             command.BrandId ?? courante.BrandId,
             command.Attributes,
             command.Tags,
-            // ═══════════════════════════════════════════════════════════════════
             // LE SLUG NE SUIT PLUS LE NOM. C'EST UN CHANGEMENT DE COMPORTEMENT.
-            //
-            // L'ancienne version le recalculait à chaque renommage. Sur une fiche
-            // en brouillon, c'était sans conséquence. Avec les révisions, ça ne
-            // l'est plus : publier la nouvelle version changerait l'URL PUBLIQUE
-            // du produit (§17 : GET /products/{slug}).
-            //
-            // Ce que cela casse ne se voit nulle part dans le service. Les liens
-            // déjà partagés — messages WhatsApp, publications, résultats de
-            // recherche — rendent 404, et personne ne fait le rapprochement avec la
-            // faute d'orthographe corrigée la veille.
-            //
-            // Le slug est donc figé à la création. Le changer devra être un geste
-            // explicite, avec une redirection depuis l'ancien.
-            // ═══════════════════════════════════════════════════════════════════
             courante.Slug,
             command.Specifications);
 

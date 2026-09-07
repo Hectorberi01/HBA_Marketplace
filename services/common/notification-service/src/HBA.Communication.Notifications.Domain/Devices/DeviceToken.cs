@@ -2,8 +2,7 @@ namespace HBA.Communication.Notifications.Domain.Devices;
 
 /// <summary>
 /// Jeton d'appareil (FCM) associé à un utilisateur, pour l'envoi de notifications
-/// push. Un même jeton est unique (une installation d'app) et peut être réassigné
-/// si l'utilisateur change sur l'appareil.
+/// push.
 /// </summary>
 public sealed class DeviceToken
 {
@@ -30,7 +29,7 @@ public sealed class DeviceToken
             LastSeenAtUtc = DateTime.UtcNow,
         };
 
-    /// <summary>Réassocie le jeton à l'utilisateur courant (ex. changement de compte sur l'appareil).</summary>
+    /// <summary>Réassocie le jeton à l'utilisateur courant (ex.</summary>
     public void Reassign(Guid userId, string platform)
     {
         UserId = userId;

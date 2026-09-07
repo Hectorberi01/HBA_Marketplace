@@ -10,27 +10,12 @@ using HBA.Financial.Wallet.Domain.Wallets;
 
 namespace HBA.Financial.Wallet.Application.Wallets;
 
-// ============================================================================
 // Remboursement DIRECT d'un client, initié par l'admin sur une commande (hors flux
-// « retour »). FedaPay ne remboursant pas une transaction via l'API, l'argent part
-// par un PAYOUT Mobile Money vers le numéro du client, et le coût est débité du
-// portefeuille plateforme (solde « refunds »). Statuts et gestion des issues
-// indéterminées calqués sur les retraits vendeur : on ne rembourse jamais à
-// l'aveugle un versement dont on ignore l'issue (risque de double versement).
-// ============================================================================
+// « retour »).
 
 /// <summary>
-/// Rembourse un client sur une commande : débite la plateforme et déclenche un payout
-/// FedaPay MoMo vers son numéro. Le montant est plafonné au total payé de la commande,
-/// diminué des remboursements directs déjà effectués.
-///
-/// <para>
-/// `IdempotencyKey` est laissée à `null` par un appelant HTTP : le gestionnaire la
-/// reprend alors de <see cref="HbaRequestContext"/>, donc de l'en-tête
-/// `Idempotency-Key`. Le paramètre existe pour les émetteurs qui n'ont pas de
-/// requête entrante — un consommateur Kafka, une reprise — et qui doivent fournir
-/// la leur explicitement. Absente des deux côtés, le versement est REFUSÉ.
-/// </para>
+/// Rembourse un client sur une commande : débite la plateforme et déclenche un
+/// payout FedaPay MoMo vers son numéro.
 /// </summary>
 public sealed record InitiateCustomerRefundCommand(
     Guid OrderId, decimal Amount, string Msisdn, string Provider, string Reason,
@@ -47,11 +32,6 @@ public sealed class InitiateCustomerRefundCommandValidator : AbstractValidator<I
         RuleFor(c => c.Reason).NotEmpty().WithMessage("Un motif est requis.");
 
         // AUCUNE RÈGLE SUR `IdempotencyKey` ICI, ET CE N'EST PAS UN OUBLI.
-        //
-        // Le validateur ne voit que la commande ; il ne sait pas si une requête
-        // HTTP porte l'en-tête. Une règle `NotEmpty` rejetterait donc le cas
-        // NORMAL — un appelant HTTP qui laisse le gestionnaire lire l'en-tête.
-        // Le contrôle est dans `Handle`, où les deux sources sont visibles.
     }
 }
 
@@ -79,33 +59,7 @@ internal sealed class InitiateCustomerRefundCommandHandler : ICommandHandler<Ini
 
     public async Task<Result<CustomerRefundView>> Handle(InitiateCustomerRefundCommand command, CancellationToken cancellationToken)
     {
-        // ═════════════════════════════════════════════════════════════════════
         // LA CLÉ D'IDEMPOTENCE EST EXIGÉE AVANT TOUT LE RESTE.
-        //
-        // CE QU'ELLE EMPÊCHE : QUE L'ARGENT PARTE DEUX FOIS.
-        //
-        // Ce gestionnaire déclenche un PAYOUT Mobile Money vers le numéro d'un
-        // client. Un appel HTTP réessayé — réseau lent, double-clic, rejeu d'une
-        // file — repasserait ici, créerait un second `CustomerRefund` et enverrait
-        // un SECOND VIREMENT. Rien ne le rattrape : un payout exécuté chez FedaPay
-        // ne s'annule pas, et le client n'a aucune raison de signaler qu'il a reçu
-        // trop d'argent.
-        //
-        // Le §5 rend l'en-tête obligatoire sur les POST de création et de paiement ;
-        // un versement en est un. On refuse donc franchement plutôt que de laisser
-        // passer.
-        //
-        // ET ON N'INVENTE PAS DE CLÉ DE REPLI.
-        //
-        // Une clé dérivée de la commande et du montant paraîtrait protéger et ferait
-        // pire : elle interdirait un second remboursement PARTIEL légitime sur la
-        // même commande, tout en laissant passer le rejeu dès que le montant change
-        // d'un franc. Mieux vaut un 400 explicite qu'une garantie qui ment.
-        //
-        // Le contrôle est ici, en tête, AVANT le débit du portefeuille plateforme et
-        // avant l'appel au PSP : rien ne doit être écrit pour une requête qu'on va
-        // refuser.
-        // ═════════════════════════════════════════════════════════════════════
         var idempotencyKey = string.IsNullOrWhiteSpace(command.IdempotencyKey)
             ? HbaRequestContext.Current.IdempotencyKey
             : command.IdempotencyKey;
@@ -123,25 +77,24 @@ internal sealed class InitiateCustomerRefundCommandHandler : ICommandHandler<Ini
             return Result.Failure<CustomerRefundView>(Error.NotFound("settlement.order_not_found", "Commande introuvable."));
         }
 
-        // On ne rembourse qu'une commande RÉELLEMENT ENCAISSÉE (Confirmed / Delivered).
+        // On ne rembourse qu'une commande RÉELLEMENT ENCAISSÉE (Confirmed /
+        // Delivered).
         if (order.Status is not ("Confirmed" or "Delivered"))
         {
             return Result.Failure<CustomerRefundView>(Error.Validation(
                 "settlement.order_not_refundable", "Seule une commande encaissée (confirmée ou livrée) peut être remboursée ici."));
         }
 
-        // L'opérateur doit être un Mobile Money routable, sinon le payout échouera —
-        // autant refuser avant de débiter la plateforme.
+        // L'opérateur doit être un Mobile Money routable, sinon le payout échouera
+        // — autant refuser avant de débiter la plateforme.
         if (!WalletPayout.IsMobileMoney(command.Provider))
         {
             return Result.Failure<CustomerRefundView>(Error.Validation(
                 "settlement.provider_unsupported", "Opérateur Mobile Money non pris en charge (mtnmomo, moovmoney, celtis)."));
         }
 
-        // Plafond : total payé (commande + livraison) moins les remboursements DIRECTS
-        // déjà effectués sur cette commande.
-        // Ne nette PAS encore les remboursements issus du flux « retour ». À suivre si
-        // les deux flux doivent partager un plafond commun.
+        // Plafond : total payé (commande + livraison) moins les remboursements
+        // DIRECTS déjà effectués sur cette commande.
         var paidTotal = order.GrandTotal + order.ShippingFee;
         var alreadyRefunded = await _refunds.SumActiveForOrderAsync(command.OrderId, cancellationToken);
         var remaining = paidTotal - alreadyRefunded;
@@ -157,45 +110,11 @@ internal sealed class InitiateCustomerRefundCommandHandler : ICommandHandler<Ini
             command.Provider, idempotencyKey!);
         await _refunds.AddAsync(refund, cancellationToken);
 
-        // Débit plateforme AVANT le versement (contre-passé si le PSP refuse), pour ne
-        // jamais laisser un payout parti sans écriture comptable en regard.
+        // Débit plateforme AVANT le versement (contre-passé si le PSP refuse), pour
+        // ne jamais laisser un payout parti sans écriture comptable en regard.
         await _wallets.AccrueCustomerRefundAsync(refund.Amount, refund.Currency, refund.Id.Value, cancellationToken);
 
-        // ═════════════════════════════════════════════════════════════════════
         // ON PERSISTE L'INTENTION AVANT D'APPELER LE PRESTATAIRE (ISSUE-074).
-        //
-        // Ce `SaveChanges` n'existait pas. Le PSP était appelé alors que RIEN
-        // n'était encore en base : ni la ligne `customer_refunds`, ni l'écriture
-        // comptable. Un incident entre l'appel et le premier enregistrement — le
-        // processus qui tombe, le conteneur qu'on remplace, la base qui refuse —
-        // laissait l'argent PARTI et aucune trace de son départ.
-        //
-        // Ce n'est pas un cas d'école : `ListProcessingAsync` est la seule entrée
-        // de la réconciliation, et elle lit cette table. Sans ligne, la
-        // réconciliation ne voit rien, ne cherche rien, et le versement n'existe
-        // que sur le relevé du prestataire. Il faut alors rapprocher les deux à la
-        // main, en devinant lequel des remboursements demandés correspond.
-        //
-        // CE QUE CE PREMIER ENREGISTREMENT INSCRIT EXACTEMENT.
-        //
-        // Un remboursement en `Processing` SANS référence de prestataire. C'est
-        // exactement ce que veut dire cet état ailleurs dans le dépôt : « le
-        // versement est peut-être parti, on ne sait pas ». Le débit plateforme est
-        // déjà posé et ne sera contre-passé que sur un refus DÉFINITIF — jamais sur
-        // une issue indéterminée, sous peine de double versement.
-        //
-        // ET SI L'INCIDENT SURVIENT MAINTENANT, ENTRE LES DEUX ?
-        //
-        // La ligne existe, sans `ProviderRef`. `ReconcileCustomerRefundsCommand` la
-        // rencontre, ne peut rien interroger sans référence, et la SAUTE — c'est
-        // écrit dans son code. Elle reste donc en attente d'un arbitrage humain,
-        // mais elle est VISIBLE, chiffrée, rattachée à une commande et à un client.
-        // C'est toute la différence avec l'état d'avant.
-        //
-        // Le même motif est déjà appliqué correctement par
-        // `RefundPaymentCommandHandler` côté payments : la demande est persistée
-        // avant l'appel, précisément pour ce cas.
-        // ═════════════════════════════════════════════════════════════════════
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var outcome = await _payouts.SendMobileMoneyPayoutAsync(
@@ -210,21 +129,21 @@ internal sealed class InitiateCustomerRefundCommandHandler : ICommandHandler<Ini
 
         switch (outcome.Status)
         {
-            // Rejet DÉFINITIF : rien n'est parti → on contre-passe le débit plateforme.
+            // Rejet DÉFINITIF : rien n'est parti → on contre-passe le débit
+            // plateforme.
             case PayoutOutcomeStatus.Failed:
                 refund.Fail(outcome.Error ?? "Versement refusé par le prestataire.");
                 await _wallets.ReverseCustomerRefundAsync(refund.Amount, refund.Currency, refund.Id.Value, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 return Result.Failure<CustomerRefundView>(Error.Failure("settlement.refund_failed", refund.FailureReason!));
 
-            // Issue INDÉTERMINÉE (timeout/5xx) : le versement est peut-être parti. On NE
-            // contre-passe PAS — la réconciliation tranchera.
+            // Issue INDÉTERMINÉE (timeout/5xx) : le versement est peut-être parti.
             case PayoutOutcomeStatus.Unknown:
                 refund.MarkProcessing(outcome.ProviderReference, outcome.Error);
                 break;
 
-            // Accepté = créé + démarré chez FedaPay (« started », pas encore « sent ») :
-            // la réconciliation clôturera en Completed sur le statut « sent ».
+            // Accepté = créé + démarré chez FedaPay (« started », pas encore « sent
+            // ») : la réconciliation clôturera en Completed sur le statut « sent ».
             default:
                 refund.MarkProcessing(outcome.ProviderReference);
                 break;
@@ -236,9 +155,9 @@ internal sealed class InitiateCustomerRefundCommandHandler : ICommandHandler<Ini
 }
 
 /// <summary>
-/// Réconcilie les remboursements client « en cours » avec le statut RÉEL du dépôt chez
-/// le PSP. Même logique que la réconciliation des retraits : Sent → Completed, Failed →
-/// contre-passation du débit plateforme, sinon on ne touche à rien. Idempotent.
+/// Réconcilie les remboursements client « en cours » avec le statut RÉEL du dépôt
+/// chez le PSP. Même logique que la réconciliation des retraits : Sent → Completed,
+/// Failed → contre-passation du débit plateforme, sinon on ne touche à rien.
 /// </summary>
 public sealed record ReconcileCustomerRefundsCommand(int BatchSize = 50) : ICommand<int>;
 
@@ -268,8 +187,8 @@ internal sealed class ReconcileCustomerRefundsCommandHandler : ICommandHandler<R
 
         foreach (var refund in processing.Take(command.BatchSize))
         {
-            // Sans référence PSP (timeout avant l'identifiant), on ne peut rien interroger
-            // ni rembourser à l'aveugle : arbitrage humain.
+            // Sans référence PSP (timeout avant l'identifiant), on ne peut rien
+            // interroger ni rembourser à l'aveugle : arbitrage humain.
             if (string.IsNullOrWhiteSpace(refund.ProviderRef))
             {
                 continue;
@@ -290,7 +209,8 @@ internal sealed class ReconcileCustomerRefundsCommandHandler : ICommandHandler<R
                     settled++;
                     break;
 
-                // pending / started / processing / unknown : encore en vol → on ne touche à rien.
+                // pending / started / processing / unknown : encore en vol → on ne
+                // touche à rien.
                 default:
                     break;
             }

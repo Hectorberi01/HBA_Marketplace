@@ -19,17 +19,7 @@ using HBA.Promotions.Infrastructure.Observability;
 using HBA.Promotions.Infrastructure.Idempotency;
 namespace HBA.Promotions.Infrastructure;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ENREGISTREMENT DU SERVICE PROMOTION.
-///
-/// Campagnes, règles d'éligibilité, coupons, budgets. Ce module ne connaît AUCUN
-/// autre service : il reçoit un contexte de panier — univers, sous-total, frais de
-/// livraison, devise, utilisateur — et rend une remise. Il ignore ce qu'est un
-/// produit, un plat ou un restaurant, et c'est ce qui lui permet de servir les
-/// deux checkouts du §11 sans en connaître aucun.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ENREGISTREMENT DU SERVICE PROMOTION.</summary>
 public sealed class PromotionsModuleInstaller : IModuleInstaller
 {
     public string ModuleName => "Promotions";
@@ -38,24 +28,18 @@ public sealed class PromotionsModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCachePromotions(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabilitePromotions(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
         // `AjouterMessageriePromotions()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<PromotionsDbContext>(options =>
@@ -67,61 +51,17 @@ public sealed class PromotionsModuleInstaller : IModuleInstaller
         services.AddScoped<ICouponRepository, CouponRepository>();
         services.AddScoped<IPromotionModuleApi, PromotionModuleApi>();
 
-        // Inbox de consommation (§19.5) et idempotence HTTP (§5), dans le schéma
-        // du service — voir l'encadré de `PromotionsDbContext`.
-        // LE MAGASIN ET SON PURGEUR, EN UN SEUL GESTE.
-        //
-        // `ExpiresAtUtc` existait depuis le début, avec son index de purge, et
-        // aucune ligne de code ne la lisait : une réservation inachevée bloquait
-        // sa clé pour toujours (audit 1.8). Les deux enregistrements sont
-        // désormais indissociables — voir `IdempotencyRegistration` pour la
-        // raison, qui tient en une phrase : un huitième service qui ne copierait
-        // que la première ligne n'aurait jamais de purge, sans rien signaler.
+        // Inbox de consommation (§19.5) et idempotence HTTP (§5), dans le schéma du
+        // service — voir l'encadré de `PromotionsDbContext`.
         services.AjouterIdempotencePromotions();
 
-        // ═════════════════════════════════════════════════════════════════════
         // TROIS LIGNES SANS LESQUELLES LES ÉVÉNEMENTS NE SORTENT PAS.
-        //
-        // Le domaine lève `promotion.created`, `promotion.exhausted` et
-        // `coupon.used` ; les gestionnaires qui les traduisent existent dans la
-        // couche Application. Rien ne les relie sinon ces trois inscriptions, et
-        // rien dans le compilateur ne les réclame.
-        //
-        // C'est exactement la panne trouvée dans media-service : trois événements
-        // levés depuis l'origine, un commentaire affirmant qu'ils partaient par
-        // l'outbox, et aucun gestionnaire inscrit. Le service compilait, les tests
-        // passaient, et rien ne quittait le processus pendant un an.
-        // ═════════════════════════════════════════════════════════════════════
         services.AddScoped<IDomainEventHandler<PromotionCreatedDomainEvent>, PromotionCreatedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<PromotionExhaustedDomainEvent>, PromotionExhaustedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<CouponUsedDomainEvent>, CouponUsedDomainEventHandler>();
 
 
-        // ═════════════════════════════════════════════════════════════════════
-        // LE BALAYEUR DE BUDGET (ISSUE-053). SANS CETTE LIGNE, RIEN NE REND
-        // L'ENVELOPPE D'UN PANIER ABANDONNÉ.
-        //
-        // `Coupon.HoldLifetime` vaut trente minutes ; `ExpiresAtUtc` était écrite
-        // depuis la migration initiale et relue par personne. Une campagne passait
-        // `Exhausted` sur des paniers que personne n'avait jamais payés, et
-        // `promotion.exhausted` partait vers le marketing avec un budget intact.
-        //
-        // Période PAR DÉFAUT : 5 minutes. Une expiration n'a aucune urgence — la
-        // retenue est hors délai depuis un quart d'heure quand on la voit — et
-        // balayer plus souvent relirait la table pour rien. Elle reste réglable :
-        //
-        //     Promotions:HoldSweep:IntervalSeconds
-        //     Promotions:HoldSweep:BatchSize
-        //
-        // `configuration[...]` + `TryParse`, PAS `GetValue<T>` : ce projet ne
-        // référence que `Microsoft.Extensions.Configuration.Abstractions`, et
-        // `GetValue<T>` vit dans le paquet `.Binder`. C'est la manière de faire du
-        // dépôt (voir `PaymentsModuleInstaller` et `InventoryModuleInstaller`).
-        //
-        // Les valeurs absurdes sont ignorées au profit du défaut : une période de
-        // zéro seconde ferait tourner le balayeur en boucle serrée sur la base, et
-        // un lot négatif ne balaierait plus rien — sans que rien ne le dise.
-        // ═════════════════════════════════════════════════════════════════════
+        // LE BALAYEUR DE BUDGET (ISSUE-053).
         var periode = TimeSpan.FromMinutes(5);
         if (int.TryParse(configuration["Promotions:HoldSweep:IntervalSeconds"], out var secondes)
             && secondes > 0)

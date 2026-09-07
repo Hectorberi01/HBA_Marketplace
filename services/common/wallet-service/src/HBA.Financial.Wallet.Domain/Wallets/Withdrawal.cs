@@ -2,13 +2,7 @@ using HBA.Shared.Domain.Primitives;
 
 namespace HBA.Financial.Wallet.Domain.Wallets;
 
-/// <summary>
-/// Demande de retrait d'un vendeur depuis son solde principal. Créée à l'état
-/// Requested (fonds retenus) et en attente de validation par l'admin. À la
-/// validation, un payout FedaPay Mobile Money est déclenché : Completed en cas
-/// de succès (avec la référence PSP) ou Failed (avec le motif). L'admin peut
-/// aussi la refuser (Rejected), auquel cas les fonds sont recrédités.
-/// </summary>
+/// <summary>Demande de retrait d'un vendeur depuis son solde principal.</summary>
 public sealed class Withdrawal : AggregateRoot<WithdrawalId>
 {
     private Withdrawal()
@@ -48,35 +42,10 @@ public sealed class Withdrawal : AggregateRoot<WithdrawalId>
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? CompletedAtUtc { get; private set; }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LA DESTINATION DU VIREMENT, FIGÉE À LA DEMANDE.
-    ///
-    /// ELLE NE L'ÉTAIT PAS, ET LA VALIDATION ADMIN NE PROTÉGEAIT DONC RIEN.
-    ///
-    /// La demande ne portait que le montant. À l'approbation, le handler relisait
-    /// le compte de versement COURANT du vendeur. Séquence :
-    ///
-    ///   1. le vendeur demande un retrait — les fonds sont retenus ;
-    ///   2. le compte de versement est modifié ;
-    ///   3. l'admin approuve — l'argent part vers le NOUVEAU compte.
-    ///
-    /// L'étape de validation existe précisément pour contrôler les sorties
-    /// d'argent. Elle était contournée par le fait que la destination était
-    /// résolue APRÈS la validation : l'admin ne pouvait pas voir ce qu'il
-    /// approuvait, puisque sa file d'attente affichait elle aussi le compte lu à
-    /// l'instant présent.
-    ///
-    /// En Mobile Money, un versement parti ne revient pas.
-    ///
-    /// NULLABLE — ET C'EST UNE DETTE, PAS UN CHOIX.
-    /// Les demandes créées AVANT cette colonne n'ont pas de destination figée.
-    /// Voir ApproveWithdrawalCommandHandler : ces demandes-là retombent sur le
-    /// compte courant, avec une trace explicite.
-    /// </summary>
+    /// <summary>LA DESTINATION DU VIREMENT, FIGÉE À LA DEMANDE.</summary>
     public string? PayoutProvider { get; private set; }
 
-    /// <summary>Numéro Mobile Money visé, figé à la demande. Voir <see cref="PayoutProvider"/>.</summary>
+    /// <summary>Numéro Mobile Money visé, figé à la demande.</summary>
     public string? PayoutAccountNumber { get; private set; }
 
     /// <summary>Nom du bénéficiaire, figé à la demande.</summary>
@@ -86,13 +55,7 @@ public sealed class Withdrawal : AggregateRoot<WithdrawalId>
     public bool HasFrozenDestination
         => !string.IsNullOrWhiteSpace(PayoutProvider) && !string.IsNullOrWhiteSpace(PayoutAccountNumber);
 
-    /// <summary>
-    /// La destination figée correspond-elle encore au compte du vendeur ?
-    ///
-    /// Un écart n'est pas forcément une fraude — un vendeur corrige un numéro mal
-    /// saisi. Mais c'est toujours une demande PÉRIMÉE : elle ne vise plus ce que
-    /// le vendeur veut, et plus ce que l'admin croit valider.
-    /// </summary>
+    /// <summary>La destination figée correspond-elle encore au compte du vendeur ?</summary>
     public bool MatchesDestination(string? provider, string? accountNumber)
         => string.Equals(PayoutProvider, provider, StringComparison.OrdinalIgnoreCase)
            && string.Equals(PayoutAccountNumber, accountNumber, StringComparison.Ordinal);
@@ -105,10 +68,8 @@ public sealed class Withdrawal : AggregateRoot<WithdrawalId>
             payoutProvider, payoutAccountNumber, payoutAccountName);
 
     /// <summary>
-    /// Le versement a été DEMANDÉ au PSP (créé + démarré), ou son issue est indéterminée.
-    /// Les fonds restent débités : on ne rembourse pas tant qu'on ne sait pas.
-    /// <paramref name="providerRef"/> peut être nul (cas d'un timeout avant d'obtenir
-    /// l'identifiant) — le retrait devra alors être tranché manuellement.
+    /// Le versement a été DEMANDÉ au PSP (créé + démarré), ou son issue est
+    /// indéterminée.
     /// </summary>
     public void MarkProcessing(string? providerRef, string? note = null)
     {
@@ -118,10 +79,7 @@ public sealed class Withdrawal : AggregateRoot<WithdrawalId>
         SentToPspAtUtc ??= DateTime.UtcNow;
     }
 
-    /// <summary>
-    /// Versement CONFIRMÉ par le PSP (statut « sent »). C'est le seul chemin vers
-    /// Completed : on ne clôture jamais sur une simple acceptation de la demande.
-    /// </summary>
+    /// <summary>Versement CONFIRMÉ par le PSP (statut « sent »).</summary>
     public void Complete(string? providerRef)
     {
         Status = WithdrawalStatus.Completed;

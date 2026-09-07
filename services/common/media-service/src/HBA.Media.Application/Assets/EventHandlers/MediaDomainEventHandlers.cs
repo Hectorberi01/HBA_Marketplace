@@ -5,23 +5,7 @@ using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Media.Application.Assets.EventHandlers;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE CHAÎNON QUI MANQUAIT ENTRE LE DOMAINE ET KAFKA.
-///
-/// `MediaAsset` levait ses trois événements de domaine depuis l'origine, et la
-/// documentation de ces événements affirmait qu'ils partaient par l'outbox. Il
-/// n'existait aucun gestionnaire pour les traduire : ils étaient levés,
-/// dispatchés dans le processus, et s'arrêtaient là.
-///
-/// CETTE INSCRIPTION EST MANUELLE, DONC OUBLIABLE.
-///
-/// Ces trois classes ne servent à rien tant que `MediaModuleInstaller` ne les
-/// enregistre pas — et rien dans le compilateur ne le rappelle. C'est exactement
-/// ainsi que payment-service a perdu `PaymentInitiatedDomainEventHandler` : la
-/// classe existait, le service compilait, l'événement ne partait pas.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE CHAÎNON QUI MANQUAIT ENTRE LE DOMAINE ET KAFKA.</summary>
 public sealed class MediaReadyDomainEventHandler : IDomainEventHandler<MediaReadyDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;
@@ -62,13 +46,7 @@ public sealed class MediaDeletedDomainEventHandler : IDomainEventHandler<MediaDe
             cancellationToken);
 }
 
-/// <summary>
-/// Publie « traitement échoué ».
-///
-/// L'ORIGINAL RESTE SERVABLE — voir l'encadré de
-/// <see cref="MediaProcessingFailedIntegrationEvent"/>. Ce que cet événement
-/// annonce, c'est l'absence de miniatures, pas la perte du fichier.
-/// </summary>
+/// <summary>Publie « traitement échoué ».</summary>
 public sealed class MediaProcessingFailedDomainEventHandler
     : IDomainEventHandler<MediaProcessingFailedDomainEvent>
 {

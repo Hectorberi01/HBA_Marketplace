@@ -1,9 +1,6 @@
 namespace HBA.Financial.Payments.Infrastructure.Gateways;
 
-/// <summary>
-/// Réglages Stripe (section de config « Payments:Stripe »). Les clés réelles
-/// sont des placeholders en sandbox : à remplacer par des secrets (env / coffre).
-/// </summary>
+/// <summary>Réglages Stripe (section de config « Payments:Stripe »).</summary>
 public sealed class StripeOptions
 {
     public string ApiKey { get; set; } = string.Empty;
@@ -23,10 +20,7 @@ public sealed class StripeOptions
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey);
 }
 
-/// <summary>
-/// Réglages PayPal (section de config « Payments:PayPal »). Idem : placeholders
-/// en sandbox, à remplacer par des secrets réels avant tout déploiement.
-/// </summary>
+/// <summary>Réglages PayPal (section de config « Payments:PayPal »).</summary>
 public sealed class PayPalOptions
 {
     public string ClientId { get; set; } = string.Empty;
@@ -49,11 +43,7 @@ public sealed class PayPalOptions
         !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(Secret);
 }
 
-/// <summary>
-/// Réglages MTN Mobile Money (section « Payments:MtnMomo »). Le flux Collection
-/// repose sur RequestToPay : l'acheteur approuve sur son téléphone, puis le PSP
-/// notifie par callback (ou on interroge le statut). Placeholders en sandbox.
-/// </summary>
+/// <summary>Réglages MTN Mobile Money (section « Payments:MtnMomo »).</summary>
 public sealed class MtnMomoOptions
 {
     public string SubscriptionKey { get; set; } = string.Empty;
@@ -61,7 +51,9 @@ public sealed class MtnMomoOptions
     public string ApiKey { get; set; } = string.Empty;
     public string WebhookSecret { get; set; } = string.Empty;
 
-    /// <summary>Base de l'API Collection (sandbox : https://sandbox.momodeveloper.mtn.com).</summary>
+    /// <summary>
+    /// Base de l'API Collection (sandbox : https://sandbox.momodeveloper.mtn.com).
+    /// </summary>
     public string BaseUrl { get; set; } = "https://sandbox.momodeveloper.mtn.com";
 
     /// <summary>Environnement cible MoMo (« sandbox », ou « mtnbenin »… en prod).</summary>
@@ -80,22 +72,19 @@ public sealed class MtnMomoOptions
         && !string.IsNullOrWhiteSpace(ApiKey);
 }
 
-/// <summary>
-/// Réglages FedaPay (section « Payments:FedaPay »). FedaPay agrège Mobile Money
-/// (MTN, Moov…) et carte derrière une page de paiement hébergée : on crée une
-/// transaction puis on génère un lien (token) vers lequel rediriger l'acheteur.
-/// La confirmation arrive par webhook signé (x-fedapay-signature) ou par
-/// interrogation du statut. Placeholders en sandbox.
-/// </summary>
+/// <summary>Réglages FedaPay (section « Payments:FedaPay »).</summary>
 public sealed class FedaPayOptions
 {
     /// <summary>Clé secrète FedaPay (sk_sandbox_… / sk_live_…), envoyée en Bearer.</summary>
     public string ApiKey { get; set; } = string.Empty;
 
-    /// <summary>Secret de signature des webhooks FedaPay (vérif. HMAC du corps brut).</summary>
+    /// <summary>Secret de signature des webhooks FedaPay (vérif.</summary>
     public string WebhookSecret { get; set; } = string.Empty;
 
-    /// <summary>Base de l'API FedaPay (sandbox par défaut ; live : https://api.fedapay.com/v1).</summary>
+    /// <summary>
+    /// Base de l'API FedaPay (sandbox par défaut ; live :
+    /// https://api.fedapay.com/v1).
+    /// </summary>
     public string BaseUrl { get; set; } = "https://sandbox-api.fedapay.com/v1";
 
     /// <summary>URL de callback où FedaPay notifie / renvoie l'acheteur après paiement.</summary>
@@ -104,27 +93,14 @@ public sealed class FedaPayOptions
     /// <summary>Devise envoyée (UEMOA : XOF).</summary>
     public string Currency { get; set; } = "XOF";
 
-    /// <summary>
-    /// Active les VERSEMENTS (payouts vendeur) réels via FedaPay. Désactivé par
-    /// défaut : en sandbox les payouts Mobile Money ne s'exécutent pas et font
-    /// échouer le retrait. Tant que ce flag est faux, on simule le versement
-    /// (le retrait aboutit) même si FedaPay est configuré pour l'encaissement.
-    /// </summary>
+    /// <summary>Active les VERSEMENTS (payouts vendeur) réels via FedaPay.</summary>
     public bool EnablePayouts { get; set; }
 
     /// <summary>Vrai si l'on parle à l'API bac à sable de FedaPay.</summary>
     public bool IsSandbox =>
         BaseUrl.Contains("sandbox", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Vrai si la clé et l'URL désignent le MÊME monde.
-    ///
-    /// Une clé <c>sk_live_…</c> envoyée à <c>sandbox-api.fedapay.com</c> est
-    /// inconnue du bac à sable : FedaPay répond « 403 Opération non autorisée ».
-    /// L'inverse est pire — une clé sandbox pointée sur l'API live échoue aussi,
-    /// mais la même erreur de configuration appliquée à une VRAIE clé enverrait
-    /// de l'argent réel là où on croyait faire un test.
-    /// </summary>
+    /// <summary>Vrai si la clé et l'URL désignent le MÊME monde.</summary>
     public bool KeyMatchesEnvironment
     {
         get
@@ -139,32 +115,17 @@ public sealed class FedaPayOptions
         }
     }
 
-    /// <summary>
-    /// Les VERSEMENTS réels ne sont possibles qu'en LIVE.
-    ///
-    /// Le bac à sable FedaPay n'exécute pas les dépôts Mobile Money : il refuse
-    /// la création (« 403 Opération non autorisée »). Activer les payouts en
-    /// sandbox ne produit donc qu'une chose — une file de retraits en échec,
-    /// remboursés, et un vendeur qui croit que la plateforme lui doit de l'argent.
-    /// </summary>
+    /// <summary>Les VERSEMENTS réels ne sont possibles qu'en LIVE.</summary>
     public bool CanPayout => IsConfigured && EnablePayouts && !IsSandbox && KeyMatchesEnvironment;
 
-    /// <summary>
-    /// Méthode de transfert FedaPay pour les payouts (champ « mode »). Valeurs
-    /// valides : mtn_open (MTN Bénin), moov (Moov Bénin), mtn_ci, moov_tg,
-    /// togocel, sbin, moov_ci, wave_sn, orange_sn… Défaut : mtn_open (le compte
-    /// de versement de la boutique est un numéro MTN Mobile Money Bénin).
-    /// </summary>
+    /// <summary>Méthode de transfert FedaPay pour les payouts (champ « mode »).</summary>
     public string PayoutMode { get; set; } = "mtn_open";
 
     /// <summary>Vrai si la clé secrète est renseignée (sinon on reste en stub).</summary>
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey);
 }
 
-/// <summary>
-/// Réglages Moov Money (section « Payments:Moov »). Même logique RequestToPay /
-/// callback. Placeholders en sandbox, à remplacer par des secrets réels.
-/// </summary>
+/// <summary>Réglages Moov Money (section « Payments:Moov »).</summary>
 public sealed class MoovOptions
 {
     public string MerchantId { get; set; } = string.Empty;

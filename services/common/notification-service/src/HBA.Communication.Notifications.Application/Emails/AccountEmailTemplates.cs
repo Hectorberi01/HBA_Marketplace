@@ -3,17 +3,7 @@ using HBA.Communication.Notifications.Application.Abstractions;
 
 namespace HBA.Communication.Notifications.Application.Emails;
 
-/// <summary>
-/// Gabarits des e-mails de compte (vérification, réinitialisation).
-///
-/// Volontairement pauvres en HTML : pas d'images, pas de CSS externe, pas de webfont. Un
-/// e-mail transactionnel doit s'afficher partout — y compris dans un client mobile qui
-/// ampute le CSS — et un e-mail chargé passe plus souvent en spam. Or un e-mail de
-/// réinitialisation en spam, c'est un utilisateur enfermé dehors.
-///
-/// Chaque message a une version TEXTE complète, avec l'URL en clair : c'est elle qui sauve
-/// la mise quand le client mail bloque le HTML.
-/// </summary>
+/// <summary>Gabarits des e-mails de compte (vérification, réinitialisation).</summary>
 public static class AccountEmailTemplates
 {
     public static EmailMessage EmailVerification(string to, string firstName, string verificationUrl)
@@ -81,19 +71,7 @@ public static class AccountEmailTemplates
         return new EmailMessage(to, "Votre code de vérification — HBA Express", html, text);
     }
 
-    /// <summary>
-    /// Le code à usage unique du §10.1, par e-mail.
-    ///
-    /// LA DURÉE EST UN PARAMÈTRE, PAS UNE CONSTANTE RECOPIÉE. `MfaChallenge.Lifetime`
-    /// vaut dix minutes aujourd'hui ; l'écrire en dur ici produirait, le jour où elle
-    /// change, un message qui ment à l'utilisateur sur le temps qui lui reste. L'appelant
-    /// calcule les minutes restantes à partir de l'échéance portée par l'événement.
-    ///
-    /// AUCUN LIEN CLIQUABLE, DÉLIBÉRÉMENT. Un e-mail de second facteur contenant un
-    /// lien qui valide la connexion est un e-mail dont l'interception suffit à entrer.
-    /// Le code doit être RECOPIÉ dans l'application qui l'a demandé — c'est ce qui lie
-    /// la vérification à l'appareil qui a lancé la demande.
-    /// </summary>
+    /// <summary>Le code à usage unique du §10.1, par e-mail.</summary>
     public static EmailMessage OneTimeCode(string to, string firstName, string code, int minutesRestantes)
     {
         var name = WebUtility.HtmlEncode(firstName);
@@ -121,17 +99,7 @@ public static class AccountEmailTemplates
         return new EmailMessage(to, "Votre code de connexion — HBA Express", html, text);
     }
 
-    /// <summary>
-    /// Le même code, en SMS.
-    ///
-    /// COURT, ET C'EST UNE CONTRAINTE TECHNIQUE. Au-delà de 160 caractères
-    /// l'opérateur découpe le message en plusieurs SMS facturés séparément, qui peuvent
-    /// arriver dans le désordre — un code coupé en deux est illisible. Ce gabarit tient
-    /// largement en dessous, marge comprise pour un prénom long.
-    ///
-    /// PAS DE PRÉNOM. Personnaliser coûterait des caractères et n'apporte rien : le
-    /// destinataire sait que c'est pour lui, c'est son téléphone.
-    /// </summary>
+    /// <summary>Le même code, en SMS.</summary>
     public static string OneTimeCodeSms(string code, int minutesRestantes)
         => $"HBA Express : votre code de connexion est {code}. "
            + $"Valable {minutesRestantes} min, une seule fois. Ne le communiquez a personne.";
@@ -178,7 +146,7 @@ public static class AccountEmailTemplates
 
     /// <summary>
     /// Réinitialisation de mot de passe par CODE numérique (saisi dans l'app),
-    /// plutôt que par lien. Cohérent avec la vérification e-mail.
+    /// plutôt que par lien.
     /// </summary>
     public static EmailMessage PasswordResetCode(string to, string firstName, string code)
     {
@@ -241,12 +209,8 @@ public static class AccountEmailTemplates
     }
 
     /// <summary>
-    /// Gabarit GÉNÉRIQUE, utilisé pour doubler par e-mail une notification déjà envoyée
-    /// en push/in-app (commande confirmée, colis expédié, litige tranché…).
-    ///
-    /// Pourquoi un gabarit unique plutôt qu'un par événement : le push et l'e-mail
-    /// portent exactement le même message. En dupliquer la rédaction garantirait qu'ils
-    /// divergent au premier changement de formulation.
+    /// Gabarit GÉNÉRIQUE, utilisé pour doubler par e-mail une notification déjà
+    /// envoyée en push/in-app (commande confirmée, colis expédié, litige tranché…).
     /// </summary>
     public static EmailMessage Transactional(string to, string firstName, string subject, string message)
     {

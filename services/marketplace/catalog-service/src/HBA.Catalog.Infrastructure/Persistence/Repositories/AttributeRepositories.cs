@@ -56,11 +56,6 @@ internal sealed class CategoryAttributeRepository : ICategoryAttributeRepository
         Guid categoryId, CancellationToken cancellationToken = default)
     {
         // UNE JOINTURE EXPLICITE, PAS UNE NAVIGATION.
-        //
-        // Il n'y a délibérément aucune propriété de navigation entre
-        // `CategoryAttribute` et `AttributeDefinition` : une définition est partagée
-        // par des dizaines de catégories, et une navigation inverse ferait charger
-        // ces dizaines de rattachements à chaque lecture d'un attribut.
         var lignes = await _dbContext.CategoryAttributes
             .AsNoTracking()
             .Where(a => a.CategoryId == categoryId)

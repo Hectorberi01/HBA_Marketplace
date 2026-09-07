@@ -8,11 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HBA.Communication.Notifications.Application.Notifications;
 
-/// <summary>
-/// Crée et « distribue » une notification. Point d'entrée unique des consumers
-/// d'events : centralise la création + la persistance in-app + l'envoi PUSH.
-/// Le push est best-effort : une panne FCM ne doit jamais empêcher la notif in-app.
-/// </summary>
+/// <summary>Crée et « distribue » une notification.</summary>
 public sealed class NotificationDispatcher
 {
     private readonly INotificationRepository _repository;
@@ -44,12 +40,7 @@ public sealed class NotificationDispatcher
         _logger = logger;
     }
 
-    /// <param name="alsoEmail">
-    /// Double la notification par un e-mail. À réserver aux étapes que l'utilisateur doit
-    /// connaître même sans l'application : commande confirmée, colis expédié/livré,
-    /// remboursement, litige tranché. Le push seul ne suffit pas — application
-    /// désinstallée, notifications refusées, téléphone changé.
-    /// </param>
+    /// <param name="alsoEmail">Double la notification par un e-mail.</param>
     public async Task NotifyAsync(
         Guid recipientUserId, string subject, string body, string relatedType, Guid? relatedId, CancellationToken ct,
         bool alsoEmail = false)
@@ -74,17 +65,7 @@ public sealed class NotificationDispatcher
         }
     }
 
-    /// <summary>
-    /// Double la notification par e-mail (adresse résolue via Identity).
-    ///
-    /// BEST-EFFORT DÉLIBÉRÉ — contrairement aux e-mails de compte, qui doivent lever.
-    ///
-    /// À ce stade, la notification in-app est DÉJÀ persistée et le push DÉJÀ parti. Si on
-    /// laissait l'échec d'envoi remonter, l'outbox rejouerait le message entier : le
-    /// destinataire recevrait une seconde notification in-app et un second push pour le
-    /// même événement. On préfère un e-mail manquant — tracé en erreur — à un doublon de
-    /// notifications à chaque hoquet du fournisseur.
-    /// </summary>
+    /// <summary>Double la notification par e-mail (adresse résolue via Identity).</summary>
     private async Task SendEmailAsync(Guid userId, string subject, string body, CancellationToken ct)
     {
         try
@@ -107,16 +88,16 @@ public sealed class NotificationDispatcher
 
     /// <summary>
     /// Envoie uniquement le push (in-app déjà persistée par ailleurs) vers les
-    /// appareils du destinataire. Best-effort : une panne FCM n'interrompt rien.
-    /// Exposé pour les chemins qui créent la notif eux-mêmes (ex. envoi admin).
+    /// appareils du destinataire.
     /// </summary>
     public async Task SendPushAsync(
         Guid userId, string title, string body, string relatedType, Guid? relatedId, CancellationToken ct)
     {
         try
         {
-            // Préférence vendeur : si la catégorie de cette notification a été coupée,
-            // on n'envoie PAS le push (la notif in-app reste enregistrée par ailleurs).
+            // Préférence vendeur : si la catégorie de cette notification a été
+            // coupée, on n'envoie PAS le push (la notif in-app reste enregistrée
+            // par ailleurs).
             var category = NotificationCategories.FromRelatedType(relatedType);
             if (category is not null)
             {
@@ -132,7 +113,8 @@ public sealed class NotificationDispatcher
             var devices = await _deviceTokens.ListByUserAsync(userId, ct);
 
             // DIAGNOSTIC : quel adaptateur d'envoi est actif (FcmPushSender vs
-            // NullPushSender) et combien d'appareils sont ciblés pour cet utilisateur.
+            // NullPushSender) et combien d'appareils sont ciblés pour cet
+            // utilisateur.
             _logger.LogInformation(
                 "Push: user={UserId} sender={Sender} devices={DeviceCount}",
                 userId, _pushSender.GetType().Name, devices.Count);

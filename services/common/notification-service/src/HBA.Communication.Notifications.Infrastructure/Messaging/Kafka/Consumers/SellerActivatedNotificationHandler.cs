@@ -6,11 +6,6 @@ using HBA.Communication.Notifications.Application.Emails;
 using HBA.Merchants.Contracts;
 using HBA.Merchants.Contracts.IntegrationEvents;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Communication.Notifications.Application.Notifications;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
@@ -18,19 +13,9 @@ namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consume
 
 /// <summary>
 /// Boutique validée (vendeur activé par un administrateur) : on prévient le vendeur
-/// par DEUX canaux — un e-mail de bienvenue ET une notification push + in-app. C'est
-/// le moment où le vendeur passe de « en attente » à « peut vendre » : il doit le
-/// savoir tout de suite, même app fermée (push).
+/// par DEUX canaux — un e-mail de bienvenue ET une notification push + in-app.
 /// </summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerActivatedNotificationHandler")]
 public sealed class SellerActivatedNotificationHandler : IIntegrationEventHandler<SellerActivatedIntegrationEvent>
 {
@@ -69,7 +54,7 @@ public sealed class SellerActivatedNotificationHandler : IIntegrationEventHandle
             cancellationToken);
 
         // 2) E-mail de bienvenue. On résout l'adresse via le module Identity
-        //    (l'événement ne porte que l'UserId).
+        // (l'événement ne porte que l'UserId).
         var user = await _identity.GetUserAsync(e.UserId, cancellationToken);
         if (user is null || string.IsNullOrWhiteSpace(user.Email))
         {

@@ -4,40 +4,13 @@ using HBA.Returns.Contracts.IntegrationEvents;
 using HBA.Financial.Payments.Contracts.IntegrationEvents;
 using HBA.Merchants.Contracts;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Communication.Notifications.Application.Notifications;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// Le remboursement est ACCEPTÉ — l'argent n'est pas encore parti.
-///
-/// ─────────────────────────────────────────────────────────────────────────────
-/// CE MESSAGE EST CELUI QUI ÉVITE LES LITIGES.
-///
-/// Entre la décision et le versement, il s'écoule des heures : un administrateur doit
-/// exécuter l'opération dans le tableau de bord FedaPay, qui n'expose aucune API de
-/// remboursement. Pendant ce délai, un client qui ne reçoit RIEN et qui ne sait RIEN
-/// suppose le pire — et il a raison de le supposer.
-///
-/// On lui dit donc explicitement que sa demande est acceptée, et que le versement est
-/// en cours. Le silence, ici, coûte plus cher qu'un remboursement.
-/// ─────────────────────────────────────────────────────────────────────────────
-/// </summary>
+/// <summary>Le remboursement est ACCEPTÉ — l'argent n'est pas encore parti.</summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.ReturnRefundApprovedNotificationHandler")]
 public sealed class ReturnRefundApprovedNotificationHandler : IIntegrationEventHandler<ReturnRefundApprovedIntegrationEvent>
 {
@@ -58,7 +31,8 @@ public sealed class ReturnRefundApprovedNotificationHandler : IIntegrationEventH
 }
 
 /// <summary>
-/// L'argent est PARTI. On prévient l'acheteur… et le vendeur, qui vient d'être débité.
+/// L'argent est PARTI. On prévient l'acheteur… et le vendeur, qui vient d'être
+/// débité.
 /// </summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.ReturnRefundedNotificationHandler")]
 public sealed class ReturnRefundedNotificationHandler : IIntegrationEventHandler<ReturnRefundedIntegrationEvent>
@@ -90,9 +64,7 @@ public sealed class ReturnRefundedNotificationHandler : IIntegrationEventHandler
             cancellationToken,
             alsoEmail: true);
 
-        // LE VENDEUR ensuite : son solde vient d'être débité. L'apprendre par une
-        // notification vaut mieux que de le découvrir en consultant son portefeuille
-        // — et de croire à une erreur.
+        // LE VENDEUR ensuite : son solde vient d'être débité.
         try
         {
             var seller = await _sellers.GetSellerAsync(e.SellerId, cancellationToken);
@@ -116,8 +88,7 @@ public sealed class ReturnRefundedNotificationHandler : IIntegrationEventHandler
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Le vendeur n'est pas joignable : ce n'est pas une raison pour faire
-            // échouer le handler. L'acheteur, lui, a déjà été prévenu — et surtout,
-            // la contre-passation comptable est déjà écrite. On ne rejoue rien.
+            // échouer le handler.
             _logger.LogError(
                 ex,
                 "Remboursement {ReturnRequestId} : échec de la notification du vendeur {SellerId}.",
@@ -126,30 +97,7 @@ public sealed class ReturnRefundedNotificationHandler : IIntegrationEventHandler
     }
 }
 
-/// <summary>
-/// Le paiement lui-même a été remboursé chez le prestataire.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE HANDLER MANQUAIT, ET AVEC LUI TOUTE TRACE CÔTÉ ACHETEUR.
-///
-/// `PaymentRefundedIntegrationEvent` était publié sans qu'AUCUN service ne
-/// l'écoute. Un remboursement d'annulation — celui que déclenche
-/// `RefundPaymentOnOrderCancelledHandler`, distinct du remboursement de retour
-/// traité plus haut — se faisait donc dans le silence complet : rien dans la
-/// boîte de réception, rien par courriel.
-///
-/// Sur un marché où le remboursement Mobile Money met de 24 à 72 heures à
-/// apparaître, ce silence-là produit exactement le litige qu'un message de
-/// trois lignes évite.
-///
-/// À NE PAS CONFONDRE AVEC `ReturnRefundedNotificationHandler`.
-///
-/// Celui-là suit un RETOUR de marchandise : le vendeur est contre-passé, et on
-/// le lui dit. Celui-ci suit l'annulation d'une commande avant expédition —
-/// aucun vendeur n'a été crédité, il n'y a personne d'autre à prévenir.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Le paiement lui-même a été remboursé chez le prestataire.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.PaymentRefundedNotificationHandler")]
 public sealed class PaymentRefundedNotificationHandler : IIntegrationEventHandler<PaymentRefundedIntegrationEvent>
 {

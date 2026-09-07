@@ -3,14 +3,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Financial.Wallet.Domain.Wallets;
 
-/// <summary>
-/// Portefeuille d'un vendeur. Deux soldes :
-///  • <see cref="PendingBalance"/> (« solde à venir ») : gains crédités à la
-///    confirmation d'une commande, encore en attente de livraison.
-///  • <see cref="AvailableBalance"/> (« solde principal ») : gains libérés à la
-///    livraison, retirables par le vendeur.
-/// Tous les montants sont NETS (commission déjà déduite).
-/// </summary>
+/// <summary>Portefeuille d'un vendeur.</summary>
 public sealed class SellerWallet : AggregateRoot<SellerWalletId>
 {
     private SellerWallet()
@@ -52,27 +45,7 @@ public sealed class SellerWallet : AggregateRoot<SellerWalletId>
 
     /// <summary>
     /// Déplace un montant du solde à venir vers le solde principal (livraison
-    /// confirmée). Borné au solde à venir disponible pour éviter tout négatif.
-    ///
-    /// LE SOLDE PRINCIPAL N'EST PAS EXACTEMENT LA SOMME DES GAINS « RELEASED »,
-    /// ET CE N'EST PAS CE TRAVAIL QUI L'A INTRODUIT.
-    ///
-    /// Deux écarts CONNUS, tous deux antérieurs :
-    ///
-    ///   • le `Math.Min` ci-dessous. Si `DebitForRefund` a déjà vidé le solde à
-    ///     venir, une libération ultérieure déplace MOINS que le net du gain, alors
-    ///     que le gain passe bien à « Released » ;
-    ///
-    ///   • `EarningStatus.Reversed` n'est ASSIGNÉ NULLE PART. Les deux handlers de
-    ///     contre-passation (retour remboursé, commande annulée) débitent le
-    ///     portefeuille et laissent le gain dans son statut d'origine.
-    ///
-    /// Conséquence : la somme des gains « Released » peut EXCÉDER le solde
-    /// disponible. On n'ajoute pas de couche de réconciliation par-dessus — elle
-    /// masquerait ces deux causes sans les traiter. Le lot de reversement plafonne
-    /// simplement ce qu'il verse au solde RÉEL (voir `RunSettlementCommandHandler`) :
-    /// l'écart ne coûte donc jamais d'argent, il retarde seulement le versement du
-    /// gain concerné jusqu'à ce que le solde le couvre.
+    /// confirmée).
     /// </summary>
     public void ReleaseToAvailable(decimal amount)
     {
@@ -92,10 +65,7 @@ public sealed class SellerWallet : AggregateRoot<SellerWalletId>
         Touch();
     }
 
-    /// <summary>
-    /// Débite le solde principal pour un retrait. Échoue si le montant est
-    /// invalide ou dépasse le solde disponible.
-    /// </summary>
+    /// <summary>Débite le solde principal pour un retrait.</summary>
     public Result Withdraw(decimal amount)
     {
         if (amount <= 0m)
@@ -126,25 +96,8 @@ public sealed class SellerWallet : AggregateRoot<SellerWalletId>
     }
 
     /// <summary>
-    /// Contre-passe le gain d'un vendeur après un remboursement CLIENT réellement versé.
-    ///
-    /// ─────────────────────────────────────────────────────────────────────────────
-    /// LA SEULE OPÉRATION QUI PEUT RENDRE UN SOLDE NÉGATIF — ET C'EST VOULU.
-    ///
-    /// Sans elle, un retour vous coûtait DEUX FOIS : vous remboursiez le client de
-    /// votre poche, et vous payiez quand même le vendeur pour l'article qui vous
-    /// était revenu. La marchandise rentre, l'argent sort deux fois.
-    ///
-    /// On prélève d'abord sur le solde à venir (le gain n'est pas encore libéré :
-    /// c'est le cas le plus fréquent, et le moins douloureux), puis sur le solde
-    /// principal. Si le vendeur a déjà tout retiré, le solde principal passe en
-    /// NÉGATIF : la dette est réelle, elle doit être visible, et elle se résorbera
-    /// sur ses ventes suivantes.
-    ///
-    /// Refuser le débit faute de fonds — le réflexe naturel — laisserait la perte à
-    /// la charge de la plateforme. Le vendeur aurait été payé pour une vente annulée,
-    /// et rien dans les comptes ne le dirait.
-    /// ─────────────────────────────────────────────────────────────────────────────
+    /// Contre-passe le gain d'un vendeur après un remboursement CLIENT réellement
+    /// versé.
     /// </summary>
     /// <returns>Ce qui a été pris sur le solde à venir, et sur le solde principal.</returns>
     public (decimal FromPending, decimal FromAvailable) DebitForRefund(decimal amount)
@@ -155,13 +108,11 @@ public sealed class SellerWallet : AggregateRoot<SellerWalletId>
         }
 
         // 1. Le solde à venir d'abord : ce gain n'a pas encore été libéré, le
-        //    reprendre ne retire rien au vendeur — il n'y avait pas encore droit.
+        // reprendre ne retire rien au vendeur — il n'y avait pas encore droit.
         var fromPending = Math.Min(amount, PendingBalance);
         PendingBalance -= fromPending;
 
-        // 2. Le reste sur le solde principal — quitte à le rendre négatif. C'est
-        //    exactement le cas d'un vendeur qui a déjà été payé pour un article
-        //    qui lui revient.
+        // 2. Le reste sur le solde principal — quitte à le rendre négatif.
         var fromAvailable = amount - fromPending;
         AvailableBalance -= fromAvailable;
 

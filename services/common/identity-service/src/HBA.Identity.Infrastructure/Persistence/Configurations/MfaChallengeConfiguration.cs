@@ -22,10 +22,8 @@ public sealed class MfaChallengeConfiguration : IEntityTypeConfiguration<MfaChal
         builder.Property(c => c.CreatedOnUtc).IsRequired();
         builder.Property(c => c.ConsumedAtUtc);
 
-        // Index de la requête « défis vivants de cet utilisateur », exécutée à chaque
-        // émission. Partiel : les défis consommés — l'écrasante majorité au bout de
-        // quelques jours — n'y entrent jamais, donc son coût ne suit pas la taille
-        // de la table mais le nombre de codes en circulation, qui reste minuscule.
+        // Index de la requête « défis vivants de cet utilisateur », exécutée à
+        // chaque émission.
         builder.HasIndex(c => new { c.UserId, c.ExpiresAtUtc })
             .HasFilter("\"ConsumedAtUtc\" IS NULL")
             .HasDatabaseName("ix_mfa_challenges_active");

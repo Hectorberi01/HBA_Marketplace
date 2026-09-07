@@ -6,21 +6,15 @@ using HBA.Communication.Domain.Conversations;
 
 namespace HBA.Communication.Application.Conversations;
 
-/// <summary>Démarre une conversation avec un destinataire (contexte produit/commande optionnel).</summary>
+/// <summary>
+/// Démarre une conversation avec un destinataire (contexte produit/commande
+/// optionnel).
+/// </summary>
 public sealed record StartConversationCommand(
     Guid StarterId, Guid RecipientId, string? ContextType, Guid? ContextId, string Message) : ICommand<Guid>;
 
 /// <summary>Envoie un message dans une conversation.</summary>
-/// <summary>
-/// Envoie un message.
-///
-/// LES PIÈCES JOINTES SONT DES MÉDIAS DÉJÀ DÉPOSÉS, PLUS DES URL.
-///
-/// L'appelant — la route, qui voit à la fois Messaging et le service média — a
-/// vérifié que chaque média existe, est de nature « pièce jointe », et appartient
-/// à l'expéditeur. Sans ce contrôle en amont, joindre le fichier d'un autre à sa
-/// propre conversation suffirait à le rendre lisible.
-/// </summary>
+/// <summary>Envoie un message.</summary>
 public sealed record SendMessageCommand(
     Guid ConversationId, Guid SenderId, string Body, IReadOnlyList<MessageAttachmentInput>? Attachments) : ICommand;
 
@@ -36,7 +30,9 @@ public sealed record ReactToMessageCommand(Guid ConversationId, Guid MessageId, 
 /// <summary>Supprime un message POUR TOUT LE MONDE (auteur uniquement).</summary>
 public sealed record DeleteMessageForEveryoneCommand(Guid ConversationId, Guid MessageId, Guid UserId) : ICommand;
 
-/// <summary>Masque un message POUR SOI seulement (l'autre participant continue de le voir).</summary>
+/// <summary>
+/// Masque un message POUR SOI seulement (l'autre participant continue de le voir).
+/// </summary>
 public sealed record HideMessageForMeCommand(Guid ConversationId, Guid MessageId, Guid UserId) : ICommand;
 
 public sealed class StartConversationCommandValidator : AbstractValidator<StartConversationCommand>
@@ -56,8 +52,7 @@ public sealed class SendMessageCommandValidator : AbstractValidator<SendMessageC
         RuleFor(c => c.ConversationId).NotEmpty();
         RuleFor(c => c.SenderId).NotEmpty();
         // Le corps est facultatif SI le message porte au moins une pièce jointe :
-        // une photo sans légende est un message légitime. On refuse seulement le
-        // message totalement vide (ni texte, ni pièce jointe).
+        // une photo sans légende est un message légitime.
         RuleFor(c => c.Body).MaximumLength(4000);
         RuleFor(c => c)
             .Must(c => !string.IsNullOrWhiteSpace(c.Body) || (c.Attachments is { Count: > 0 }))

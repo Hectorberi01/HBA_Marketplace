@@ -8,13 +8,7 @@ public readonly record struct StoreId(Guid Value)
     public override string ToString() => Value.ToString();
 }
 
-/// <summary>
-/// État commercial d'une boutique.
-///
-/// CES ÉTATS NE SONT PAS DÉCORATIFS : fermer une boutique retire ses offres de
-/// la vente. Un statut qui n'aurait aucun effet observable serait pire qu'absent —
-/// le vendeur croirait avoir fermé.
-/// </summary>
+/// <summary>État commercial d'une boutique.</summary>
 public enum StoreStatus
 {
     /// <summary>Créée, jamais ouverte. Rien n'est en vente.</summary>
@@ -23,29 +17,17 @@ public enum StoreStatus
     /// <summary>Ouverte : ses offres peuvent être achetées.</summary>
     Open = 1,
 
-    /// <summary>
-    /// Fermée par le VENDEUR (congés, travaux, saison). Réversible d'un geste, et
-    /// c'est ce qui la distingue de la suspension.
-    /// </summary>
+    /// <summary>Fermée par le VENDEUR (congés, travaux, saison).</summary>
     Closed = 2,
 
     /// <summary>
-    /// Fermée par la PLATEFORME. Le vendeur ne peut pas la rouvrir lui-même —
-    /// sinon la sanction ne durerait que le temps d'un clic.
+    /// Fermée par la PLATEFORME. Le vendeur ne peut pas la rouvrir lui-même — sinon
+    /// la sanction ne durerait que le temps d'un clic.
     /// </summary>
     Suspended = 3
 }
 
-/// <summary>
-/// Coordonnées de contact d'une boutique.
-///
-/// DISTINCTES DE CELLES DU GÉRANT, ET C'EST TOUT L'INTÉRÊT.
-///
-/// Le dossier KYB porte le téléphone du gérant. Un vendeur ayant trois boutiques
-/// donnait donc le même numéro pour les trois — le commentaire de
-/// CreateDeliveryOnShipmentReadyHandler le relevait déjà : « un livreur perdu
-/// devant la mauvaise porte appelait quelqu'un qui n'y était pas ».
-/// </summary>
+/// <summary>Coordonnées de contact d'une boutique.</summary>
 public sealed record BusinessContact
 {
     private BusinessContact(string phone, string? email)
@@ -85,20 +67,7 @@ public sealed record BusinessContact
     }
 }
 
-/// <summary>
-/// Créneau d'ouverture d'un jour de la semaine.
-///
-/// CES HORAIRES N'EMPÊCHENT PAS D'ACHETER, ET C'EST DÉLIBÉRÉ.
-///
-/// Sur une marketplace, une commande passée à deux heures du matin est normale :
-/// elle sera préparée le lendemain. Bloquer la vente hors horaires ferait perdre
-/// les commandes du soir, qui sont nombreuses.
-///
-/// Ils servent à DEUX choses réelles : dire à l'acheteur quand la boutique répond,
-/// et permettre à la logistique de ne pas envoyer un livreur devant un rideau
-/// baissé. Le jour où HBA Food arrivera — où l'on ne commande pas un repas à
-/// l'aveugle — la règle sera différente, et elle sera écrite là-bas.
-/// </summary>
+/// <summary>Créneau d'ouverture d'un jour de la semaine.</summary>
 public sealed record StoreOpeningHour
 {
     private StoreOpeningHour(DayOfWeek day, TimeOnly opensAt, TimeOnly closesAt)
@@ -117,11 +86,6 @@ public sealed record StoreOpeningHour
         if (closesAt <= opensAt)
         {
             // PAS DE CRÉNEAU À CHEVAL SUR MINUIT.
-            //
-            // « 22 h – 02 h » demanderait de savoir à quel jour appartient la
-            // seconde moitié, et toute lecture naïve afficherait une boutique
-            // fermée seize heures. Un commerce qui veille se saisit en deux
-            // créneaux, sur deux jours.
             return Error.Validation(
                 "sellers.store.hours_invalid",
                 "L'heure de fermeture doit être postérieure à l'heure d'ouverture.");

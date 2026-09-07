@@ -26,8 +26,8 @@ using HBA.FoodOrders.Infrastructure.Observability;
 namespace HBA.FoodOrders.Infrastructure;
 
 /// <summary>
-/// Enregistre le module FoodOrders : DbContext, dépôt, API publique,
-/// gestionnaires d'événements, validateurs, outbox.
+/// Enregistre le module FoodOrders : DbContext, dépôt, API publique, gestionnaires
+/// d'événements, validateurs, outbox.
 /// </summary>
 public sealed class MealOrderingModuleInstaller : IModuleInstaller
 {
@@ -37,24 +37,18 @@ public sealed class MealOrderingModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheFoodOrder(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteFoodOrder(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
         // `AjouterMessagerieFoodOrder()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<MealOrderingDbContext>(options =>
@@ -66,8 +60,6 @@ public sealed class MealOrderingModuleInstaller : IModuleInstaller
         services.AddScoped<IMealOrderRepository, MealOrderRepository>();
 
         // Cinq gestionnaires d'intégration écoutent ici le paiement et la cuisine.
-        // Sans cette ligne, le dispatcher les appelle SANS garde d'idempotence et
-        // se contente de le journaliser.
         services.AddScoped<IMealOrderModuleApi, MealOrderModuleApi>();
 
         // ── Ce que la commande annonce ──────────────────────────────────────
@@ -81,11 +73,6 @@ public sealed class MealOrderingModuleInstaller : IModuleInstaller
             IDomainEventHandler<MealOrderDeliveredDomainEvent>, MealOrderDeliveredDomainEventHandler>();
 
         // LA SORTIE DE SECOURS DOIT SE VOIR HORS DU SERVICE.
-        //
-        // Sans ces deux lignes, la commande changerait d'état en silence : le
-        // dossier d'arbitrage s'ouvrirait dans la base et le client continuerait
-        // d'attendre son repas, sans le moindre message. C'est exactement le
-        // silence que cette transition existe pour rompre.
         services.AddScoped<
             IDomainEventHandler<MealOrderUnderReviewDomainEvent>, MealOrderUnderReviewDomainEventHandler>();
         services.AddScoped<

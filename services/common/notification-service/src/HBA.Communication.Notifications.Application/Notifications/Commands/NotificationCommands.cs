@@ -17,7 +17,7 @@ public sealed record SendNotificationCommand(Guid RecipientUserId, string? Chann
 /// <summary>Supprime une notification (back-office admin, sans contrôle de propriété).</summary>
 public sealed record DeleteNotificationCommand(Guid NotificationId) : ICommand;
 
-/// <summary>Supprime SA propre notification (balayage côté app). Vérifie le destinataire.</summary>
+/// <summary>Supprime SA propre notification (balayage côté app).</summary>
 public sealed record DeleteOwnNotificationCommand(Guid NotificationId, Guid RecipientUserId) : ICommand;
 
 internal sealed class SendNotificationCommandHandler : ICommandHandler<SendNotificationCommand, Guid>
@@ -54,7 +54,8 @@ internal sealed class SendNotificationCommandHandler : ICommandHandler<SendNotif
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Notif in-app créée ; on envoie aussi le push (best-effort) vers les
-        // appareils du destinataire — c'est ce qui rend l'envoi admin capable de push.
+        // appareils du destinataire — c'est ce qui rend l'envoi admin capable de
+        // push.
         await _dispatcher.SendPushAsync(command.RecipientUserId, command.Subject, command.Body, "Admin", null, cancellationToken);
 
         return notification.Id.Value;
@@ -108,8 +109,7 @@ internal sealed class DeleteOwnNotificationCommandHandler : ICommandHandler<Dele
             return Result.Success();
         }
 
-        // SÉCURITÉ : on ne supprime QUE ses propres notifications. On renvoie
-        // « introuvable » (et non « interdit ») pour ne pas révéler son existence.
+        // SÉCURITÉ : on ne supprime QUE ses propres notifications.
         if (notification.RecipientUserId != command.RecipientUserId)
         {
             return Result.Failure(Error.NotFound("notifications.not_found", "Notification introuvable."));

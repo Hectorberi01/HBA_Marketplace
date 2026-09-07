@@ -12,19 +12,7 @@ internal sealed class OrderRepository : IOrderRepository
     public async Task AddAsync(Order order, CancellationToken cancellationToken = default)
         => await _dbContext.Orders.AddAsync(order, cancellationToken);
 
-    /// <summary>
-    /// LES DOSSIERS DE RETOUR SONT CHARGÉS AVEC LA COMMANDE, ET IL LE FAUT.
-    ///
-    /// C'est cette lecture que sert `GetOrderReturnContextAsync`, la seule source
-    /// de return-refund pour savoir ce qui est déjà revenu et déjà remboursé
-    /// (ISSUE-014). Sans l'`Include`, la collection serait VIDE sans qu'aucune
-    /// exception ne le signale : le contexte repartirait de zéro exactement comme
-    /// avant la correction, et le même article se rembourserait indéfiniment.
-    ///
-    /// `AsSplitQuery` parce qu'il y a désormais DEUX collections imbriquées sous
-    /// la commande : une jointure unique multiplierait lignes × options × dossiers
-    /// × lignes de dossier.
-    /// </summary>
+    /// <summary>LES DOSSIERS DE RETOUR SONT CHARGÉS AVEC LA COMMANDE, ET IL LE FAUT.</summary>
     public async Task<Order?> GetByIdAsync(OrderId id, CancellationToken cancellationToken = default)
         => await _dbContext.Orders
             .Include(o => o.Lines)
@@ -34,15 +22,7 @@ internal sealed class OrderRepository : IOrderRepository
             .AsSplitQuery()
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
-    /// <summary>
-    /// AVEC SES LIGNES, PARCE QUE L'APPELANT REND CETTE COMMANDE-LÀ.
-    ///
-    /// `PlaceOrderCommandHandler` s'en sert pour répondre au second appel comme au
-    /// premier. Se contenter de l'identifiant suffirait à la réponse HTTP, mais
-    /// laisserait un agrégat incomplet suivi par le contexte — et le premier code
-    /// qui lirait `order.Lines` y trouverait une collection vide, sans qu'aucune
-    /// exception ne le signale.
-    /// </summary>
+    /// <summary>AVEC SES LIGNES, PARCE QUE L'APPELANT REND CETTE COMMANDE-LÀ.</summary>
     public async Task<Order?> GetByCartAsync(Guid cartId, CancellationToken cancellationToken = default)
         => await _dbContext.Orders
             .Include(o => o.Lines)
@@ -55,11 +35,6 @@ internal sealed class OrderRepository : IOrderRepository
             .Include(o => o.Lines)
                 .ThenInclude(l => l.Options)
             // REQUÊTE ÉCLATÉE : DEUX COLLECTIONS IMBRIQUÉES SUR UNE LISTE.
-            //
-            // `Lines` puis `Options` en une seule requête ramène
-            // commandes × lignes × options lignes SQL, que EF déduplique ensuite
-            // côté client. Sur la console d'administration — cinq cents commandes
-            // — c'est mesurable. `AsSplitQuery` émet une requête par niveau.
             .AsSplitQuery()
             .Where(o => o.BuyerId == buyerId)
             .OrderByDescending(o => o.CreatedAtUtc)
@@ -67,9 +42,8 @@ internal sealed class OrderRepository : IOrderRepository
             .ToListAsync(cancellationToken);
 
     public async Task<bool> HasPurchasedAsync(Guid buyerId, CancellationToken cancellationToken = default)
-        // Pas d'Include, pas de ToList : un EXISTS servi par l'index (BuyerId, Status).
-        // Cette lecture est sur le chemin chaud (chaque affichage de panier valorisé) —
-        // elle doit rester à quelques microsecondes.
+        // Pas d'Include, pas de ToList : un EXISTS servi par l'index (BuyerId,
+        // Status).
         => await _dbContext.Orders
             .AnyAsync(
                 o => o.BuyerId == buyerId
@@ -85,32 +59,13 @@ internal sealed class OrderRepository : IOrderRepository
             .Include(o => o.Lines)
                 .ThenInclude(l => l.Options)
             // REQUÊTE ÉCLATÉE : DEUX COLLECTIONS IMBRIQUÉES SUR UNE LISTE.
-            //
-            // `Lines` puis `Options` en une seule requête ramène
-            // commandes × lignes × options lignes SQL, que EF déduplique ensuite
-            // côté client. Sur la console d'administration — cinq cents commandes
-            // — c'est mesurable. `AsSplitQuery` émet une requête par niveau.
             .AsSplitQuery()
             .Where(o => o.Lines.Any(l => l.SellerId == sellerId))
             .OrderByDescending(o => o.CreatedAtUtc)
             .Take(take <= 0 ? 100 : take)
             .ToListAsync(cancellationToken);
 
-    /// <summary>
-    /// La somme des quantités vendues par ce vendeur, calculée PAR LA BASE.
-    /// </summary>
-    /// <remarks>
-    /// `(int?)` PUIS `?? 0`, ET CE N'EST PAS UNE PRÉCAUTION DÉCORATIVE.
-    ///
-    /// `SUM()` rend `NULL` sur un ensemble vide, pas zéro. Sans le cast, EF traduit
-    /// vers un `int` non nullable et la lecture LÈVE sur le premier vendeur qui n'a
-    /// encore rien vendu — c'est-à-dire sur chaque nouveau vendeur, au moment
-    /// précis de sa première commande.
-    ///
-    /// LE FILTRE SUR LE STATUT PORTE SUR LA COMMANDE, CELUI SUR LE VENDEUR SUR LA
-    /// LIGNE. Une commande peut mêler plusieurs vendeurs : compter ses lignes sans
-    /// re-filtrer donnerait à chacun les ventes des autres.
-    /// </remarks>
+    /// <summary>La somme des quantités vendues par ce vendeur, calculée PAR LA BASE.</summary>
     public async Task<int> SumSoldQuantityBySellerAsync(
         Guid sellerId, CancellationToken cancellationToken = default)
         => await _dbContext.Orders
@@ -126,11 +81,6 @@ internal sealed class OrderRepository : IOrderRepository
             .Include(o => o.Lines)
                 .ThenInclude(l => l.Options)
             // REQUÊTE ÉCLATÉE : DEUX COLLECTIONS IMBRIQUÉES SUR UNE LISTE.
-            //
-            // `Lines` puis `Options` en une seule requête ramène
-            // commandes × lignes × options lignes SQL, que EF déduplique ensuite
-            // côté client. Sur la console d'administration — cinq cents commandes
-            // — c'est mesurable. `AsSplitQuery` émet une requête par niveau.
             .AsSplitQuery()
             .OrderByDescending(o => o.CreatedAtUtc)
             .Take(take)
@@ -143,8 +93,8 @@ internal sealed class OrderRepository : IOrderRepository
 
         if (id is { } g)
         {
-            // Les GUID sont des identifiants exacts (pas de LIKE traduisible dessus) :
-            // on rapproche d'une commande OU d'un acheteur.
+            // Les GUID sont des identifiants exacts (pas de LIKE traduisible
+            // dessus) : on rapproche d'une commande OU d'un acheteur.
             var orderId = new OrderId(g);
             baseQuery = baseQuery.Where(o => o.Id == orderId || o.BuyerId == g);
         }

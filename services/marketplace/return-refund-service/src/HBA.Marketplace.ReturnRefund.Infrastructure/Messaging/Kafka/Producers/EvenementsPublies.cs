@@ -3,28 +3,7 @@ using HBA.Shared.Infrastructure.Kafka;
 
 namespace HBA.Marketplace.ReturnRefund.Infrastructure.Messaging.Kafka.Producers;
 
-/// <summary>
-/// CE QUE CE SERVICE PUBLIE — LA MOITIE MANQUANTE DU MODULE.
-///
-/// `Consumers/` repond a « qu'est-ce que ce service ecoute ». Sans ce fichier,
-/// « qu'est-ce qu'il emet » n'avait aucune reponse : il fallait chercher les
-/// `PublishAsync` dans toute la couche Application, et on ne trouvait que ceux
-/// qui existent — jamais celui qui manque.
-///
-/// LES PUBLICATIONS RESTENT DANS `Application`, ET IL NE FAUT PAS LES DEPLACER.
-/// L'evenement doit etre mis en file LA OU LE FAIT METIER SE PRODUIT, pour que
-/// `ModuleDbContext.SaveChangesAsync` le draine vers l'outbox DANS LA MEME
-/// TRANSACTION. Ce dossier DECLARE, il ne publie pas.
-///
-/// CE QUE LA DECLARATION APPORTE. `HbaEventNaming.Describe` rend `null` quand un
-/// evenement ne porte pas `[HbaEvent]`. La verification ci-dessous fait echouer
-/// le DEMARRAGE plutot que de laisser decouvrir l'oubli a l'autre bout de la
-/// plateforme, des semaines plus tard, dans une table qui reste vide.
-///
-/// CE QU'ELLE NE COUVRE PAS. Elle ne sait pas si un evenement publie quelque part
-/// MANQUE a cette liste : rien ne relie un `PublishAsync` perdu dans Application
-/// a ce fichier. La liste se tient a la main, et c'est sa faiblesse.
-/// </summary>
+/// <summary>CE QUE CE SERVICE PUBLIE — LA MOITIE MANQUANTE DU MODULE.</summary>
 public static class EvenementsPublies
 {
     /// <summary>Les evenements publies par ce service, descripteur `[HbaEvent]` compris.</summary>
@@ -34,19 +13,7 @@ public static class EvenementsPublies
         typeof(ReturnRefundedIntegrationEvent),
     ];
 
-    /// <summary>
-    /// PLUS AUCUN EVENEMENT PUBLIE NE MANQUE DE `[HbaEvent]`.
-    ///
-    /// Cette liste nommait les evenements que la verification devait ignorer,
-    /// parce que les faire echouer aurait arrete des services qui tournaient. Les
-    /// quatre-vingts concernes ont recu leur descripteur : elle est vide, et elle
-    /// doit le rester.
-    ///
-    /// CE QU'ELLE REDEVIENT SI ELLE SE REMPLIT. Une derogation. Y inscrire un
-    /// evenement, c'est dire que son nom sur le fil tombera sur un repli le jour
-    /// ou le nommage canonique sera branche — donc qu'un consommateur cherchera un
-    /// nom qui n'existe pas. La raison doit etre ecrite a cote.
-    /// </summary>
+    /// <summary>PLUS AUCUN EVENEMENT PUBLIE NE MANQUE DE `[HbaEvent]`.</summary>
     public static readonly IReadOnlyList<Type> SansDescripteur = [];
 
     /// <summary>Refuse le demarrage si un evenement de `Types` n'a pas `[HbaEvent]`.</summary>

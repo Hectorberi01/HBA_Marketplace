@@ -2,10 +2,7 @@ using HBA.Shared.IntegrationEvents;
 
 namespace HBA.Catalog.Contracts.IntegrationEvents;
 
-/// <summary>
-/// Publié sur le bus quand un produit est créé. Consommé par Search (indexation),
-/// et potentiellement Inventory, Recommendations… de façon découplée.
-/// </summary>
+/// <summary>Publié sur le bus quand un produit est créé.</summary>
 [HbaEvent("product.created")]
 public sealed record ProductCreatedIntegrationEvent : IntegrationEvent
 {

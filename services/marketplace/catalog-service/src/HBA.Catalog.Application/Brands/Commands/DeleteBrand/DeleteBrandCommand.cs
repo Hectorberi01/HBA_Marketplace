@@ -2,5 +2,8 @@ using HBA.Shared.Application.Messaging;
 
 namespace HBA.Catalog.Application.Brands.Commands.DeleteBrand;
 
-/// <summary>Supprime une marque. Les produits qui la référençaient ne sont pas modifiés (référence souple).</summary>
+/// <summary>
+/// Supprime une marque. Les produits qui la référençaient ne sont pas modifiés
+/// (référence souple).
+/// </summary>
 public sealed record DeleteBrandCommand(Guid BrandId) : ICommand;

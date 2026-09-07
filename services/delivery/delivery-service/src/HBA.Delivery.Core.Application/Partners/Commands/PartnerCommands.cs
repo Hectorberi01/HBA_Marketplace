@@ -7,28 +7,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Deliveries.Application.Partners.Commands;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'ADMINISTRATION DES PARTENAIRES.
-///
-/// Ces commandes manquaient entièrement. Le domaine savait enregistrer un
-/// partenaire, émettre une clé et configurer un webhook ; rien ne l'appelait.
-/// L'API publique était donc complète et INACCESSIBLE — le seul moyen d'obtenir
-/// une clé était d'écrire des lignes à la main en base.
-///
-/// CE FICHIER MANIPULE DES SECRETS. TROIS RÈGLES.
-///
-///   1. Un secret n'est lisible QU'UNE FOIS, dans la réponse qui le crée. Il
-///      n'est stocké nulle part en clair et ne pourra jamais être relu. Un
-///      partenaire qui perd sa clé en obtient une nouvelle ; il ne la
-///      « récupère » pas.
-///   2. Aucun secret ne transite par une requête. Le secret de webhook est
-///      ENGENDRÉ ici, jamais reçu : un secret choisi par un humain est un secret
-///      faible, et un secret qui traverse un formulaire finit dans un journal.
-///   3. Rien de tout cela ne doit être journalisé. Les journaux vivent bien plus
-///      longtemps que les clés.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>L'ADMINISTRATION DES PARTENAIRES.</summary>
 public sealed record RegisterPartnerCommand(string? Name, string? ContactEmail, int DailyQuota = 0)
     : ICommand<Guid>;
 
@@ -38,45 +17,26 @@ public sealed record ActivatePartnerCommand(Guid PartnerId) : ICommand;
 /// <summary>Suspend un partenaire — impayé, abus, ou à sa demande.</summary>
 public sealed record SuspendPartnerCommand(Guid PartnerId) : ICommand;
 
-/// <summary>
-/// Clé émise, telle qu'on la rend à l'appelant.
-/// </summary>
+/// <summary>Clé émise, telle qu'on la rend à l'appelant.</summary>
 /// <param name="ApiKey">La clé complète. VISIBLE UNE SEULE FOIS.</param>
-/// <param name="Prefix">Partie publique : c'est elle qu'on affiche et qu'on journalise ensuite.</param>
+/// <param name="Prefix">
+/// Partie publique : c'est elle qu'on affiche et qu'on journalise ensuite.
+/// </param>
 public sealed record IssuedApiKeyResponse(string ApiKey, string Prefix);
 
-/// <summary>
-/// Émet une clé d'API.
-///
-/// <c>Environment</c> vaut « live » ou « test », et rien d'autre. Le libellé est
-/// purement cosmétique pour le code — mais c'est ce que l'intégrateur LIT pour
-/// savoir s'il tient une clé de production. Laisser passer un texte libre
-/// permettrait de fabriquer une clé « hba_test_… » parfaitement vivante.
-/// </summary>
+/// <summary>Émet une clé d'API.</summary>
 public sealed record IssuePartnerApiKeyCommand(Guid PartnerId, string? Environment, string? Label = null)
     : ICommand<IssuedApiKeyResponse>;
 
 public sealed record RevokePartnerApiKeyCommand(Guid PartnerId, Guid ApiKeyId) : ICommand;
 
-/// <summary>
-/// Résultat de la configuration du rappel.
-///
-/// <c>Enabled</c> plutôt qu'un type entier nullable : une réponse « nulle » aurait
-/// obligé chaque appelant à distinguer « effacé » de « erreur silencieuse », et
-/// aurait fait porter au générique un type de référence nullable — la source
-/// habituelle d'avertissements de nullabilité en cascade.
-/// </summary>
+/// <summary>Résultat de la configuration du rappel.</summary>
 public sealed record ConfiguredWebhookResponse(bool Enabled, string? Url, string? Secret)
 {
     public static ConfiguredWebhookResponse Disabled { get; } = new(false, null, null);
 }
 
-/// <summary>
-/// Configure — ou efface — le rappel des webhooks.
-///
-/// Le secret n'est PAS un paramètre : il est engendré. Voir la règle 2 en tête de
-/// fichier.
-/// </summary>
+/// <summary>Configure — ou efface — le rappel des webhooks.</summary>
 public sealed record ConfigurePartnerWebhookCommand(Guid PartnerId, string? Url)
     : ICommand<ConfiguredWebhookResponse>;
 
@@ -103,11 +63,7 @@ internal sealed class PartnerCommandHandler
     /// <summary>Les seuls libellés d'environnement admis.</summary>
     private static readonly string[] AllowedEnvironments = ["live", "test"];
 
-    /// <summary>
-    /// Octets d'aléa du secret de webhook. 32 octets ≈ 43 caractères une fois
-    /// encodés — au-delà du minimum de 32 exigé par le domaine, et sans commune
-    /// mesure avec ce qu'un humain choisirait.
-    /// </summary>
+    /// <summary>Octets d'aléa du secret de webhook.</summary>
     private const int WebhookSecretBytes = 32;
 
     private readonly IPartnerRepository _partners;
@@ -131,8 +87,6 @@ internal sealed class PartnerCommandHandler
         await _unitOfWork.SaveChangesAsync(ct);
 
         // Le partenaire naît « Pending » : l'enregistrer ne l'autorise à rien.
-        // Il faudra un geste explicite d'activation — sinon une faute de frappe
-        // dans un formulaire ouvrirait un accès.
         return partner.Value.Id.Value;
     }
 
@@ -168,8 +122,8 @@ internal sealed class PartnerCommandHandler
 
         await _unitOfWork.SaveChangesAsync(ct);
 
-        // SEUL ENDROIT DE TOUT LE SYSTÈME OÙ CETTE VALEUR EXISTE EN CLAIR.
-        // Après cette réponse, elle est irrécupérable — y compris pour nous.
+        // SEUL ENDROIT DE TOUT LE SYSTÈME OÙ CETTE VALEUR EXISTE EN CLAIR. Après
+        // cette réponse, elle est irrécupérable — y compris pour nous.
         return new IssuedApiKeyResponse(issued.Value.Key, issued.Value.Prefix);
     }
 
@@ -209,10 +163,7 @@ internal sealed class PartnerCommandHandler
 
         await _unitOfWork.SaveChangesAsync(ct);
 
-        // Reconfigurer engendre un NOUVEAU secret et invalide l'ancien. C'est
-        // volontaire : c'est ainsi qu'on fait tourner un secret compromis. Le
-        // partenaire doit donc redéployer sa vérification de signature — et le
-        // savoir, d'où le fait que la valeur soit rendue ici.
+        // Reconfigurer engendre un NOUVEAU secret et invalide l'ancien.
         return new ConfiguredWebhookResponse(true, partner.WebhookUrl, secret);
     }
 

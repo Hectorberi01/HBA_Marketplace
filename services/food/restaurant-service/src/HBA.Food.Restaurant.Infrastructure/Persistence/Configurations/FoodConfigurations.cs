@@ -10,33 +10,7 @@ internal sealed class RestaurantConfiguration : IEntityTypeConfiguration<Restaur
 {
     public void Configure(EntityTypeBuilder<Restaurant> builder)
     {
-        // ═════════════════════════════════════════════════════════════════════
         // UN ÉTABLISSEMENT SOUMIS À VALIDATION A UN DOSSIER DE REVERSEMENT.
-        //
-        // L'AUDIT DEMANDAIT `Status <> 'Submitted'`. CET ÉTAT N'EXISTE PAS.
-        //
-        // `RestaurantStatus` vaut Draft / PendingApproval / Active / Suspended /
-        // Closed. `Submit()` est le GESTE, `PendingApproval` l'ÉTAT qui en
-        // résulte — et c'est `Submit()` qui refuse un établissement sans
-        // `PayoutSellerId`, faute de quoi le restaurateur est mis en service sans
-        // qu'aucun chemin ne permette de le payer. Écrite telle que demandée, la
-        // contrainte aurait été toujours vraie, donc décorative : le pire des
-        // contrôles, celui qui rassure sans rien vérifier.
-        //
-        // `Active` EN EST EXCLU, ET C'EST DÉLIBÉRÉ.
-        //
-        // La migration `DossierDeReversementDuRestaurant` a créé la colonne
-        // nullable en assumant que « les établissements DÉJÀ EN SERVICE
-        // continuent de fonctionner — `Submit` n'est pas rejoué sur eux ». Y
-        // étendre la contrainte contredirait cette décision et mettrait hors la
-        // loi des lignes que l'on a délibérément laissées ainsi.
-        //
-        // CETTE CONTRAINTE PEUT ÉCHOUER À LA MIGRATION sur une base où des
-        // établissements attendent déjà une validation sans dossier. C'est voulu :
-        // l'échec est bruyant et se corrige en une requête, là où un
-        // `NOT VALID` laisserait ces lignes fausses en place pour toujours. La
-        // requête de repérage est dans l'en-tête de la migration.
-        // ═════════════════════════════════════════════════════════════════════
         builder.ToTable("restaurants", t => t.HasCheckConstraint(
             "ck_restaurants_pending_requires_payout",
             "\"Status\" <> 'PendingApproval' OR \"PayoutSellerId\" IS NOT NULL"));
@@ -66,31 +40,21 @@ internal sealed class RestaurantConfiguration : IEntityTypeConfiguration<Restaur
         builder.Property(r => r.MaximumActiveOrders);
         builder.Property(r => r.BlocksOrdersWhenSaturated).IsRequired();
 
-        // VERROU OPTIMISTE (C13). Le personnel et les commandes en avaient un,
-        // pas l'établissement — alors qu'un manager qui règle les horaires pendant
+        // VERROU OPTIMISTE (C13). Le personnel et les commandes en avaient un, pas
+        // l'établissement — alors qu'un manager qui règle les horaires pendant
         // qu'un autre change le mode d'acceptation écrasait silencieusement la
-        // moitié du travail de l'autre. Ce n'est pas de l'argent, c'est pire : rien
-        // ne signale la perte, et les deux croient avoir enregistré.
+        // moitié du travail de l'autre.
         builder.UsePostgresRowVersion();
         builder.Property(r => r.FulfillmentLocationId);
 
-        // Le dossier vendeur qui encaisse. Nullable : un établissement en
-        // brouillon n'en a pas encore, et `Submit` l'exige avant la mise en
-        // service.
+        // Le dossier vendeur qui encaisse.
         builder.Property(r => r.PayoutSellerId);
         builder.Property(r => r.PreparationMinutes).IsRequired();
         builder.Property(r => r.PausedUntilUtc);
         builder.Property(r => r.CreatedOnUtc).IsRequired();
         builder.Property(r => r.UpdatedOnUtc);
 
-        // ─────────────────────────────────────────────────────────────────────
         // LES CRÉNEAUX SONT DES LIGNES, PAS UN JSON.
-        //
-        // « Quels restaurants servent en ce moment ? » est LA requête de la
-        // vitrine Food. En jsonb, elle deviendrait une lecture complète de la
-        // table suivie d'un filtre en mémoire — à chaque ouverture de
-        // l'application, par chaque client.
-        // ─────────────────────────────────────────────────────────────────────
         builder.OwnsMany<ServiceHours>("_serviceHours", hours =>
         {
             hours.ToTable("restaurant_service_hours");
@@ -112,11 +76,6 @@ internal sealed class RestaurantConfiguration : IEntityTypeConfiguration<Restaur
             exceptions.WithOwner().HasForeignKey("RestaurantId");
 
             // CLÉ SUR (Restaurant, Date) ET NON SUR UN Id TECHNIQUE.
-            //
-            // Une seule exception par jour : deux lignes le même jour — l'une
-            // « fermé », l'autre « 18 h – 23 h » — n'auraient aucun ordre de
-            // priorité évident, et la réponse dépendrait de l'ordre de lecture.
-            // La clé composite rend le doublon impossible plutôt qu'improbable.
             exceptions.HasKey("RestaurantId", nameof(SpecialOpeningHour.Date));
 
             exceptions.Property(e => e.Date).IsRequired();
@@ -127,22 +86,14 @@ internal sealed class RestaurantConfiguration : IEntityTypeConfiguration<Restaur
         });
 
         // UN SEUL ÉTABLISSEMENT PAR COMPTE.
-        //
-        // Le multi-établissement n'est pas au programme, et l'admettre par
-        // omission créerait des comptes à deux restaurants que rien ne sait
-        // afficher — GetByOwnerAsync n'en rendrait qu'un, arbitrairement.
         builder.HasIndex(r => r.OwnerUserId).IsUnique();
 
-        // La vitrine liste les établissements EN SERVICE : c'est l'index qui la porte.
+        // La vitrine liste les établissements EN SERVICE : c'est l'index qui la
+        // porte.
         builder.HasIndex(r => r.Status);
 
         // CHAQUE COLLECTION POSSÉDÉE EXIGE DEUX GESTES : OwnsMany sur le CHAMP
         // PRIVÉ, et Ignore sur la propriété de LECTURE.
-        //
-        // Sans le second, EF voit une navigation `IReadOnlyCollection<T>` qu'il ne
-        // sait pas relier et refuse de construire le modèle — au moment du
-        // scaffold, pas de la compilation. `SpecialHours` a été ajoutée sans son
-        // Ignore, et c'est exactement ce qui s'est produit.
         builder.Ignore(r => r.DomainEvents);
         builder.Ignore(r => r.ServiceHours);
         builder.Ignore(r => r.SpecialHours);
@@ -168,21 +119,7 @@ internal sealed class MenuConfiguration : IEntityTypeConfiguration<Menu>
         builder.Property(m => m.CreatedOnUtc).IsRequired();
         builder.Property(m => m.UpdatedOnUtc);
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE CRÉNEAU DE SERVICE (cahier §5), EN QUATRE COLONNES NULLABLES.
-        //
-        // Type « owned » et non quatre propriétés à plat : les quatre champs
-        // portent des invariants COMMUNS — début avant fin, les deux heures
-        // ensemble ou aucune. Éparpillés sur l'agrégat, ces règles n'auraient eu
-        // aucun endroit naturel où vivre, et chaque écriture aurait dû les
-        // revérifier de son côté.
-        //
-        // AUCUN INDEX SUR « SERVIE MAINTENANT ». Le prédicat dépend de l'heure,
-        // et PostgreSQL refuse un index partiel dont la condition n'est pas
-        // immuable. Même raisonnement que pour la disponibilité des articles : le
-        // filtre horaire s'applique en mémoire, sur les quelques cartes d'un
-        // restaurant.
-        // ═════════════════════════════════════════════════════════════════════
         builder.OwnsOne(m => m.Window, creneau =>
         {
             creneau.Property(w => w.AvailableFrom).HasColumnName("AvailableFrom");
@@ -202,7 +139,7 @@ internal sealed class MenuConfiguration : IEntityTypeConfiguration<Menu>
 
 /// <summary>
 /// Les SECTIONS de carte — ce qui s'appelait « menus » avant la bascule à deux
-/// niveaux, et qui vit désormais dans <c>menu_categories</c>.
+/// niveaux, et qui vit désormais dans <c> menu_categories</c>.
 /// </summary>
 internal sealed class MenuCategoryConfiguration : IEntityTypeConfiguration<MenuCategory>
 {
@@ -224,9 +161,8 @@ internal sealed class MenuCategoryConfiguration : IEntityTypeConfiguration<MenuC
         builder.Property(c => c.CreatedOnUtc).IsRequired();
         builder.Property(c => c.UpdatedOnUtc);
 
-        // Deux index, deux usages : la projection de la carte parcourt les
-        // sections d'un RESTAURANT ; la garde de suppression compte celles d'une
-        // CARTE.
+        // Deux index, deux usages : la projection de la carte parcourt les sections
+        // d'un RESTAURANT ; la garde de suppression compte celles d'une CARTE.
         builder.HasIndex(c => new { c.RestaurantId, c.DisplayOrder });
         builder.HasIndex(c => c.MenuId);
 
@@ -253,9 +189,6 @@ internal sealed class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
         builder.Property(i => i.LegacyImageUrl).HasMaxLength(500);
 
         // MÊME PLAFOND QUE `LegacyImageUrl`, ET IL DOIT SUIVRE `ProductMedia.Url`.
-        // Une URL signée dépasserait largement 500 caractères — mais celle-ci est
-        // toujours publique et permanente (`PublicBaseUrl` + clé d'objet). Le jour où
-        // un bucket porte un nom à rallonge, c'est ici que ça tronquera.
         builder.Property(i => i.ImagePublicUrl).HasMaxLength(500);
         builder.Property(i => i.DisplayOrder).IsRequired();
         builder.Property(i => i.CreatedOnUtc).IsRequired();
@@ -269,27 +202,11 @@ internal sealed class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
 
         ConfigureAvailability(builder.OwnsOne(i => i.Availability), "Availability");
 
-        // ─────────────────────────────────────────────────────────────────────
         // AUCUN INDEX SUR « DISPONIBLE MAINTENANT ».
-        //
-        // La disponibilité dépend de l'HEURE : un article est vendable si son
-        // drapeau est vrai OU si son échéance de retour est passée. PostgreSQL
-        // refuse un index partiel dont le prédicat n'est pas immuable, et
-        // « now() » ne l'est pas.
-        //
-        // L'index porte donc sur ce qui est stable — le restaurant et la section —
-        // et le filtre horaire s'applique aux quelques dizaines de lignes d'une
-        // carte, en mémoire. À l'échelle d'un restaurant, c'est le bon compromis ;
-        // il cesserait de l'être si l'on voulait un jour lister « tous les plats
-        // disponibles de la ville », et il faudrait alors une colonne calculée
-        // rafraîchie par tâche de fond.
-        // ─────────────────────────────────────────────────────────────────────
         builder.HasIndex(i => new { i.RestaurantId, i.MenuCategoryId, i.DisplayOrder });
 
         // VERROU OPTIMISTE (C13). Deux personnes qui modifient la même fiche —
-        // l'une le prix, l'autre les options — s'écrasaient en silence. Un prix
-        // remis à sa valeur d'hier par une écriture concurrente ne produit aucune
-        // erreur : il produit une marge fausse pendant des semaines.
+        // l'une le prix, l'autre les options — s'écrasaient en silence.
         builder.UsePostgresRowVersion();
 
         builder.OwnsMany<OptionGroup>("_optionGroups", ConfigureOptionGroups);
@@ -331,14 +248,7 @@ internal sealed class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
         groupes.Ignore(g => g.Options);
     }
 
-    /// <summary>
-    /// Deux colonnes pour un état à trois valeurs.
-    ///
-    /// LA COMBINAISON « marqué disponible » + « échéance non nulle » N'EXISTE
-    /// PAS dans le domaine : ItemAvailability ne la construit jamais. Aucune
-    /// contrainte en base ne l'interdit pour autant — c'est une invariante tenue
-    /// par le code, et un UPDATE manuel pourrait la violer.
-    /// </summary>
+    /// <summary>Deux colonnes pour un état à trois valeurs.</summary>
     private static void ConfigureAvailability<TOwner>(
         OwnedNavigationBuilder<TOwner, ItemAvailability> disponibilite, string prefixe)
         where TOwner : class

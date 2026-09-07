@@ -6,10 +6,7 @@ public sealed record PushMessage(string Title, string Body, IReadOnlyDictionary<
 /// <summary>Résultat d'un envoi : jetons devenus invalides (à purger).</summary>
 public sealed record PushSendResult(IReadOnlyList<string> InvalidTokens);
 
-/// <summary>
-/// Port d'envoi de notifications push. Implémenté en Infrastructure via FCM
-/// (Firebase). Un adaptateur « no-op » est utilisé quand FCM n'est pas configuré.
-/// </summary>
+/// <summary>Port d'envoi de notifications push.</summary>
 public interface IPushSender
 {
     Task<PushSendResult> SendAsync(

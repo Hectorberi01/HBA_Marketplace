@@ -10,24 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 
 using ContratsInventory = HBA.Inventory.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
-// COPIE DEPUIS `HBA.Inventory.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
-//
-// `shared/` ne contient plus que les `.proto`. Ce service compile lui-meme le
-// contrat dont il a besoin, et porte donc sa propre traduction.
-//
-// LES TYPES GENERES SONT `internal` A CET ASSEMBLAGE. Deux services qui
-// compilent le meme proto obtiennent deux types CLR distincts ; les rendre
-// publics ferait, dans un hote compose, deux types publics du meme nom complet —
-// CS0433, a l'usage, loin de la cause. Les adaptateurs et mappings sont donc
-// `internal` eux aussi : un type public dont la signature expose un type interne
-// ne compile pas.
-//
-// CE QUE ÇA COUTE : cette traduction existe en 5 exemplaires dans le depot,
-// un par service qui appelle ce domaine. Elles sont identiques aujourd'hui et
-// rien n'empeche qu'elles divergent. C'est le prix de l'autonomie par service,
-// paye ici en connaissance de cause.
-// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Inventory.Contracts.Grpc` (lot D — dissolution des assemblages
+// de contrats).
 
 namespace HBA.Food.Infrastructure.Grpc.Clients;
 
@@ -47,18 +31,7 @@ internal sealed class InventoryGrpcClient : ContratsInventory.IInventoryModuleAp
         return new ContratsInventory.AvailabilitySummary(response.Sku, response.Available);
     }
 
-    /// <summary>
-    /// CETTE MÉTHODE RENDAIT `null` EN DUR.
-    ///
-    /// `Task.FromResult(null)` — un bouchon qui compile, ne lève pas, et ment :
-    /// tout appelant concluait « ce lieu n'existe pas » alors qu'il n'avait
-    /// jamais été demandé. Or c'est ce lieu qui porte l'adresse d'ENLÈVEMENT
-    /// d'une course. Aucun colis, aucun repas ne pouvait donc être confié à un
-    /// livreur, et rien ne le signalait.
-    ///
-    /// Un bouchon silencieux est pire qu'une exception `NotImplementedException` :
-    /// celle-ci se voit au premier appel.
-    /// </summary>
+    /// <summary>CETTE MÉTHODE RENDAIT `null` EN DUR.</summary>
     public async Task<ContratsInventory.FulfillmentLocationSummary?> GetLocationAsync(
         Guid locationId, CancellationToken cancellationToken = default)
     {
@@ -88,8 +61,8 @@ internal sealed class InventoryGrpcClient : ContratsInventory.IInventoryModuleAp
             Vide(l.ContactPhone));
     }
 
-    // Chaîne vide et null se confondent en protobuf3 : un champ absent arrive
-    // comme "". Un quartier vide n'est pas un quartier nommé « ».
+    // Chaîne vide et null se confondent en protobuf3 : un champ absent arrive comme
+    // "".
     private static string? Vide(string value) => string.IsNullOrEmpty(value) ? null : value;
 
     public async Task<bool> IsInStockAsync(

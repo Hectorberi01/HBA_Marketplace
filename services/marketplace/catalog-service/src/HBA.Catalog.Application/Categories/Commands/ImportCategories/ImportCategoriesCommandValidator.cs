@@ -10,11 +10,7 @@ namespace HBA.Catalog.Application.Categories.Commands.ImportCategories;
 /// </summary>
 public sealed class ImportCategoriesCommandValidator : AbstractValidator<ImportCategoriesCommand>
 {
-    /// <summary>
-    /// Un fichier de taxonomie dépasse rarement quelques centaines de lignes.
-    /// Au-delà, on tient tout l'arbre en mémoire dans une seule transaction : la
-    /// limite protège autant la base que le temps de réponse.
-    /// </summary>
+    /// <summary>Un fichier de taxonomie dépasse rarement quelques centaines de lignes.</summary>
     private const int MaxRows = 2000;
 
     public ImportCategoriesCommandValidator()

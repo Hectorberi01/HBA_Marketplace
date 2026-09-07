@@ -85,11 +85,9 @@ internal sealed class ReleaseReservationCommandHandler : ICommandHandler<Release
             return Result.Failure(Error.NotFound("inventory.item.not_found", "Article de stock introuvable."));
         }
 
-        // SEULES LES RÉSERVATIONS `Active` SONT RENDUES À LA VENTE. Une
-        // réservation CONFIRMÉE est du stock déjà vendu et déjà décrémenté : la
-        // relâcher reviendrait à le vendre deux fois. La garde est dans l'agrégat
-        // (`InventoryItem.ReleaseReservation`), pas ici — c'est elle qui protège
-        // aussi les autres appelants, à commencer par `InventoryGrpcService`.
+        // SEULES LES RÉSERVATIONS `Active` SONT RENDUES À LA VENTE. Une réservation
+        // CONFIRMÉE est du stock déjà vendu et déjà décrémenté : la relâcher
+        // reviendrait à le vendre deux fois.
         item.ReleaseReservation(command.OrderId, DateTime.UtcNow);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();

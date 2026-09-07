@@ -5,7 +5,6 @@ namespace HBA.Catalog.Infrastructure;
 
 /// <summary>Le barème des offres, lu depuis la source unique de la plateforme.</summary>
 /// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// IL NE LIT PAS LA CONFIGURATION LUI-MÊME, ET C'EST LE POINT.
 ///
 /// La tentation était d'écrire ici `configuration["Catalog:CommissionRate"]`.
@@ -27,7 +26,6 @@ namespace HBA.Catalog.Infrastructure;
 /// CE QU'ELLE NE FAIT TOUJOURS PAS : le taux NÉGOCIÉ d'un vendeur
 /// (`SellerSummary.CommissionRate`) et les règles par catégorie restent hors du
 /// calcul. Voir l'encadré de `IOfferPricingSettings` et les tâches #192 / #193.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
 internal sealed class OfferPricingSettings : IOfferPricingSettings
 {

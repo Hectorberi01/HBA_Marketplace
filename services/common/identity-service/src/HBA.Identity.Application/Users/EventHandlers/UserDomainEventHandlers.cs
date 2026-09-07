@@ -26,8 +26,8 @@ public sealed class UserRegisteredDomainEventHandler : IDomainEventHandler<UserR
 }
 
 /// <summary>
-/// Publie l'event d'intégration « nom modifié », qui tient le profil du module
-/// User aligné. L'agrégat ne lève l'event que si le nom a réellement changé.
+/// Publie l'event d'intégration « nom modifié », qui tient le profil du module User
+/// aligné.
 /// </summary>
 public sealed class UserProfileUpdatedDomainEventHandler : IDomainEventHandler<UserProfileUpdatedDomainEvent>
 {
@@ -47,10 +47,7 @@ public sealed class UserProfileUpdatedDomainEventHandler : IDomainEventHandler<U
             cancellationToken);
 }
 
-/// <summary>
-/// Publie l'event d'intégration « compte anonymisé ». C'est ce qui déclenche la
-/// purge des données personnelles qui vivent HORS du schéma identity.
-/// </summary>
+/// <summary>Publie l'event d'intégration « compte anonymisé ».</summary>
 public sealed class UserAnonymizedDomainEventHandler : IDomainEventHandler<UserAnonymizedDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;

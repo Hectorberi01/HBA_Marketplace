@@ -22,10 +22,9 @@ internal sealed class MealOrderConfiguration : IEntityTypeConfiguration<MealOrde
         builder.Property(o => o.CartId).IsRequired();
         builder.Property(o => o.Currency).HasMaxLength(3).IsRequired();
 
-        // Stocké en TEXTE : une commande se lit en base pendant un incident, et
-        // « UnderReview » s'y comprend là où « 7 » demande de retrouver
-        // l'énumération. C'est aussi ce qui protège d'un décalage de valeurs si
-        // un état venait à s'insérer au milieu.
+        // Stocké en TEXTE : une commande se lit en base pendant un incident, et «
+        // UnderReview » s'y comprend là où « 7 » demande de retrouver
+        // l'énumération.
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
 
         builder.Property(o => o.PromotionCode).HasMaxLength(64);
@@ -66,55 +65,19 @@ internal sealed class MealOrderConfiguration : IEntityTypeConfiguration<MealOrde
 
         builder.Navigation(o => o.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
 
-        // ═════════════════════════════════════════════════════════════════════
         // UN PANIER NE PRODUIT QU'UNE COMMANDE — ET C'EST LA BASE QUI LE DIT.
-        //
-        // `POST /api/orders` n'avait aucune idempotence, et rien dans le schéma
-        // ne s'y opposait : aucune contrainte d'unicité sur `CartId`. Un
-        // double-clic, un réseau lent suivi d'un renvoi, ou un rejeu de requête
-        // créait DEUX commandes sur le même panier — donc deux paiements.
-        //
-        // La lecture préalable de `GetByCartAsync` suffit dans le cas courant,
-        // mais elle ne voit pas deux requêtes SIMULTANÉES : les deux lisent
-        // « aucune commande » avant que l'une ait écrit. Seul l'index unique
-        // ferme cette course, et il la ferme du bon côté — la seconde insertion
-        // échoue, plutôt que d'encaisser deux fois.
-        // ═════════════════════════════════════════════════════════════════════
         builder.HasIndex(o => o.CartId).IsUnique();
 
         builder.HasIndex(o => new { o.BuyerId, o.CreatedAtUtc });
         builder.HasIndex(o => new { o.RestaurantId, o.CreatedAtUtc });
 
         // Le tri de la file d'arbitrage — voir `MealOrder.UnderReviewSinceUtc`.
-        // Index PARTIEL : la file est minuscule à côté de la table, et un index
-        // complet paierait chaque commande normale pour servir les rares
-        // bloquées.
         builder.HasIndex(o => o.UnderReviewSinceUtc)
             .HasDatabaseName("ix_meal_orders_under_review")
             .HasFilter("\"UnderReviewSinceUtc\" IS NOT NULL");
 
-        // ═════════════════════════════════════════════════════════════════════
         // JETON DE CONCURRENCE (§6) — LA COMMANDE DE REPAS EST TIRÉE DE QUATRE
-        //     CÔTÉS À LA FOIS.
-        //
-        // Onze transitions écrivent `Status` sur cette ligne, et elles ne viennent
-        // pas du même endroit : le client annule, le restaurant refuse, le
-        // paiement confirme, la livraison met en arbitrage. Ce sont quatre
-        // producteurs indépendants — trois d'entre eux arrivent par Kafka, donc
-        // sans aucune sérialisation entre eux.
-        //
-        // Sans jeton, une annulation client et une confirmation de paiement
-        // simultanées se terminaient au dernier écrivain : la commande pouvait
-        // rester `Confirmed` après une annulation acceptée, ou l'inverse. Le
-        // second reçoit désormais 409, et le message Kafka est rejoué — c'est-à-
-        // dire relu sur l'état à jour, ce qui est le comportement voulu.
-        //
-        // Les transitions écrivent toutes une colonne de CETTE table : le jeton
-        // n'est pas inerte. C'est la vérification qu'exige l'encadré
-        // d'`UsePostgresRowVersion`.
-        //
-        // AUCUNE COLONNE N'EST CRÉÉE : `xmin` est une colonne système.
-        // ═════════════════════════════════════════════════════════════════════
+        // CÔTÉS À LA FOIS.
         builder.UsePostgresRowVersion();
 
         builder.Ignore(o => o.DomainEvents);
@@ -140,8 +103,7 @@ internal sealed class MealOrderLineConfiguration : IEntityTypeConfiguration<Meal
         builder.Property(l => l.PlatformDiscount).HasColumnType("numeric(18,2)").IsRequired();
         builder.Property(l => l.FinalUnitPrice).HasColumnType("numeric(18,2)").IsRequired();
 
-        // CALCULÉE : prix final × quantité. La stocker donnerait deux vérités à
-        // tenir d'accord.
+        // CALCULÉE : prix final × quantité.
         builder.Ignore(l => l.LineTotal);
 
         builder.HasMany(l => l.Options)

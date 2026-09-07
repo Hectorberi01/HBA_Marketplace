@@ -12,7 +12,7 @@ public readonly record struct WishlistId(Guid Value)
 
 /// <summary>
 /// Produit suivi dans une liste d'envies, avec alertes optionnelles de baisse de
-/// prix ou de retour en stock. Entité enfant de Wishlist.
+/// prix ou de retour en stock.
 /// </summary>
 public sealed class WishlistItem : Entity<Guid>
 {
@@ -43,10 +43,7 @@ public sealed class WishlistItem : Entity<Guid>
     }
 }
 
-/// <summary>
-/// Liste d'envies d'un acheteur (une par utilisateur). Module léger, levier de
-/// rétention. Agrégat racine : possède ses lignes.
-/// </summary>
+/// <summary>Liste d'envies d'un acheteur (une par utilisateur).</summary>
 public sealed class Wishlist : AggregateRoot<WishlistId>
 {
     private readonly List<WishlistItem> _items = new();

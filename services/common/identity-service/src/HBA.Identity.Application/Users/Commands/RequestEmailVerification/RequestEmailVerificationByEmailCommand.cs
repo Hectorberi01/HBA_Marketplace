@@ -12,42 +12,6 @@ namespace HBA.Identity.Application.Users.Commands.RequestEmailVerification;
 /// Renvoie un code de vérification à partir de l'ADRESSE, pour un compte qui n'est
 /// pas connecté.
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// POURQUOI PAR E-MAIL, ALORS QUE `RequestEmailVerificationCommand` EXISTE DÉJÀ.
-///
-/// La commande sœur prend un `UserId`, et suppose donc un appelant authentifié.
-/// Or l'inscription NE CONNECTE PAS : le compte naît en attente de vérification,
-/// sans jeton. L'écran « saisissez le code reçu » est le premier après
-/// l'inscription, et son bouton « renvoyer le code » n'a aucune session à
-/// présenter.
-///
-/// J'avais d'abord exposé la route authentifiée. Elle est correcte — un compte
-/// connecté mais non vérifié peut s'en servir — et elle ne couvre PAS le parcours
-/// pour lequel le bouton existe.
-///
-/// SUCCÈS SILENCIEUX SUR UNE ADRESSE INCONNUE, COMME LA RÉINITIALISATION.
-///
-/// Une route anonyme qui distingue « compte inconnu » de « code renvoyé » dit à
-/// qui la sonde quelles adresses sont inscrites. La règle est celle de
-/// `RequestPasswordResetCommand`, et pour la même raison.
-///
-/// CETTE COMMANDE NE RENVOIE RIEN — NI CODE, NI IDENTIFIANT.
-///
-/// Le BFF du monolithe renvoyait le `userId` dans sa réponse pour que l'écran
-/// suivant l'utilise. C'est un oracle : l'obtenir prouve que le compte existe.
-/// Le code part par e-mail, et l'identifiant reste chez qui l'a déjà — il est
-/// rendu par l'inscription.
-///
-/// CORPS DUPLIQUÉ AVEC LA COMMANDE SŒUR, DÉLIBÉRÉMENT.
-///
-/// Les quinze lignes de génération sont recopiées plutôt que réémises par
-/// `ISender` depuis ce gestionnaire. Un gestionnaire qui en appelle un autre
-/// rend le chemin d'exécution illisible dans les traces, et fait dépendre une
-/// règle de sécurité d'un dispatch dynamique. La duplication se voit ; le
-/// couplage caché, non.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public sealed record RequestEmailVerificationByEmailCommand(string Email) : ICommand;
 
 internal sealed class RequestEmailVerificationByEmailCommandHandler
@@ -59,15 +23,7 @@ internal sealed class RequestEmailVerificationByEmailCommandHandler
     private readonly IIntegrationEventPublisher _publisher;
     private readonly IIdentityUnitOfWork _unitOfWork;
 
-    /// <summary>
-    /// LE CODE NE TRAVERSE PLUS LE BUS EN CLAIR.
-    ///
-    /// Il partait tel quel dans l'événement, donc dans
-    /// `identity.outbox_messages.Content` — table jamais purgée — puis sur un topic
-    /// Kafka retenu sept jours. Une lecture de l'un ou l'autre valait prise de
-    /// compte. Il est désormais chiffré ici, et déchiffré par le seul service qui
-    /// doit l'envoyer.
-    /// </summary>
+    /// <summary>LE CODE NE TRAVERSE PLUS LE BUS EN CLAIR.</summary>
     private readonly ISecretProtector _protecteur;
 
     public RequestEmailVerificationByEmailCommandHandler(
@@ -95,15 +51,10 @@ internal sealed class RequestEmailVerificationByEmailCommandHandler
         if (user is null)
         {
             // Anti-énumération : exactement la même réponse qu'un envoi réussi.
-            //
-            // Ne pas ajouter de délai « pour égaliser les temps ». Le chemin
-            // inconnu est plus court, et c'est le limiteur du groupe /auth qui
-            // rend la mesure impraticable — pas une temporisation.
             return Result.Success();
         }
 
-        // Un compte déjà vérifié n'a pas de code à recevoir. Silencieux là encore :
-        // « cette adresse est déjà vérifiée » renseignerait tout autant.
+        // Un compte déjà vérifié n'a pas de code à recevoir.
         if (user.EmailVerified)
         {
             return Result.Success();
@@ -116,8 +67,7 @@ internal sealed class RequestEmailVerificationByEmailCommandHandler
 
         if (begin.IsFailure)
         {
-            // Refus du domaine — par exemple une demande trop rapprochée. Il ne
-            // remonte pas jusqu'au client : la route répond 204 dans tous les cas.
+            // Refus du domaine — par exemple une demande trop rapprochée.
             return Result.Success();
         }
 

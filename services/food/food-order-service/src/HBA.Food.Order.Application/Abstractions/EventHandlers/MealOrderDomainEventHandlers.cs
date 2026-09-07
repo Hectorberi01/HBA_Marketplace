@@ -30,30 +30,7 @@ public sealed class MealOrderPlacedDomainEventHandler : IDomainEventHandler<Meal
             cancellationToken);
 }
 
-/// <summary>
-/// Publie « commande de repas confirmée », AVEC SES LIGNES.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE GESTIONNAIRE NE RELIT RIEN — IL RECOPIE.
-///
-/// Les lignes voyagent sur l'événement de domaine, construites par `Confirm()`.
-/// Les relire ici depuis le dépôt marcherait — l'entité est encore suivie — mais
-/// ferait dépendre la charge utile publiée de l'état de la base au moment du
-/// dispatch, et non de l'état qui a MOTIVÉ la confirmation. Ce sont deux choses
-/// différentes dès qu'une seconde écriture s'intercale.
-///
-/// Le chemin qu'on remplace faisait bien pire : `OrderConfirmed` partait sans
-/// lignes, le pont vers Food testait `Kind == "Food"`, RAPPELAIT order-service
-/// par gRPC pour les obtenir, puis refiltrait sur `Kind`. Trois pas et un
-/// aller-retour réseau, dont aucun n'existait pour une bonne raison — seulement
-/// parce que l'événement servait deux univers et ne pouvait donc rien porter de
-/// spécifique à l'un.
-///
-/// La recopie en deux types — un du domaine, un du contrat — est délibérée : le
-/// contrat public ne doit pas dépendre du modèle interne.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Publie « commande de repas confirmée », AVEC SES LIGNES.</summary>
 public sealed class MealOrderConfirmedDomainEventHandler : IDomainEventHandler<MealOrderConfirmedDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;
@@ -96,7 +73,7 @@ public sealed class MealOrderConfirmedDomainEventHandler : IDomainEventHandler<M
             cancellationToken);
 }
 
-/// <summary>Publie « commande de repas annulée ». financial-service rembourse en la consommant.</summary>
+/// <summary>Publie « commande de repas annulée ».</summary>
 public sealed class MealOrderCancelledDomainEventHandler : IDomainEventHandler<MealOrderCancelledDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;
@@ -116,16 +93,7 @@ public sealed class MealOrderCancelledDomainEventHandler : IDomainEventHandler<M
             cancellationToken);
 }
 
-/// <summary>
-/// Publie « commande en arbitrage ».
-/// </summary>
-/// <remarks>
-/// SANS CE PUBLICATEUR, LE CLIENT NE SAURAIT TOUJOURS RIEN.
-///
-/// C'est tout l'objet de la transition : une commande devenue inexécutable
-/// restait confirmée sans un mot, et le client découvrait le problème en n'ayant
-/// rien reçu. Le fait doit sortir du service pour que quelqu'un le lui dise.
-/// </remarks>
+/// <summary>Publie « commande en arbitrage ».</summary>
 public sealed class MealOrderUnderReviewDomainEventHandler
     : IDomainEventHandler<MealOrderUnderReviewDomainEvent>
 {

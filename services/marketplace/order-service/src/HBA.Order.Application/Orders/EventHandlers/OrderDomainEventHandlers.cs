@@ -5,7 +5,9 @@ using HBA.Orders.Domain.Orders.Events;
 
 namespace HBA.Orders.Application.Orders.EventHandlers;
 
-/// <summary>Publie l'IntegrationEvent « commande placée » (Cart clôture, Payments démarre).</summary>
+/// <summary>
+/// Publie l'IntegrationEvent « commande placée » (Cart clôture, Payments démarre).
+/// </summary>
 public sealed class OrderPlacedDomainEventHandler : IDomainEventHandler<OrderPlacedDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;
@@ -41,11 +43,7 @@ public sealed class OrderConfirmedDomainEventHandler : IDomainEventHandler<Order
                 Currency = domainEvent.Currency,
                 PromotionCode = domainEvent.PromotionCode,
 
-                // La répartition par vendeur traverse la frontière du module. Deux
-                // records distincts portent la même idée — l'un dans le domaine,
-                // l'autre dans les Contracts — et c'est délibéré : le contrat public
-                // ne doit pas dépendre du modèle interne d'Ordering, sans quoi le
-                // moindre remaniement du domaine casserait tous les autres modules.
+                // La répartition par vendeur traverse la frontière du module.
                 SellerShares = domainEvent.SellerShares
                     .Select(s => new HBA.Orders.Contracts.IntegrationEvents.OrderSellerShare(
                         s.SellerId, s.ItemCount, s.Amount))
@@ -73,17 +71,10 @@ public sealed class OrderCancelledDomainEventHandler : IDomainEventHandler<Order
                 BuyerId = domainEvent.BuyerId,
                 Reason = domainEvent.Reason,
 
-                // MÊME TRADUCTION QUE POUR LA CONFIRMATION, ET POUR LA MÊME
-                // RAISON : deux records distincts portent la même idée — l'un
-                // dans le domaine, l'autre dans les Contracts — pour que le
-                // contrat public ne dépende pas du modèle interne d'Ordering.
-                //
-                // `ToList()` SUR UNE LISTE QUI PEUT ÊTRE VIDE, JAMAIS `null`.
-                // Le domaine rend toujours une collection ; c'est le champ du
-                // CONTRAT qui est nullable, et son `null` ne veut dire qu'une
-                // chose : « message émis avant l'ajout du champ ». Rendre `null`
-                // ici pour une liste vide effacerait la distinction que
-                // l'encadré du contrat vient d'établir.
+                // MÊME TRADUCTION QUE POUR LA CONFIRMATION, ET POUR LA MÊME RAISON
+                // : deux records distincts portent la même idée — l'un dans le
+                // domaine, l'autre dans les Contracts — pour que le contrat public
+                // ne dépende pas du modèle interne d'Ordering.
                 SellerShares = domainEvent.SellerShares
                     .Select(part => new HBA.Orders.Contracts.IntegrationEvents.OrderSellerShare(
                         part.SellerId, part.ItemCount, part.Amount))
@@ -93,17 +84,7 @@ public sealed class OrderCancelledDomainEventHandler : IDomainEventHandler<Order
             cancellationToken);
 }
 
-/// <summary>
-/// Publie l'IntegrationEvent « commande en arbitrage ».
-/// </summary>
-/// <remarks>
-/// SANS CE PUBLICATEUR, L'ACHETEUR NE SAURAIT TOUJOURS RIEN.
-///
-/// C'est tout l'objet de la transition : une commande devenue inexécutable
-/// restait `Confirmed` sans un mot, et le client découvrait le problème en
-/// n'ayant rien reçu au bout de plusieurs jours. Le fait doit sortir du module
-/// pour que quelqu'un le lui dise.
-/// </remarks>
+/// <summary>Publie l'IntegrationEvent « commande en arbitrage ».</summary>
 public sealed class OrderUnderReviewDomainEventHandler : IDomainEventHandler<OrderUnderReviewDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;
@@ -141,7 +122,10 @@ public sealed class OrderResumedAfterReviewDomainEventHandler
             cancellationToken);
 }
 
-/// <summary>Publie l'IntegrationEvent « commande livrée » (Payments libère l'escrow, Settlement paie).</summary>
+/// <summary>
+/// Publie l'IntegrationEvent « commande livrée » (Payments libère l'escrow,
+/// Settlement paie).
+/// </summary>
 public sealed class OrderDeliveredDomainEventHandler : IDomainEventHandler<OrderDeliveredDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;

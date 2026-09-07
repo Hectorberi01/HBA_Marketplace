@@ -6,24 +6,7 @@ using HBA.Routes.Infrastructure.Messaging.Kafka.Producers;
 
 namespace HBA.Routes.Infrastructure.Messaging.Kafka.Configuration;
 
-/// <summary>
-/// REFUSE LE DEMARRAGE SI LE MODULE DE MESSAGERIE N'A PAS ETE BRANCHE.
-///
-/// L'outbox, l'inbox et les abonnements ne sont plus enregistres par
-/// l'installeur — que le composition root appelle toujours — mais par
-/// `AjouterMessagerieDeliveryRoute()`, qu'il peut oublier. Un oubli ne casse RIEN de
-/// visible : le service compile, demarre, sert ses routes, et n'emet ni ne
-/// consomme plus rien.
-///
-/// La garde est enregistree par l'INSTALLEUR : elle doit exister quand ce
-/// qu'elle verifie est absent.
-///
-/// `IHostedService` et non `BackgroundService` : une exception levee dans
-/// `StartAsync` arrete l'hote, la meme dans `ExecuteAsync` est avalee.
-///
-/// CE QU'ELLE NE COUVRE PAS. Elle verifie que le module a ete appele, pas qu'il
-/// est complet : un sujet ou un gestionnaire oublie passe sans rien dire.
-/// </summary>
+/// <summary>REFUSE LE DEMARRAGE SI LE MODULE DE MESSAGERIE N'A PAS ETE BRANCHE.</summary>
 internal sealed class GardeDeCablage(
     IServiceProvider services,
     ILogger<GardeDeCablage> journal) : IHostedService
@@ -39,34 +22,7 @@ internal sealed class GardeDeCablage(
                 + "« builder.Services.AjouterMessagerieDeliveryRoute(); » dans Program.cs.");
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // CE SERVICE PUBLIE TROIS EVENEMENTS QUI NE PARTENT NULLE PART.
-        //
-        // route-service garde ses routes EN MEMOIRE : pas de `ModuleDbContext`,
-        // donc pas de table d'outbox, donc aucun processeur pour la vider.
-        // `IIntegrationEventPublisher` est resolu sur `IntegrationEventQueue`,
-        // une file scopee que personne ne draine : `PublishAsync` rend
-        // `Task.CompletedTask` et le message part avec la portee.
-        //
-        // POURQUOI UN JOURNAL ET PAS UNE EXCEPTION. Ce service tourne aujourd'hui
-        // et rend son service — le calcul d'itineraire est synchrone, par gRPC.
-        // Le faire echouer au demarrage transformerait un defaut connu et sans
-        // consequence actuelle en panne. Les trois evenements n'ont d'ailleurs
-        // aucun consommateur.
-        //
-        // CE QUE CE MESSAGE DOIT PROVOQUER. Soit donner une base a ce service et
-        // cabler son outbox, soit retirer les trois publications. Les laisser
-        // sans le dire etait le pire des trois : le code affirme publier, et rien
-        // ne sort.
-        // ═════════════════════════════════════════════════════════════════════
-        // LA SONDE `GetService<IOutboxDbContext>()` A DISPARU AVEC LE TYPE.
-        //
-        // Elle demandait au conteneur si une table d'outbox existait. Depuis que
-        // l'outbox est descendue dans les services, `IOutboxDbContext` n'est plus
-        // un type PARTAGE : chaque service qui en a une le declare chez lui, et
-        // route-service n'en declare aucun — il n'a pas de base. La condition
-        // n'est donc plus une question, c'est un fait, et elle s'ecrit sans
-        // interroger le conteneur.
         if (EvenementsPublies.Types.Count > 0)
         {
             journal.LogCritical(

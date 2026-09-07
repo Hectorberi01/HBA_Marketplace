@@ -12,11 +12,7 @@ public enum BrandStatus
     Archived = 2
 }
 
-/// <summary>
-/// Marque, désormais entité à part entière (et non un simple champ texte).
-/// Référencée par les produits, mutualisée entre vendeurs (cf. dossier, Brand).
-/// Une nouvelle marque démarre en Pending (modération).
-/// </summary>
+/// <summary>Marque, désormais entité à part entière (et non un simple champ texte).</summary>
 public sealed class Brand : AggregateRoot<BrandId>
 {
     private Brand()
@@ -62,7 +58,10 @@ public sealed class Brand : AggregateRoot<BrandId>
             string.IsNullOrWhiteSpace(description) ? null : description.Trim());
     }
 
-    /// <summary>Approuve la marque après modération (Pending -> Active). C'est l'action « publier ».</summary>
+    /// <summary>
+    /// Approuve la marque après modération (Pending -> Active). C'est l'action «
+    /// publier ».
+    /// </summary>
     public Result Approve()
     {
         if (Status == BrandStatus.Archived)
@@ -93,10 +92,7 @@ public sealed class Brand : AggregateRoot<BrandId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Met à jour le nom (slug recalculé), le logo et la description. L'unicité
-    /// éventuelle du slug est vérifiée par l'Application.
-    /// </summary>
+    /// <summary>Met à jour le nom (slug recalculé), le logo et la description.</summary>
     public Result Update(string name, string? logoUrl, string? description)
     {
         if (string.IsNullOrWhiteSpace(name))

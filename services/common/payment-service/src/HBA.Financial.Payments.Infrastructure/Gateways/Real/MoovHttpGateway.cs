@@ -10,11 +10,6 @@ namespace HBA.Financial.Payments.Infrastructure.Gateways.Real;
 /// Adaptateur Moov Money RÉEL. Flux aligné sur MoMo : jeton OAuth
 /// (client_credentials, Basic MerchantId:ApiKey), puis création d'un paiement
 /// (RequestToPay) renvoyant une référence de transaction, et lecture du statut.
-///
-/// Le contrat Moov varie selon le pays / l'agrégateur : les chemins
-/// (TokenPath, PaymentPath) et la forme du payload sont configurables et à
-/// confirmer avec ta documentation Moov. Renseigne « Payments:Moov » pour
-/// remplacer le stub par cet adaptateur.
 /// </summary>
 public sealed class MoovHttpGateway : HttpPaymentGatewayBase
 {
@@ -30,17 +25,7 @@ public sealed class MoovHttpGateway : HttpPaymentGatewayBase
 
     public override string Provider => "Moov";
 
-    /// <summary>
-    /// CET ADAPTATEUR NE REMBOURSE PAS, ET IL LE DIT AU DÉMARRAGE.
-    ///
-    /// Le contrat de remboursement Moov varie selon le pays et l'agrégateur et n'est
-    /// pas confirmé. Rien n'est appelé : aucun remboursement Moov ne part
-    /// automatiquement.
-    ///
-    /// La constante est lue par `PaymentsModuleInstaller` AVANT toute instanciation :
-    /// c'est elle qui fait refuser le démarrage en production, et qui produit
-    /// l'annonce bruyante ailleurs.
-    /// </summary>
+    /// <summary>CET ADAPTATEUR NE REMBOURSE PAS, ET IL LE DIT AU DÉMARRAGE.</summary>
     public const bool RefundSupported = false;
 
     /// <inheritdoc />
@@ -79,7 +64,8 @@ public sealed class MoovHttpGateway : HttpPaymentGatewayBase
         var response = await CreateClient().SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
 
-        // On privilégie l'id de transaction renvoyé par Moov ; à défaut, notre référence.
+        // On privilégie l'id de transaction renvoyé par Moov ; à défaut, notre
+        // référence.
         var payment = await response.Content.ReadFromJsonAsync<MoovPaymentResponse>(ct);
         var reference = payment?.transactionId ?? payment?.reference ?? externalReference;
 

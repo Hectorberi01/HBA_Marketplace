@@ -15,28 +15,13 @@ public interface IReviewRepository
     Task<IReadOnlyList<Review>> ListByProductAsync(
         Guid productId, int take = 100, CancellationToken cancellationToken = default);
 
-    /// <summary>Liste tous les avis ciblant les produits d'un vendeur (back-office vendeur).</summary>
+    /// <summary>
+    /// Liste tous les avis ciblant les produits d'un vendeur (back-office vendeur).
+    /// </summary>
     Task<IReadOnlyList<Review>> ListBySellerAsync(
         Guid sellerId, int take = 100, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Une page d'avis pour la modération, filtrable par statut.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// CETTE MÉTHODE MANQUAIT, ET SANS ELLE LA MODÉRATION N'EXISTAIT PAS.
-    ///
-    /// `flag`, `reject` et `restore` sont montés depuis le début sur le groupe
-    /// d'administration — mais adressés par identifiant d'avis. Aucune route ne
-    /// disait QUELS avis attendent. Un avis signalé restait donc `Flagged` jusqu'à
-    /// ce que quelqu'un tombe dessus par la fiche produit : c'est-à-dire jamais,
-    /// puisque `ListByProductAsync` ne rend que le publié.
-    ///
-    /// LE COMPTE PAR STATUT EST CALCULÉ AVANT LE FILTRE — trois statuts
-    /// seulement (`Published`, `Flagged`, `Rejected`), et c'est le nombre de
-    /// `Flagged` qui dit s'il y a du travail.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Une page d'avis pour la modération, filtrable par statut.</summary>
     Task<(IReadOnlyList<Review> Items, int Total, IReadOnlyDictionary<string, int> StatusCounts)>
         ListForModerationAsync(int page, int pageSize, ReviewStatus? status, CancellationToken cancellationToken = default);
 

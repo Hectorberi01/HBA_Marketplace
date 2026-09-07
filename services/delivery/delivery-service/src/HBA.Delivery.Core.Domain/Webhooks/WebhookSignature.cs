@@ -3,45 +3,21 @@ using System.Text;
 
 namespace HBA.Deliveries.Domain.Webhooks;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA SIGNATURE DES WEBHOOKS.
-///
-/// Sans elle, l'URL de rappel d'un partenaire est un endpoint public que
-/// n'importe qui peut appeler. Un concurrent qui connaît l'adresse — elle finit
-/// toujours par circuler — annonce « commande livrée » et le marchand clôt une
-/// vente qui n'a jamais été livrée.
-///
-/// L'HORODATAGE EST DANS LA CHAÎNE SIGNÉE, ET C'EST TOUT L'INTÉRÊT.
-///
-/// Signer le seul corps produirait une signature valable ÉTERNELLEMENT : un appel
-/// intercepté une fois pourrait être rejoué des mois plus tard, toujours
-/// parfaitement signé. En signant « horodatage.corps », le partenaire peut
-/// refuser ce qui est trop ancien — et un rejeu devient inopérant sans que nous
-/// ayons à révoquer quoi que ce soit.
-///
-/// LE FORMAT EST CELUI DES PRESTATAIRES DE PAIEMENT
-///
-///     X-HBA-Signature: t=1723372800,v1=&lt;hex&gt;
-///
-/// Ce n'est pas de l'imitation : c'est le format que les bibliothèques de
-/// vérification des intégrateurs savent déjà lire, et le préfixe « v1 » laisse
-/// introduire un « v2 » un jour sans casser ceux qui lisent encore le premier.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA SIGNATURE DES WEBHOOKS.</summary>
 public static class WebhookSignature
 {
     public const string HeaderName = "X-HBA-Signature";
 
-    /// <summary>En-tête portant l'identifiant d'événement, pour la déduplication côté partenaire.</summary>
+    /// <summary>
+    /// En-tête portant l'identifiant d'événement, pour la déduplication côté
+    /// partenaire.
+    /// </summary>
     public const string EventIdHeaderName = "X-HBA-Event-Id";
 
     /// <summary>En-tête portant le type d'événement, pour aiguiller sans lire le corps.</summary>
     public const string EventTypeHeaderName = "X-HBA-Event-Type";
 
-    /// <summary>
-    /// Construit l'en-tête de signature.
-    /// </summary>
+    /// <summary>Construit l'en-tête de signature.</summary>
     /// <param name="payload">Le corps EXACT qui sera transmis, octet pour octet.</param>
     /// <param name="secret">Secret partagé avec le partenaire.</param>
     /// <param name="atUtc">Instant de la signature.</param>

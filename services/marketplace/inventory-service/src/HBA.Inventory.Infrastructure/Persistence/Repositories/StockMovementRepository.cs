@@ -12,11 +12,7 @@ internal sealed class StockMovementRepository : IStockMovementRepository
     public async Task AddAsync(StockMovement movement, CancellationToken cancellationToken = default)
         => await _dbContext.Set<StockMovement>().AddAsync(movement, cancellationToken);
 
-    /// <summary>
-    /// `AsNoTracking` ET UNE BORNE : c'est une lecture d'écran. Suivre ces
-    /// entités ferait payer un `DetectChanges` sur des centaines de lignes qu'on
-    /// ne modifie jamais, dans la même unité de travail qu'une mutation de stock.
-    /// </summary>
+    /// <summary>`AsNoTracking` ET UNE BORNE : c'est une lecture d'écran.</summary>
     public async Task<IReadOnlyList<StockMovement>> ListByItemAsync(
         Guid inventoryItemId, int take, CancellationToken cancellationToken = default)
         => await _dbContext.Set<StockMovement>()

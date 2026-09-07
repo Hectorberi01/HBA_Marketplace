@@ -13,22 +13,7 @@ internal sealed class FoodCartRepository : IFoodCartRepository
     public async Task AddAsync(CartAggregate cart, CancellationToken cancellationToken = default)
         => await _dbContext.Carts.AddAsync(cart, cancellationToken);
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LES OPTIONS SE CHARGENT AVEC LES LIGNES, ET IL LE FAUT.
-    ///
-    /// Sans `ThenInclude`, une ligne revient avec une collection d'options VIDE.
-    /// Trois conséquences, toutes silencieuses :
-    ///
-    ///   • `FoodCartItem.Matches` croirait que tout plat sans option correspond,
-    ///     et fusionnerait « riz nature » avec « riz poulet » ;
-    ///   • le panier afficherait un prix incluant des suppléments invisibles ;
-    ///   • la commande partirait en cuisine sans les choix du client.
-    ///
-    /// Aucune ne lève d'exception. C'est le genre de défaut qu'on découvre à la
-    /// réclamation.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LES OPTIONS SE CHARGENT AVEC LES LIGNES, ET IL LE FAUT.</summary>
     public async Task<CartAggregate?> GetByIdAsync(
         FoodCartId id, CancellationToken cancellationToken = default)
         => await _dbContext.Carts

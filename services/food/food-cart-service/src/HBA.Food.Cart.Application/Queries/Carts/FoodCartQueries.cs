@@ -51,11 +51,6 @@ internal sealed class GetActiveFoodCartQueryHandler : IQueryHandler<GetActiveFoo
         if (cart is null)
         {
             // UN PANIER VIDE, PAS UNE ERREUR — et sans restaurant.
-            //
-            // L'écran doit afficher « votre panier est vide », pas un échec. Le
-            // restaurant est nul parce qu'aucun n'a encore été choisi : c'est le
-            // premier ajout qui le fixe, et c'est ce qui rend le premier ajout
-            // toujours possible.
             return new FoodCartSummary(
                 Guid.Empty, query.BuyerId, null, "XOF", "Active", [], 0m, 0m, 0m, 0m);
         }
@@ -92,12 +87,6 @@ internal sealed class GetFoodCartByIdQueryHandler : IQueryHandler<GetFoodCartByI
         }
 
         // AUCUN CONTRÔLE DE PROPRIÉTAIRE ICI, ET C'EST VOULU.
-        //
-        // La même requête sert `FoodCartModuleApi`, c'est-à-dire l'appel gRPC de
-        // food-order-service au moment de passer commande, où il n'y a pas
-        // d'acheteur connecté à comparer. Le contrôle est posé dans la couche
-        // HTTP, seule à voir un jeton. Le déplacer ici casserait le passage en
-        // commande.
         var premiereCommande = !await _orders.HasPlacedOrderAsync(cart.BuyerId, cancellationToken);
         return await FoodCartPricer.PriceAsync(cart, _pricing, premiereCommande, cancellationToken);
     }

@@ -11,22 +11,7 @@ using System.Runtime.CompilerServices;
 
 using HBA.Food.Contracts;
 using ContratsFood = HBA.Food.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Food.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Food.Api.Grpc.Services;
 
@@ -90,10 +75,6 @@ internal sealed class FoodGrpcService : Proto.FoodApi.FoodApiBase
         };
 
         // LES PERMISSIONS VOYAGENT, ELLES NE SE DÉDUISENT PAS DU RÔLE.
-        //
-        // Un appelant qui recalculerait « ce que peut faire un cuisinier » à
-        // partir du rôle recopierait une règle qui appartient à food-service, et
-        // qui deviendrait fausse au premier rôle ajouté.
         message.Permissions.AddRange(membre.Permissions);
 
         return new Proto.GetStaffMembershipResponse { Found = true, Membership = message };
@@ -125,14 +106,7 @@ internal sealed class FoodGrpcService : Proto.FoodApi.FoodApiBase
             };
     }
 
-    /// <summary>
-    /// CETTE MÉTHODE ÉTAIT DÉCLARÉE DANS LE `.proto` ET N'AVAIT AUCUN CORPS.
-    ///
-    /// Elle rendait donc `UNIMPLEMENTED` à qui l'appelait. Personne ne l'appelait
-    /// : le panier des repas vivait dans cart-service, qui n'avait pas de client
-    /// Food du tout, et se contentait du prix envoyé par le client. C'est
-    /// exactement le trou que food-cart-service ferme — et il a besoin d'elle.
-    /// </summary>
+    /// <summary>CETTE MÉTHODE ÉTAIT DÉCLARÉE DANS LE `.proto` ET N'AVAIT AUCUN CORPS.</summary>
     public override async Task<Proto.GetMenuItemResponse> GetMenuItem(
         Proto.GetMenuItemRequest request, ServerCallContext context)
     {
@@ -161,11 +135,6 @@ internal sealed class FoodGrpcService : Proto.FoodApi.FoodApiBase
             Status = article.IsOrderable ? "Orderable" : "Unavailable",
 
             // INVARIANT DE CULTURE, ET PAS SEULEMENT « JOLI ».
-            //
-            // Sérialisé sous une culture française, 1500,50 s'écrit avec une
-            // virgule ; relu sous une culture anglaise, il devient 150 050. Le
-            // montant traverse un réseau : les deux côtés n'ont aucune raison
-            // d'avoir la même culture.
             BaseAmount = article.BasePrice.ToString(System.Globalization.CultureInfo.InvariantCulture),
             Currency = article.Currency,
             IsOrderable = article.IsOrderable

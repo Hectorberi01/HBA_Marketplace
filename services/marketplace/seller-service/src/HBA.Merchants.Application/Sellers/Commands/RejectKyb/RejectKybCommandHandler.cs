@@ -25,9 +25,7 @@ internal sealed class RejectKybCommandHandler : ICommandHandler<RejectKybCommand
             return Result.Failure(Error.NotFound("sellers.seller.not_found", $"Vendeur {command.SellerId} introuvable."));
         }
 
-        // Le résultat est examiné : RejectKyb peut refuser (dossier jamais
-        // déposé). L'ignorer aurait rendu la garde décorative — l'appelant aurait
-        // reçu un succès sur une décision non appliquée.
+        // Le résultat est examiné : RejectKyb peut refuser (dossier jamais déposé).
         var result = seller.RejectKyb(command.Reason);
         if (result.IsFailure)
         {

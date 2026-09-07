@@ -20,8 +20,8 @@ internal sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.Property(r => r.Description).HasMaxLength(500);
         builder.Property(r => r.IsSystem).IsRequired();
 
-        // Permissions stockées en text[] natif PostgreSQL (codes validés par le VO),
-        // mappées sur le champ privé _permissions.
+        // Permissions stockées en text[] natif PostgreSQL (codes validés par le
+        // VO), mappées sur le champ privé _permissions.
         builder.Property<List<string>>("_permissions")
             .HasColumnName("permissions")
             .HasColumnType("text[]")

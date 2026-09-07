@@ -15,10 +15,7 @@ public static class GatewayWebhook
 
     /// <summary>
     /// Autorise l'acceptation d'un webhook NON signé uniquement lorsqu'aucun secret
-    /// n'est configuré (tests locaux / sandbox). <c>false</c> par défaut : en
-    /// production, un secret manquant fait REJETER le webhook (pas de fail-open,
-    /// qui permettrait de créditer une commande via un faux webhook). À positionner
-    /// une seule fois au démarrage, à <c>true</c> en environnement Development.
+    /// n'est configuré (tests locaux / sandbox).
     /// </summary>
     public static bool AllowUnsignedWhenSecretMissing { get; set; }
 
@@ -32,8 +29,7 @@ public static class GatewayWebhook
 
     /// <summary>
     /// Vérifie la signature. Secret vide : accepté SANS signature uniquement si
-    /// <see cref="AllowUnsignedWhenSecretMissing"/> est activé (Development). En
-    /// production (défaut), un secret manquant fait rejeter le webhook.
+    /// <see cref="AllowUnsignedWhenSecretMissing"/> est activé (Development).
     /// </summary>
     public static bool VerifySignature(string rawBody, string? signatureHeader, string secret)
     {
@@ -54,7 +50,7 @@ public static class GatewayWebhook
 
     /// <summary>
     /// Vérifie la signature puis normalise le payload : lit le type d'événement
-    /// dans <paramref name="eventTypeField"/>, mappe le résultat et extrait la
+    /// dans <paramref name="eventTypeField"/> , mappe le résultat et extrait la
     /// référence de corrélation.
     /// </summary>
     public static GatewayEvent Parse(

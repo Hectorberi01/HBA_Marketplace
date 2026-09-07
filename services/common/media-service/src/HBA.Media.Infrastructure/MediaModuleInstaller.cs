@@ -26,19 +26,7 @@ using HBA.Media.Infrastructure.Caching.Redis;
 using HBA.Media.Infrastructure.Observability;
 namespace HBA.Media.Infrastructure;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ENREGISTREMENT DU SERVICE MÉDIA.
-///
-/// Fichiers, métadonnées, visibilité, variantes. Le SENS de chaque fichier reste
-/// chez son propriétaire — Product, Food, Sellers, Delivery.
-///
-/// CE MODULE NE CONNAÎT AUCUN AUTRE MODULE, pas même leurs Contracts. C'est la
-/// même règle que pour Food, et pour la même raison : le cahier (§2) pose que
-/// Media doit pouvoir évoluer « sans modifier les services métier », ce qui
-/// suppose d'abord qu'il ne les connaisse pas.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ENREGISTREMENT DU SERVICE MÉDIA.</summary>
 public sealed class MediaModuleInstaller : IModuleInstaller
 {
     public string ModuleName => "Media";
@@ -47,24 +35,18 @@ public sealed class MediaModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheMedia(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteMedia(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
         // `AjouterMessagerieMedia()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<MediaDbContext>(options =>
@@ -75,43 +57,12 @@ public sealed class MediaModuleInstaller : IModuleInstaller
         services.AddScoped<IMediaAssetRepository, MediaAssetRepository>();
         services.AddScoped<IMediaModuleApi, MediaModuleApi>();
 
-        // ═════════════════════════════════════════════════════════════════════
-        // SANS CETTE LIGNE, UN REJEU KAFKA SUPPRIME UN FICHIER DÉJÀ SUPPRIMÉ —
-        //    ET LE JOURNAL LE DIT EN Debug, DONC PERSONNE NE LE VOIT.
-        //
-        // `IntegrationEventDispatcher` résout l'inbox en OPTIONNEL : ce module
-        // tournait sans garde, avec un simple avertissement au démarrage du
-        // premier message. Le seul consommateur d'ici,
-        // `DeleteMediaOnKybDocumentRemovedHandler`, se rattrape à la main — il
-        // sort quand le média est absent — mais cette prudence est LA SIENNE :
-        // elle disparaît avec le prochain gestionnaire qu'on branchera, et le
-        // prochain détruira peut-être des octets sans relire.
-        //
-        // Le DbContext lié est celui de CE module : la trace part avec le
-        // `SaveChangesAsync` du gestionnaire, dans la même transaction que la
-        // suppression logique qu'elle protège.
-        //
-        // CE QUI RESTE DÉCOUVERT ICI. Le retrait des OCTETS dans le stockage
-        // objet n'est pas transactionnel : il ne participe pas au SaveChanges. La
-        // trace protège la ligne `media_assets`, pas l'appel à MinIO — un rejeu
-        // n'en émettra plus, ce qui est déjà l'essentiel, mais un échec entre les
-        // deux reste à rattraper par la purge de rétention.
-        // ═════════════════════════════════════════════════════════════════════
+        // SANS CETTE LIGNE, UN REJEU KAFKA SUPPRIME UN FICHIER DÉJÀ SUPPRIMÉ — ET
+        // LE JOURNAL LE DIT EN Debug, DONC PERSONNE NE LE VOIT.
 
         services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.SectionName));
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE CHOIX DU STOCKAGE EST FAIT ICI, ET IL EST BRUYANT.
-        //
-        // Sans configuration, on retombe sur un stockage en mémoire — un
-        // développeur sans identifiants S3 doit pouvoir lancer l'application et
-        // créer un produit. Mais un substitut qui s'installe EN SILENCE, c'est une
-        // préproduction qui perd tous ses fichiers à chaque redémarrage pendant
-        // trois semaines avant que quelqu'un ne comprenne.
-        //
-        // D'où l'avertissement au démarrage. Le dépôt fait déjà ce choix ailleurs
-        // — SimulatedMediaStorage, SimulatedKybStorage — mais sans le dire.
-        // ═════════════════════════════════════════════════════════════════════
         var stockage = new ObjectStorageOptions();
         configuration.GetSection(ObjectStorageOptions.SectionName).Bind(stockage);
 
@@ -121,23 +72,7 @@ public sealed class MediaModuleInstaller : IModuleInstaller
         }
         else
         {
-            // ═════════════════════════════════════════════════════════════════
             // EN PRODUCTION, ON REFUSE DE DÉMARRER PLUTÔT QUE DE TOUT PERDRE.
-            //
-            // L'avertissement ci-dessous a été écrit pour qu'on ne découvre pas le
-            // substitut trois semaines trop tard. Il ne suffit pas : un
-            // avertissement de démarrage se lit une fois, le jour du déploiement,
-            // et jamais ensuite.
-            //
-            // Ce que ce module stocke n'est pas seulement des photos de produits :
-            // ce sont les pièces KYB — cartes d'identité, registres de commerce —
-            // et les preuves de livraison. Les perdre au redémarrage, ce n'est pas
-            // une gêne d'affichage, c'est un dossier de conformité qui s'évapore et
-            // une preuve qui manque le jour d'un litige.
-            //
-            // Même règle que les passerelles de paiement et l'e-mail : hors
-            // production on simule et on le DIT ; en production on refuse.
-            // ═════════════════════════════════════════════════════════════════
             if (IsProduction(configuration))
             {
                 throw new InvalidOperationException(
@@ -161,15 +96,13 @@ public sealed class MediaModuleInstaller : IModuleInstaller
 
         // LE FICHIER SURVIVAIT À LA PIÈCE KYB, INDÉFINIMENT.
 
-        //
-
-        // Retirer une pièce effaçait la ligne côté merchant-service et laissait l'objet
+        // Retirer une pièce effaçait la ligne côté merchant-service et laissait
+        // l'objet
 
         // dans MinIO. Ce n'est pas qu'une question d'espace : une pièce KYB est un
 
-        // document d'identité, gardé après que son propriétaire a demandé son retrait.
-
-        //
+        // document d'identité, gardé après que son propriétaire a demandé son
+        // retrait.
 
         // merchant annonce le FAIT ; media, qui possède le fichier, en tire les
 
@@ -178,63 +111,22 @@ public sealed class MediaModuleInstaller : IModuleInstaller
         // Les gestionnaires d'evenements sont enregistres par le module de
         // messagerie du service : `Messaging/Kafka/DependencyInjection.cs`.
 
-        // ═════════════════════════════════════════════════════════════════════
         // TROIS ÉVÉNEMENTS ÉTAIENT LEVÉS ET N'ARRIVAIENT NULLE PART.
-        //
-        // `MediaAsset` lève « ready », « deleted » et « processing failed »
-        // depuis l'origine, et la documentation de ces événements affirmait
-        // qu'ils passaient par l'outbox transactionnel. Faute de ces trois
-        // lignes, ils étaient dispatchés dans le processus et s'arrêtaient là :
-        // rien ne sortait vers Kafka, et le §16 — « les services métier peuvent
-        // écouter media.ready pour mettre à jour leur état sans couplage HTTP
-        // permanent » — restait une intention.
-        //
-        // L'inscription est manuelle et rien dans le compilateur ne la rappelle :
-        // c'est exactement ainsi que payment-service avait perdu son
-        // gestionnaire « paiement initié ».
-        // ═════════════════════════════════════════════════════════════════════
         services.AddScoped<IDomainEventHandler<MediaReadyDomainEvent>, MediaReadyDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<MediaDeletedDomainEvent>, MediaDeletedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<MediaProcessingFailedDomainEvent>, MediaProcessingFailedDomainEventHandler>();
 
     }
 
-    /// <summary>
-    /// Sommes-nous en production ?
-    /// </summary>
-    /// <remarks>
-    /// L'installeur ne reçoit qu'un <see cref="IConfiguration"/> — les modules
-    /// s'installent avant que l'hôte ne soit construit, donc pas
-    /// d'<c>IHostEnvironment</c>. La règle elle-même vit dans
-    /// <c>EnvironnementDeploiement</c>, en un seul exemplaire.
-    ///
-    /// CE PARAGRAPHE DÉCRIVAIT AUPARAVANT UN FAIL-OPEN ASSUMÉ : « l'inconnu est
-    /// traité comme pas la production, sinon un nom mal orthographié empêcherait
-    /// de travailler ». Ce n'est plus vrai, et ce n'était pas défendable : une
-    /// variable ABSENTE tombait du même côté qu'une faute de frappe, alors
-    /// qu'ASP.NET Core considère une variable absente comme la production.
-    /// Désormais l'inconnu et l'absent sont la production ; seuls les noms
-    /// explicitement listés en dispensent.
-    /// </remarks>
+    /// <summary>Sommes-nous en production ?</summary>
     private static bool IsProduction(IConfiguration configuration)
     {
         // DÉLÉGUÉ À `EnvironnementDeploiement`, ET C'EST LA CORRECTION.
-        //
-        // Ce corps était une copie parmi six d'une règle FAIL-OPEN : tout ce qui
-        // n'était pas littéralement « Production » — variable absente, chaîne
-        // vide, faute de frappe — était traité comme du développement, alors
-        // qu'ASP.NET Core, lui, considère une variable absente comme la
-        // production. Voir l'encadré de `EnvironnementDeploiement`.
         return EnvironnementDeploiement.EstProduction(configuration);
     }
 }
 
-/// <summary>
-/// Dit AU DÉMARRAGE que le stockage objet n'est pas configuré.
-///
-/// Un service hébergé plutôt qu'un log dans l'installer : à ce moment-là, le
-/// journal n'existe pas encore. Il tourne une fois, écrit, et s'arrête.
-/// </summary>
+/// <summary>Dit AU DÉMARRAGE que le stockage objet n'est pas configuré.</summary>
 internal sealed class UnconfiguredStorageWarning : Microsoft.Extensions.Hosting.IHostedService
 {
     private readonly Microsoft.Extensions.Logging.ILogger<UnconfiguredStorageWarning> _logger;

@@ -106,28 +106,6 @@ internal sealed class RejectReturnCommandHandler : ReturnCommandHandlerBase, ICo
 /// Enregistre l'expédition de retour, en créant la course d'enlèvement si
 /// l'appelant n'en fournit pas.
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ICI L'APPEL EXTERNE NE PEUT PAS SUIVRE LA PERSISTANCE (ISSUE-032).
-///
-/// Le motif « appel externe avant `SaveChangesAsync` » a été inversé partout où
-/// c'était possible — annulation de commande, inspection de retour. Pas ici :
-/// c'est la course qui PRODUIT l'identifiant qu'on veut écrire. Persister d'abord
-/// supposerait un état « expédition demandée, identifiant inconnu » dans
-/// l'agrégat, donc une transition et une migration.
-///
-/// Ce qui est fait à la place : l'échec devient VISIBLE. Si l'écriture échoue
-/// après la création de la course, l'identifiant de la course orpheline part en
-/// `Critical` — c'est la seule prise pour l'annuler ou la rattacher à la main.
-/// Sans cela, un coursier serait dépêché pour un retour dont le dossier ignore
-/// tout, et personne ne saurait lequel.
-///
-/// CE QU'IL FAUDRAIT POUR FERMER VRAIMENT : que la création de course soit
-/// idempotente sur l'identifiant du retour, de sorte qu'un rejeu rende la même
-/// course au lieu d'en créer une seconde. Cela se décide côté delivery-service,
-/// dont l'adaptateur est aujourd'hui un bouchon — voir `DeliveryGrpcClient`.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 internal sealed class RegisterReturnShipmentCommandHandler : ReturnCommandHandlerBase, ICommandHandler<RegisterReturnShipmentCommand>
 {
     private readonly IDeliveryGrpcClient _delivery;
@@ -150,11 +128,10 @@ internal sealed class RegisterReturnShipmentCommandHandler : ReturnCommandHandle
         var request = await Returns.GetAsync(command.ReturnId, cancellationToken);
         if (request is null) return Result.Failure(Error.NotFound("return.not_found", "Retour introuvable."));
 
-        // RÉÉCRIT : le filtrage par motif portait sur une expression dont le
-        // type unifié était TOUJOURS `Result<string>`, si bien que `deliveryId is
-        // Result<string>` était vrai dans les deux branches et que la branche
-        // « identifiant fourni » repassait par `ok.Value`. Cela fonctionnait par
-        // coïncidence, pas par construction.
+        // RÉÉCRIT : le filtrage par motif portait sur une expression dont le type
+        // unifié était TOUJOURS `Result<string>`, si bien que `deliveryId is
+        // Result<string>` était vrai dans les deux branches et que la branche «
+        // identifiant fourni » repassait par `ok.Value`.
         string course;
         var creee = false;
 
@@ -219,32 +196,6 @@ internal sealed class ReceiveReturnCommandHandler : ReturnCommandHandlerBase, IC
 /// Inspecte la marchandise revenue et décide de son sort (remise en rayon, mise au
 /// rebut…).
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'INSPECTION EST ÉCRITE AVANT QUE LE STOCK NE BOUGE (ISSUE-032).
-///
-/// L'ordre était l'inverse : on remettait la marchandise en rayon chez Inventory
-/// pour chaque ligne, PUIS on enregistrait l'inspection. Un `SaveChangesAsync` qui
-/// lève laissait alors le stock remis et l'inspection nulle part. Le dossier
-/// restait « à inspecter », et le geste suivant — le rejeu du message, ou
-/// l'opérateur qui recommence — REMETTAIT LA MÊME MARCHANDISE EN RAYON une
-/// seconde fois. Du stock fantôme, vendable, qui n'existe pas dans l'entrepôt.
-///
-/// CE QUE L'ORDRE INVERSE COÛTE, ET POURQUOI C'EST MOINS CHER.
-///
-/// Si la remise en stock échoue APRÈS l'écriture, l'inspection est enregistrée et
-/// la marchandise n'est pas rentrée : elle est physiquement là, invisible du
-/// système. C'est un manque à gagner, réparable par une reprise manuelle, et le
-/// journal `Critical` ci-dessous porte le retour et la ligne concernée. Le stock
-/// fantôme, lui, se paie en commande vendue qu'on ne peut pas honorer.
-///
-/// UN ÉCHEC DE STOCK NE FAIT PLUS ÉCHOUER LA COMMANDE, ET C'EST FORCÉ.
-///
-/// Il rendait `Result.Failure` ; il ne le peut plus, l'inspection étant déjà
-/// committée. Rendre une erreur pour un geste qui a bel et bien eu lieu
-/// inviterait l'opérateur à recommencer une inspection déjà faite.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 internal sealed class InspectReturnCommandHandler : ReturnCommandHandlerBase, ICommandHandler<InspectReturnCommand>
 {
     private readonly IInventoryGrpcClient _inventory;
@@ -290,61 +241,7 @@ internal sealed class InspectReturnCommandHandler : ReturnCommandHandlerBase, IC
     }
 }
 
-/// <summary>
-/// Fixe le montant rendu au client.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE PLAFOND COMPARAIT UNE VALEUR À ELLE-MÊME (ISSUE-049).
-///
-/// Ce gestionnaire fabriquait le détail de remboursement AVEC LE MONTANT SAISI :
-///
-///     var breakdown = new RefundBreakdown(amount.Value, zero, zero, zero, zero, zero, zero);
-///     var result = request.DecideRefund(amount.Value, breakdown, …);
-///
-/// `RefundBreakdown.Total()` valant alors exactement `Items`, c'est-à-dire le
-/// montant demandé, le contrôle « le montant décidé dépasse-t-il le montant
-/// calculé côté serveur ? » comparait le demandé au demandé. Il ne pouvait pas
-/// échouer. Un vendeur pouvait rembourser 500 000 sur une commande de 12 000, et
-/// le service validait — le garde-fou existait, s'exécutait, et n'arrêtait rien.
-///
-/// Le plafond est désormais construit DEPUIS LA COMMANDE. Les champs consommés
-/// dans `OrderReturnContext` sont exactement ceux-ci :
-///
-///   • `Currency`                     — devise de contrôle ;
-///   • `CapturedAmount`               — ce qui a été réellement encaissé ;
-///   • `AlreadyRefundedAmount`        — ce qui en a déjà été rendu ;
-///   • `Lines[].OrderItemId`          — rapprochement avec les lignes du retour ;
-///   • `Lines[].UnitPaidAmount`       — prix unitaire PAYÉ, base du calcul ;
-///   • `Lines[].DeliveredQuantity`    — borne haute de ce qui peut revenir ;
-///   • `Lines[].AlreadyReturnedQuantity` — ce qui est déjà revenu.
-///
-/// CES DEUX CHAMPS DISENT DÉSORMAIS LA VÉRITÉ (ISSUE-014, corrigé).
-///
-/// `OrderingModuleApi.GetOrderReturnContextAsync` codait `AlreadyReturnedQuantity: 0`
-/// et `AlreadyRefundedAmount: 0m` EN DUR : le plafond ignorait purement et
-/// simplement les retours et remboursements antérieurs sur la même commande.
-/// Order-service les apprend maintenant par `ReturnRefundedIntegrationEvent` et
-/// les inscrit dans l'agrégat commande.
-///
-/// ET C'EST POURQUOI LE PLAFOND NE COMPTE PLUS `TotalRefunded()`.
-///
-/// `RefundCalculationPolicy.Validate` vérifie `demandé + engagé > plafond`. Tant
-/// qu'`AlreadyRefundedAmount` valait zéro, y passer `TotalRefunded()` — tout ce
-/// que CE dossier a engagé, `Succeeded` compris — était la seule protection.
-/// Maintenant qu'order-service compte ces mêmes versements aboutis, les passer
-/// à nouveau les compterait DEUX FOIS : le plafond se fermerait à la moitié du
-/// montant réellement disponible, et un client légitimement remboursable se
-/// verrait refuser.
-///
-/// On ne passe donc plus que l'engagement NON ABOUTI du dossier — `Pending` et
-/// `Processing` —, exactement ce qu'order-service ne voit pas encore. La somme
-/// des deux couvre tout, sans recouvrement.
-///
-/// Les versements déjà aboutis de ce dossier ne sont pas perdus pour autant :
-/// ils entrent dans `RefundBreakdown.PreviousRefunds` (via `Compute`), donc dans
-/// le PREMIER contrôle, celui du montant calculé côté serveur.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Fixe le montant rendu au client.</summary>
 internal sealed class DecideRefundCommandHandler : ReturnCommandHandlerBase, ICommandHandler<DecideRefundCommand>
 {
     private readonly IOrderGrpcClient _orders;
@@ -379,9 +276,8 @@ internal sealed class DecideRefundCommandHandler : ReturnCommandHandlerBase, ICo
         // Ce que la COMMANDE peut encore rendre, tous dossiers de retour confondus.
         var plafondCommande = order.Value.CapturedAmount - order.Value.AlreadyRefundedAmount;
 
-        // Les AUTRES dossiers ouverts sur cette commande — ceux qu'order-service
-        // ne voit pas encore. Le nôtre est exclu : ses propres engagements sont
-        // déjà comptés par l'agrégat.
+        // Les AUTRES dossiers ouverts sur cette commande — ceux qu'order-service ne
+        // voit pas encore.
         var autresDossiers = await Returns.ListOpenQuantitiesByOrderAsync(
             request.OrderId, exceptReturnId: request.Id, cancellationToken);
 
@@ -401,20 +297,6 @@ internal sealed class DecideRefundCommandHandler : ReturnCommandHandlerBase, ICo
     /// Croise les lignes du RETOUR avec celles de la COMMANDE pour obtenir, ligne à
     /// ligne, la quantité qu'on accepte de reprendre et son prix unitaire payé.
     /// </summary>
-    /// <remarks>
-    /// LA QUANTITÉ RETENUE EST LA REÇUE QUAND ELLE EXISTE, PAS LA DEMANDÉE.
-    ///
-    /// Un client peut demander trois articles et n'en renvoyer que deux :
-    /// `ReturnItem.ReceivedQuantity` est renseignée à la réception physique. Se
-    /// fonder sur la demandée rembourserait un article que le vendeur n'a jamais
-    /// revu. Avant réception, `ReceivedQuantity` vaut 0 et la demandée fait foi —
-    /// c'est le cas du remboursement sans retour (`RefundOnly`).
-    ///
-    /// ET ELLE EST BORNÉE PAR LA COMMANDE. `DeliveredQuantity −
-    /// AlreadyReturnedQuantity` est le nombre d'exemplaires qu'il reste à reprendre.
-    /// Une ligne du retour qui ne correspond à aucune ligne de commande est ignorée :
-    /// elle ne peut pas contribuer à un plafond fondé sur ce qui a été payé.
-    /// </remarks>
     private static IReadOnlyCollection<RefundableLine> LignesRemboursables(
         ReturnAggregate request,
         OrderReturnContext order,
@@ -422,10 +304,7 @@ internal sealed class DecideRefundCommandHandler : ReturnCommandHandlerBase, ICo
     {
         var lignes = new List<RefundableLine>();
 
-        // La devise du dossier, déjà normalisée à l'ouverture. Reprendre celle du
-        // contrat brut ferait entrer un « xof » minuscule dans le détail, que
-        // `Validate` refuserait ensuite au motif d'une incohérence de devise —
-        // pour un remboursement parfaitement légitime.
+        // La devise du dossier, déjà normalisée à l'ouverture.
         var devise = request.Currency;
 
         foreach (var item in request.Items)
@@ -440,8 +319,7 @@ internal sealed class DecideRefundCommandHandler : ReturnCommandHandlerBase, ICo
 
             // `AlreadyReturnedQuantity` compte les retours ABOUTIS ; les autres
             // dossiers encore ouverts sur la même ligne, order-service ne les voit
-            // pas. Sans eux, deux dossiers menés en parallèle rembourseraient
-            // chacun la totalité de la ligne.
+            // pas.
             var ouvertAilleurs = autresDossiersOuverts.TryGetValue(item.OrderItemId, out var q) ? q : 0;
             var disponible = Math.Max(0, ligne.DeliveredQuantity - ligne.AlreadyReturnedQuantity - ouvertAilleurs);
             var quantite = Math.Clamp(reprise, 0, disponible);

@@ -3,16 +3,7 @@ using HBA.Shared.Domain.Primitives;
 
 namespace HBA.Delivery.Driver.Domain.Entities;
 
-/// <summary>
-/// Le véhicule DÉCLARÉ par le livreur dans son dossier.
-///
-/// CE N'EST PAS LE VÉHICULE SUR LEQUEL LE DISPATCH RAISONNE. delivery-service
-/// garde le sien sur `deliveries.drivers`, et c'est celui-là qui décide si une
-/// course de 80 kg peut être proposée. Les deux se rejoignent au moment de la
-/// vérification du dossier, et à ce moment-là seulement : changer de véhicule ici
-/// après avoir été vérifié ne repropage rien aujourd'hui. Le livreur qui passe de
-/// la moto au tricycle doit donc être revérifié pour que le dispatch le sache.
-/// </summary>
+/// <summary>Le véhicule DÉCLARÉ par le livreur dans son dossier.</summary>
 public sealed class DriverVehicle : Entity<Guid>
 {
     private DriverVehicle(

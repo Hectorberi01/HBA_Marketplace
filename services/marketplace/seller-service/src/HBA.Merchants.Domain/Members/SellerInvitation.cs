@@ -21,21 +21,7 @@ public enum InvitationStatus
     Revoked = 4
 }
 
-/// <summary>
-/// Un rôle promis par une invitation, éventuellement sur une boutique.
-/// </summary>
-/// <remarks>
-/// UNE SEULE COLLECTION À PLAT PLUTÔT QUE DEUX NIVEAUX.
-///
-/// `StoreId` nul signifie « rôle au niveau du vendeur ». Modéliser les
-/// affectations boutique comme une collection de collections aurait demandé une
-/// possession imbriquée dans une possession, pour une donnée qui vit quelques
-/// jours et n'est jamais interrogée autrement que par son invitation.
-///
-/// La clé est un entier généré, comme <c>StoreOpeningHour</c> : une clé composée
-/// (invitation, boutique, rôle) ne serait pas posable en PostgreSQL, où une
-/// colonne de clé primaire ne peut pas être nulle.
-/// </remarks>
+/// <summary>Un rôle promis par une invitation, éventuellement sur une boutique.</summary>
 public sealed class InvitationAssignment
 {
     private InvitationAssignment()
@@ -56,30 +42,7 @@ public sealed class InvitationAssignment
     public SellerRoleId RoleId { get; private set; }
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UNE INVITATION — CE QUI EXISTE AVANT QU'UN MEMBRE N'EXISTE.
-///
-/// LE TOKEN BRUT N'EST JAMAIS STOCKÉ. SEULEMENT SON EMPREINTE.
-///
-/// C'est la règle du §7, et elle a la même raison d'être qu'un mot de passe
-/// haché : le lien d'invitation vaut un accès au dossier vendeur. Une base lue
-/// par un tiers — sauvegarde égarée, injection SQL, capture d'écran d'un outil
-/// d'administration — donnerait sinon des invitations utilisables telles quelles.
-///
-/// TROIS CONTRÔLES À L'ACCEPTATION, ET AUCUN N'EST FACULTATIF.
-///
-///   • L'ÉTAT — une invitation acceptée, révoquée ou refusée ne se rejoue pas.
-///     C'est ce qui rend le lien à USAGE UNIQUE.
-///   • L'ÉCHÉANCE — un lien qui traîne dans une boîte aux lettres depuis six mois
-///     ne doit plus rien ouvrir. L'expiration est vérifiée à l'acceptation ET
-///     posée en base au passage : un statut qui ne se met à jour qu'à la lecture
-///     laisserait des invitations « en attente » éternelles dans l'écran d'équipe.
-///   • L'ADRESSE — le compte qui accepte doit être celui qui a été invité. Sans
-///     cela, un lien transféré ferait entrer quelqu'un d'autre, et l'équipe
-///     compterait un membre que le propriétaire n'a jamais choisi.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UNE INVITATION — CE QUI EXISTE AVANT QU'UN MEMBRE N'EXISTE.</summary>
 public sealed class SellerInvitation : AggregateRoot<SellerInvitationId>
 {
     /// <summary>Durée de validité par défaut — sept jours, comme l'exemple du §7.</summary>
@@ -181,10 +144,6 @@ public sealed class SellerInvitation : AggregateRoot<SellerInvitationId>
         var tousRoles = rolesVendeur.Concat(affectations.SelectMany(a => a.Roles)).ToArray();
 
         // ON INVITE SANS AUCUN RÔLE PLUTÔT QUE DE LAISSER LE CHOIX IMPLICITE.
-        //
-        // Une invitation sans rôle produirait un membre qui franchit toutes les
-        // portes et ne peut rien faire — l'état le plus difficile à diagnostiquer
-        // pour celui qui le vit. Le propriétaire doit dire ce qu'il délègue.
         if (tousRoles.Length == 0)
         {
             return Error.Validation(
@@ -192,13 +151,6 @@ public sealed class SellerInvitation : AggregateRoot<SellerInvitationId>
         }
 
         // DEUX PÉRIMÈTRES, DEUX CONTRÔLES — MÊME CORRECTIF QUE `SellerMember.Join`.
-        //
-        // `tousRoles` reste utile pour le test « au moins un rôle » ci-dessus, mais
-        // la DÉLÉGATION doit se mesurer périmètre par périmètre : mesurer les rôles
-        // vendeur à l'union de l'acteur laissait un responsable de boutique inviter
-        // au niveau vendeur avec des droits qu'il ne tient que de SA boutique.
-        // L'invitation est le chemin le plus exposé des deux : elle attribue avant
-        // que le membre n'existe, donc avant tout autre contrôle.
         var delegation = acteur.EnsureCanAssign(rolesVendeur);
         if (delegation.IsSuccess)
         {
@@ -235,21 +187,18 @@ public sealed class SellerInvitation : AggregateRoot<SellerInvitationId>
             }
         }
 
-        // AUCUN ÉVÉNEMENT DE DOMAINE ICI. C'est le handler de commande qui
-        // publie, parce que l'événement doit porter le JETON et que cet agrégat ne
-        // connaît que son empreinte. Voir l'encadré de `MemberDomainEvents.cs`.
+        // AUCUN ÉVÉNEMENT DE DOMAINE ICI. C'est le handler de commande qui publie,
+        // parce que l'événement doit porter le JETON et que cet agrégat ne connaît
+        // que son empreinte.
         return invitation;
     }
 
     // ── Cycle de vie ────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Accepte l'invitation au nom d'un compte.
-    /// </summary>
+    /// <summary>Accepte l'invitation au nom d'un compte.</summary>
     /// <param name="emailDuCompte">
     /// Lu chez identity, jamais fourni par l'appelant : c'est tout l'intérêt du
-    /// contrôle. Une adresse prise dans le corps de la requête serait exactement
-    /// la preuve d'autorisation que le §36 interdit d'accepter du client.
+    /// contrôle.
     /// </param>
     public Result Accept(Guid userId, string emailDuCompte, DateTime maintenantUtc)
     {
@@ -275,10 +224,6 @@ public sealed class SellerInvitation : AggregateRoot<SellerInvitationId>
         if (maintenantUtc > ExpiresOnUtc)
         {
             // ON POSE LE STATUT AU PASSAGE, ET C'EST VOULU.
-            //
-            // Sans cela, l'écran d'équipe afficherait « en attente » indéfiniment
-            // pour des invitations mortes, et le propriétaire relancerait des
-            // personnes qui ne peuvent plus rien accepter.
             Status = InvitationStatus.Expired;
             ResolvedOnUtc = maintenantUtc;
 
@@ -347,20 +292,9 @@ public sealed class SellerInvitation : AggregateRoot<SellerInvitationId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Renvoie l'invitation : nouvelle empreinte, nouvelle échéance.
-    /// </summary>
-    /// <remarks>
-    /// LE JETON PRÉCÉDENT CESSE DE FONCTIONNER, ET C'EST LE POINT.
-    ///
-    /// Un renvoi qui conserverait l'empreinte multiplierait les copies valides du
-    /// même lien dans autant de boîtes aux lettres. Chaque renvoi remplace : il
-    /// n'y a jamais plus d'un jeton vivant par invitation.
-    /// </remarks>
+    /// <summary>Renvoie l'invitation : nouvelle empreinte, nouvelle échéance.</summary>
     /// <param name="rolesPromis">
-    /// Les rôles que cette invitation attribuera, indexés par identifiant. L'appelant
-    /// les résout — l'agrégat ne porte que des identifiants, et il n'interroge pas
-    /// de dépôt.
+    /// Les rôles que cette invitation attribuera, indexés par identifiant.
     /// </param>
     public Result Refresh(
         MemberActor acteur,
@@ -374,29 +308,7 @@ public sealed class SellerInvitation : AggregateRoot<SellerInvitationId>
             return garde;
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // LA DÉLÉGATION SE REJOUE À LA RELANCE, ET SON ABSENCE ÉTAIT UNE FAILLE.
-        //
-        // `MEMBER_INVITE` seul suffisait à ressusciter n'importe quelle invitation
-        // expirée du vendeur — y compris une invitation SELLER_ADMIN émise par le
-        // propriétaire. Le relanceur obtenait un statut `Pending` neuf, sept jours
-        // de plus, et LE JETON EN CLAIR dans la réponse : il venait de faire
-        // renaître une délégation qu'il n'aurait jamais pu créer, et il en tenait
-        // le secret.
-        //
-        // C'est le raisonnement déjà écrit dans `SellerRole.Update` — « ON REVÉRIFIE
-        // À CHAQUE MODIFICATION, PAS SEULEMENT À LA CRÉATION » — appliqué au second
-        // chemin qui fait vivre une attribution.
-        //
-        // ET ELLE SE MESURE SUR L'ÉTAT ACTUEL DU RELANCEUR.
-        //
-        // Pas sur celui de l'émetteur d'origine, qui a pu perdre ses droits depuis,
-        // ni sur celui qu'avait le relanceur à l'époque. Le contrôle porte sur qui
-        // agit, maintenant.
-        // ═════════════════════════════════════════════════════════════════════
-        // PÉRIMÈTRE PAR PÉRIMÈTRE, comme à la création. Mesurer les rôles de
-        // niveau vendeur à ce que l'acteur tient d'une boutique rouvrirait le
-        // blanchiment que `MemberActor.EnsureCanAssign` décrit.
         foreach (var groupe in _assignments.GroupBy(a => a.StoreId))
         {
             var roles = groupe
@@ -405,11 +317,6 @@ public sealed class SellerInvitation : AggregateRoot<SellerInvitationId>
                 .ToArray();
 
             // UN RÔLE DISPARU DEPUIS L'ÉMISSION N'EST PAS IGNORÉ EN SILENCE.
-            //
-            // Le vendeur a pu supprimer un rôle personnalisé entre l'invitation et
-            // la relance. Relancer quand même produirait un membre à qui il manque
-            // une partie de ce qu'on lui avait promis, sans que personne ne le sache
-            // — et le nouvel arrivant se cognerait à des refus incompréhensibles.
             if (roles.Length != groupe.Count())
             {
                 return Result.Failure(Error.Conflict(
@@ -483,13 +390,7 @@ public interface ISellerInvitationRepository
     Task<SellerInvitation?> GetByIdAsync(
         SellerInvitationId id, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// LA RECHERCHE SE FAIT PAR EMPREINTE, JAMAIS PAR JETON.
-    ///
-    /// L'appelant hache le jeton reçu et cherche l'empreinte : la valeur en clair
-    /// ne descend jamais jusqu'à la base, donc n'apparaît ni dans un journal de
-    /// requêtes lentes ni dans un plan d'exécution conservé.
-    /// </summary>
+    /// <summary>LA RECHERCHE SE FAIT PAR EMPREINTE, JAMAIS PAR JETON.</summary>
     Task<SellerInvitation?> GetByTokenHashAsync(
         string tokenHash, CancellationToken cancellationToken = default);
 

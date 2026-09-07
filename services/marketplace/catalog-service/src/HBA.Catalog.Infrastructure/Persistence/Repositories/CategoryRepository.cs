@@ -44,7 +44,8 @@ internal sealed class CategoryRepository : ICategoryRepository
         string path, CancellationToken cancellationToken = default)
     {
         // Le séparateur final délimite la branche : sans lui, « /animaux/chiens »
-        // ramasserait « /animaux/chiens-de-chasse », qui n'en est pas un descendant.
+        // ramasserait « /animaux/chiens-de-chasse », qui n'en est pas un
+        // descendant.
         var prefix = path.TrimEnd('/') + "/";
 
         return await _dbContext.Categories

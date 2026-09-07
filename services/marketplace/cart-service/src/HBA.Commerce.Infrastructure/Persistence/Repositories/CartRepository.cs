@@ -13,15 +13,7 @@ internal sealed class CartRepository : ICartRepository
     public async Task AddAsync(CartAggregate cart, CancellationToken cancellationToken = default)
         => await _dbContext.Carts.AddAsync(cart, cancellationToken);
 
-    /// <summary>
-    /// LES OPTIONS SONT CHARGÉES AVEC LES LIGNES, ET IL LE FAUT.
-    ///
-    /// Sans `ThenInclude`, une ligne food revient avec une collection d'options
-    /// VIDE. Trois conséquences, toutes silencieuses : `MatchesFood` croirait que
-    /// tout plat sans option correspond et fusionnerait « riz nature » avec « riz
-    /// poulet » ; le panier afficherait un prix incluant des suppléments
-    /// invisibles ; et la commande partirait en cuisine sans les choix du client.
-    /// </summary>
+    /// <summary>LES OPTIONS SONT CHARGÉES AVEC LES LIGNES, ET IL LE FAUT.</summary>
     public async Task<CartAggregate?> GetByIdAsync(CartId id, CancellationToken cancellationToken = default)
         => await _dbContext.Carts
             .Include(c => c.Items)

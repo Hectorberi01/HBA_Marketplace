@@ -2,15 +2,13 @@ namespace HBA.Communication.Notifications.Domain.Preferences;
 
 /// <summary>
 /// Préférences de notification d'un utilisateur : la liste des CATÉGORIES dont il a
-/// coupé les push (ex. « reviews »). Absence de ligne = tout est activé (le défaut
-/// n'est jamais silencieux). Ne coupe QUE le push : la notification in-app reste
-/// enregistrée dans la boîte de réception.
+/// coupé les push (ex.
 /// </summary>
 public sealed class NotificationPreference
 {
     public Guid UserId { get; private set; }
 
-    /// <summary>Catégories dont le push est coupé (clés en minuscules). Mappé en text[].</summary>
+    /// <summary>Catégories dont le push est coupé (clés en minuscules).</summary>
     public List<string> MutedCategories { get; private set; } = new();
 
     public DateTime UpdatedAtUtc { get; private set; }

@@ -4,9 +4,8 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Communication.Notifications.Domain.Notifications;
 
 /// <summary>
-/// Notification adressée à un utilisateur, déclenchée par un fait métier d'un
-/// autre module (commande, expédition…). Sur le socle, le canal in-app est
-/// « envoyé » instantanément ; les canaux Email/SMS brancheraient un prestataire.
+/// Notification adressée à un utilisateur, déclenchée par un fait métier d'un autre
+/// module (commande, expédition…).
 /// </summary>
 public sealed class Notification : AggregateRoot<NotificationId>
 {

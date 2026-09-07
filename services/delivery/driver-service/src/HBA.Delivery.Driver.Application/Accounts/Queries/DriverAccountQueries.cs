@@ -7,22 +7,13 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Drivers.Application.Accounts.Queries;
 
-/// <summary>
-/// Mon dossier. `UserId` vient du jeton — voir l'encadré des commandes voisines.
-/// </summary>
+/// <summary>Mon dossier. `UserId` vient du jeton — voir l'encadré des commandes voisines.</summary>
 public sealed record GetMyDriverAccountQuery(Guid UserId) : IQuery<DriverAccountDto>;
 
 /// <summary>Un dossier vu par l'exploitation ou par le port interne.</summary>
 public sealed record GetDriverAccountQuery(Guid DriverId) : IQuery<DriverAccountDto>;
 
-/// <summary>
-/// La file de vérification.
-///
-/// SANS CETTE LECTURE, LA VÉRIFICATION EST INAPPLICABLE : un livreur s'inscrit,
-/// personne n'est alerté, et le seul moyen de le retrouver serait de connaître son
-/// identifiant — que lui seul possède. Une route « vérifier ce dossier » sans
-/// route « qui attend ? » est un bouton sans liste.
-/// </summary>
+/// <summary>La file de vérification.</summary>
 public sealed record ListDriverAccountsQuery(DriverVerificationStatus Status, int Take = 100)
     : IQuery<IReadOnlyList<DriverAccountDto>>;
 
@@ -102,8 +93,7 @@ internal sealed class DriverAccountQueryHandler
         }
 
         // Le type demandé arrive EN TEXTE : c'est le contrat interne, et un
-        // appelant n'a pas à connaître nos valeurs numériques. Un type inconnu
-        // n'est pas une erreur de l'appelant — c'est simplement « non ».
+        // appelant n'a pas à connaître nos valeurs numériques.
         if (!string.IsNullOrWhiteSpace(query.RequiredVehicleType)
             && !string.Equals(vehicle.Type.ToString(), query.RequiredVehicleType, StringComparison.OrdinalIgnoreCase))
         {
@@ -147,8 +137,6 @@ internal sealed class DriverAccountQueryHandler
                 vehicle.CapacityKg))
             .ToList(),
 
-        // Rendu au livreur pour qu'il sache QUOI déposer. Sans cette liste,
-        // l'écran ne peut afficher que « dossier incomplet », et le livreur
-        // redépose au hasard.
+        // Rendu au livreur pour qu'il sache QUOI déposer.
         DriverDocumentPolicy.MissingRequired(account.Documents.Select(document => document.Type)));
 }

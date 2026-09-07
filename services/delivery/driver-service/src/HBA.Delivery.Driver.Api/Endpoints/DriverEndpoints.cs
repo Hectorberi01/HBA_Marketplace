@@ -7,56 +7,7 @@ using MediatR;
 
 namespace HBA.Drivers.Api.Endpoints;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA SURFACE DU LIVREUR SUR SON PROPRE DOSSIER.
-///
-/// CE QUI ÉTAIT CASSÉ, ET CE N'ÉTAIT PAS UN DÉTAIL (ISSUE-029, CRITICAL).
-///
-/// Les six routes `/api/v1/drivers/me*` prenaient toutes `store.DefaultDriverId`,
-/// un GUID codé en dur dans `DriverStore`. Autrement dit : TOUS LES LIVREURS
-/// ÉTAIENT LE MÊME LIVREUR. Le livreur A lisait le dossier de B, modifiait son
-/// numéro de téléphone, déclarait un véhicule à sa place et voyait ses courses.
-/// Aucune route n'ouvrait le `ClaimsPrincipal` — le service savait qui appelait
-/// et ne s'en servait pas.
-///
-/// LA CORRECTION N'EST PAS « VÉRIFIER L'IDENTIFIANT REÇU ».
-///
-/// C'est le raisonnement écrit dans `FinancialEndpoints.cs` autour des routes
-/// `/me`, et il vaut ici mot pour mot : le propriétaire du dossier EST
-/// l'utilisateur du jeton, il n'y a donc aucun lien à vérifier et surtout aucune
-/// surface où il faudrait le vérifier. Aucune de ces routes ne prend
-/// d'identifiant de livreur, ni en paramètre, ni dans le corps. Un identifiant
-/// accepté puis « vérifié » dépend d'une garde qu'il suffit d'oublier une fois —
-/// c'est la faille ISSUE-017/018, refermée à la vague 1 et rouverte deux fois
-/// depuis.
-///
-/// CE GROUPE N'EXIGE PAS LE RÔLE `Driver`, ET C'EST DÉLIBÉRÉ.
-///
-/// `ApiAuthorization` explique pourquoi : le rôle est semé mais n'est attribué
-/// qu'À LA VÉRIFICATION du dossier. L'exiger ici fermerait la porte à
-/// l'inscription elle-même — un candidat livreur ne peut pas être livreur avant
-/// d'avoir déposé ses pièces. La garde est donc l'appartenance : sans dossier,
-/// ces routes rendent 404.
-///
-/// CE QUI A DISPARU DE CE FICHIER, ET OÙ C'EST PARTI.
-///
-///   • `POST /me/availability` et `GET /me/deliveries` : la disponibilité et le
-///     carnet de courses vivent dans `deliveries.drivers`, chez delivery-service,
-///     et c'est LUI que le dispatch lit. Les tenir ici aurait donné deux
-///     écrivains sur un même fait, dont l'un — celui qui décide de proposer une
-///     course — aurait toujours lu l'autre avec retard. Elles sont désormais sous
-///     `/api/deliveries/mine` (voir `DriverDeliveryEndpoints`).
-///
-///   • Le groupe `/internal/v1/drivers` : il n'était protégé que par la politique
-///     de repli, c'est-à-dire par « un jeton, n'importe lequel ». Tout compte
-///     authentifié pouvait donc lire le dossier d'un livreur par son identifiant,
-///     et surtout appeler `POST /{driverId}/busy-state` pour rendre un livreur
-///     occupé — donc l'exclure du dispatch. Le transport interne de ce dépôt est
-///     gRPC, dont l'interception à clé partagée est une VRAIE garde (voir
-///     `InternalRoutes`). Ces routes ont été retirées, pas déplacées.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA SURFACE DU LIVREUR SUR SON PROPRE DOSSIER.</summary>
 public static class DriverEndpoints
 {
     public static IEndpointRouteBuilder MapDriverEndpoints(this IEndpointRouteBuilder app)
@@ -72,20 +23,7 @@ public static class DriverEndpoints
         me.MapPost("/documents", SubmitDocumentAsync).WithName("SubmitMyDriverDocument");
         me.MapPost("/verification", SubmitDossierAsync).WithName("SubmitMyDriverDossier");
 
-        // ═════════════════════════════════════════════════════════════════════
         // LA VÉRIFICATION EST UNE DÉCISION DE LA PLATEFORME, PAS DU LIVREUR.
-        //
-        // AVANT CE LOT, ELLE N'EXISTAIT NULLE PART : `DriverStore` naissait
-        // avec un livreur déjà « VERIFIED » et aucune route ne pouvait changer
-        // cet état. « Vérifié » ne voulait donc rien dire, et la seule garde du
-        // dispatch — `AccountStatus is Active` — était toujours satisfaite.
-        //
-        // Ces routes portent un `driverId` dans l'URL, et ce n'est PAS une
-        // entorse à la règle du jeton : l'appelant n'est pas le titulaire du
-        // dossier, il l'arbitre. Il n'y a rien à déduire de son jeton. La
-        // protection est le rôle, exactement comme les files d'administration
-        // de `FinancialEndpoints`.
-        // ═════════════════════════════════════════════════════════════════════
         var admin = app.MapAdminGroup("/api/v1/admin/drivers").WithTags("Drivers · Exploitation");
 
         admin.MapGet("/", ListAsync).WithName("ListDriverAccounts");
@@ -168,8 +106,7 @@ public static class DriverEndpoints
         }
 
         // RENDU AVEC LA LISTE DES PIÈCES MANQUANTES, pas seulement les pièces
-        // déposées. Sans elle, l'écran livreur ne peut afficher que « dossier
-        // incomplet » et le livreur redépose au hasard.
+        // déposées.
         return (await sender.Send(new GetMyDriverAccountQuery(userId), ct))
             .Match(account => Results.Ok(new { account.Documents, account.MissingDocuments }));
     }
@@ -220,12 +157,7 @@ public static class DriverEndpoints
         => (await sender.Send(new SuspendDriverCommand(driverId, request.Reason), ct))
             .Match(() => Results.NoContent());
 
-    /// <summary>
-    /// L'identité de l'appelant, et rien d'autre. Copie assumée de
-    /// `FinancialEndpoints.CurrentUserId` et de ses six jumelles : ces six lignes
-    /// n'ont jamais été factorisées dans ce dépôt, et les factoriser maintenant
-    /// serait un changement transverse sans rapport avec le défaut corrigé ici.
-    /// </summary>
+    /// <summary>L'identité de l'appelant, et rien d'autre.</summary>
     private static Guid? CurrentUserId(ClaimsPrincipal principal)
     {
         var raw = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal.FindFirstValue("sub");
@@ -244,13 +176,7 @@ public static class DriverEndpoints
     public sealed record DeclareVehicleRequest(
         DriverVehicleType Type, string? Make, string? Model, string? Plate, decimal? CapacityKg);
 
-    /// <summary>
-    /// `ObjectKey` désigne un objet déjà déposé chez media-service.
-    ///
-    /// NI SON EXISTENCE NI SON PROPRIÉTAIRE NE SONT VÉRIFIÉS — voir l'encadré
-    /// de `DriverDocument`. Un livreur peut donc présenter la clé du permis d'un
-    /// autre. La vérification humaine est le seul contrôle en place.
-    /// </summary>
+    /// <summary>`ObjectKey` désigne un objet déjà déposé chez media-service.</summary>
     public sealed record SubmitDriverDocumentRequest(DriverDocumentType Type, string? ObjectKey);
 
     public sealed record DecisionRequest(string? Reason);

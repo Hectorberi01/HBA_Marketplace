@@ -8,15 +8,7 @@ using HBA.Financial.Payments.Application.Abstractions.Gateways;
 
 namespace HBA.Financial.Payments.Infrastructure.Gateways.Real;
 
-/// <summary>
-/// Adaptateur Stripe RÉEL (API REST). Authentification par clé secrète (Bearer),
-/// Checkout Session (redirection) ou PaymentIntent (client secret), statut par
-/// GET, et vérification de webhook selon le schéma natif Stripe
-/// (en-tête « Stripe-Signature : t=…,v1=… »).
-///
-/// Renseigne « Payments:Stripe:ApiKey » (clé secrète sk_…) pour activer cet
-/// adaptateur à la place du stub.
-/// </summary>
+/// <summary>Adaptateur Stripe RÉEL (API REST).</summary>
 public sealed class StripeHttpGateway : HttpPaymentGatewayBase
 {
     // Devises « zéro décimale » : le montant est l'entier tel quel (pas ×100).
@@ -73,7 +65,8 @@ public sealed class StripeHttpGateway : HttpPaymentGatewayBase
 
     public override async Task<GatewayEvent> GetStatusAsync(string providerReference, CancellationToken ct = default)
     {
-        // La référence est soit une session Checkout (cs_…), soit un PaymentIntent (pi_…).
+        // La référence est soit une session Checkout (cs_…), soit un PaymentIntent
+        // (pi_…).
         var path = providerReference.StartsWith("cs_", StringComparison.Ordinal)
             ? $"v1/checkout/sessions/{providerReference}"
             : $"v1/payment_intents/{providerReference}";
@@ -101,10 +94,6 @@ public sealed class StripeHttpGateway : HttpPaymentGatewayBase
         catch (HttpRequestException ex)
         {
             // CE CATCH FAISAIT PASSER UN TIMEOUT POUR UN REFUS DE STRIPE.
-            //
-            // Le message d'erreur était le même dans les deux cas, et l'appelant ne
-            // pouvait donc pas décider s'il fallait rejouer. `Transient: true` le
-            // dit : Stripe n'a pas répondu, il n'a rien refusé.
             return new GatewayRefundResult(Success: false, providerReference, ex.Message, Transient: true);
         }
     }
@@ -135,7 +124,10 @@ public sealed class StripeHttpGateway : HttpPaymentGatewayBase
         }
     }
 
-    /// <summary>Vérifie l'en-tête « Stripe-Signature » (t=…,v1=…) puis normalise l'événement.</summary>
+    /// <summary>
+    /// Vérifie l'en-tête « Stripe-Signature » (t=…,v1=…) puis normalise
+    /// l'événement.
+    /// </summary>
     public override Task<GatewayEvent> ParseWebhookAsync(string rawBody, string? signatureHeader, CancellationToken cancellationToken = default)
     {
         if (!VerifyStripeSignature(rawBody, signatureHeader))
@@ -152,12 +144,6 @@ public sealed class StripeHttpGateway : HttpPaymentGatewayBase
             var outcome = MapOutcome(type);
 
             // SANS CE MONTANT, UN `charge.refunded` PARTIEL CLÔTURAIT LA COMMANDE.
-            //
-            // Stripe publie `charge.refunded` aussi bien pour un remboursement
-            // partiel que total, et l'objet porte `amount_refunded` : le CUMUL
-            // remboursé sur la charge, en unités mineures. C'est un cumul, pas le
-            // montant du dernier remboursement — d'où `TotalRefundedAmount` et non
-            // `RefundAmount`. L'imputation se fera par différence.
             decimal? cumulRembourse = null;
             string? devise = null;
             if (outcome == GatewayOutcome.Refunded
@@ -188,16 +174,6 @@ public sealed class StripeHttpGateway : HttpPaymentGatewayBase
         }
     }
 
-    /// <remarks>
-    /// CE TEST RENVOYAIT `true` — « sandbox permissif » — SUR SECRET VIDE.
-    ///
-    /// La route du webhook est `AllowAnonymous` depuis qu'on a admis qu'un PSP
-    /// ne présente pas de jeton. Un Stripe déclaré sans son
-    /// `Payments:Stripe:WebhookSecret` acceptait donc n'importe quel POST
-    /// anonyme comme un encaissement authentique. Le passage est désormais
-    /// arbitré par `GatewayWebhook.AllowUnsignedWhenSecretMissing`, faux par
-    /// défaut.
-    /// </remarks>
     private bool VerifyStripeSignature(string rawBody, string? signatureHeader)
     {
         if (string.IsNullOrEmpty(_options.WebhookSecret))
@@ -259,17 +235,8 @@ public sealed class StripeHttpGateway : HttpPaymentGatewayBase
     };
 
     /// <summary>
-    /// SUR UN `charge.refunded`, `data.object.id` EST UN `ch_…`, ET NOUS
-    /// STOCKONS UN `pi_…` : LE REMBOURSEMENT NE CORRÉLAIT AVEC AUCUN PAIEMENT.
-    ///
-    /// `ProviderReference` vaut la session Checkout ou le PaymentIntent. L'objet
-    /// d'un événement de charge porte, lui, l'identifiant de la CHARGE — que nous
-    /// n'avons nulle part. `GetByProviderReferenceAsync` ne trouvait donc rien, et
-    /// le webhook était acquitté en silence (« paiement inconnu »).
-    ///
-    /// On préfère `payment_intent` quand l'objet le porte — c'est le cas des
-    /// objets Charge et Refund — et on retombe sur `id` pour les objets qui SONT
-    /// la session ou l'intention.
+    /// SUR UN `charge.refunded`, `data.object.id` EST UN `ch_…`, ET NOUS STOCKONS
+    /// UN `pi_…` : LE REMBOURSEMENT NE CORRÉLAIT AVEC AUCUN PAIEMENT.
     /// </summary>
     protected override string? ExtractReference(JsonElement root)
     {
@@ -288,8 +255,7 @@ public sealed class StripeHttpGateway : HttpPaymentGatewayBase
 
     /// <summary>
     /// Inverse de <see cref="FormatAmount"/> : ramène un montant Stripe en unités
-    /// mineures vers l'unité majeure du domaine. Les devises « zéro décimale » —
-    /// dont le XOF, celle de la plateforme — ne sont PAS divisées.
+    /// mineures vers l'unité majeure du domaine.
     /// </summary>
     private static decimal FromMinorUnits(long minor, string? currency)
         => currency is not null && ZeroDecimalCurrencies.Contains(currency)

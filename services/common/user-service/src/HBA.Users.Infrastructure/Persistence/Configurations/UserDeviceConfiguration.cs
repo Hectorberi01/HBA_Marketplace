@@ -21,15 +21,6 @@ public sealed class UserDeviceConfiguration : IEntityTypeConfiguration<UserDevic
         builder.Property(d => d.LastSeenAtUtc).IsRequired();
 
         // UNICITÉ SUR LE COUPLE, PAS SUR LE JETON SEUL.
-        //
-        // Le jeton seul serait faux : un fournisseur réattribue un jeton après
-        // réinstallation, et la contrainte refuserait alors l'enregistrement du
-        // nouveau propriétaire. Le UserId seul serait faux aussi : un utilisateur a
-        // légitimement un téléphone et une tablette.
-        //
-        // C'est cette contrainte qui rend le « rafraîchir au lieu de dupliquer » du
-        // handler VÉRIFIABLE : si la lecture préalable rate une concurrence, la base
-        // refuse la seconde insertion au lieu de créer un doublon silencieux.
         builder.HasIndex(d => new { d.UserId, d.PushToken })
             .IsUnique()
             .HasDatabaseName("ux_devices_user_push_token");

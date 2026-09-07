@@ -5,16 +5,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Food.Application.Staff;
 
-/// <summary>
-/// Le personnel d'un restaurant.
-///
-/// RÉSERVÉE À QUI PEUT GÉRER LE PERSONNEL, ET LE CONTRÔLE EST FAIT ICI.
-///
-/// Cette liste nomme des comptes, des rôles et des droits. Un cuisinier qui la
-/// lirait saurait qui est caissier, qui est manager, et qui vient d'être
-/// rétrogradé. Le cahier (§2) est explicite : « un KitchenStaff ne doit jamais
-/// voir les données administratives du restaurant ».
-/// </summary>
+/// <summary>Le personnel d'un restaurant.</summary>
 public sealed record ListStaffQuery(Guid RestaurantId, Guid ActorUserId)
     : IQuery<IReadOnlyList<StaffMemberSummary>>;
 
@@ -31,8 +22,8 @@ internal sealed class StaffQueryHandler : IQueryHandler<ListStaffQuery, IReadOnl
 
         if (acteur is null || !acteur.Has(FoodPermission.StaffManage))
         {
-            // Même réponse dans les deux cas : dire « vous n'avez pas le droit »
-            // à quelqu'un d'extérieur confirmerait que l'établissement existe.
+            // Même réponse dans les deux cas : dire « vous n'avez pas le droit » à
+            // quelqu'un d'extérieur confirmerait que l'établissement existe.
             return Result.Failure<IReadOnlyList<StaffMemberSummary>>(Error.Forbidden(
                 "food.staff.forbidden", "Vous n'êtes pas habilité à consulter le personnel."));
         }
@@ -40,8 +31,8 @@ internal sealed class StaffQueryHandler : IQueryHandler<ListStaffQuery, IReadOnl
         var membres = await _staff.ListByRestaurantAsync(query.RestaurantId, cancellationToken);
 
         IReadOnlyList<StaffMemberSummary> vues = membres
-            // Les propriétaires d'abord, puis la cuisine : l'ordre du rôle est
-            // déjà une hiérarchie, autant l'utiliser. Les partis en dernier.
+            // Les propriétaires d'abord, puis la cuisine : l'ordre du rôle est déjà
+            // une hiérarchie, autant l'utiliser.
             .OrderBy(m => m.IsActive ? 0 : 1)
             .ThenBy(m => m.Role)
             .ThenBy(m => m.CreatedOnUtc)

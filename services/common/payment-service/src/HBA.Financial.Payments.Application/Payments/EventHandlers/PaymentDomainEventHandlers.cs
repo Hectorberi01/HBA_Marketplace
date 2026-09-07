@@ -33,21 +33,7 @@ public sealed class PaymentCapturedDomainEventHandler : IDomainEventHandler<Paym
                 OrderId = domainEvent.OrderId,
                 OrderType = domainEvent.OrderType,
 
-                // ═════════════════════════════════════════════════════════════
                 // CES TROIS VALEURS ÉTAIENT DÉJÀ LÀ, TROIS LIGNES PLUS HAUT.
-                //
-                // `_metrics.Success` les consomme pour le compteur, puis cet
-                // événement partait sans elles. Ce n'était donc pas une donnée à
-                // aller chercher — c'était une donnée à ne pas jeter, et son
-                // absence rendait « quel fournisseur nous coûte des ventes ce
-                // mois-ci » sans réponse.
-                //
-                // LA MÉTRIQUE NE REMPLACE PAS L'ÉVÉNEMENT. Elle est agrégée à la
-                // seconde par le collecteur, sans identifiant : on n'en tire ni
-                // série journalière durable, ni recalcul après coup. C'est ce que
-                // le roll-up d'analytics fait, et il lui faut le fait, pas le
-                // compteur.
-                // ═════════════════════════════════════════════════════════════
                 Provider = domainEvent.Provider,
                 Amount = domainEvent.Amount,
                 Currency = domainEvent.Currency,
@@ -80,10 +66,9 @@ public sealed class PaymentFailedDomainEventHandler : IDomainEventHandler<Paymen
                 OrderType = domainEvent.OrderType,
                 Reason = domainEvent.Reason,
 
-                // MÊMES TROIS CHAMPS QUE SUR LA CAPTURE, ET C'EST LA CONDITION
-                // POUR QUE LE TAUX D'ÉCHEC EXISTE : un taux se calcule sur deux
-                // séries comparables. Les porter d'un seul côté donnerait un
-                // numérateur sans dénominateur.
+                // MÊMES TROIS CHAMPS QUE SUR LA CAPTURE, ET C'EST LA CONDITION POUR
+                // QUE LE TAUX D'ÉCHEC EXISTE : un taux se calcule sur deux séries
+                // comparables.
                 Provider = domainEvent.Provider,
                 Amount = domainEvent.Amount,
                 Currency = domainEvent.Currency,
@@ -152,15 +137,7 @@ public sealed class PaymentRefundFailedDomainEventHandler : IDomainEventHandler<
 }
 
 
-/// <summary>
-/// Publie `payment.created` du §10.12. L'événement manquait : rien ne signalait
-/// qu'une intention de paiement avait été ouverte, seulement son issue.
-///
-/// Il n'a pas de consommateur aujourd'hui, et c'est assumé — il porte la piste
-/// d'audit du parcours de paiement, celle qui permet de compter les intentions
-/// abandonnées. Publier un fait n'oblige personne à l'écouter ; ne pas le publier
-/// prive tout le monde du choix.
-/// </summary>
+/// <summary>Publie `payment.created` du §10.12.</summary>
 public sealed class PaymentInitiatedDomainEventHandler : IDomainEventHandler<PaymentInitiatedDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;

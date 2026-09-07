@@ -5,61 +5,13 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Application.Orders.Commands;
 using HBA.Orders.Domain.Orders;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Orders.Application.Orders.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Orders.Application.Orders;
 using HBA.Orders.Application.Orders.EventHandlers;
 
 namespace HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// Le remboursement d'un retour est parti → la commande en garde la trace.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// SANS CE GESTIONNAIRE, LE MÊME ARTICLE SE REMBOURSE INDÉFINIMENT (ISSUE-014).
-///
-/// `OrderingModuleApi.GetOrderReturnContextAsync` est la lecture sur laquelle
-/// return-refund fonde CHAQUE ouverture de dossier et CHAQUE plafond de
-/// remboursement. Elle répondait `AlreadyReturnedQuantity: 0` et
-/// `AlreadyRefundedAmount: 0m` en dur, faute de la moindre source : order-service
-/// ne possède pas les retours. Chaque nouvelle demande repartait donc de zéro,
-/// et les deux garde-fous de return-refund — quantité encore retournable, plafond
-/// de la commande — s'exécutaient sur des valeurs fausses.
-///
-/// Ce gestionnaire est le fil qui manquait. Il est branché sur l'événement du
-/// versement ABOUTI, pas sur celui de la décision : `ReturnRefundApproved`
-/// annonce une intention, que rien ne garantit d'aboutir. Imputer la marchandise
-/// dès la décision fermerait le plafond d'un client dont le remboursement finit
-/// par échouer chez l'opérateur.
-///
-/// CE QUE CELA NE FERME PAS, ET OÙ C'EST FERMÉ.
-///
-/// Entre la décision et le versement, order-service ne voit rien : deux dossiers
-/// ouverts en parallèle sur la même ligne passeraient tous deux ce contrôle-ci.
-/// Cette fenêtre appartient à return-refund, qui possède ses propres dossiers en
-/// cours et les compte — voir `CreateReturnCommandHandler`.
-///
-/// L'IDEMPOTENCE N'EST PAS ICI, ET ELLE EST DOUBLE.
-///
-/// La trace d'inbox est posée par `IntegrationEventDispatcher` avant l'appel et
-/// committée par le `SaveChanges` de la commande. Et l'agrégat, lui, POSE des
-/// valeurs cumulées au lieu de les additionner : même sans inbox, un rejeu
-/// n'impute rien de plus.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Le remboursement d'un retour est parti → la commande en garde la trace.</summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Orders.Application.Orders.EventHandlers.RecordReturnSettlementOnRefundHandler")]
 public sealed class RecordReturnSettlementOnRefundHandler
     : IIntegrationEventHandler<ReturnRefundedIntegrationEvent>
@@ -78,13 +30,6 @@ public sealed class RecordReturnSettlementOnRefundHandler
         ReturnRefundedIntegrationEvent e, CancellationToken cancellationToken = default)
     {
         // ZÉRO SIGNIFIE « INCONNU », PAS « RIEN ».
-        //
-        // `ReturnTotalRefundedAmount` est un champ AJOUTÉ (décision D32, additive) :
-        // un producteur antérieur à la correction ne le remplit pas. Retomber sur
-        // `RefundAmount` — le montant de CE versement — vaut alors mieux que de
-        // n'imputer aucun montant : c'est exact tant que le dossier n'a versé
-        // qu'une fois, ce qui est le cas de tous les dossiers d'aujourd'hui
-        // (`MarkRefundSucceeded` clôt le dossier en `Refunded`).
         var total = e.ReturnTotalRefundedAmount > 0m ? e.ReturnTotalRefundedAmount : e.RefundAmount;
 
         var lignes = e.Lines
@@ -94,8 +39,7 @@ public sealed class RecordReturnSettlementOnRefundHandler
         if (lignes.Count == 0)
         {
             // Le montant sera imputé, les quantités non : le plafond de la commande
-            // se referme, mais la ligne restera retournable. C'est le seul cas où
-            // ISSUE-014 demeure partiellement ouvert, et il se voit.
+            // se referme, mais la ligne restera retournable.
             _logger.LogWarning(
                 "Remboursement de retour {Retour} sur la commande {Commande} sans détail de lignes : "
                 + "le montant est imputé, les quantités retournées ne le sont pas.",
@@ -109,15 +53,6 @@ public sealed class RecordReturnSettlementOnRefundHandler
         if (resultat.IsFailure)
         {
             // ON LÈVE, ET C'EST VOULU.
-            //
-            // L'exception traverse le dispatcher : ni l'effet ni la trace d'inbox
-            // ne sont committés, et le message est rejoué. Avaler l'échec ici
-            // laisserait la commande croire que rien n'est jamais revenu — soit
-            // exactement le défaut que ce gestionnaire existe pour fermer.
-            //
-            // Le seul échec attendu est « commande introuvable », qui ne peut
-            // venir que d'une base incohérente : un retour existe forcément sur
-            // une commande livrée.
             throw new InvalidOperationException(
                 $"Impossible d'inscrire le remboursement du retour {e.ReturnRequestId} "
                 + $"sur la commande {e.OrderId} : {resultat.Error.Code} — {resultat.Error.Message}");

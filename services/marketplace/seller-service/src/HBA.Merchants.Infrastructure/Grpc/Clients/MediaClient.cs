@@ -16,49 +16,12 @@ using ProtoVariant = HBA.Media.Grpc.V1.MediaVariantView;
 
 
 using ContratsMedia = HBA.Media.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
-// COPIE DEPUIS `HBA.Media.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
-//
-// `shared/` ne contient plus que les `.proto`. Ce service compile lui-meme le
-// contrat dont il a besoin, et porte donc sa propre traduction.
-//
-// LES TYPES GENERES SONT `internal` A CET ASSEMBLAGE. Deux services qui
-// compilent le meme proto obtiennent deux types CLR distincts ; les rendre
-// publics ferait, dans un hote compose, deux types publics du meme nom complet —
-// CS0433, a l'usage, loin de la cause. Les adaptateurs et mappings sont donc
-// `internal` eux aussi : un type public dont la signature expose un type interne
-// ne compile pas.
-//
-// CE QUE ÇA COUTE : cette traduction existe en 4 exemplaires dans le depot,
-// un par service qui appelle ce domaine. Elles sont identiques aujourd'hui et
-// rien n'empeche qu'elles divergent. C'est le prix de l'autonomie par service,
-// paye ici en connaissance de cause.
-// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Media.Contracts.Grpc` (lot D — dissolution des assemblages de
+// contrats).
 
 namespace HBA.Merchants.Infrastructure.Grpc.Clients;
 
-/// <summary>
-/// Côté CLIENT : implémente <see cref="IMediaModuleApi"/> par gRPC.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// C'EST CETTE CLASSE QUI PRÉSERVE LES 36 SITES D'APPEL.
-///
-/// Le code applicatif continue d'écrire `_media.GetAsync(id, ct)` exactement
-/// comme dans le monolithe. Le transport change, l'appelant non — et c'est ce
-/// qui rend l'extraction réversible : rebrancher l'implémentation en processus
-/// se fait par une ligne d'enregistrement DI.
-///
-/// AUCUNE EXCEPTION gRPC N'EST AVALÉE ICI.
-///
-/// La tentation est d'attraper `RpcException` et de rendre `null` : l'appelant
-/// ne verrait plus la différence entre « ce média n'existe pas » et
-/// « media-service est à terre ». Une galerie afficherait alors des images
-/// manquantes au lieu d'un message d'indisponibilité, et l'incident resterait
-/// invisible. La politique de résilience — délai, disjoncteur — se pose à
-/// l'enregistrement du client, pas ici.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Côté CLIENT : implémente <see cref="IMediaModuleApi"/> par gRPC.</summary>
 internal sealed class MediaGrpcClient : IMediaModuleApi
 {
     private readonly MediaApi.MediaApiClient _client;
@@ -77,9 +40,7 @@ internal sealed class MediaGrpcClient : IMediaModuleApi
     public async Task<IReadOnlyList<ContratsMedia.MediaView>> GetManyAsync(
         IReadOnlyList<Guid> mediaIds, CancellationToken cancellationToken = default)
     {
-        // Un lot vide ne justifie pas un aller-retour réseau. Le monolithe rendait
-        // une liste vide sans rien faire ; l'appelant ne doit pas payer la
-        // différence.
+        // Un lot vide ne justifie pas un aller-retour réseau.
         if (mediaIds.Count == 0)
         {
             return [];
@@ -116,18 +77,7 @@ internal sealed class MediaGrpcClient : IMediaModuleApi
 
 internal static class MediaGrpcRegistration
 {
-    /// <summary>
-    /// Branche <see cref="IMediaModuleApi"/> sur media-service, en gRPC.
-    /// </summary>
-    /// <remarks>
-    /// L'ADRESSE VIENT DE `Services:Media`, COMME POUR LA PASSERELLE.
-    ///
-    /// Une seconde clé de configuration pour la même destination finirait par
-    /// diverger : le proxy et le BFF taperaient sur deux instances différentes du
-    /// même service, avec des données distinctes selon le chemin emprunté. Seul
-    /// le PORT change — gRPC écoute ailleurs que REST, faute de TLS pour
-    /// négocier le protocole.
-    /// </remarks>
+    /// <summary>Branche <see cref="IMediaModuleApi"/> sur media-service, en gRPC.</summary>
     public static IServiceCollection AddMediaGrpcClient(
         this IServiceCollection services, IConfiguration configuration)
     {
@@ -145,14 +95,7 @@ internal static class MediaGrpcRegistration
             .AjouterLesInterceptionsInternes()
             .ConfigureChannel(channel =>
             {
-                // Plafond de taille de réponse. Le défaut gRPC est déjà de 4 Mo ;
-                // on le fixe explicitement pour que la valeur soit lisible ici
-                // plutôt que d'être une surprise le jour où une galerie de deux
-                // cents médias dépassera.
-                //
-                // L'ÉCHÉANCE, elle, n'est pas ici : elle se pose par appel et
-                // relève de `InternalCallClientInterceptor`, qui l'applique à tous
-                // les clients d'un coup.
+                // Plafond de taille de réponse.
                 channel.MaxReceiveMessageSize = 4 * 1024 * 1024;
             });
 

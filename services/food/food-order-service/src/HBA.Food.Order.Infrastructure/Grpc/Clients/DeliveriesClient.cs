@@ -13,24 +13,8 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using ContratsDeliveries = HBA.Deliveries.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
-// COPIE DEPUIS `HBA.Deliveries.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
-//
-// `shared/` ne contient plus que les `.proto`. Ce service compile lui-meme le
-// contrat dont il a besoin, et porte donc sa propre traduction.
-//
-// LES TYPES GENERES SONT `internal` A CET ASSEMBLAGE. Deux services qui
-// compilent le meme proto obtiennent deux types CLR distincts ; les rendre
-// publics ferait, dans un hote compose, deux types publics du meme nom complet —
-// CS0433, a l'usage, loin de la cause. Les adaptateurs et mappings sont donc
-// `internal` eux aussi : un type public dont la signature expose un type interne
-// ne compile pas.
-//
-// CE QUE ÇA COUTE : cette traduction existe en 6 exemplaires dans le depot,
-// un par service qui appelle ce domaine. Elles sont identiques aujourd'hui et
-// rien n'empeche qu'elles divergent. C'est le prix de l'autonomie par service,
-// paye ici en connaissance de cause.
-// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Deliveries.Contracts.Grpc` (lot D — dissolution des assemblages
+// de contrats).
 
 namespace HBA.FoodOrders.Infrastructure.Grpc.Clients;
 
@@ -38,24 +22,6 @@ namespace HBA.FoodOrders.Infrastructure.Grpc.Clients;
 /// Le moteur logistique vu depuis un donneur d'ordre — order-service ou
 /// food-service.
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE PROJET NE CONTIENT QUE LE CLIENT. LE SERVEUR VIT DANS delivery-service.
-///
-/// Les autres contrats gRPC de la plateforme hébergent les deux côtés ici, parce
-/// qu'ils ne font que LIRE : un `IXxxModuleApi` suffit, et il est déclaré dans
-/// un projet `*.Contracts` sans dépendance.
-///
-/// Celui-ci ÉCRIT. Servir `CreateDelivery` demande d'envoyer un
-/// `CreateDeliveryCommand` par MediatR, donc de référencer la couche Application
-/// de delivery-service. Placer cela dans `shared` ferait dépendre le socle
-/// partagé de l'intérieur d'un service — et n'importe quel autre service tirerait
-/// cette dépendance en référençant le client.
-///
-/// Le serveur est donc dans `HBA.Deliveries.Api/Grpc/`, où l'Application est
-/// légitimement accessible.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 internal sealed class DeliveryGrpcClient : ContratsDeliveries.IDeliveryModuleApi, ContratsDeliveries.IDeliveryDispatchApi
 {
     private readonly DeliveryApi.DeliveryApiClient _client;
@@ -121,17 +87,7 @@ internal sealed class DeliveryGrpcClient : ContratsDeliveries.IDeliveryModuleApi
 
     // ── Écriture ───────────────────────────────────────────────────────────
 
-    // ═════════════════════════════════════════════════════════════════════════
     // `RequestQuoteAsync` ET `LookupQuoteAsync` ONT ÉTÉ RETIRÉS D'ICI.
-    //
-    // Ils enveloppaient `DeliveryApi.GetQuote` et `DeliveryApi.LookupQuote`, deux
-    // RPC SANS CORPS DE SERVEUR. `LookupQuoteAsync` était le seul des deux à être
-    // appelé — par les deux checkouts — et il rendait `UNIMPLEMENTED`. Le devis
-    // étant obligatoire pour un repas, aucune commande de repas n'aboutissait.
-    //
-    // Le devis se demande et se relit maintenant chez delivery-pricing :
-    // `DeliveryQuoteLookupClient`, dans `HBA.DeliveryPricing.Contracts.Grpc`.
-    // ═════════════════════════════════════════════════════════════════════════
 
     public async Task<ContratsDeliveries.DeliveryCreationResult> CreateAsync(
         ContratsDeliveries.CreateDeliveryRequest request, CancellationToken cancellationToken = default)
@@ -154,11 +110,6 @@ internal sealed class DeliveryGrpcClient : ContratsDeliveries.IDeliveryModuleApi
         };
 
         // ON N'ENVOIE LA VALEUR DÉCLARÉE QUE SI ON EN A UNE.
-        //
-        // `declared_value` est `optional` : ne pas poser le champ et poser une
-        // chaîne vide sont DEUX choses différentes de l'autre côté. Le serveur
-        // teste `HasDeclaredValue`, et une chaîne vide passerait ce test pour
-        // échouer ensuite à l'analyse du montant.
         if (request.DeclaredValue is { } valeur)
         {
             message.DeclaredValue = Montant(valeur);
@@ -188,16 +139,7 @@ internal sealed class DeliveryGrpcClient : ContratsDeliveries.IDeliveryModuleApi
             Vide(response.ReasonCode));
     }
 
-    /// <summary>
-    /// Annule la course posée sous cette référence.
-    /// </summary>
-    /// <remarks>
-    /// AUCUNE EXCEPTION SUR « INTROUVABLE ».
-    ///
-    /// La plupart des commandes sont annulées avant confirmation, donc avant
-    /// qu'une course n'existe. Le serveur rend `found = false`, et l'appelant
-    /// n'a rien à faire — c'est le cas normal, pas un incident.
-    /// </remarks>
+    /// <summary>Annule la course posée sous cette référence.</summary>
     public async Task<ContratsDeliveries.DeliveryCancellationResult> CancelByReferenceAsync(
         string reference, string source, string? reason, CancellationToken cancellationToken = default)
     {
@@ -267,9 +209,6 @@ internal sealed class DeliveryGrpcClient : ContratsDeliveries.IDeliveryModuleApi
     }
 
     // CHAÎNE VIDE ET NULL SE CONFONDENT EN PROTOBUF3.
-    //
-    // Un champ absent arrive comme "". Rendre "" plutôt que null ferait afficher
-    // un nom de livreur vide là où l'interface doit dire « pas encore attribué ».
     private static string? Vide(string value) => string.IsNullOrEmpty(value) ? null : value;
 
     private static Guid ToGuid(string value) => Guid.TryParse(value, out var parsed) ? parsed : Guid.Empty;
@@ -277,11 +216,6 @@ internal sealed class DeliveryGrpcClient : ContratsDeliveries.IDeliveryModuleApi
     private static string Montant(decimal value) => value.ToString(CultureInfo.InvariantCulture);
 
     // LE LECTEUR DE MONTANTS A ÉTÉ RETIRÉ AVEC LES DEUX MÉTHODES DE DEVIS.
-    //
-    // Il ne servait qu'à `RequestQuoteAsync` et `LookupQuoteAsync`, partis chez
-    // delivery-pricing. Les seuls montants qui traversent encore ce client — poids
-    // du colis, valeur déclarée — sont ÉCRITS, jamais lus. Le laisser aurait été
-    // du code mort avec l'air d'une règle.
 
     private static DateTime? Horodatage(string? value)
         => DateTime.TryParse(
@@ -292,15 +226,7 @@ internal sealed class DeliveryGrpcClient : ContratsDeliveries.IDeliveryModuleApi
 
 internal static class DeliveryGrpcRegistration
 {
-    /// <summary>
-    /// Enregistre LES DEUX interfaces sur la même implémentation.
-    /// </summary>
-    /// <remarks>
-    /// La séparation lecture/écriture est une frontière de CONCEPTION, pas de
-    /// transport : elle dit qui a le droit de quoi, pas par où ça passe. Un
-    /// appelant qui n'injecte que <c>IDeliveryModuleApi</c> ne peut pas créer de
-    /// course, même si l'objet derrière en est capable.
-    /// </remarks>
+    /// <summary>Enregistre LES DEUX interfaces sur la même implémentation.</summary>
     public static IServiceCollection AddDeliveryGrpcClient(
         this IServiceCollection services, IConfiguration configuration)
     {

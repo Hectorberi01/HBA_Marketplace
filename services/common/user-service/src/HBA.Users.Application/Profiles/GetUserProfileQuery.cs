@@ -4,13 +4,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Users.Application.Profiles;
 
-/// <summary>
-/// Le profil tel qu'un client le voit.
-///
-/// <c>DisplayName</c> est SERVI, pas laissé à calculer : sans lui, l'application
-/// mobile, le site et la console d'administration écriraient chacun leur
-/// concaténation — et l'une d'elles mettrait le nom avant le prénom.
-/// </summary>
+/// <summary>Le profil tel qu'un client le voit.</summary>
 public sealed record UserProfileDto(
     Guid UserId,
     string FirstName,
@@ -36,11 +30,6 @@ internal sealed class GetUserProfileQueryHandler : IQueryHandler<GetUserProfileQ
         if (profile is null)
         {
             // ON NE FABRIQUE PAS UN PROFIL VIDE.
-            //
-            // Renvoyer un DTO aux champs nuls serait plus commode pour l'appelant,
-            // et cacherait exactement ce qu'on veut voir : un compte sans profil est
-            // une anomalie de reprise, pas un profil « pas encore rempli ». La
-            // migration les a tous créés ; s'il en manque un, il faut le savoir.
             return Result.Failure<UserProfileDto>(
                 Error.NotFound("users.profile.not_found", "Profil introuvable."));
         }

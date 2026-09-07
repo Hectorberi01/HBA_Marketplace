@@ -15,22 +15,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using HBA.Ordering.Contracts;
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Ordering.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Orders.Api.Grpc.Services;
 
@@ -71,15 +56,7 @@ internal sealed class OrderingGrpcService : Proto.OrderApi.OrderApiBase
         return response;
     }
 
-    /// <summary>
-    /// Le compteur de ventes, compté par la base.
-    /// </summary>
-    /// <remarks>
-    /// CE CORPS MANQUAIT, ET SON ABSENCE COÛTAIT LE COMPTEUR DE TOUS LES
-    /// VENDEURS — voir l'encadré du RPC dans `order.proto`. Il délègue à
-    /// `IOrderingModuleApi`, dont l'implémentation agrège en SQL : le filtre
-    /// « commande payée » vit ainsi à un seul endroit, des deux côtés du réseau.
-    /// </remarks>
+    /// <summary>Le compteur de ventes, compté par la base.</summary>
     public override async Task<Proto.GetSellerSalesCountResponse> GetSellerSalesCount(
         Proto.GetSellerSalesCountRequest request, ServerCallContext context)
     {

@@ -7,23 +7,9 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Food.Application.Menus;
 
-// ═══════════════════════════════════════════════════════════════════════════════
 // DEUX NIVEAUX, DEUX JEUX DE COMMANDES (cahier des charges §5).
-//
-//   • la CARTE — « Menu du midi », « Carte d'été » — porte les créneaux ;
-//   • la SECTION — « Entrées », « Plats » — porte les articles.
-//
-// Ce qui s'appelait « Menu » ici désignait une section. Le renommage n'est pas
-// cosmétique : tant qu'un seul mot servait aux deux, il n'existait aucun endroit
-// évident où poser les horaires de service d'une carte.
-// ═══════════════════════════════════════════════════════════════════════════════
 
-/// <summary>
-/// Les créneaux, en entrée. Dates au format « yyyy-MM-dd », heures « HH:mm ».
-///
-/// Tout est FACULTATIF : quatre champs vides décrivent la carte permanente, qui
-/// est de loin le cas le plus fréquent et ne doit rien coûter à saisir.
-/// </summary>
+/// <summary>Les créneaux, en entrée. Dates au format « yyyy-MM-dd », heures « HH:mm ».</summary>
 public sealed record ServingWindowInput(
     string? AvailableFrom, string? AvailableUntil, string? StartTime, string? EndTime);
 
@@ -35,13 +21,7 @@ public sealed record CreateMenuCommand(
 public sealed record RenameMenuCommand(
     Guid RestaurantId, Guid MenuId, string Name, string? Description) : ICommand;
 
-/// <summary>
-/// Fixe QUAND la carte est servie.
-///
-/// C'est la commande qui justifie tout le second niveau : sans elle, un maquis
-/// proposant un menu ouvrier à midi et une carte complète le soir devait masquer
-/// et démasquer des sections à la main, deux fois par jour, tous les jours.
-/// </summary>
+/// <summary>Fixe QUAND la carte est servie.</summary>
 public sealed record SetMenuWindowCommand(
     Guid RestaurantId, Guid MenuId, ServingWindowInput Window) : ICommand;
 
@@ -49,16 +29,7 @@ public sealed record SetMenuVisibilityCommand(Guid RestaurantId, Guid MenuId, bo
 
 public sealed record ReorderMenuCommand(Guid RestaurantId, Guid MenuId, int DisplayOrder) : ICommand;
 
-/// <summary>
-/// Supprime une carte.
-///
-/// REFUSÉE TANT QU'ELLE CONTIENT DES SECTIONS — même raison, un cran plus
-/// haut, que le refus de supprimer une section garnie : les sections référencent
-/// la carte sans lui appartenir. La supprimer ne les supprime pas, elle les
-/// ORPHELINE — et la projection de la carte parcourt les CARTES puis rattache les
-/// sections. Une section sans carte disparaît des deux vues, celle du client
-/// comme celle du restaurateur, avec tous ses articles.
-/// </summary>
+/// <summary>Supprime une carte.</summary>
 public sealed record DeleteMenuCommand(Guid RestaurantId, Guid MenuId) : ICommand;
 
 // ── Sections ────────────────────────────────────────────────────────────────
@@ -75,14 +46,7 @@ public sealed record SetCategoryVisibilityCommand(
 public sealed record ReorderCategoryCommand(
     Guid RestaurantId, Guid CategoryId, int DisplayOrder) : ICommand;
 
-/// <summary>
-/// Déplace une section vers une autre carte.
-///
-/// EMPORTE TOUS SES ARTICLES SANS EN TOUCHER UN SEUL : ils référencent la
-/// section, pas la carte. C'est le geste qui rend la bascule à deux niveaux
-/// utilisable — faire passer « Grillades » du midi au soir se fait en un appel,
-/// pas en quinze déplacements d'articles.
-/// </summary>
+/// <summary>Déplace une section vers une autre carte.</summary>
 public sealed record MoveCategoryCommand(Guid RestaurantId, Guid CategoryId, Guid MenuId) : ICommand;
 
 public sealed record DeleteCategoryCommand(Guid RestaurantId, Guid CategoryId) : ICommand;
@@ -92,11 +56,7 @@ public sealed record DeleteCategoryCommand(Guid RestaurantId, Guid CategoryId) :
 public sealed record CreateMenuItemCommand(
     Guid RestaurantId, Guid CategoryId, string Name, decimal BasePrice) : ICommand<Guid>;
 
-/// <param name="DisplayOrder">
-/// `null` LAISSE LE RANG INCHANGÉ. Voir `MenuItem.UpdateDetails` : le paramètre
-/// était non-nullable, et toute mise à jour de libellé remettait le plat en tête
-/// de sa section.
-/// </param>
+/// <param name="DisplayOrder">`null` LAISSE LE RANG INCHANGÉ.</param>
 public sealed record UpdateMenuItemCommand(
     Guid RestaurantId, Guid ItemId, string Name, string? Description, int? DisplayOrder = null)
     : ICommand;
@@ -110,35 +70,17 @@ public sealed record ChangeMenuItemPriceCommand(Guid RestaurantId, Guid ItemId, 
 /// <summary>
 /// Épuisé POUR AUJOURD'HUI : l'article revient au service suivant, sans que
 /// personne ait à y penser.
-///
-/// L'ÉCHÉANCE EST CALCULÉE ICI, à partir des horaires du restaurant. La
-/// demander à l'appelant reviendrait à demander une date absolue à un cuisinier
-/// en plein service, sur un téléphone.
 /// </summary>
 public sealed record MarkItemSoldOutTodayCommand(Guid RestaurantId, Guid ItemId) : ICommand;
 
-/// <summary>Retiré de la carte jusqu'à nouvel ordre. NE revient PAS seul.</summary>
+/// <summary>Retiré de la carte jusqu'à nouvel ordre.</summary>
 public sealed record MarkItemUnavailableCommand(Guid RestaurantId, Guid ItemId) : ICommand;
 
 public sealed record MarkItemAvailableCommand(Guid RestaurantId, Guid ItemId) : ICommand;
 
 public sealed record MoveMenuItemCommand(Guid RestaurantId, Guid ItemId, Guid CategoryId) : ICommand;
 
-/// <summary>
-/// Supprime définitivement un article.
-///
-/// CE N'EST PAS « ARRÊTER DE VENDRE CE PLAT ». Pour cela il y a
-/// <c>MarkItemUnavailableCommand</c>, qui le retire de la vitrine en le gardant
-/// en base, prêt à revenir. La suppression sert aux ERREURS DE SAISIE : le
-/// doublon, la faute de frappe, le plat créé dans la mauvaise carte.
-///
-/// CE QUE LE RACCORDEMENT AUX COMMANDES DEVRA RESPECTER
-///
-/// Aujourd'hui rien ne référence un article hors de ce module. Le jour où le
-/// panier et la commande porteront un <c>MenuItemId</c>, une ligne de commande
-/// devra FIGER le libellé et le prix — le cahier (§13) l'exige explicitement, et
-/// <c>SelectedOption</c> le fait déjà pour les options.
-/// </summary>
+/// <summary>Supprime définitivement un article.</summary>
 public sealed record DeleteMenuItemCommand(Guid RestaurantId, Guid ItemId) : ICommand;
 
 // ── Options ─────────────────────────────────────────────────────────────────
@@ -263,11 +205,6 @@ internal sealed class MenuCommandHandler
         }
 
         // LA GARDE, UN CRAN AU-DESSUS DE CELLE DES SECTIONS.
-        //
-        // Supprimer une carte garnie orphelinerait ses sections — et donc, en
-        // cascade silencieuse, tous les articles qu'elles portent. Le nombre est
-        // dans le message : « il reste 3 sections » se traite, « la carte n'est
-        // pas vide » se subit.
         var restantes = await _categories.CountInMenuAsync(command.MenuId, cancellationToken);
         if (restantes > 0)
         {
@@ -289,10 +226,6 @@ internal sealed class MenuCommandHandler
     public async Task<Result<Guid>> Handle(CreateCategoryCommand command, CancellationToken cancellationToken)
     {
         // LA CARTE DOIT APPARTENIR À CE RESTAURANT.
-        //
-        // Le MenuId vient du client. Sans ce contrôle, un restaurateur rangerait
-        // ses sections dans la carte d'un concurrent — dont la vitrine afficherait
-        // des plats qu'il n'a jamais saisis, à des prix qu'il ne fixe pas.
         var carte = await LoadMenuAsync(command.MenuId, command.RestaurantId, cancellationToken);
         if (carte is null)
         {
@@ -441,8 +374,8 @@ internal sealed class MenuCommandHandler
             return Result.Failure(Error.NotFound("food.item.not_found", "Article introuvable."));
         }
 
-        // Les groupes d'options sont des types « owned » : EF les supprime avec
-        // la racine. Rien à faire de plus, et surtout rien à oublier.
+        // Les groupes d'options sont des types « owned » : EF les supprime avec la
+        // racine.
         _items.Remove(item);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -522,14 +455,7 @@ internal sealed class MenuCommandHandler
 
     // ── Lecture des créneaux ────────────────────────────────────────────────
 
-    /// <summary>
-    /// Lit les quatre champs du cahier, en culture INVARIANTE.
-    ///
-    /// Le projet tourne en <c>InvariantGlobalization</c>, et faire dépendre la
-    /// lecture d'un horaire d'un réglage serveur ferait cesser « 14:30 » d'être lu
-    /// un jour, sans qu'aucune ligne de code ait changé. Même raisonnement que
-    /// pour les horaires de service.
-    /// </summary>
+    /// <summary>Lit les quatre champs du cahier, en culture INVARIANTE.</summary>
     private static Result<MenuServingWindow> ParseWindow(ServingWindowInput? entree)
     {
         if (entree is null)
@@ -596,18 +522,7 @@ internal sealed class MenuCommandHandler
     private static readonly Error SectionIntrouvable =
         Error.NotFound("food.category.not_found", "Section introuvable.");
 
-    /// <summary>
-    /// LE RestaurantId N'EST PAS UN PARAMÈTRE DE CONFORT : C'EST LA CLÔTURE.
-    ///
-    /// Toutes ces commandes désignent une carte, une section ou un article par un
-    /// GUID venu du client. Sans la comparaison au restaurant de l'appelant —
-    /// lui-même résolu DEPUIS LE JETON par la route —, un restaurateur modifierait
-    /// le prix d'un plat concurrent, ou le déclarerait épuisé en pleine heure de
-    /// pointe.
-    ///
-    /// On répond « introuvable » et non « interdit » : distinguer les deux dirait
-    /// à qui teste des identifiants lesquels existent.
-    /// </summary>
+    /// <summary>LE RestaurantId N'EST PAS UN PARAMÈTRE DE CONFORT : C'EST LA CLÔTURE.</summary>
     private async Task<Menu?> LoadMenuAsync(Guid menuId, Guid restaurantId, CancellationToken cancellationToken)
     {
         var carte = await _menus.GetByIdAsync(new MenuId(menuId), cancellationToken);

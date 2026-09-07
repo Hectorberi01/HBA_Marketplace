@@ -9,16 +9,7 @@ namespace HBA.Communication.Notifications.Application.Devices;
 public sealed record RegisterDeviceTokenCommand(Guid UserId, string Token, string Platform) : ICommand;
 
 /// <summary>Retire un jeton d'appareil (déconnexion / désabonnement push).</summary>
-/// <summary>
-/// Retire un jeton d'appareil. <paramref name="UserId"/> BORNE l'opération à son
-/// propriétaire.
-///
-/// Ce paramètre manquait. La commande ne prenait que le jeton, et le BFF vendeur
-/// vérifiait l'identité de l'appelant… pour la jeter aussitôt. N'importe quel vendeur
-/// authentifié connaissant le jeton FCM d'un concurrent coupait ses notifications
-/// push — y compris les alertes de nouvelle commande. Un déni de service silencieux
-/// entre concurrents, sur la fonction qui prévient qu'on a vendu.
-/// </summary>
+/// <summary>Retire un jeton d'appareil.</summary>
 public sealed record UnregisterDeviceTokenCommand(Guid UserId, string Token) : ICommand;
 
 internal sealed class RegisterDeviceTokenCommandHandler : ICommandHandler<RegisterDeviceTokenCommand>
@@ -67,8 +58,7 @@ internal sealed class UnregisterDeviceTokenCommandHandler : ICommandHandler<Unre
 
         var existing = await _repository.GetByTokenAsync(command.Token.Trim(), cancellationToken);
 
-        // Le jeton doit appartenir à l'appelant. Silencieux si ce n'est pas le cas :
-        // répondre « ce jeton n'est pas à vous » confirmerait qu'il existe et à qui.
+        // Le jeton doit appartenir à l'appelant.
         if (existing is not null && existing.UserId == command.UserId)
         {
             _repository.Remove(existing);

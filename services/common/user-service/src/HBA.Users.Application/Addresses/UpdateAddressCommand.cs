@@ -6,8 +6,8 @@ using HBA.Shared.Domain.Results;
 namespace HBA.Users.Application.Addresses;
 
 /// <summary>
-/// Met à jour une adresse du carnet (vérifie la propriété via <see cref="UserId"/>).
-/// Si <see cref="MakeDefault"/> est vrai, l'adresse devient le nouveau défaut.
+/// Met à jour une adresse du carnet (vérifie la propriété via <see cref="UserId"/>
+/// ).
 /// </summary>
 public sealed record UpdateAddressCommand(
     Guid UserId,

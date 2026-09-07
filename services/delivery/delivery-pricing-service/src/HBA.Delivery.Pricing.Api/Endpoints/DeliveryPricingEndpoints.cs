@@ -11,11 +11,6 @@ public static class DeliveryPricingEndpoints
     public static IEndpointRouteBuilder MapDeliveryPricingEndpoints(this IEndpointRouteBuilder app)
     {
         // AUTHENTIFIÉ, PAS ANONYME.
-        //
-        // Créer un devis coûte un calcul et laisse une ligne en base ; la
-        // couverture et les zones décrivent l'implantation commerciale de la
-        // plateforme. Rien de tout cela n'a à être servi à un inconnu — et
-        // `MapGroup` nu ne demandait rien du tout.
         var pricing = app.MapAuthenticatedGroup("/api/v1/delivery-pricing").WithTags("Delivery Pricing");
 
         pricing.MapPost("/quotes", async (
@@ -50,23 +45,7 @@ public static class DeliveryPricingEndpoints
         pricing.MapGet("/zones", async (IPricingStore store, CancellationToken cancellationToken) =>
             Results.Ok(ApiEnvelope.Ok(await store.ListZonesAsync(cancellationToken))));
 
-        // ═════════════════════════════════════════════════════════════════════
         // CES ROUTES FIXAIENT LE PRIX DES COURSES SANS LE MOINDRE JETON.
-        //
-        // `MapGroup` nu, dans un hôte qui n'appelait ni `UseAuthentication` ni
-        // `UseAuthorization` : n'importe qui pouvait créer, modifier et activer
-        // une règle de tarification — donc décider ce que la plateforme facture
-        // à ses clients et reverse à ses livreurs.
-        //
-        // Deux verrous, pas un : `AddHbaSecurity` dans `Program.cs` ferme
-        // l'anonymat sur tout l'hôte ; `MapAdminGroup` réserve CE groupe au
-        // back-office. Le premier seul laisserait un acheteur quelconque toucher
-        // à la grille tarifaire.
-        //
-        // Le commentaire d'en-tête d'`ApiAuthorization` pose la règle :
-        // « tout nouveau groupe part de `MapAdminGroup` ou `MapAuthenticatedGroup`,
-        // jamais de `MapGroup` nu ». Elle n'avait simplement pas été suivie ici.
-        // ═════════════════════════════════════════════════════════════════════
         var admin = app.MapAdminGroup("/api/v1/admin/delivery-pricing").WithTags("Delivery Pricing · Admin");
 
         admin.MapGet("/rules", async (IPricingStore store, CancellationToken cancellationToken) =>

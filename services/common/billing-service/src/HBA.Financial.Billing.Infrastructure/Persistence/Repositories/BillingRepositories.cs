@@ -51,22 +51,6 @@ internal sealed class InvoiceRepository : IInvoiceRepository
             .Include(i => i.Lines)
             .ToListAsync(cancellationToken);
 
-    /// <remarks>
-    /// LE COMPTE ET LES FACETTES NE CHARGENT PAS LES LIGNES.
-    ///
-    /// `Include(i => i.Lines)` est nécessaire pour AFFICHER une facture, absurde
-    /// pour en COMPTER : sur toute la table, la jointure produirait autant de
-    /// lignes qu'il y a de postes facturés, rien que pour rendre un entier.
-    /// La page, elle, les garde — le résumé rendu porte le total et le statut,
-    /// et le détail se lit sur la fiche.
-    ///
-    /// LE FILTRE VENDEUR EST OPTIONNEL ET NE REMPLACE PAS `ListBySellerAsync`.
-    ///
-    /// Celle-ci est servie par une route ADMIN. `ListBySellerAsync` est servie
-    /// par une route où un vendeur passe la garde d'appartenance sur SON dossier.
-    /// Les fondre donnerait une seule route à deux régimes d'autorisation, et
-    /// c'est ainsi qu'on ouvre une fuite sans s'en apercevoir.
-    /// </remarks>
     public async Task<(IReadOnlyList<Invoice> Items, int Total, IReadOnlyDictionary<string, int> StatusCounts)>
         ListForAdminAsync(
             int page, int pageSize, InvoiceStatus? status, Guid? sellerId,

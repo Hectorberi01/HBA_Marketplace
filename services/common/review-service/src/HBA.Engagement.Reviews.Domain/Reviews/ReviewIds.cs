@@ -19,7 +19,7 @@ public enum ReviewStatus
     Rejected = 2
 }
 
-/// <summary>Note d'un avis : un entier de 1 à 5 étoiles. Value Object.</summary>
+/// <summary>Note d'un avis : un entier de 1 à 5 étoiles.</summary>
 public sealed class Rating : ValueObject
 {
     public const int Min = 1;

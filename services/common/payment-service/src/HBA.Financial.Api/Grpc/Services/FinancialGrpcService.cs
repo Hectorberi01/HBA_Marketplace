@@ -6,22 +6,7 @@ using MediatR;
 
 using System.Globalization;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Financial.Api.GrpcServices` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Financial.Api.Grpc.Services;
 
@@ -59,11 +44,6 @@ internal sealed class FinancialGrpcService : FinancialApi.FinancialApiBase
         if (result.IsFailure)
         {
             // DEUX CHAMPS, PLUS UNE CHAÎNE « code:message ».
-            //
-            // Le séparateur n'était même pas le même qu'ailleurs (« — » côté
-            // delivery), pour la même idée. Aucun appelant ne reparsait ni l'un ni
-            // l'autre : le code normalisé était perdu, et seul un texte destiné à
-            // un humain survivait au saut gRPC.
             return new FinancialOperationResponse
             {
                 Succeeded = false,
@@ -84,17 +64,7 @@ internal sealed class FinancialGrpcService : FinancialApi.FinancialApiBase
         };
     }
 
-    /// <summary>
-    /// Un montant venu du fil.
-    /// </summary>
-    /// <remarks>
-    /// CETTE FONCTION ÉTAIT LA SEULE DES HUIT À REFUSER AU LIEU DE RENDRE ZÉRO.
-    ///
-    /// Elle avait raison, et c'est son comportement qui a été généralisé aux sept
-    /// autres — voir <see cref="MontantSurLeFil"/>. Elle délègue désormais, pour
-    /// que la règle vive à un seul endroit : c'est ici qu'elle divergerait en
-    /// premier, ce service étant celui qui manipule réellement de l'argent.
-    /// </remarks>
+    /// <summary>Un montant venu du fil.</summary>
     private static decimal ParseAmount(string value, string field)
         => MontantSurLeFil.Lire(value, field);
 

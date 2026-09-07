@@ -23,17 +23,7 @@ internal sealed class PartnerConfiguration : IEntityTypeConfiguration<Partner>
 
         builder.Property(p => p.WebhookUrl).HasMaxLength(500);
 
-        // ─────────────────────────────────────────────────────────────────────
         // LE SECRET DE WEBHOOK EST STOCKÉ EN CLAIR — ET IL LE DOIT.
-        //
-        // Contrairement à une clé d'API, il n'est pas PRÉSENTÉ par le partenaire :
-        // c'est nous qui l'utilisons pour signer chaque appel sortant. Un
-        // condensat serait inutilisable — on ne peut pas signer avec une empreinte.
-        //
-        // La protection est donc ailleurs : accès restreint à la table, et
-        // rotation possible à tout moment via ConfigureWebhook. C'est le même
-        // compromis que pour un secret de webhook PSP.
-        // ─────────────────────────────────────────────────────────────────────
         builder.Property(p => p.WebhookSecret).HasMaxLength(200);
 
         builder.OwnsMany(p => p.ApiKeys, key =>
@@ -50,19 +40,7 @@ internal sealed class PartnerConfiguration : IEntityTypeConfiguration<Partner>
             key.Property(k => k.RevokedAtUtc);
             key.Property(k => k.LastUsedAtUtc);
 
-            // ─────────────────────────────────────────────────────────────────
             // L'INDEX QUI REND L'AUTHENTIFICATION VIABLE.
-            //
-            // Il s'exécute à CHAQUE appel partenaire. Sans lui, authentifier une
-            // requête exigerait de parcourir toutes les clés de toutes les lignes
-            // et de comparer les condensats un par un — un balayage complet, sur
-            // le chemin le plus chaud de l'API publique.
-            //
-            // UNIQUE, et pas seulement indexé : deux clés actives partageant un
-            // préfixe rendraient l'authentification ambiguë. Le préfixe fait
-            // douze caractères tirés d'un secret de 256 bits ; la collision est
-            // théorique, mais la contrainte coûte zéro et supprime la question.
-            // ─────────────────────────────────────────────────────────────────
             key.HasIndex(k => k.Prefix)
                 .IsUnique()
                 .HasDatabaseName("ux_partner_api_keys_prefix");

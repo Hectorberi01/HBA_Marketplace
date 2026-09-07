@@ -2,10 +2,7 @@ using HBA.Shared.Domain.Events;
 
 namespace HBA.Catalog.Domain.Products.Events;
 
-/// <summary>
-/// Fait de domaine : un produit vient d'être créé. Reste DANS le module ; un
-/// handler le traduira en IntegrationEvent pour Search, Inventory, etc.
-/// </summary>
+/// <summary>Fait de domaine : un produit vient d'être créé.</summary>
 public sealed record ProductCreatedDomainEvent(
     Guid ProductId,
     Guid SellerId,

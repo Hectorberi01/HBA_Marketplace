@@ -13,8 +13,7 @@ internal sealed class RestaurantRepository : IRestaurantRepository
 
     public RestaurantRepository(FoodDbContext dbContext) => _dbContext = dbContext;
 
-    // SUIVI EF : toutes les lectures de ce dépôt précèdent une mutation. Les
-    // écrans passent par les requêtes, qui projettent sans suivre.
+    // SUIVI EF : toutes les lectures de ce dépôt précèdent une mutation.
     public async Task<Restaurant?> GetByIdAsync(RestaurantId id, CancellationToken cancellationToken = default)
         => await _dbContext.Restaurants.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
@@ -24,8 +23,7 @@ internal sealed class RestaurantRepository : IRestaurantRepository
     public async Task<IReadOnlyList<Restaurant>> ListByStatusAsync(
         RestaurantStatus status, int take, CancellationToken cancellationToken = default)
         // Les plus anciens d'abord : un dossier qui attend depuis trois jours passe
-        // avant celui soumis à l'instant. Sans cet ordre, un dossier difficile est
-        // indéfiniment doublé — et son restaurant ne vend pas.
+        // avant celui soumis à l'instant.
         => await _dbContext.Restaurants
             .AsNoTracking()
             .Where(r => r.Status == status)
@@ -36,18 +34,6 @@ internal sealed class RestaurantRepository : IRestaurantRepository
     public async Task<IReadOnlyList<Restaurant>> ListPubliclyVisibleAsync(
         int skip, int take, CancellationToken cancellationToken = default)
         // `AsNoTracking` : lecture pure, aucune mutation ne suit.
-        //
-        // Sans lui, EF suivrait chaque établissement d'une page de vitrine — et
-        // le suivi coûte à la fois de la mémoire et un balayage de détection de
-        // changements au premier `SaveChanges` de la requête, qui n'arrivera
-        // jamais.
-        //
-        // ORDRE STABLE OBLIGATOIRE POUR PAGINER.
-        //
-        // Sans `OrderBy`, PostgreSQL ne garantit AUCUN ordre entre deux requêtes :
-        // la page 2 pourrait redonner des établissements déjà vus page 1, et en
-        // omettre d'autres définitivement. Le nom est l'ordre le moins surprenant
-        // tant qu'aucun classement métier n'existe ; `Id` départage les homonymes.
         => await _dbContext.Restaurants
             .AsNoTracking()
             .Where(r => r.Status == RestaurantStatus.Active)
@@ -121,8 +107,7 @@ internal sealed class MenuItemRepository : IMenuItemRepository
     public MenuItemRepository(FoodDbContext dbContext) => _dbContext = dbContext;
 
     // Les groupes d'options sont des types « owned » : EF les charge avec la
-    // racine, sans Include. C'est exactement ce qu'on veut — PriceSelection en
-    // dépend, et un chargement partiel rendrait sa validation fausse.
+    // racine, sans Include.
     public async Task<MenuItem?> GetByIdAsync(MenuItemId id, CancellationToken cancellationToken = default)
         => await _dbContext.MenuItems.FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
 
@@ -140,8 +125,8 @@ internal sealed class MenuItemRepository : IMenuItemRepository
             .OrderBy(i => i.DisplayOrder)
             .ToListAsync(cancellationToken);
 
-    // AsNoTracking et pas de matérialisation : on compte en base, on ne charge
-    // pas quarante plats et leurs options pour savoir s'il en reste.
+    // AsNoTracking et pas de matérialisation : on compte en base, on ne charge pas
+    // quarante plats et leurs options pour savoir s'il en reste.
     public async Task<int> CountInCategoryAsync(
         Guid menuCategoryId, CancellationToken cancellationToken = default)
         => await _dbContext.MenuItems
@@ -178,14 +163,7 @@ internal sealed class PreparationStationRepository : IPreparationStationReposito
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.RestaurantId == restaurantId && s.Code == code, cancellationToken);
 
-    /// <summary>
-    /// COMPTE LES ARTICLES DE LA CARTE, PAS LES LIGNES DE COMMANDE.
-    ///
-    /// Les lignes déjà passées portent un poste FIGÉ : supprimer le poste ne les
-    /// abîme pas, elles gardent leur identifiant en trace. Ce qui casserait, ce
-    /// sont les ARTICLES qui le désignent encore — leurs futurs tickets
-    /// n'apparaîtraient sur aucun écran découpé par poste.
-    /// </summary>
+    /// <summary>COMPTE LES ARTICLES DE LA CARTE, PAS LES LIGNES DE COMMANDE.</summary>
     public async Task<int> CountItemsUsingAsync(
         Guid preparationStationId, CancellationToken cancellationToken = default)
         => await _dbContext.MenuItems
@@ -204,26 +182,19 @@ internal sealed class FoodOrderRepository : IFoodOrderRepository
 
     public FoodOrderRepository(FoodDbContext dbContext) => _dbContext = dbContext;
 
-    // Les lignes et leurs options sont des types « owned » : EF les charge avec
-    // la racine, sans Include. C'est indispensable — KitchenStatus se DÉRIVE des
-    // lignes, et un chargement partiel le rendrait faux plutôt qu'absent.
+    // Les lignes et leurs options sont des types « owned » : EF les charge avec la
+    // racine, sans Include.
     public async Task<FoodOrder?> GetByIdAsync(FoodOrderId id, CancellationToken cancellationToken = default)
         => await _dbContext.FoodOrders.FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
-    // L'origine d'abord : c'est la colonne de tête de `ux_food_orders_order`, et
-    // un filtre sur `OrderId` seul ne pourrait pas s'en servir.
+    // L'origine d'abord : c'est la colonne de tête de `ux_food_orders_order`, et un
+    // filtre sur `OrderId` seul ne pourrait pas s'en servir.
     public async Task<FoodOrder?> GetByOrderIdAsync(
         FoodOrderOrigin origin, Guid orderId, CancellationToken cancellationToken = default)
         => await _dbContext.FoodOrders.FirstOrDefaultAsync(
             o => o.Origin == origin && o.OrderId == orderId, cancellationToken);
 
-    /// <summary>
-    /// Ce qui est ENCORE EN JEU dans ce restaurant.
-    ///
-    /// Les états terminaux — refusée, livrée, annulée — sont écartés en base : un
-    /// écran de cuisine qui accumulerait le service de la veille deviendrait
-    /// illisible en une soirée.
-    /// </summary>
+    /// <summary>Ce qui est ENCORE EN JEU dans ce restaurant.</summary>
     public async Task<IReadOnlyList<FoodOrder>> ListActiveAsync(
         Guid restaurantId, CancellationToken cancellationToken = default)
         => await _dbContext.FoodOrders
@@ -245,10 +216,8 @@ internal sealed class FoodOrderRepository : IFoodOrderRepository
             .ToListAsync(cancellationToken);
 
     /// <summary>
-    /// Les commandes en cours, pour la saturation (§14 : <c>MaximumActiveOrders</c>).
-    ///
-    /// « En cours » s'arrête à l'enlèvement : une fois le sac parti, la cuisine est
-    /// libre, même si la livraison prendra encore vingt minutes.
+    /// Les commandes en cours, pour la saturation (§14 : <c>
+    /// MaximumActiveOrders</c>).
     /// </summary>
     public async Task<int> CountActiveAsync(Guid restaurantId, CancellationToken cancellationToken = default)
         => await _dbContext.FoodOrders
@@ -272,11 +241,6 @@ internal sealed class RestaurantStaffRepository : IRestaurantStaffRepository
     public RestaurantStaffRepository(FoodDbContext dbContext) => _dbContext = dbContext;
 
     // SUIVI EF SUR TOUTES CES LECTURES, Y COMPRIS CELLES DE L'ACTEUR.
-    //
-    // L'acteur n'est pas muté, mais il est chargé DANS LA MÊME UNITÉ DE TRAVAIL
-    // que sa cible : le lire sans suivi ferait qu'un membre chargé deux fois
-    // — acteur d'un geste, cible d'un autre — existerait en deux exemplaires
-    // divergents dans le même SaveChanges.
     public async Task<RestaurantStaff?> GetByIdAsync(
         RestaurantStaffId id, CancellationToken cancellationToken = default)
         => await _dbContext.Staff.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
@@ -299,14 +263,7 @@ internal sealed class RestaurantStaffRepository : IRestaurantStaffRepository
             .Where(s => s.RestaurantId == restaurantId)
             .ToListAsync(cancellationToken);
 
-    /// <summary>
-    /// Compté EN BASE, pas en mémoire.
-    ///
-    /// La garde du dernier propriétaire s'appuie sur ce nombre. Le calculer depuis
-    /// une liste chargée le rendrait juste au moment du chargement et faux à celui
-    /// de la décision — c'est le verrou optimiste sur la ligne modifiée qui ferme
-    /// la fenêtre, mais encore faut-il ne pas l'élargir soi-même.
-    /// </summary>
+    /// <summary>Compté EN BASE, pas en mémoire.</summary>
     public async Task<int> CountActiveOwnersAsync(
         Guid restaurantId, CancellationToken cancellationToken = default)
         => await _dbContext.Staff

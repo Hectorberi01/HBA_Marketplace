@@ -4,10 +4,7 @@ using MediatR;
 
 namespace HBA.FoodCarts.Infrastructure.Public;
 
-/// <summary>
-/// Implémentation in-process de l'API publique du panier de restauration.
-/// Délègue aux requêtes de l'Application ; rend null si le panier est absent.
-/// </summary>
+/// <summary>Implémentation in-process de l'API publique du panier de restauration.</summary>
 internal sealed class FoodCartModuleApi : IFoodCartModuleApi
 {
     private readonly ISender _sender;

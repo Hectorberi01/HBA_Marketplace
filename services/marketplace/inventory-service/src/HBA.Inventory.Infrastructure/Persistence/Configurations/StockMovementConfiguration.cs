@@ -4,17 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace HBA.Inventory.Infrastructure.Persistence.Configurations;
 
-/// <summary>
-/// AUCUNE CLÉ ÉTRANGÈRE VERS `inventory_items`, ET C'EST DÉLIBÉRÉ.
-///
-/// Le journal doit survivre à la disparition de l'article. Un vendeur qui retire
-/// une référence ne doit pas effacer l'historique des mouvements qui l'ont
-/// concernée — c'est précisément quand une ligne disparaît qu'on veut savoir ce
-/// qui lui est arrivé. `InventoryItemId` est donc un identifiant nu, indexé, sans
-/// contrainte référentielle.
-///
-/// C'est le même raisonnement que `audit_entries`, qui ne pointe vers rien non plus.
-/// </summary>
+/// <summary>AUCUNE CLÉ ÉTRANGÈRE VERS `inventory_items`, ET C'EST DÉLIBÉRÉ.</summary>
 internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<StockMovement>
 {
     public void Configure(EntityTypeBuilder<StockMovement> builder)
@@ -29,9 +19,7 @@ internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<Stoc
         builder.Property(m => m.LocationId).IsRequired();
 
         // En TEXTE, contrairement au reste de ce schéma qui stocke ses énumérations
-        // en entier. C'est une table qu'on lit à la main quand on cherche à
-        // comprendre un écart de stock, et « Adjusted » se lit là où « 1 » se
-        // décode.
+        // en entier.
         builder.Property(m => m.Kind).HasConversion<string>().HasMaxLength(20).IsRequired();
 
         builder.Property(m => m.Delta).IsRequired();
@@ -52,8 +40,7 @@ internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<Stoc
         builder.HasIndex(m => new { m.Sku, m.OccurredOnUtc })
             .HasDatabaseName("ix_stock_movements_sku");
 
-        // Les deux moitiés d'un transfert se retrouvent par leur référence
-        // commune. Partiel : la colonne est nulle sur la majorité des lignes.
+        // Les deux moitiés d'un transfert se retrouvent par leur référence commune.
         builder.HasIndex(m => m.Reference)
             .HasDatabaseName("ix_stock_movements_reference")
             .HasFilter("\"Reference\" IS NOT NULL");

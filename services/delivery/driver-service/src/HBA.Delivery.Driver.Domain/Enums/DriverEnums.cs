@@ -1,22 +1,6 @@
 namespace HBA.Delivery.Driver.Domain.Enums;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'ÉTAT DU DOSSIER — ET RIEN D'AUTRE.
-///
-/// CE N'EST PAS LA DISPONIBILITÉ DU LIVREUR, et la confusion entre les deux est
-/// exactement celle que `DeliveryDriver.cs` décrit chez delivery-service : un
-/// livreur suspendu pour un motif grave qui se remet « disponible » depuis son
-/// téléphone. Ici on ne décrit que ce que l'exploitation décide après avoir
-/// regardé des pièces. Ce que le livreur décide de son service, lui, vit dans
-/// `deliveries.drivers`.
-///
-/// AVANT CE LOT, CES ÉTATS ÉTAIENT DES CHAÎNES (« ACTIVE », « VERIFIED »)
-/// COMPARÉES À LA MAIN dans `DriverStore.CheckEligibility`. Une faute de frappe
-/// dans l'une des deux moitiés de la comparaison rendait simplement « non
-/// éligible », sans erreur et sans trace.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>L'ÉTAT DU DOSSIER — ET RIEN D'AUTRE.</summary>
 public enum DriverVerificationStatus
 {
     /// <summary>Inscrit ; les pièces obligatoires ne sont pas toutes déposées.</summary>
@@ -31,18 +15,11 @@ public enum DriverVerificationStatus
     /// <summary>Refusé. Le livreur peut redéposer ses pièces.</summary>
     Rejected = 3,
 
-    /// <summary>Écarté après avoir été vérifié. Ne se lève que par l'exploitation.</summary>
+    /// <summary>Écarté après avoir été vérifié.</summary>
     Suspended = 4
 }
 
-/// <summary>
-/// Pièces qu'un livreur dépose.
-///
-/// AUCUNE VALEUR N'EST RETIRÉE DE CETTE ÉNUMÉRATION SANS MIGRATION : elle est
-/// persistée en toutes lettres (`character varying`), et une valeur inconnue en
-/// base ferait échouer la matérialisation de tout le dossier, pas seulement de la
-/// pièce concernée.
-/// </summary>
+/// <summary>Pièces qu'un livreur dépose.</summary>
 public enum DriverDocumentType
 {
     /// <summary>Pièce d'identité ou carte consulaire.</summary>
@@ -71,17 +48,6 @@ public enum DriverDocumentStatus
 /// <summary>
 /// CETTE ÉNUMÉRATION EN DOUBLE AVEC `VehicleType` DE delivery-service, ET C'EST
 /// ASSUMÉ.
-///
-/// Les deux services ne partagent plus de projet de domaine depuis le lot 5.4
-/// (D34) — rétablir une `ProjectReference` pour économiser six valeurs
-/// reconstituerait le cycle qu'il vient de couper. Le lien passe par le nom :
-/// `DriverAccountVerifiedDomainEvent` transporte le véhicule EN TEXTE, et
-/// delivery-service le relit avec `Enum.TryParse`.
-///
-/// LE PRIX : UNE VALEUR AJOUTÉE ICI ET PAS LÀ-BAS EST SILENCIEUSE. Le
-/// consommateur retombera sur `Motorcycle` par défaut, et le livreur sera dispatché
-/// pour un véhicule qu'il n'a pas. Les deux listes se rapprochent à la main, comme
-/// les seuils de `VehicleCapacity` (voir D34).
 /// </summary>
 public enum DriverVehicleType
 {

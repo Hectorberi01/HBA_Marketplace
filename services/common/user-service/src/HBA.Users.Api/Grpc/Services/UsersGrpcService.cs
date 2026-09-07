@@ -11,22 +11,7 @@ using ProtoProfile = HBA.Users.Grpc.V1.UserProfileSummary;
 
 
 using HBA.Users.Contracts;
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Users.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Users.Api.Grpc.Services;
 
@@ -71,9 +56,9 @@ internal sealed class UsersGrpcService : UsersApi.UsersApiBase
 
         var response = new GetProfilesResponse();
 
-        // Les identifiants inconnus sont simplement absents de la carte : c'est
-        // le contrat de `GetProfilesAsync`, et le respecter ici évite qu'un
-        // appelant croie à une erreur en recevant sept profils sur dix demandés.
+        // Les identifiants inconnus sont simplement absents de la carte : c'est le
+        // contrat de `GetProfilesAsync`, et le respecter ici évite qu'un appelant
+        // croie à une erreur en recevant sept profils sur dix demandés.
         foreach (var (id, profile) in profiles)
         {
             response.Profiles[id.ToString()] = profile.ToProto();

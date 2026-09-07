@@ -3,33 +3,10 @@ using HBA.Communication.Notifications.Application.Abstractions;
 
 namespace HBA.Communication.Notifications.Application.Emails;
 
-/// <summary>
-/// Gabarit de l'invitation à rejoindre l'équipe d'un vendeur.
-///
-/// Même sobriété que <see cref="AccountEmailTemplates"/> : pas d'image, pas de CSS
-/// externe, pas de webfont. Un e-mail chargé passe plus souvent en spam — et une
-/// invitation en spam, c'est un employé qui n'entre jamais et un commerçant qui
-/// croit la plateforme cassée.
-/// </summary>
+/// <summary>Gabarit de l'invitation à rejoindre l'équipe d'un vendeur.</summary>
 public static class MemberEmailTemplates
 {
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE NOM DE LA BOUTIQUE EST DANS LE SUJET, ET CE N'EST PAS COSMÉTIQUE.
-    ///
-    /// C'est le seul e-mail de la plateforme qui demande à quelqu'un d'ouvrir un
-    /// lien vers un compte qu'il n'a pas encore. Un message qui dirait « vous avez
-    /// été invité » sans dire PAR QUI est indiscernable d'un hameçonnage — et la
-    /// bonne réaction du destinataire serait alors de ne pas cliquer.
-    ///
-    /// ET IL DIT CE QU'IL FAUT FAIRE SI L'INVITATION EST INATTENDUE.
-    ///
-    /// « Ignorez cet e-mail » n'est pas une politesse : une invitation non
-    /// acceptée expire d'elle-même, et le dire évite qu'un destinataire surpris
-    /// clique « pour voir » — ce qui est exactement ce qu'un hameçonnage cherche à
-    /// obtenir.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE NOM DE LA BOUTIQUE EST DANS LE SUJET, ET CE N'EST PAS COSMÉTIQUE.</summary>
     public static EmailMessage SellerInvitation(
         string to, string? displayName, string shopName, string invitationUrl, DateTime expiresOnUtc)
     {

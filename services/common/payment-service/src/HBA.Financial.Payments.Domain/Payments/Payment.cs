@@ -6,8 +6,7 @@ namespace HBA.Financial.Payments.Domain.Payments;
 
 /// <summary>
 /// Paiement d'une commande. Modélise le cycle PSP (Mobile Money, carte…) :
-/// initiation → autorisation → encaissement, ou échec / remboursement. Émet les
-/// faits que le Saga d'Ordering consomme pour confirmer ou annuler la commande.
+/// initiation → autorisation → encaissement, ou échec / remboursement.
 /// </summary>
 public sealed class Payment : AggregateRoot<PaymentId>
 {
@@ -50,11 +49,7 @@ public sealed class Payment : AggregateRoot<PaymentId>
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? CapturedAtUtc { get; private set; }
 
-    /// <summary>
-    /// Date de libération de l'escrow. Tant qu'elle est nulle après encaissement,
-    /// les fonds sont gelés (modèle marketplace : on ne reverse au vendeur qu'à la
-    /// livraison confirmée).
-    /// </summary>
+    /// <summary>Date de libération de l'escrow.</summary>
     public DateTime? EscrowReleasedAt { get; private set; }
 
     /// <summary>Vrai si le paiement est encaissé mais l'escrow pas encore libéré.</summary>
@@ -89,9 +84,8 @@ public sealed class Payment : AggregateRoot<PaymentId>
     }
 
     /// <summary>
-    /// Rattache la référence de session/intention renvoyée par le PSP au moment
-    /// de l'initiation (session_id du Checkout ou id du PaymentIntent). Sert de
-    /// corrélation pour les webhooks et le retour de redirection.
+    /// Rattache la référence de session/intention renvoyée par le PSP au moment de
+    /// l'initiation (session_id du Checkout ou id du PaymentIntent).
     /// </summary>
     public Result AttachGatewaySession(string providerReference)
     {
@@ -154,7 +148,7 @@ public sealed class Payment : AggregateRoot<PaymentId>
         return Result.Success();
     }
 
-    /// <summary>Remboursement d'un paiement encaissé. Émet PaymentRefunded.</summary>
+    /// <summary>Remboursement d'un paiement encaissé.</summary>
     public Result Refund()
     {
         var result = BeginRefund(
@@ -310,7 +304,6 @@ public sealed class Payment : AggregateRoot<PaymentId>
     /// <summary>
     /// Libère l'escrow à la livraison confirmée : les fonds encaissés deviennent
     /// reversables au vendeur (le payout est ensuite produit par Settlement).
-    /// Idempotent : sans effet si déjà libéré.
     /// </summary>
     public Result ReleaseEscrow()
     {

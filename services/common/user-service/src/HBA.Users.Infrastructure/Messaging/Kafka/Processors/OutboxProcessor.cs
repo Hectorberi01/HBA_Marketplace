@@ -17,63 +17,13 @@ using HBA.Shared.IntegrationEvents;
 using HBA.Shared.Infrastructure.Observability;
 
 using HBA.Users.Infrastructure.Messaging.Kafka.Retry;
-// ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Outbox`.
-//
-// L'outbox et l'inbox appartiennent au service : leurs tables sont creees par SES
-// migrations. `shared` n'en garde que les ports — `IConsumerInbox`, la file en
-// memoire, et deux marqueurs vides sans lesquels le journal d'audit se
-// journaliserait lui-meme.
-//
-// CE QUE CETTE COPIE COUTE, ET IL FAUT LE SAVOIR : c'est le chemin qui garantit
-// qu'aucun evenement n'est perdu. Il existe maintenant en un exemplaire par
-// service. Un defaut corrige ici ne l'est nulle part ailleurs.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Users.Infrastructure.Messaging.Kafka.Processors;
 
 /// <summary>
-/// Processeur d'outbox d'un module : lit les messages éligibles, les publie (dispatch
-/// in-process) et les marque traités. Générique sur le DbContext du module pour rester
-/// une seule implémentation réutilisée partout.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE PROCESSEUR REJOUAIT LES MESSAGES EMPOISONNÉS À L'INFINI. TOUTES LES 5 SECONDES.
-///
-/// L'ancienne version faisait exactement ceci en cas d'échec :
-///
-///     message.Error = ex.Message;                     // on note l'erreur
-///     _logger.LogError(ex, "Échec de publication…");  // on la journalise
-///     // … et c'est tout. ProcessedOnUtc reste null.
-///
-/// Le message revenait donc au tour suivant. Et au suivant. Sans limite, sans délai,
-/// sans issue. Une adresse e-mail invalide, un type d'événement renommé, un JSON devenu
-/// illisible — et la boucle tournait jusqu'à la fin des temps.
-///
-/// Le vrai danger n'était pas le bruit, mais le BLOCAGE DE TÊTE DE FILE : le lot est
-/// trié par date et plafonné à 50. Chaque message mort confisquait une place, pour
-/// toujours. À 50, l'outbox du module se figeait — plus une seule commande confirmée,
-/// plus un seul vendeur crédité, plus une seule notification. Une panne qui commence par
-/// un e-mail refusé, et finit par une plateforme muette.
-///
-/// Trois mécanismes ferment cela :
-///   1. BACKOFF  — un message en échec sort du lot le temps de sa temporisation ; les
-///                 messages sains passent devant. Le blocage de tête de file disparaît.
-///   2. PLAFOND  — au bout de MaxAttempts (~2 h), le message part en LETTRE MORTE : il
-///                 cesse de consommer une place, et devient VISIBLE.
-///   3. ALERTE   — la mise en lettre morte est journalisée en Critical. C'est une perte
-///                 métier, pas un incident technique : elle doit réveiller quelqu'un.
-/// ═════════════════════════════════════════════════════════════════════════════
-///
-/// <para>
-/// <b>UNE SEULE INSTANCE À LA FOIS.</b> La lecture n'est pas protégée par un
-/// <c>SELECT … FOR UPDATE SKIP LOCKED</c> : deux processeurs concurrents liraient les mêmes
-/// messages et les dispatcheraient DEUX FOIS. C'est pourquoi les 4 BFF posent
-/// <c>OUTBOX_ENABLED=false</c> et que seule l'API draine.
-/// <b>Ne pas mettre l'API à l'échelle horizontale sans implémenter le verrou de ligne
-/// d'abord</b> — sans quoi chaque gain vendeur serait crédité autant de fois qu'il y a de
-/// répliques.
-/// </para>
+/// Processeur d'outbox d'un module : lit les messages éligibles, les publie
+/// (dispatch in-process) et les marque traités.
 /// </summary>
 public sealed class OutboxProcessor : BackgroundService
 {
@@ -85,7 +35,9 @@ public sealed class OutboxProcessor : BackgroundService
     private readonly IOutboxMetrics _metrics;
     private readonly Random _random = new();
 
-    /// <summary>Nom du module, déduit du DbContext : « WalletDbContext » → « Settlement ».</summary>
+    /// <summary>
+    /// Nom du module, déduit du DbContext : « WalletDbContext » → « Settlement ».
+    /// </summary>
     private static readonly string ModuleName = typeof(UsersDbContext).Name.Replace("DbContext", string.Empty);
     private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(5);
     private const int BatchSize = 50;
@@ -113,14 +65,16 @@ public sealed class OutboxProcessor : BackgroundService
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
-                // Arrêt normal de l'hôte : on sort proprement sans faire planter le host.
+                // Arrêt normal de l'hôte : on sort proprement sans faire planter le
+                // host.
                 break;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erreur lors du traitement de l'outbox de {Context}", typeof(UsersDbContext).Name);
 
-                // Pause avant nouvel essai, elle aussi protégée contre l'annulation.
+                // Pause avant nouvel essai, elle aussi protégée contre
+                // l'annulation.
                 try
                 {
                     await Task.Delay(_pollingInterval, stoppingToken);
@@ -141,12 +95,8 @@ public sealed class OutboxProcessor : BackgroundService
 
         var nowUtc = DateTime.UtcNow;
 
-        // Sont ÉLIGIBLES les messages non traités, non enterrés, et dont la temporisation
-        // est écoulée.
-        //
-        // C'est le filtre `NextAttemptAtUtc` qui supprime le blocage de tête de file : un
-        // message en échec disparaît du lot jusqu'à son heure, laissant la place aux
-        // messages sains. Auparavant, il squattait sa place indéfiniment.
+        // Sont ÉLIGIBLES les messages non traités, non enterrés, et dont la
+        // temporisation est écoulée.
         var messages = await dbContext.OutboxMessages
             .Where(m => m.ProcessedOnUtc == null
                         && m.DeadLetteredOnUtc == null
@@ -162,25 +112,7 @@ public sealed class OutboxProcessor : BackgroundService
 
         foreach (var message in messages)
         {
-            // ═════════════════════════════════════════════════════════════════
             // ON REJOUE LE CONTEXTE DE TRACE DE LA REQUÊTE D'ORIGINE.
-            //
-            // Sans ce span, `Activity.Current` est nulle ici — on est dans un
-            // service d'arrière-plan — et `KafkaIntegrationEventPublisher` pose un
-            // en-tête `traceparent` VIDE. La chaîne se coupe donc à l'endroit précis
-            // où elle devient intéressante : entre la requête qui a créé la commande
-            // et les huit effets asynchrones qui la réalisent.
-            //
-            // Le parent vient de la COLONNE, pas de l'ambiant. C'est toute la raison
-            // d'être de `OutboxMessage.TraceParent` : le lien doit survivre à la
-            // transaction, au redémarrage du processus, et au délai — parfois
-            // plusieurs minutes — entre l'écriture et la publication.
-            //
-            // `Producer` ET NON `Internal` : ce span EST l'envoi. Le nommer
-            // autrement le sortirait des vues « messagerie » des collecteurs, qui
-            // s'appuient sur le kind pour reconstruire les chaînes producteur →
-            // consommateur.
-            // ═════════════════════════════════════════════════════════════════
             var parent = ActivityContext.TryParse(message.TraceParent, traceState: null, out var contexte)
                 ? contexte
                 : default;
@@ -194,23 +126,7 @@ public sealed class OutboxProcessor : BackgroundService
             activite?.SetTag("hba.outbox.event_type", message.Type);
             activite?.SetTag("hba.outbox.attempt", message.AttemptCount + 1);
 
-            // ═════════════════════════════════════════════════════════════════
             // ON RÉTABLIT LA CORRÉLATION MÉTIER, PAS SEULEMENT LA TRACE.
-            //
-            // Le span ci-dessus rattache la publication à la requête d'origine pour
-            // un outil d'observabilité. La corrélation, elle, est ce que
-            // l'UTILISATEUR lit — le `meta.requestId` qu'il recopie dans un
-            // signalement. Sans ce scope, le publieur retombe sur l'identifiant de
-            // trace : une valeur cohérente, et sans aucun rapport avec ce que la
-            // personne a sous les yeux.
-            //
-            // ET LA CAUSALITÉ : l'événement publié ici a pour CAUSE ce message
-            // d'outbox. Un consommateur qui en produira un autre héritera de la
-            // chaîne, au lieu de repartir de zéro à chaque saut.
-            //
-            // Le scope se referme avec l'itération : `BeginScope` restaure la valeur
-            // précédente, donc un message ne laisse pas sa corrélation au suivant.
-            // ═════════════════════════════════════════════════════════════════
             using var correlation = HbaRequestContext.BeginScope(new HbaRequestContext
             {
                 CorrelationId = message.CorrelationId ?? string.Empty,
@@ -245,28 +161,14 @@ public sealed class OutboxProcessor : BackgroundService
 
     private void HandleFailure(OutboxMessage message, Exception exception)
     {
-        // La DÉCISION (temporiser ou enterrer) appartient à la politique — testable, et
-        // testée. Le processeur ne fait plus qu'appliquer et journaliser.
+        // La DÉCISION (temporiser ou enterrer) appartient à la politique —
+        // testable, et testée.
         var deadLettered = _retryPolicy.RegisterFailure(message, exception.Message, _random, DateTime.UtcNow);
 
         if (deadLettered)
         {
-            // CRITICAL, et pas Error. Ce n'est plus « une tentative a échoué » — c'est
-            // « cet événement métier ne sera JAMAIS traité ». Un e-mail de réinitialisation
-            // qui ne partira pas, un gain vendeur qui ne sera pas crédité, un stock qui ne
-            // sera pas libéré. Quelqu'un doit le voir et corriger la cause.
-            //
-            // CE MESSAGE RENVOYAIT VERS « GET /admin/outbox/dead-letters », QUI N'EXISTE
-            // PAS. Aucune route de ce nom n'est montée nulle part dans le dépôt, et le
-            // portail d'administration classe d'ailleurs sa section « Outbox » comme SANS
-            // AMONT, avec la raison : la table est interne au service et l'exposer
-            // donnerait accès aux charges utiles des événements — dont certaines portent
-            // un secret. L'instruction était donc doublement fausse : elle envoyait un
-            // exploitant chercher une route absente, dans le message même qui l'informe
-            // d'une perte définitive, à l'heure où il en a le plus besoin.
-            //
-            // On décrit désormais le geste RÉEL, qui est manuel et en base. Le jour où
-            // une surface de rejeu existera, c'est ici qu'il faudra la nommer.
+            // CRITICAL, et pas Error. Ce n'est plus « une tentative a échoué » —
+            // c'est « cet événement métier ne sera JAMAIS traité ».
             _logger.LogCritical(
                 exception,
                 "LETTRE MORTE — outbox {Context}, message {MessageId} de type {Type} abandonné après {Attempts} tentatives. "
@@ -275,17 +177,14 @@ public sealed class OutboxProcessor : BackgroundService
                 + "NextAttemptAtUtc = NULL sur cette ligne de la table outbox_messages du service.",
                 typeof(UsersDbContext).Name, message.Id, message.Type, message.AttemptCount);
 
-            // LA métrique qui doit rester à zéro. Une alerte y est adossée
-            // (OutboxDeadLetter dans prometheus-rules.yml) : sans elle, on aurait
-            // simplement échangé une boucle bruyante contre un échec invisible.
+            // LA métrique qui doit rester à zéro.
             _metrics.DeadLettered(ModuleName, message.Type);
 
             return;
         }
 
-        // Warning, pas Error : un échec isolé est ATTENDU (le réseau tombe, un fournisseur
-        // hoquette, la base redémarre). Ce qui mérite une alerte, c'est la lettre morte
-        // ci-dessus. Journaliser chaque tentative en Error noierait le seul signal qui compte.
+        // Warning, pas Error : un échec isolé est ATTENDU (le réseau tombe, un
+        // fournisseur hoquette, la base redémarre).
         _metrics.PublishFailed(ModuleName, message.Type);
 
         _logger.LogWarning(

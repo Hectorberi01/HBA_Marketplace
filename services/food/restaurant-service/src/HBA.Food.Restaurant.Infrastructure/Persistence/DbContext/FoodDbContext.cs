@@ -14,31 +14,10 @@ using HBA.Food.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Food.Infrastructure.Persistence;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE SCHÉMA DU MODULE FOOD.
-///
-/// Établissements, cartes, articles, options. Le lieu physique est ailleurs
-/// (Inventory), la course aussi (Delivery), le paiement également.
-///
-/// TROIS RACINES, ET UNE QUI SURPREND
-///
-/// <c>Restaurant</c> possède ses créneaux de service. <c>MenuItem</c> possède ses
-/// groupes d'options et leurs choix — parce que valider le panier d'un client,
-/// c'est charger UN article. <c>Menu</c>, lui, n'est qu'une section : les
-/// articles la référencent sans lui appartenir, sinon vérifier un plat
-/// obligerait à charger les quarante autres.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE SCHÉMA DU MODULE FOOD.</summary>
 public sealed class FoodDbContext : ModuleDbContext, IOutboxDbContext, IFoodUnitOfWork
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // L'OUTBOX ET L'INBOX DE CE SERVICE — LEURS TABLES LUI APPARTIENNENT.
-    //
-    // Le socle draine la file d'evenements et exclut ces deux tables du journal
-    // d'audit ; il ne connait plus ni l'une ni l'autre. Ces trois membres sont ce
-    // qu'il appelle, et ils repondent avec les entites de `Persistence/`.
-    // ═════════════════════════════════════════════════════════════════════════
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
@@ -70,77 +49,35 @@ public sealed class FoodDbContext : ModuleDbContext, IOutboxDbContext, IFoodUnit
 
     public DbSet<Restaurant> Restaurants => Set<Restaurant>();
 
-    /// <summary>Les CARTES : « Menu du midi », « Carte du soir ». Elles portent les créneaux (§5).</summary>
+    /// <summary>Les CARTES : « Menu du midi », « Carte du soir ».</summary>
     public DbSet<Menu> Menus => Set<Menu>();
 
-    /// <summary>
-    /// Les SECTIONS : « Entrées », « Plats », « Boissons ».
-    ///
-    /// C'est ce que la table <c>menus</c> contenait avant la bascule à deux
-    /// niveaux. Elles vivent désormais dans <c>menu_categories</c>, et
-    /// <c>menus</c> a été vidée puis regarnie d'une carte par restaurant.
-    /// </summary>
+    /// <summary>Les SECTIONS : « Entrées », « Plats », « Boissons ».</summary>
     public DbSet<MenuCategory> MenuCategories => Set<MenuCategory>();
 
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
 
     /// <summary>
     /// Le personnel (§8). Quatrième racine : un membre possède ses dérogations de
-    /// permission, et rien d'autre. Son <c>UserId</c> n'est qu'une référence vers
-    /// Identity — aucune donnée d'authentification ne vit ici.
+    /// permission, et rien d'autre.
     /// </summary>
     public DbSet<RestaurantStaff> Staff => Set<RestaurantStaff>();
 
     /// <summary>Les postes de préparation (§9) : GRILL, PIZZA, DRINKS.</summary>
     public DbSet<PreparationStation> PreparationStations => Set<PreparationStation>();
 
-    /// <summary>
-    /// La part OPÉRATIONNELLE des commandes (§10 à §13).
-    ///
-    /// Le module Ordering reste propriétaire de la commande commerciale : on ne
-    /// trouvera ici ni paiement, ni facture, ni remboursement. Et le ticket de
-    /// cuisine n'a pas de table à lui — il EST cette commande, vue de la cuisine.
-    /// </summary>
+    /// <summary>La part OPÉRATIONNELLE des commandes (§10 à §13).</summary>
     public DbSet<FoodOrder> FoodOrders => Set<FoodOrder>();
 
-    /// <summary>
-    /// Traces de consommation Kafka (§19.5).
-    ///
-    /// Elle n'appartient à aucune des racines ci-dessus, et c'est voulu :
-    /// aucune règle métier ne la lit. Elle vit dans CE contexte parce qu'une
-    /// trace écrite hors de la transaction du ticket ne protège rien — un
-    /// incident entre les deux écritures rouvrirait le ticket au rejeu suivant.
-    /// </summary>
+    /// <summary>Traces de consommation Kafka (§19.5).</summary>
     public DbSet<ConsumerInboxEntry> ConsumerInbox => Set<ConsumerInboxEntry>();
 
     protected override string Schema => SchemaName;
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE JOURNAL D'AUDIT EST ACTIF ICI (lot 7.1, ISSUE-042 / ISSUE-043).
-    ///
-    /// `KeepsAuditTrail` VALAIT `false` SUR VINGT ET UN CONTEXTES SUR VINGT-QUATRE.
-    ///
-    /// Ce qui n'y laissait AUCUNE trace : l'approbation, le refus, la suspension et
-    /// la levée de suspension d'un ÉTABLISSEMENT.
-    ///
-    /// Suspendre un restaurant lui coupe tout son chiffre d'affaires du jour. Le
-    /// dossier retenait qu'il était suspendu, pas par qui ni quand.
-    ///
-    /// Activé DANS LE MÊME COMMIT que la migration qui crée `food.audit_entries` —
-    /// l'inverse produirait une surcharge qui promet une table absente, et le défaut
-    /// ne se verrait qu'au premier `SaveChanges` en production.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE JOURNAL D'AUDIT EST ACTIF ICI (lot 7.1, ISSUE-042 / ISSUE-043).</summary>
     protected override bool KeepsAuditTrail => true;
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LE JOURNAL D'AUDIT DE CE SERVICE — L'ENTITE ET SA TABLE LUI APPARTIENNENT.
-    //
-    // Le socle collecte les mutations, resout l'acteur et fixe l'instant unique de
-    // la transaction ; il ne connait plus aucune table d'audit. Ces deux methodes
-    // sont ce qu'il appelle, et elles repondent avec l'entite de `Auditing/`.
-    // ═════════════════════════════════════════════════════════════════════════
     protected override void ConfigurerLeJournalDAudit(ModelBuilder modelBuilder)
         => modelBuilder.ApplyConfiguration(new AuditConfiguration());
 

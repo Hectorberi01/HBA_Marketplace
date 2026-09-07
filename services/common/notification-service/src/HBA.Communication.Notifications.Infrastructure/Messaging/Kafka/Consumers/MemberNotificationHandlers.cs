@@ -3,76 +3,23 @@ using HBA.Merchants.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.Logging;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Communication.Notifications.Application.Notifications;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
 namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consumers;
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// CE QUI ARRIVE À UN MEMBRE, IL DOIT L'APPRENDRE — ET PAS EN SE COGNANT À UN 403.
-///
-/// SEPT ÉVÉNEMENTS ÉTAIENT PUBLIÉS ET CONSOMMÉS PAR PERSONNE.
-///
-/// Seule l'invitation avait un consommateur. Rejoindre une équipe, changer de
-/// rôle, être affecté à une boutique, en être retiré, être suspendu, réactivé,
-/// révoqué : tout cela partait dans l'outbox, était marqué traité, et
-/// disparaissait. MediatR et le répartiteur résolvent paresseusement — un
-/// événement sans consommateur ne provoque ni erreur ni avertissement.
-///
-/// C'est exactement le trou décrit dans `SendSellerInvitationEmailHandler` :
-/// `EmailVerificationRequestedIntegrationEvent` a été publié consciencieusement
-/// pendant des mois, consommé par personne, et aucun compte n'a jamais reçu son
-/// lien.
-///
-/// CE QUE LE SILENCE COÛTE, CONCRÈTEMENT.
-///
-/// Un employé rétrogradé découvre sa rétrogradation en cliquant sur un bouton qui
-/// répond « votre rôle ne vous autorise pas cette action ». Il appelle son gérant,
-/// qui a oublié l'avoir fait la semaine passée. Un employé suspendu croit à une
-/// panne et réessaie. Un employé affecté à une nouvelle boutique ne sait pas qu'il
-/// peut y travailler. Chacun de ces cas produit un appel au support pour une
-/// information que la plateforme détenait au moment du geste.
-///
-/// IN-APP, PAS E-MAIL — À UNE EXCEPTION PRÈS.
-///
-/// `NotifyAsync` écrit dans la boîte de réception et pousse vers les appareils.
-/// C'est le bon canal pour un changement de droits : l'intéressé est un
-/// utilisateur ACTIF de l'application, et l'information n'a de sens que devant
-/// l'écran où elle s'applique. La RÉVOCATION, elle, part aussi par e-mail : c'est
-/// la seule dont le destinataire ne pourra plus lire la boîte de réception, son
-/// accès venant d'être coupé.
-///
-/// LE NOM DE LA BOUTIQUE VIENT D'UN APPEL, PAS DE L'ÉVÉNEMENT.
-///
-/// « Vos rôles ont changé chez 3f2a-… » n'informe personne. Les événements portent
-/// des identifiants — délibérément, pour ne pas se périmer — et c'est au
-/// consommateur d'aller chercher ce qu'il veut afficher. L'appel est mis en cache
-/// côté merchant ; il coûte moins qu'un champ qui mentirait après un renommage.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 internal static class MemberNotifications
 {
-    /// <summary>Type de rattachement porté par la notification, pour le filtrage côté application.</summary>
+    /// <summary>
+    /// Type de rattachement porté par la notification, pour le filtrage côté
+    /// application.
+    /// </summary>
     public const string RelatedType = "SellerMembership";
 
-    /// <summary>
-    /// Le nom de la boutique-mère, ou un repli neutre.
-    /// </summary>
-    /// <remarks>
-    /// UN REPLI, ET NON UNE EXCEPTION.
-    ///
-    /// merchant-service peut être indisponible au moment où l'on traite
-    /// l'événement. Lever ferait rejouer le message d'outbox — donc renotifier le
-    /// membre, éventuellement plusieurs fois — pour un DÉTAIL D'AFFICHAGE. Une
-    /// notification sans le nom de l'enseigne reste utile ; trois notifications
-    /// identiques ne le sont pas.
-    /// </remarks>
+    /// <summary>Le nom de la boutique-mère, ou un repli neutre.</summary>
     public static async Task<string> EnseigneAsync(
         ISellerModuleApi sellers, Guid sellerId, CancellationToken ct)
     {
@@ -90,14 +37,6 @@ internal static class MemberNotifications
 
 /// <summary>L'invité vient d'accepter : il découvre son accès.</summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberJoinedNotificationHandler")]
 public sealed class SellerMemberJoinedNotificationHandler
     : IIntegrationEventHandler<SellerMemberJoinedIntegrationEvent>
@@ -136,19 +75,7 @@ public sealed class SellerMemberJoinedNotificationHandler
     }
 }
 
-/// <summary>
-/// Les rôles ont changé.
-/// </summary>
-/// <remarks>
-/// LA NOTIFICATION N'ÉNUMÈRE PAS LES RÔLES, ET CE N'EST PAS DE LA PARESSE.
-///
-/// L'événement porte des identifiants de rôles ; leurs NOMS vivent derrière une
-/// route d'équipe gardée par `ROLE_VIEW`, que notification-service n'a aucun titre
-/// à appeler pour le compte d'un tiers. Surtout, un nom de rôle ne dit pas ce qui
-/// a été gagné ou perdu — « Gestionnaire de commandes » ne se compare pas à
-/// « Employé » dans la tête de qui le lit. L'écran des accès, lui, montre la liste
-/// exacte des permissions ; la notification y renvoie plutôt que de la résumer mal.
-/// </remarks>
+/// <summary>Les rôles ont changé.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberRolesUpdatedNotificationHandler")]
 public sealed class SellerMemberRolesUpdatedNotificationHandler
     : IIntegrationEventHandler<SellerMemberRolesUpdatedIntegrationEvent>
@@ -211,17 +138,7 @@ public sealed class SellerMemberStoreAssignedNotificationHandler
     }
 }
 
-/// <summary>
-/// Le membre est retiré d'une boutique.
-/// </summary>
-/// <remarks>
-/// CELLE-CI COMPTE PLUS QUE SON PENDANT, DEPUIS LE CADRAGE PAR BOUTIQUE.
-///
-/// Tant qu'un rôle de boutique s'appliquait au vendeur entier, le retrait ne
-/// changeait rien de visible. Depuis le lot F, il retire RÉELLEMENT les droits sur
-/// cette boutique-là — et l'employé qui l'ignore verra des refus sur un magasin où
-/// il travaillait la veille.
-/// </remarks>
+/// <summary>Le membre est retiré d'une boutique.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberStoreUnassignedNotificationHandler")]
 public sealed class SellerMemberStoreUnassignedNotificationHandler
     : IIntegrationEventHandler<SellerMemberStoreUnassignedIntegrationEvent>
@@ -253,17 +170,7 @@ public sealed class SellerMemberStoreUnassignedNotificationHandler
     }
 }
 
-/// <summary>
-/// L'accès est suspendu.
-/// </summary>
-/// <remarks>
-/// LE MOTIF N'EST PAS DANS L'ÉVÉNEMENT, DONC PAS DANS LE MESSAGE.
-///
-/// `SellerMemberSuspendedIntegrationEvent` ne porte que les identifiants. Inventer
-/// un motif — « pour raison administrative » — serait pire que le taire : cela
-/// laisserait croire à une décision de la plateforme là où c'est l'employeur qui a
-/// agi. On dit QUI a suspendu, et on renvoie vers lui.
-/// </remarks>
+/// <summary>L'accès est suspendu.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberSuspendedNotificationHandler")]
 public sealed class SellerMemberSuspendedNotificationHandler
     : IIntegrationEventHandler<SellerMemberSuspendedIntegrationEvent>
@@ -326,26 +233,7 @@ public sealed class SellerMemberActivatedNotificationHandler
     }
 }
 
-/// <summary>
-/// Le membre est sorti de l'équipe.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA SEULE DES SEPT QUI PART AUSSI PAR E-MAIL (`alsoEmail: true`).
-///
-/// Les six autres s'adressent à quelqu'un qui garde l'accès et lira sa boîte de
-/// réception. Celle-ci s'adresse à quelqu'un dont l'accès VIENT D'ÊTRE COUPÉ : la
-/// notification in-app arriverait dans un espace qu'il ne peut plus ouvrir. C'est
-/// le cas d'école d'un message qui doit sortir de l'application pour exister.
-///
-/// ET ELLE PART MÊME SI LE COMPTE APPARTIENT À UNE AUTRE ÉQUIPE.
-///
-/// `RemainsMemberElsewhere` sert à identity, pour décider s'il faut retirer le
-/// rôle `Seller` — c'est une question d'AUTORISATION. Ici la question est
-/// différente : la personne a perdu SON accès à CE dossier, et cela mérite d'être
-/// dit qu'elle travaille ailleurs ou non.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Le membre est sorti de l'équipe.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerMemberRevokedNotificationHandler")]
 public sealed class SellerMemberRevokedNotificationHandler
     : IIntegrationEventHandler<SellerMemberRevokedIntegrationEvent>
@@ -386,33 +274,7 @@ public sealed class SellerMemberRevokedNotificationHandler
     }
 }
 
-/// <summary>
-/// La propriété du dossier a changé de porteur — les DEUX comptes l'apprennent.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// DEUX MESSAGES POUR UN SEUL ÉVÉNEMENT, ET C'EST LA SEULE FOIS DE CE FICHIER.
-///
-/// Partout ailleurs, un fait concerne un membre. Ici il en concerne deux, et
-/// asymétriquement : l'un gagne six permissions critiques — dont la fermeture du
-/// dossier et le compte de reversement — l'autre les perd toutes.
-///
-/// LE CÉDANT EST PRÉVENU MÊME S'IL EST L'AUTEUR DU GESTE.
-///
-/// Le transfert est irréversible sans l'accord de l'autre partie : la reprendre
-/// exige que le nouveau propriétaire la retransfère. Un message « vous avez cédé »
-/// qui arrive alors qu'on n'a rien cédé est le seul signal d'alarme qui reste — et
-/// le taire au motif que « c'est lui qui a cliqué » suppose précisément ce qu'on
-/// cherche à vérifier.
-///
-/// ON NE NOMME PAS L'AUTRE PARTIE.
-///
-/// L'événement ne porte que des identifiants ; résoudre le nom demanderait une
-/// lecture chez identity, et afficher un nom de compte à quelqu'un qui ne le
-/// connaît pas serait une fuite pour un confort. L'enseigne suffit à situer le
-/// dossier.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>La propriété du dossier a changé de porteur — les DEUX comptes l'apprennent.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.SellerOwnershipTransferredNotificationHandler")]
 public sealed class SellerOwnershipTransferredNotificationHandler
     : IIntegrationEventHandler<SellerOwnershipTransferredIntegrationEvent>

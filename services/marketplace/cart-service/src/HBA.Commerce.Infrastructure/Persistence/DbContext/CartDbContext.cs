@@ -12,13 +12,7 @@ namespace HBA.Commerce.Infrastructure.Persistence;
 /// <summary>DbContext du module Cart (schéma « cart »).</summary>
 public sealed class CartDbContext : ModuleDbContext, IOutboxDbContext, ICartUnitOfWork
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // L'OUTBOX ET L'INBOX DE CE SERVICE — LEURS TABLES LUI APPARTIENNENT.
-    //
-    // Le socle draine la file d'evenements et exclut ces deux tables du journal
-    // d'audit ; il ne connait plus ni l'une ni l'autre. Ces trois membres sont ce
-    // qu'il appelle, et ils repondent avec les entites de `Persistence/`.
-    // ═════════════════════════════════════════════════════════════════════════
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
@@ -50,14 +44,7 @@ public sealed class CartDbContext : ModuleDbContext, IOutboxDbContext, ICartUnit
 
     public DbSet<CartAggregate> Carts => Set<CartAggregate>();
 
-    /// <summary>
-    /// Traces de consommation Kafka (§19.5).
-    ///
-    /// Elles n'appartiennent à aucun agrégat : c'est le dispatcher qui les pose,
-    /// dans la MÊME transaction que l'effet métier du gestionnaire. Le DbSet
-    /// existe pour que la table se voie depuis le contexte comme n'importe quelle
-    /// autre — l'inbox y écrit par <c>Set&lt;ConsumerInboxEntry&gt;()</c>.
-    /// </summary>
+    /// <summary>Traces de consommation Kafka (§19.5).</summary>
     public DbSet<ConsumerInboxEntry> ConsumerInbox => Set<ConsumerInboxEntry>();
 
     protected override string Schema => SchemaName;

@@ -6,25 +6,7 @@ namespace HBA.FoodCarts.Domain.Carts;
 
 /// <summary>
 /// Panier de restauration d'un acheteur : les plats d'UN établissement, leurs
-/// options et leurs quantités. Agrégat racine — il possède ses lignes.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// POURQUOI CE PANIER N'EST PLUS CELUI DE LA MARKETPLACE.
-///
-/// Les deux ont partagé une entité, avec un discriminant `Kind` sur chaque ligne
-/// pour dire s'il fallait lire l'offre ou le plat. L'argument d'alors — « ils
-/// partagent la quantité, la devise et les totaux » — était vrai et insuffisant :
-/// ce qu'ils partageaient était la partie triviale, et ce qui les séparait était
-/// la partie qui décide.
-///
-/// Un panier de marchandise peut porter plusieurs vendeurs, réserve du stock,
-/// s'expédie depuis des entrepôts et se paie sur trois jours. Un panier de repas
-/// porte UN restaurant, ne réserve rien, se prépare en cuisine et exige une
-/// adresse géolocalisée et un devis de course. Aucune de ces règles ne se
-/// formulait sans commencer par « si Kind vaut… ».
-///
-/// La règle qui suit est la démonstration : elle n'a plus besoin d'être écrite.
-/// ═════════════════════════════════════════════════════════════════════════════
+/// options et leurs quantités.
 /// </summary>
 public sealed class FoodCart : AggregateRoot<FoodCartId>
 {
@@ -47,41 +29,19 @@ public sealed class FoodCart : AggregateRoot<FoodCartId>
 
     public Guid BuyerId { get; private set; }
 
-    /// <summary>
-    /// L'établissement du panier. Fixé à l'ouverture, jamais modifié ensuite.
-    ///
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// IL EST SUR LE PANIER, ET PLUS SUR CHAQUE LIGNE.
-    ///
-    /// L'ancienne version le portait sur la ligne et vérifiait l'unicité en
-    /// balayant la collection à chaque ajout : `_items.FirstOrDefault(i =>
-    /// i.Kind == Food && i.RestaurantId != restaurantId)`. La règle était donc
-    /// une CONSÉQUENCE d'un parcours, pas une propriété du panier — invisible en
-    /// base, et fausse le jour où un chemin d'écriture oublierait le contrôle.
-    ///
-    /// Ici, changer de restaurant est littéralement impossible : la colonne est
-    /// posée à la création et n'a pas de setter. Un panier ne mélange pas deux
-    /// cuisines parce qu'il n'a qu'une colonne pour en désigner une.
-    ///
-    /// Pourquoi cette règle existe : deux établissements, ce sont deux temps de
-    /// préparation et deux collectes. Le livreur devrait attendre le plus lent en
-    /// laissant refroidir l'autre.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>L'établissement du panier.</summary>
     public Guid RestaurantId { get; private set; }
 
     public string Currency { get; private set; } = default!;
 
     public FoodCartStatus Status { get; private set; }
 
-    /// <summary>Code promo saisi par l'acheteur, ou null. Validé par Pricing, pas ici.</summary>
+    /// <summary>Code promo saisi par l'acheteur, ou null.</summary>
     public string? PromotionCode { get; private set; }
 
     public IReadOnlyCollection<FoodCartItem> Items => _items.AsReadOnly();
 
-    /// <summary>
-    /// Ouvre un panier pour un acheteur, chez un établissement, dans une devise.
-    /// </summary>
+    /// <summary>Ouvre un panier pour un acheteur, chez un établissement, dans une devise.</summary>
     public static Result<FoodCart> Create(Guid buyerId, Guid restaurantId, string currency)
     {
         if (buyerId == Guid.Empty)
@@ -102,19 +62,7 @@ public sealed class FoodCart : AggregateRoot<FoodCartId>
         return new FoodCart(FoodCartId.New(), buyerId, restaurantId, currency.Trim().ToUpperInvariant());
     }
 
-    /// <summary>
-    /// Ajoute un plat, ou augmente la quantité de la ligne identique existante.
-    ///
-    /// LE MONTANT ARRIVE DE LA CARTE, PAS DU CLIENT.
-    ///
-    /// L'appelant l'a lu dans `IFoodModuleApi.GetMenuItemAsync` : prix de base du
-    /// plat plus l'écart de chaque option retenue. C'est la différence de fond
-    /// avec l'ancien chemin, où `unitBaseAmount` traversait le corps HTTP et où
-    /// n'importe qui pouvait commander un plat à un franc.
-    ///
-    /// Ce que le panier garantit, lui : l'établissement, la devise, la quantité,
-    /// et l'unicité de la combinaison plat + options.
-    /// </summary>
+    /// <summary>Ajoute un plat, ou augmente la quantité de la ligne identique existante.</summary>
     public Result AddItem(
         Guid restaurantId,
         Guid menuItemId,
@@ -154,12 +102,6 @@ public sealed class FoodCart : AggregateRoot<FoodCartId>
         }
 
         // AUJOURD'HUI IMPOSSIBLE, DEMAIN PEUT-ÊTRE.
-        //
-        // `MenuItem.PriceSelection` refuse déjà un total négatif, et la lecture de
-        // carte est le seul chemin qui alimente ce montant. Mais cette méthode est
-        // publique : le second appelant qui l'utilisera sans passer par la carte
-        // n'aura pas cette protection, et un panier à montant négatif se paie en
-        // crédit.
         if (unitBaseAmount < 0m)
         {
             return Result.Failure(Error.Validation(
@@ -184,16 +126,7 @@ public sealed class FoodCart : AggregateRoot<FoodCartId>
         return Result.Success();
     }
 
-    /// <summary>
-    /// Modifie la quantité d'une ligne désignée par SON identifiant.
-    ///
-    /// PAR LA LIGNE, ET JAMAIS PAR LE PLAT.
-    ///
-    /// Le même « riz au gras » peut figurer deux fois, une fois avec du poulet et
-    /// une fois sans. Seul l'identifiant de ligne les distingue — c'est pourquoi
-    /// il n'existe pas ici d'équivalent des routes `/items/{offerId}` de la
-    /// marketplace, qui n'auraient pas su laquelle des deux viser.
-    /// </summary>
+    /// <summary>Modifie la quantité d'une ligne désignée par SON identifiant.</summary>
     public Result UpdateLineQuantity(Guid lineId, int quantity)
     {
         if (Status != FoodCartStatus.Active)
@@ -248,12 +181,8 @@ public sealed class FoodCart : AggregateRoot<FoodCartId>
 
     /// <summary>
     /// Applique un code promo. Normalisé (trim + MAJUSCULES), comme à la création
-    /// d'une promotion — sans quoi « bienvenue10 » ne trouverait jamais
-    /// « BIENVENUE10 ».
-    ///
-    /// N'ATTESTE de rien : ni que le code existe, ni qu'il est actif, ni qu'il
-    /// est applicable. Seul Pricing détient les promotions ; l'appelant valide
-    /// AVANT d'appeler.
+    /// d'une promotion — sans quoi « bienvenue10 » ne trouverait jamais «
+    /// BIENVENUE10 ».
     /// </summary>
     public Result ApplyPromotionCode(string code)
     {

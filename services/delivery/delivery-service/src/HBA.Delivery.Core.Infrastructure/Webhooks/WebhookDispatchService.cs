@@ -1,7 +1,6 @@
 using System.Net;
-// IHttpClientFactory vit dans System.Net.Http, apporté par Microsoft.Extensions.Http.
-// Les usings implicites du SDK ne couvrent pas ce namespace pour une bibliothèque de
-// classes — d'où cette ligne explicite plutôt qu'une dépendance à une convention.
+// IHttpClientFactory vit dans System.Net.Http, apporté par
+// Microsoft.Extensions.Http.
 using System.Net.Http;
 using System.Text;
 using HBA.Deliveries.Application.Abstractions;
@@ -14,30 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HBA.Deliveries.Infrastructure.Webhooks;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA BOUCLE QUI VIDE LA FILE DES WEBHOOKS.
-///
-/// Elle lit les envois dus, les poste, et reprogramme ceux qui échouent. Sans
-/// elle, la file se remplit sans que rien n'en sorte — et le partenaire n'apprend
-/// jamais qu'une commande a été livrée.
-///
-/// TROIS RÈGLES QUI VIENNENT DE CE QU'ON APPELLE : UN SERVEUR TIERS.
-///
-///   • DÉLAI D'ATTENTE COURT. Un endpoint qui met trente secondes à répondre
-///     immobiliserait la boucle. Dix secondes suffisent à un accusé de réception ;
-///     au-delà, le partenaire traite en synchrone ce qu'il devrait mettre en file
-///     de son côté, et c'est son problème, pas le nôtre.
-///   • SÉQUENTIEL, PAS PARALLÈLE. Un partenaire qui reçoit « livrée » avant
-///     « acceptée » verrait son suivi partir à l'envers. L'ordre n'est pas garanti
-///     de bout en bout — un réessai décale forcément — mais on ne l'inverse pas
-///     gratuitement.
-///   • 4xx ET 5xx SE TRAITENT PAREIL. Tentant de dire « 400 = sa faute, on
-///     abandonne ». Mais un 404 est presque toujours un déploiement en cours, et
-///     un 401 une rotation de secret mal finie. Abandonner au premier 4xx, c'est
-///     perdre le fait au moment précis où le partenaire répare.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA BOUCLE QUI VIDE LA FILE DES WEBHOOKS.</summary>
 internal sealed class WebhookDispatchService : BackgroundService
 {
     /// <summary>Fréquence de balayage. La file est vide la plupart du temps.</summary>
@@ -47,7 +23,7 @@ internal sealed class WebhookDispatchService : BackgroundService
 
     private const int BatchSize = 25;
 
-    /// <summary>Étalement du recul, en secondes. Voir WebhookDelivery.MarkFailed.</summary>
+    /// <summary>Étalement du recul, en secondes.</summary>
     private const int MaxJitterSeconds = 30;
 
     private readonly IServiceScopeFactory _scopeFactory;
@@ -75,9 +51,7 @@ internal sealed class WebhookDispatchService : BackgroundService
             try
             {
                 // Même verrou que le dispatch, sur une clé DIFFÉRENTE : deux
-                // répliques enverraient sinon chaque webhook en double. Le
-                // partenaire peut dédupliquer par EventId — encore faut-il qu'il
-                // l'ait implémenté, et ce n'est pas à nous d'en faire l'hypothèse.
+                // répliques enverraient sinon chaque webhook en double.
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var dbContext = scope.ServiceProvider
@@ -135,19 +109,11 @@ internal sealed class WebhookDispatchService : BackgroundService
         {
             var partner = await partners.GetByIdAsync(new PartnerId(webhook.PartnerId), cancellationToken);
 
-            // ─────────────────────────────────────────────────────────────────
             // URL ET SECRET SONT RELUS MAINTENANT, PAS FIGÉS À LA MISE EN FILE.
-            //
-            // La cause la plus fréquente d'un webhook en échec est une URL
-            // erronée, et sa correction est de la changer. Figer l'adresse ferait
-            // rejouer toute la file vers l'endpoint cassé jusqu'à épuisement.
-            // ─────────────────────────────────────────────────────────────────
             if (partner?.WebhookUrl is not { } url || partner.WebhookSecret is not { } secret)
             {
                 // Pas de rappel configuré : on ABANDONNE tout de suite plutôt que
                 // de réessayer six fois quelque chose qui ne peut pas aboutir.
-                // MarkFailed jusqu'à épuisement produirait le même résultat, huit
-                // heures plus tard et après six tours de boucle inutiles.
                 for (var i = webhook.Attempts; i < WebhookDelivery.MaxAttempts; i++)
                 {
                     webhook.MarkFailed(null, "Aucun rappel configuré pour ce partenaire.");
@@ -172,9 +138,7 @@ internal sealed class WebhookDispatchService : BackgroundService
             using var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
                 // Le corps est celui FIGÉ à la mise en file, transmis tel quel :
-                // c'est exactement cette chaîne qui est signée. Re-sérialiser ici
-                // produirait une signature que le partenaire ne pourrait pas
-                // vérifier — un espace de plus suffirait.
+                // c'est exactement cette chaîne qui est signée.
                 Content = new StringContent(webhook.Payload, Encoding.UTF8, "application/json")
             };
 
@@ -208,14 +172,13 @@ internal sealed class WebhookDispatchService : BackgroundService
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Arrêt de l'hôte : on ne compte PAS de tentative. La laisser compter
-            // consommerait le budget de réessai à chaque redéploiement.
+            // Arrêt de l'hôte : on ne compte PAS de tentative.
             throw;
         }
         catch (Exception ex)
         {
             // Délai dépassé, DNS injoignable, certificat invalide : le partenaire
-            // n'a pas répondu. C'est le cas nominal d'un serveur tiers.
+            // n'a pas répondu.
             webhook.MarkFailed(null, ex.Message, jitter);
 
             _logger.LogWarning(
@@ -227,9 +190,7 @@ internal sealed class WebhookDispatchService : BackgroundService
 
         if (webhook.Status is WebhookStatus.Abandoned)
         {
-            // Le seul message de niveau Error de ce fichier. Un fait est
-            // définitivement perdu pour un partenaire, et quelqu'un doit
-            // l'apprendre autrement que par une réclamation client.
+            // Le seul message de niveau Error de ce fichier.
             _logger.LogError(
                 "Webhook {EventType} ABANDONNÉ pour le partenaire {PartnerId} après {Attempts} tentatives "
                 + "(événement {EventId}). Ce partenaire ne saura jamais que ce fait a eu lieu.",

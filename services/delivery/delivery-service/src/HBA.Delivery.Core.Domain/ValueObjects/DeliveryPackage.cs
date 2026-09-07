@@ -3,21 +3,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Deliveries.Domain.Deliveries;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUI EST TRANSPORTÉ — DÉCRIT, JAMAIS INTERPRÉTÉ.
-///
-/// La description est du TEXTE LIBRE, et c'est volontaire. Le moteur logistique
-/// n'a pas à savoir qu'il s'agit d'un téléphone, d'un plat chaud ou d'un colis
-/// partenaire : il a besoin de ce que le livreur doit lire pour choisir son
-/// véhicule et son mode de transport.
-///
-/// Le poids et le caractère fragile ou périssable sont en revanche STRUCTURÉS,
-/// parce qu'ils entrent dans des décisions automatiques : un colis de 40 kg
-/// n'est pas proposé à une moto, un plat chaud passe avant un colis dans une
-/// tournée. Ce sont des contraintes physiques, pas des catégories commerciales.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>CE QUI EST TRANSPORTÉ — DÉCRIT, JAMAIS INTERPRÉTÉ.</summary>
 public sealed class DeliveryPackage : ValueObject
 {
     private const int MaxDescription = 300;
@@ -50,7 +36,9 @@ public sealed class DeliveryPackage : ValueObject
     /// <summary>Périssable : impose un délai court, pas un type de véhicule.</summary>
     public bool IsPerishable { get; private init; }
 
-    /// <summary>Le colis peut-il partir à moto ? Un poids inconnu est présumé transportable.</summary>
+    /// <summary>
+    /// Le colis peut-il partir à moto ? Un poids inconnu est présumé transportable.
+    /// </summary>
     public bool FitsOnMotorcycle => WeightKg is null || WeightKg <= MotorcycleMaxWeightKg;
 
     public static Result<DeliveryPackage> Create(
@@ -73,8 +61,7 @@ public sealed class DeliveryPackage : ValueObject
         }
 
         // Un poids nul déclaré n'est pas une erreur de saisie : c'est un champ
-        // laissé à zéro par une intégration. On le traite comme « non renseigné »
-        // plutôt que comme un colis sans poids, qui n'existe pas.
+        // laissé à zéro par une intégration.
         var normalizedWeight = weightKg is null or 0m ? null : weightKg;
 
         return new DeliveryPackage(

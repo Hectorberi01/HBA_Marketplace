@@ -7,21 +7,10 @@ namespace HBA.Merchants.Application.Sellers;
 
 /// <summary>
 /// Projections de l'agrégat <see cref="Seller"/> — deux, et la distinction porte.
-///
-/// <see cref="ToSummary"/> rend ce qui VOYAGE entre services : les huit champs du
-/// proto. <see cref="ToDetail"/> rend la fiche complète, qui ne sort jamais de la
-/// surface HTTP du service. Voir l'encadré de `SellerSummary` : c'est cette
-/// séparation qui empêche un champ non transporté de mentir à un appelant distant.
 /// </summary>
 internal static class SellerMapper
 {
-    /// <summary>
-    /// LE TAUX EST PASSÉ, PAS LU SUR LE VENDEUR.
-    ///
-    /// Ce mapper servait `seller.CommissionRate` — une colonne écrite à
-    /// l'inscription et consultée par aucun calcul. Le marchand lisait donc un
-    /// taux qui n'était pas celui qu'on lui appliquait, et rien ne le signalait.
-    /// </summary>
+    /// <summary>LE TAUX EST PASSÉ, PAS LU SUR LE VENDEUR.</summary>
     public static SellerSummary ToSummary(Seller seller, decimal effectiveCommissionRate) => new(
         seller.Id.Value,
         seller.UserId,
@@ -32,14 +21,7 @@ internal static class SellerMapper
         seller.KybStatus.ToString(),
         effectiveCommissionRate);
 
-    /// <summary>
-    /// La fiche complète : le résumé transporté, plus tout ce qui reste ici.
-    /// </summary>
-    /// <remarks>
-    /// LES BOUTIQUES SONT PASSÉES, PAS CHARGÉES ICI. `Store` est un agrégat
-    /// distinct, avec son propre dépôt ; c'est à l'appelant de décider s'il paie
-    /// cette seconde lecture.
-    /// </remarks>
+    /// <summary>La fiche complète : le résumé transporté, plus tout ce qui reste ici.</summary>
     public static SellerDetail ToDetail(
         Seller seller,
         decimal effectiveCommissionRate,
@@ -81,7 +63,10 @@ internal static class SellerMapper
                 BeninGeography.CommuneName(m.Commune),
                 m.Activity, m.ManagerName, m.Phone);
 
-    /// <summary>Statut affichable d'une pièce : vérifiée, refusée (boutique refusée) ou en revue.</summary>
+    /// <summary>
+    /// Statut affichable d'une pièce : vérifiée, refusée (boutique refusée) ou en
+    /// revue.
+    /// </summary>
     private static string ResolveDocStatus(KybDocument doc, KybStatus sellerStatus) =>
         doc.VerifiedAtUtc.HasValue ? "Verified"
         : sellerStatus == KybStatus.Rejected ? "Rejected"

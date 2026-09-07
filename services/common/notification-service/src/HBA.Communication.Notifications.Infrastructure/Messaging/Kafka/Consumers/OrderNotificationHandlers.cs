@@ -1,11 +1,6 @@
 using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Communication.Notifications.Application.Notifications.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Communication.Notifications.Application.Notifications;
 using HBA.Communication.Notifications.Application.Notifications.EventHandlers;
 
@@ -13,14 +8,6 @@ namespace HBA.Communication.Notifications.Infrastructure.Messaging.Kafka.Consume
 
 /// <summary>Notifie l'acheteur que sa commande est passée (en attente de paiement).</summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.OrderPlacedNotificationHandler")]
 public sealed class OrderPlacedNotificationHandler : IIntegrationEventHandler<OrderPlacedIntegrationEvent>
 {
@@ -66,34 +53,9 @@ public sealed class OrderCancelledNotificationHandler : IIntegrationEventHandler
 }
 
 /// <summary>
-/// La commande est PRISE EN CHARGE : un incident de livraison empêche de la
-/// mener à bien, et l'équipe HBA s'en occupe.
+/// La commande est PRISE EN CHARGE : un incident de livraison empêche de la mener à
+/// bien, et l'équipe HBA s'en occupe.
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE MESSAGE EST CELUI QUI ÉVITE UNE RÉCLAMATION, ET SA FORMULATION COMPTE
-///    AUTANT QUE SON EXISTENCE.
-///
-/// Avant lui, une commande devenue inexécutable restait « confirmée » sans un
-/// mot : le client attendait un colis que personne n'apportait, et découvrait le
-/// problème au bout de plusieurs jours, en appelant. Argent encaissé, stock
-/// décrémenté, escrow gelé, et aucune trace côté acheteur.
-///
-/// NE JAMAIS LAISSER CROIRE À UNE ANNULATION.
-///
-/// La vente est VIVANTE : une course annulée se réattribue le plus souvent, et
-/// l'exploitation va très probablement relancer. Écrire « votre commande ne peut
-/// pas être livrée » ferait exiger un remboursement à quelqu'un qui recevra son
-/// colis le lendemain — et transformerait une reprise réussie en litige.
-///
-/// Le message dit donc trois choses, dans cet ordre : il y a un incident, nous
-/// l'avons vu, nous revenons vers vous. Le motif technique n'y figure pas :
-/// « expédition depuis 2 lieux » n'apprend rien à un acheteur et l'inquiète.
-///
-/// DOUBLÉ PAR COURRIEL. Le client n'ouvrira pas forcément l'application, et
-/// c'est précisément le moment où il doit être joint.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.OrderUnderReviewNotificationHandler")]
 public sealed class OrderUnderReviewNotificationHandler
     : IIntegrationEventHandler<OrderUnderReviewIntegrationEvent>
@@ -117,16 +79,7 @@ public sealed class OrderUnderReviewNotificationHandler
             alsoEmail: true);
 }
 
-/// <summary>
-/// L'incident est levé : la commande repart.
-/// </summary>
-/// <remarks>
-/// SANS CE SECOND MESSAGE, LE PREMIER SE RETOURNE CONTRE NOUS.
-///
-/// « Nous vous recontactons très vite » suivi de rien vaut moins que le silence :
-/// c'est une promesse non tenue, et c'est ce qui déclenche l'appel au support que
-/// le premier message devait éviter.
-/// </remarks>
+/// <summary>L'incident est levé : la commande repart.</summary>
 [NomDeConsommateur("HBA.Communication.Notifications.Application.Notifications.EventHandlers.OrderResumedAfterReviewNotificationHandler")]
 public sealed class OrderResumedAfterReviewNotificationHandler
     : IIntegrationEventHandler<OrderResumedAfterReviewIntegrationEvent>

@@ -10,22 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using HBA.Inventory.Contracts;
 using ContratsInventory = HBA.Inventory.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Inventory.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Inventory.Api.Grpc.Services;
 
@@ -109,11 +94,6 @@ internal sealed class InventoryGrpcService : InventoryApi.InventoryApiBase
         };
 
         // RECOPIÉES, ET C'EST UN RAPPEL PLUTÔT QU'UN MAPPING MUET.
-        //
-        // Une projection jumelle les écrasait autrefois par « null, null » : une
-        // saisie GPS ne survivait pas à sa propre relecture. Écrire la même
-        // projection à un second endroit est l'occasion parfaite de refaire
-        // l'erreur.
         if (lieu.Latitude is { } lat)
         {
             message.Latitude = lat;

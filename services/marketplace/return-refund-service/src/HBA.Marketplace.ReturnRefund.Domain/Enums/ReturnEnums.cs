@@ -29,37 +29,12 @@ public enum RefundStatus
     /// <summary>
     /// ÉTAT INATTEIGNABLE : aucun chemin ne rend un remboursement PARTIELLEMENT
     /// réussi (lot 9.2).
-    ///
-    /// Une tentative aboutit ou échoue en bloc. Le cas qu'il décrit — plusieurs
-    /// tentatives dont certaines seulement ont abouti — est pourtant possible :
-    /// `RefundAttempt` est une collection. Tant que rien ne le pose, un
-    /// remboursement à deux tentatives dont une a réussi se lit `Failed`, et
-    /// l'argent déjà rendu ne se voit qu'en descendant dans les tentatives.
     /// </summary>
     PartiallySucceeded = 3,
     Failed = 4,
     Cancelled = 5
 }
 
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// AUCUNE DES CINQ VALEURS N'EST JAMAIS POSÉE (lot 9.2).
-///
-/// La résolution d'un retour n'est décidée nulle part : le parcours va du retour
-/// approuvé au remboursement exécuté sans jamais nommer CE QUI a été décidé.
-/// Remplacement et remboursement partiel n'existent donc pas — c'est cohérent
-/// avec le reste du service, qui ne sait faire qu'un remboursement total.
-///
-/// ET `Refund` ET `RefundOnly` SONT DEUX NOMS POUR LA MÊME CHOSE.
-///
-/// Le doublon ne se voit pas tant que personne n'assigne : le jour où quelqu'un
-/// écrira la décision, il choisira l'un des deux au hasard, et les lectures
-/// filtreront sur l'autre. C'est le genre d'écart qui ne casse rien et fausse
-/// tout — un écran qui compte les remboursements en oubliera la moitié.
-///
-/// À trancher AVANT le premier usage, pas après.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public enum ReturnResolution
 {
     Refund = 0,

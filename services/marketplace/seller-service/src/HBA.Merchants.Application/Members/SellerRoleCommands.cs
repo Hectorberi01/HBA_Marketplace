@@ -6,22 +6,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Merchants.Application.Members;
 
-/// <summary>
-/// Crée un rôle taillé par le vendeur.
-/// </summary>
-/// <remarks>
-/// LES PERMISSIONS ARRIVENT EN CODES, PAS EN ENTIERS.
-///
-/// `MerchantPermission` est une énumération, et ses valeurs numériques sont un
-/// détail d'implémentation : `OFFER_MANAGE` vaut 6 parce qu'elle a été insérée
-/// entre `PRODUCT_UNPUBLISH` et le bloc du stock. Accepter l'entier ferait de
-/// chaque insertion une rupture de contrat silencieuse — un client qui envoie 6
-/// demanderait autre chose après la prochaine livraison, et personne ne le verrait
-/// avant qu'un rôle ne porte la mauvaise permission.
-///
-/// `GET /merchants/permissions` rend déjà les codes ; c'est la même liste qui
-/// revient ici.
-/// </remarks>
+/// <summary>Crée un rôle taillé par le vendeur.</summary>
 public sealed record CreateSellerRoleCommand(
     Guid SellerId,
     Guid ActorUserId,
@@ -30,21 +15,7 @@ public sealed record CreateSellerRoleCommand(
     string? Scope,
     IReadOnlyList<string> Permissions) : ICommand<Guid>;
 
-/// <summary>
-/// Réécrit un rôle personnalisé.
-/// </summary>
-/// <remarks>
-/// LES PERMISSIONS SONT REMPLACÉES, PAS FUSIONNÉES — c'est un PUT déguisé en
-/// PATCH, et le nom de la route ne doit pas le laisser croire autrement.
-///
-/// Une fusion obligerait à exprimer les retraits, donc à inventer une grammaire
-/// (`-OFFER_PRICE_UPDATE` ?) pour un écran qui, de toute façon, présente des cases
-/// à cocher et connaît l'état complet. Le remplacement rend l'appel idempotent et
-/// la garde de délégation applicable telle quelle : on vérifie l'ensemble demandé,
-/// pas un delta dont il faudrait reconstituer le résultat.
-///
-/// La PORTÉE, elle, ne se modifie pas — voir le handler.
-/// </remarks>
+/// <summary>Réécrit un rôle personnalisé.</summary>
 public sealed record UpdateSellerRoleCommand(
     Guid SellerId,
     Guid ActorUserId,
@@ -55,29 +26,7 @@ public sealed record UpdateSellerRoleCommand(
 
 public sealed record DeleteSellerRoleCommand(Guid SellerId, Guid ActorUserId, Guid RoleId) : ICommand;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES RÔLES PERSONNALISÉS — CE QUE CE HANDLER GARDE, EN PLUS DE LA PERMISSION.
-///
-/// `ROLE_CREATE` NE SUFFIT PAS, ET C'EST TOUT L'INTÉRÊT DU §11.
-///
-/// Un membre qui porte `ROLE_CREATE` pourrait, sans second contrôle, se tailler un
-/// rôle portant TOUTES les permissions et se l'attribuer — l'escalade en deux
-/// appels. `SellerRole.Custom` exige donc les permissions effectives de l'acteur
-/// et refuse tout ce qu'il ne détient pas lui-même. On ne donne pas ce qu'on n'a
-/// pas.
-///
-/// Ce n'est pas une hiérarchie par rang : c'est une inclusion d'ensembles, et elle
-/// tient aussi entre deux membres de même niveau aux droits différents — ce qu'un
-/// ordinal ne sait pas exprimer.
-///
-/// ET LE RÔLE CRÉÉ APPARTIENT AU VENDEUR DE L'ACTEUR, PAS À CELUI DU CORPS.
-///
-/// `SellerId` vient de l'URL, mais c'est la RÉSOLUTION de l'acteur sur ce vendeur
-/// qui autorise : un compte qui n'appartient pas à ce vendeur est refusé avant
-/// d'arriver ici. Le §36 en toutes lettres.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES RÔLES PERSONNALISÉS — CE QUE CE HANDLER GARDE, EN PLUS DE LA PERMISSION.</summary>
 internal sealed class SellerRoleCommandHandler :
     ICommandHandler<CreateSellerRoleCommand, Guid>,
     ICommandHandler<UpdateSellerRoleCommand>,
@@ -131,11 +80,6 @@ internal sealed class SellerRoleCommandHandler :
         }
 
         // L'UNICITÉ DU NOM SE VÉRIFIE ICI ET NON DANS L'AGRÉGAT.
-        //
-        // Un agrégat ne voit pas ses frères. Le dépôt, si — et une contrainte
-        // d'unicité en base rendrait une violation de contrainte que l'appelant
-        // recevrait en 500 plutôt qu'en 409 lisible. Les deux se complètent : ce
-        // contrôle sert le message, la contrainte sert la concurrence.
         if (await _roles.NameExistsAsync(command.SellerId, command.Name.Trim(), cancellationToken))
         {
             return Result.Failure<Guid>(Error.Conflict(
@@ -183,10 +127,6 @@ internal sealed class SellerRoleCommandHandler :
         var nom = command.Name.Trim();
 
         // ON NE VÉRIFIE L'UNICITÉ QUE SI LE NOM CHANGE.
-        //
-        // Sinon toute modification de permissions sur un rôle échouerait en 409
-        // contre lui-même : `NameExistsAsync` trouverait le rôle qu'on est en train
-        // de modifier.
         if (!string.Equals(nom, role.Name, StringComparison.Ordinal)
             && await _roles.NameExistsAsync(command.SellerId, nom, cancellationToken))
         {
@@ -195,41 +135,6 @@ internal sealed class SellerRoleCommandHandler :
         }
 
         // LA PORTÉE NE FIGURE PAS DANS CETTE COMMANDE, ET C'EST DÉLIBÉRÉ.
-        //
-        // Faire passer un rôle de `Seller` à `Store` — ou l'inverse — changerait le
-        // périmètre de tous les membres qui le portent DÉJÀ, sans qu'aucun d'eux ne
-        // soit touché ni notifié. C'est une révocation ou une escalade silencieuse
-        // selon le sens, et elle serait invisible dans la liste des membres, qui
-        // n'affiche que des noms de rôles.
-        //
-        // Changer de vocation, c'est un autre rôle : on en crée un et on réattribue.
-        // ═════════════════════════════════════════════════════════════════════
-        // LA DÉCISION D27 SE REJOUE ICI, ET SON ABSENCE ÉTAIT UNE ESCALADE.
-        //
-        // Le contrôle de portée était posé à l'ATTRIBUTION, jamais à la MODIFICATION.
-        // Le détour tenait en trois appels, sans qu'aucun ne soit refusé :
-        //
-        //   1. créer le rôle « Vendeur B » avec PRODUCT_VIEW et PRODUCT_UPDATE,
-        //      toutes deux cloisonnables ;
-        //   2. l'affecter à un employé SUR la boutique B — la garde passe, rien
-        //      d'incadrable ;
-        //   3. y ajouter INVENTORY_ADJUST par un simple PATCH.
-        //
-        // L'employé se retrouve avec un droit que le code ne sait pas cloisonner,
-        // donc appliqué aux DEUX boutiques — exactement ce que D27 interdit, sans
-        // qu'aucune attribution n'ait eu lieu. La garde symétrique de
-        // `StoreCommandHandler` ne se déclenche pas non plus : elle ne s'exécute
-        // qu'à la création d'une boutique.
-        //
-        // C'est le même raisonnement que celui écrit dans `SellerRole.Update` pour
-        // la délégation — « ON REVÉRIFIE À CHAQUE MODIFICATION, PAS SEULEMENT À LA
-        // CRÉATION » — appliqué à la seconde règle, qu'on avait oubliée.
-        //
-        // ET SEULEMENT SI LE RÔLE EST RÉELLEMENT AFFECTÉ À UNE BOUTIQUE.
-        //
-        // Un rôle porté uniquement au niveau du vendeur ne promet aucun
-        // cloisonnement : le contrôle n'a pas lieu d'être, et l'imposer
-        // interdirait de modifier des rôles parfaitement légitimes.
         var portee = await EnsurePorteeBoutiqueAsync(
             command.SellerId, new SellerRoleId(command.RoleId), demandees.Value, cancellationToken);
 
@@ -262,12 +167,6 @@ internal sealed class SellerRoleCommandHandler :
         var (acteur, role) = contexte.Value;
 
         // LE DÉCOMPTE EST LU AVANT, ET LA DÉLÉGATION EST VÉRIFIÉE AVEC.
-        //
-        // `EnsureDeletable` oppose les trois refus d'un coup : rôle système, rôle
-        // encore porté — le supprimer serait une révocation silencieuse, les membres
-        // se retrouveraient sans permission, sans événement, sans trace — et rôle
-        // portant plus que l'acteur. Les trois vivent dans l'agrégat pour qu'un
-        // second chemin de suppression ne puisse pas en oublier un.
         var porteurs = await _members.CountByRoleAsync(
             command.SellerId, new SellerRoleId(command.RoleId), cancellationToken);
 
@@ -283,22 +182,12 @@ internal sealed class SellerRoleCommandHandler :
         return Result.Success();
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Outillage
-    // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Refuse d'ajouter à un rôle DÉJÀ AFFECTÉ À UNE BOUTIQUE une permission que le
     /// code ne sait pas cloisonner, dès lors que le vendeur a plus d'une boutique.
     /// </summary>
-    /// <remarks>
-    /// MÊME RÈGLE QUE `MemberCommandHandler` ET `StoreCommandHandler`.
-    ///
-    /// Les trois gardes forment un triangle : l'une refuse l'affectation, l'autre la
-    /// boutique, celle-ci la modification du rôle. En désaccorder une rouvre le trou
-    /// par le côté qu'on n'a pas touché — c'est déjà arrivé, cette garde-ci étant la
-    /// dernière à avoir été écrite.
-    /// </remarks>
     private async Task<Result> EnsurePorteeBoutiqueAsync(
         Guid sellerId,
         SellerRoleId roleId,
@@ -316,11 +205,6 @@ internal sealed class SellerRoleCommandHandler :
         }
 
         // LES DEUX LECTURES NE PARTENT QU'APRÈS LE TEST CI-DESSUS.
-        //
-        // La très grande majorité des modifications ne touchent qu'à des permissions
-        // cloisonnables, et n'ont donc rien à payer. L'ordre est une décision de
-        // coût : les trois conditions se multiplient, leur ordre ne change rien à la
-        // décision.
         var boutiques = await _stores.ListBySellerAsync(sellerId, cancellationToken);
         if (boutiques.Count <= 1)
         {
@@ -347,15 +231,6 @@ internal sealed class SellerRoleCommandHandler :
     /// Résout l'acteur, contrôle sa permission, et charge le rôle visé — en
     /// refusant celui d'un AUTRE vendeur.
     /// </summary>
-    /// <remarks>
-    /// LE RÔLE SYSTÈME ET LE RÔLE D'AUTRUI RENDENT LE MÊME REFUS.
-    ///
-    /// Un rôle système a `SellerId == null` ; celui d'un concurrent a un autre
-    /// `SellerId`. Les deux sont « pas à vous » du point de vue de l'appelant, et
-    /// les distinguer dirait à qui tâtonne des identifiants lesquels désignent un
-    /// rôle réel. L'agrégat oppose de toute façon son propre refus sur un rôle
-    /// système, avec un message explicite, quand l'appelant y arrive légitimement.
-    /// </remarks>
     private async Task<Result<(MemberActor Acteur, SellerRole Role)>> ChargerAsync(
         Guid sellerId, Guid actorUserId, Guid roleId,
         MerchantPermission requise, CancellationToken cancellationToken)
@@ -383,18 +258,7 @@ internal sealed class SellerRoleCommandHandler :
         return (acteur.Value, role);
     }
 
-    /// <summary>
-    /// Traduit les codes publics en permissions. Un code inconnu est un REFUS, pas
-    /// une omission.
-    /// </summary>
-    /// <remarks>
-    /// IGNORER UN CODE INCONNU CRÉERAIT UN RÔLE PLUS FAIBLE QUE DEMANDÉ.
-    ///
-    /// L'écran afficherait les cases cochées par l'utilisateur, la base porterait
-    /// autre chose, et le premier refus inexpliqué arriverait des semaines plus
-    /// tard sur un membre qui « a pourtant le rôle ». Une faute de frappe doit
-    /// s'entendre au moment où elle est commise.
-    /// </remarks>
+    /// <summary>Traduit les codes publics en permissions.</summary>
     private static Result<IReadOnlyCollection<MerchantPermission>> Traduire(IReadOnlyList<string> codes)
     {
         if (codes is null || codes.Count == 0)
@@ -419,20 +283,7 @@ internal sealed class SellerRoleCommandHandler :
         return resolues;
     }
 
-    /// <summary>
-    /// Lit la vocation demandée. Absente, c'est <see cref="RoleScope.Seller"/>.
-    /// </summary>
-    /// <remarks>
-    /// LE DÉFAUT EST `Seller`, ET CE N'EST PAS LE PLUS PERMISSIF PAR HASARD.
-    ///
-    /// En phase 1, un rôle de vocation `Store` s'applique de toute façon au vendeur
-    /// entier — le rattachement boutique ne mord pas encore dans order et inventory
-    /// (décision D27). Choisir `Store` par défaut ferait donc croire à un cadrage
-    /// qui n'existe pas, ce qui est pire qu'une portée large assumée : on prend des
-    /// risques qu'on croit ne pas prendre.
-    ///
-    /// Le jour où le cadrage mordra, ce défaut devra être rediscuté — pas avant.
-    /// </remarks>
+    /// <summary>Lit la vocation demandée.</summary>
     private static Result<RoleScope> LirePortee(string? scope)
     {
         if (string.IsNullOrWhiteSpace(scope))
@@ -441,16 +292,6 @@ internal sealed class SellerRoleCommandHandler :
         }
 
         // `Enum.IsDefined` EN PLUS DE `TryParse`, ET CE N'EST PAS REDONDANT.
-        //
-        // `Enum.TryParse` accepte les CHAÎNES NUMÉRIQUES sans vérifier qu'elles
-        // désignent une valeur déclarée : `"7"` rend `true` et produit
-        // `(RoleScope)7`. Le rôle serait persisté avec une valeur hors énumération —
-        // `HasConversion<int>` ne s'en plaint pas — et l'écran des rôles afficherait
-        // « 7 » dans la colonne portée. Le refus annoncé par cette méthode ne se
-        // serait jamais déclenché.
-        //
-        // Sans conséquence de sécurité aujourd'hui, la vocation ne décidant de rien.
-        // Elle en aura le jour où `Scope` pilotera le cadrage.
         return Enum.TryParse<RoleScope>(scope.Trim(), ignoreCase: true, out var portee)
             && Enum.IsDefined(portee)
             ? portee

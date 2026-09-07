@@ -9,27 +9,7 @@ using MediatR;
 
 namespace HBA.Promotions.Api.Endpoints;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// API DU SERVICE PROMOTION (§10.16).
-///
-/// VALIDER N'EST PAS RÉSERVER, ET LES DEUX ROUTES NE SE RESSEMBLENT PAS PAR
-/// HASARD.
-///
-/// `POST /promotions/validate` est en LECTURE PURE : l'écran du panier la rappelle
-/// à chaque changement de quantité. Si elle réservait, dix modifications
-/// consommeraient dix fois l'enveloppe et épuiseraient une campagne sans qu'aucune
-/// commande ne soit passée. La réservation n'a pas de route REST du tout — elle
-/// n'appartient qu'au checkout, donc au chemin gRPC, appelé par les services de
-/// commande et non par une application cliente.
-///
-/// AUCUNE ROUTE ANONYME.
-///
-/// Le §10.16 exige un Bearer JWT sur les trois routes. Ce n'est pas une formalité
-/// pour `validate` : le plafond par compte se compte sur un `UserId`, et une route
-/// ouverte le rendrait indéterminable — donc inapplicable.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>API DU SERVICE PROMOTION (§10.16).</summary>
 public static class PromotionEndpoints
 {
     public static IEndpointRouteBuilder MapPromotionEndpoints(this IEndpointRouteBuilder app)
@@ -39,14 +19,8 @@ public static class PromotionEndpoints
         promotions.MapPost("/validate", ValidateAsync).WithName("ValidateCoupon");
 
         // « merchant » AU SINGULIER, COMME LE CAHIER L'ÉCRIT.
-        //
-        // Le dépôt dit « Seller » partout ailleurs (décision D1), et l'écart est
-        // assumé ici : ce chemin est un CONTRAT PUBLIC déjà publié au §10.16, que
-        // des équipes ont lu. Aligner l'URL sur le vocabulaire interne aurait
-        // rendu le document faux sans prévenir personne.
         var marchand = app.MapAuthenticatedGroup("/api/v1/merchant/promotions").WithTags("Promotions");
 
-        // ═════════════════════════════════════════════════════════════════════
         // CES TROIS ROUTES ÉTAIENT FERMÉES À `RequireAdmin` PAR DÉFAUT DE
         // PROPRIÉTAIRE. ELLES NE LE SONT PLUS (D28).
         //
@@ -81,7 +55,6 @@ public static class PromotionEndpoints
         // trou. Le jour où le modérateur aura un rôle à jouer sur les campagnes,
         // le bon geste sera de passer à `MapSellerGroup` et de retirer l'exclusion
         // de la garde — pas d'ajouter une exception de plus ici.
-        // ═════════════════════════════════════════════════════════════════════
         marchand.MapPost("/", CreateAsync).WithName("CreatePromotion")
             .RequireIdempotency();
         marchand.MapGet("/", ListAsync).WithName("ListPromotions");
@@ -94,17 +67,7 @@ public static class PromotionEndpoints
     public sealed record ValidateRequest(
         string? Code, string? Scope, long Subtotal, long DeliveryFee, string? Currency);
 
-    /// <summary>
-    /// Valide un coupon pour un panier.
-    ///
-    /// UN COUPON REFUSÉ REND 200, PAS 422.
-    ///
-    /// Le §10.16 attend `{"valid": false}` : saisir un code périmé est un usage
-    /// normal du champ, pas une requête malformée. Rendre une erreur ferait
-    /// apparaître chaque frappe d'un client dans les alertes du service, et
-    /// l'application devrait traiter un échec pour afficher un message qui n'a
-    /// rien d'exceptionnel.
-    /// </summary>
+    /// <summary>Valide un coupon pour un panier.</summary>
     private static async Task<IResult> ValidateAsync(
         ValidateRequest request, ClaimsPrincipal user, ISender sender, CancellationToken ct)
     {
@@ -126,34 +89,7 @@ public static class PromotionEndpoints
         return resultat.Match(ApiResults.Ok);
     }
 
-    /// <summary>
-    /// Corps de `POST /api/v1/merchant/promotions` (§10.16).
-    ///
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// DEUX FAÇONS DE DIRE LE FINANCEUR, ET UNE RÈGLE DE PRÉSÉANCE ÉCRITE.
-    ///
-    /// `FundedBy` est la forme lisible — « PLATFORM » ou « SELLER » — celle qu'un
-    /// back-office affiche dans une liste déroulante et qu'un humain relit.
-    /// `SellerFundedShareBps` est la forme exacte, en points de base, la seule qui
-    /// sache dire « 60 / 40 ».
-    ///
-    /// Deux entrées pour une donnée sont une ambiguïté ; on la ferme ici plutôt
-    /// que de laisser chaque appelant deviner : **`SellerFundedShareBps` l'emporte
-    /// dès qu'il est fourni**. Le cas cofinancé est donc exprimable dès
-    /// aujourd'hui sans changer ce contrat le jour où le commerce le demandera —
-    /// ce que D28 laisse explicitement ouvert.
-    ///
-    /// Aucun des deux fourni = la PLATEFORME paie. Même défaut que la migration,
-    /// même raison : un financeur non désigné ne peut pas être facturé à un
-    /// marchand qui n'a rien signé.
-    ///
-    /// `OwnerSellerId` EST IGNORÉ QUAND L'APPELANT EST UN VENDEUR.
-    ///
-    /// Il est alors résolu depuis le JETON. L'accepter du corps de requête
-    /// laisserait un marchand créer une campagne au nom d'un concurrent — et la
-    /// lui faire financer.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>Corps de `POST /api/v1/merchant/promotions` (§10.16).</summary>
     public sealed record CreateRequest(
         string? Name,
         string? Scope,
@@ -168,19 +104,7 @@ public static class PromotionEndpoints
         int? SellerFundedShareBps = null,
         Guid? OwnerSellerId = null);
 
-    /// <summary>
-    /// Crée une campagne.
-    ///
-    /// LES RÈGLES ARRIVENT EN OBJET NOMMÉ, PAS EN LISTE DE COUPLES.
-    ///
-    /// Le §10.16 montre `"rules": { "minimumSubtotal": 5000 }`. La conversion vers
-    /// le couple (type, json) attendu par le domaine se fait ici : c'est le bord
-    /// HTTP qui doit parler la langue du document, pas le domaine.
-    ///
-    /// Un nom de règle inconnu est REFUSÉ par le domaine, jamais ignoré — voir
-    /// l'encadré de `PromotionRule`. Une condition écartée en silence produirait
-    /// une campagne moins restrictive que demandé.
-    /// </summary>
+    /// <summary>Crée une campagne.</summary>
     private static async Task<IResult> CreateAsync(
         CreateRequest request,
         ClaimsPrincipal user,
@@ -201,11 +125,6 @@ public static class PromotionEndpoints
             }
 
             // LE PROPRIÉTAIRE VIENT DU JETON, JAMAIS DU CORPS.
-            //
-            // C'est le défaut décrit dans `SellerReturnsEndpoints` : là-bas
-            // `sellerId` était lié depuis la query string, et une requête suffisait
-            // à lire le carnet d'un concurrent. Ici l'écriture serait pire — créer
-            // une campagne au nom d'un autre marchand, et la lui faire financer.
             proprietaire = acces.Contexte!.SellerId;
 
             var refus = RefuserSiNonAutofinancee(acces.Contexte, partVendeur);
@@ -234,18 +153,7 @@ public static class PromotionEndpoints
         return resultat.Match(vue => ApiResults.Created(vue, $"/api/v1/merchant/promotions/{vue.Id}"));
     }
 
-    /// <summary>
-    /// LE FILTRE D'APPARTENANCE EST POSÉ ICI, ET IL N'EST PAS OPTIONNEL.
-    ///
-    /// Un vendeur ne voit que SES campagnes : budgets, valeurs et taux sont des
-    /// données commerciales, et les rendre toutes à quiconque porte le rôle
-    /// `Seller` serait la fuite que `RequireAdmin` évitait. L'administrateur, lui,
-    /// passe `null` et voit tout — c'est son écran de pilotage.
-    ///
-    /// Il n'existe PAS de paramètre de requête pour choisir le propriétaire. Le
-    /// jour où un administrateur voudra filtrer sur un vendeur, ce sera un
-    /// paramètre distinct, gardé, et non celui-ci rendu inscriptible.
-    /// </summary>
+    /// <summary>LE FILTRE D'APPARTENANCE EST POSÉ ICI, ET IL N'EST PAS OPTIONNEL.</summary>
     private static async Task<IResult> ListAsync(
         string? scope,
         int take,
@@ -281,13 +189,7 @@ public static class PromotionEndpoints
         return resultat.Match(ApiResults.Ok);
     }
 
-    /// <summary>
-    /// Annule une campagne.
-    ///
-    /// ANNULER N'EFFACE PAS. `Cancel` bascule le statut ; les usages déjà
-    /// engagés restent en base. Les supprimer priverait la comptabilité des
-    /// remises réellement accordées, sur des commandes bel et bien payées.
-    /// </summary>
+    /// <summary>Annule une campagne.</summary>
     private static async Task<IResult> CancelAsync(
         Guid id,
         ClaimsPrincipal user,
@@ -297,12 +199,6 @@ public static class PromotionEndpoints
     {
         // LA LECTURE PRÉCÈDE LA GARDE, ET C'EST UN ALLER-RETOUR DE PLUS PAR
         // REQUÊTE.
-        //
-        // Le propriétaire d'une campagne n'est pas dans le jeton, il est dans la
-        // RESSOURCE : sans cette lecture, il n'y a rien à comparer — et c'est
-        // exactement l'état qui a valu `RequireAdmin` aux trois routes. Même forme
-        // que `SellerReturnsEndpoints.ExecuterAsync` et que
-        // `FinancialEndpoints.GetInvoiceAsync`, pour la même raison.
         var campagne = await sender.Send(new GetPromotionQuery(id), ct);
 
         if (campagne.IsFailure)
@@ -323,35 +219,7 @@ public static class PromotionEndpoints
 
     // ───────────────────────────────────────────────────────────────── Gardes
 
-    /// <summary>
-    /// La capacité qui garde les trois routes marchand.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// `OFFER_PRICE_UPDATE` ET NON UN `PROMOTION_MANAGE` NEUF.
-    ///
-    /// Le catalogue de `MerchantCapabilities` n'a aucune permission promotionnelle.
-    /// En créer une n'est PAS une ligne : `MerchantPermission` vit dans le DOMAINE
-    /// de seller-service, `MerchantPermissions.Catalogue` porte son niveau de
-    /// risque, `CapacitesTests` tient les deux listes synchrones, et les rôles
-    /// existants devraient la recevoir par migration. C'est le lot d'un autre
-    /// service.
-    ///
-    /// `OFFER_PRICE_UPDATE` est la plus proche du geste, et son propre commentaire
-    /// le dit : « Changer le prix d'une offre, ou lui POSER UNE PROMOTION ». Elle
-    /// est déjà séparée d'`OFFER_MANAGE` pour la bonne raison — « passer un article
-    /// à 1 F CFA le liquide avant qu'aucune alerte ne parte » — qui est exactement
-    /// le risque d'une campagne mal bornée.
-    ///
-    /// CE QUE CE CHOIX NE COUVRE PAS.
-    ///
-    /// Un membre autorisé à changer les prix peut désormais engager le budget
-    /// promotionnel de son vendeur. Les deux gestes coûtent de l'argent au même
-    /// marchand et se ressemblent, mais ils ne sont pas identiques — et si le
-    /// commerce veut les séparer, il faudra la permission dédiée. C'est une dette
-    /// nommée, pas un oubli.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>La capacité qui garde les trois routes marchand.</summary>
     private const string GererLesPromotions = MerchantCapabilities.OfferPriceUpdate;
 
     private const string RefusDeCapacite =
@@ -362,7 +230,6 @@ public static class PromotionEndpoints
     /// le refus à renvoyer sinon.
     /// </summary>
     /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
     /// DEUX CONTRÔLES, PAS UN. C'est la règle du dépôt, posée par catalog :
     /// l'appartenance dit QUEL vendeur, la capacité dit SI l'on peut.
     ///
@@ -389,7 +256,6 @@ public static class PromotionEndpoints
     /// L'exclusion vient de l'encadré d'origine de ce fichier : « arbitrer des
     /// contenus n'est pas décider de remises ». Elle est conservée telle quelle —
     /// la lever serait une décision, pas un effet de bord de ce lot.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </remarks>
     private static async Task<IResult?> DenyUnlessOwnPromotionAsync(
         Guid? ownerSellerId, ClaimsPrincipal user, IMerchantAccessApi access, CancellationToken ct)
@@ -428,25 +294,7 @@ public static class PromotionEndpoints
             : ApiResults.MissingCapability(GererLesPromotions, RefusDeCapacite);
     }
 
-    /// <summary>
-    /// Un vendeur ne crée que des campagnes qu'il finance INTÉGRALEMENT.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// « QU'IL FINANCE » VEUT DIRE 100 %, PAS « AU MOINS UN PEU ».
-    ///
-    /// Une campagne cofinancée engage la trésorerie de la PLATEFORME. Laisser un
-    /// marchand poser « part vendeur 10 % » reviendrait à lui laisser décider que
-    /// la place de marché paie les 90 % restants — sur son propre budget, sans
-    /// qu'aucun administrateur ne l'ait accepté. Le cofinancement est donc, comme
-    /// la campagne plateforme, un geste d'administrateur.
-    ///
-    /// Le domaine, lui, sait déjà exprimer les trois cas : la restriction est
-    /// D'AUTORISATION, pas de modèle. Le jour où un accord commercial encadrera le
-    /// cofinancement à l'initiative du vendeur, c'est cette méthode qui changera,
-    /// pas la colonne.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Un vendeur ne crée que des campagnes qu'il finance INTÉGRALEMENT.</summary>
     private static IResult? RefuserSiNonAutofinancee(MerchantAccess acces, int partVendeur)
     {
         if (!acces.Can(GererLesPromotions))
@@ -466,13 +314,7 @@ public static class PromotionEndpoints
         return null;
     }
 
-    /// <summary>
-    /// Résout le contexte vendeur de l'appelant, ou le refus à lui renvoyer.
-    ///
-    /// `null` DE `GetAccessAsync` NE VEUT PAS DIRE « INTERDIT » MAIS « CE COMPTE
-    /// N'A AUCUN DOSSIER VENDEUR » — le contrat le dit. Ici la conséquence est la
-    /// même, et c'est à cette route de la traduire, pas au contrat.
-    /// </summary>
+    /// <summary>Résout le contexte vendeur de l'appelant, ou le refus à lui renvoyer.</summary>
     private static async Task<(MerchantAccess? Contexte, IResult? Refus)> AccesVendeurAsync(
         ClaimsPrincipal user, IMerchantAccessApi access, CancellationToken ct)
     {
@@ -495,18 +337,12 @@ public static class PromotionEndpoints
     private static bool EstAdministrateur(ClaimsPrincipal user)
         => user.IsInRole(ApiAuthorization.AdminRole);
 
-    /// <summary>
-    /// « SELLER » → 10 000 points de base. Voir l'encadré de <see cref="CreateRequest"/>
-    /// pour la règle de préséance entre les deux formes.
-    /// </summary>
+    /// <summary>« SELLER » → 10 000 points de base.</summary>
     private static int PartVendeur(CreateRequest request)
     {
         if (request.SellerFundedShareBps is { } part)
         {
-            // Hors bornes : on ne rectifie pas ici. `Promotion.Create` refuse avec
-            // `promotions.funding_share_invalid`, et un plafonnement silencieux
-            // transformerait une saisie de « 100 % » écrite « 100 » en une part de
-            // 1 % — c'est-à-dire une campagne que le vendeur croirait financer.
+            // Hors bornes : on ne rectifie pas ici.
             return part;
         }
 
@@ -519,15 +355,7 @@ public static class PromotionEndpoints
 
     // ─────────────────────────────────────────────────────────────── Traduction
 
-    /// <summary>
-    /// « FOOD » → <see cref="PromotionScope.Food"/>.
-    ///
-    /// Un univers inconnu devient `Global` : l'évaluation en devient PLUS stricte,
-    /// puisque seules les campagnes globales passeront et qu'une campagne ciblée
-    /// sera écartée par `EnsureApplicable`. C'est l'inverse d'une règle inconnue,
-    /// qu'on refuse — ignorer une restriction accorde la remise qu'elle
-    /// interdisait, alors qu'ignorer un ciblage n'en accorde aucune de plus.
-    /// </summary>
+    /// <summary>« FOOD » → <see cref="PromotionScope.Food"/>.</summary>
     private static PromotionScope Univers(string? scope) => scope?.Trim().ToUpperInvariant() switch
     {
         "FOOD" => PromotionScope.Food,
@@ -535,16 +363,7 @@ public static class PromotionEndpoints
         _ => PromotionScope.Global
     };
 
-    /// <summary>
-    /// « FREE_DELIVERY » → <see cref="PromotionType.FreeDelivery"/>.
-    ///
-    /// PAS DE VALEUR PAR DÉFAUT SILENCIEUSE ICI, CONTRAIREMENT AU SCOPE.
-    ///
-    /// Un type inconnu devient `Percent`, et `Promotion.Create` refusera toute
-    /// valeur au-dessus de 100 — donc une saisie erronée ne peut pas produire une
-    /// remise plus généreuse que demandé. Retomber sur `Fixed` aurait transformé
-    /// « type: PERCENTAGE » (faute de frappe) en remise de 15 000 F au lieu de 15 %.
-    /// </summary>
+    /// <summary>« FREE_DELIVERY » → <see cref="PromotionType.FreeDelivery"/>.</summary>
     private static PromotionType Nature(string? type) => type?.Trim().ToUpperInvariant() switch
     {
         "FIXED" => PromotionType.Fixed,
@@ -566,13 +385,7 @@ public static class PromotionEndpoints
             .ToList();
     }
 
-    /// <summary>
-    /// « minimumSubtotal » → « MINIMUM_SUBTOTAL ».
-    ///
-    /// Un nom non reconnu est transmis TEL QUEL au domaine, qui le refusera. Le
-    /// traduire en quelque chose de connu ferait appliquer une règle que
-    /// l'appelant n'a pas demandée.
-    /// </summary>
+    /// <summary>« minimumSubtotal » → « MINIMUM_SUBTOTAL ».</summary>
     private static string NomDeRegle(string cle)
         => PromotionConstantes.Convertir(cle);
 

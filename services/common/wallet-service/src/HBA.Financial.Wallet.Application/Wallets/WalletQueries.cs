@@ -18,11 +18,7 @@ public sealed record ListWithdrawalsQuery(Guid SellerId) : IQuery<IReadOnlyList<
 /// <summary>File des demandes de retrait en attente de validation admin (tous vendeurs).</summary>
 public sealed record ListPendingWithdrawalsQuery : IQuery<IReadOnlyList<PendingWithdrawalView>>;
 
-/// <summary>
-/// Versements demandés au PSP et NON confirmés (tous vendeurs). Sans cette vue, cet
-/// état — le seul où le vendeur est débité sans avoir été payé — serait invisible pour
-/// l'admin : il ne figure ni dans la file d'attente, ni dans l'historique des payés.
-/// </summary>
+/// <summary>Versements demandés au PSP et NON confirmés (tous vendeurs).</summary>
 public sealed record ListProcessingWithdrawalsQuery : IQuery<IReadOnlyList<ProcessingWithdrawalView>>;
 
 /// <summary>Soldes du portefeuille de la plateforme (commission + livraison).</summary>
@@ -52,14 +48,6 @@ internal static class WalletMapper
 
     /// <summary>
     /// Filet de sécurité à la LECTURE : un motif d'échec technique ne sort jamais.
-    ///
-    /// La passerelle FedaPay a longtemps recopié la réponse HTTP brute du PSP dans
-    /// <c>FailureReason</c> ; elle ne le fait plus, mais les retraits déjà en base
-    /// gardent ce texte, et le vendeur lit encore aujourd'hui
-    /// « FedaPay — création refusée (403) : {"message":"Opération non autorisée"…} ».
-    /// Réécrire l'historique serait une migration destructive pour un bénéfice nul :
-    /// on neutralise donc à l'affichage. Et si une future passerelle refaisait la
-    /// même erreur, le vendeur en serait protégé d'office.
     /// </summary>
     private static string? PresentableFailure(string? reason)
     {
@@ -92,9 +80,8 @@ internal sealed class GetSellerWalletQueryHandler : IQueryHandler<GetSellerWalle
     {
         var wallet = await _wallets.GetBySellerAsync(query.SellerId, cancellationToken);
 
-        // Somme retenue : retraits demandés (attente admin) ET versements en cours chez le
-        // PSP. Les deux ont déjà quitté le solde principal. Omettre les seconds ferait
-        // disparaître l'argent de l'écran du vendeur pendant tout le versement.
+        // Somme retenue : retraits demandés (attente admin) ET versements en cours
+        // chez le PSP. Les deux ont déjà quitté le solde principal.
         var pendingWithdrawal = (await _withdrawals.ListBySellerAsync(query.SellerId, cancellationToken: cancellationToken))
             .Where(w => w.Status is WithdrawalStatus.Requested or WithdrawalStatus.Processing)
             .Sum(w => w.Amount);
@@ -158,16 +145,6 @@ internal sealed class ListPendingWithdrawalsQueryHandler : IQueryHandler<ListPen
             var seller = await _sellers.GetSellerAsync(w.SellerId, cancellationToken);
 
             // LE REPLI LISAIT `seller?.Payout`, QUE LE PROTO NE TRANSPORTE PAS.
-            //
-            // Il valait donc `null` pour tout le monde, et les demandes antérieures
-            // à la destination figée s'affichaient dans la file d'administration
-            // SANS opérateur ni numéro. L'admin approuvait un virement dont il ne
-            // voyait pas la destination — précisément le défaut que le figeage
-            // venait corriger, rouvert par le transport.
-            //
-            // Interrogé SEULEMENT pour ces demandes-là. Les autres portent leur
-            // propre destination, et rien ne justifie de faire circuler un numéro
-            // Mobile Money pour une ligne qui n'en a pas besoin.
             var repli = w.PayoutProvider is null || w.PayoutAccountNumber is null
                 ? (await _sellers.GetSellerPayoutAsync(w.SellerId, cancellationToken)).Account
                 : null;
@@ -180,15 +157,6 @@ internal sealed class ListPendingWithdrawalsQueryHandler : IQueryHandler<ListPen
                 w.Currency,
 
                 // LA DESTINATION FIGÉE, PAS LE COMPTE COURANT DU VENDEUR.
-                //
-                // Cette liste servait le compte lu à l'instant de l'affichage.
-                // L'admin validait donc un virement dont la destination pouvait
-                // avoir changé depuis la demande — et changer encore entre son
-                // écran et son clic. Il approuvait un montant qu'il voyait, vers
-                // une adresse qu'il ne voyait pas.
-                //
-                // Le repli ne concerne que les demandes antérieures à la colonne ;
-                // elles s'éteindront une fois traitées.
                 w.PayoutProvider ?? repli?.Provider,
                 w.PayoutAccountNumber ?? repli?.AccountNumber,
                 w.CreatedAtUtc));

@@ -5,32 +5,7 @@ using HBA.Deliveries.Domain.Drivers;
 
 namespace HBA.Deliveries.Infrastructure.Caching;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// REPLI DE DÉVELOPPEMENT UNIQUEMENT.
-///
-/// POURQUOI IL EXISTE MALGRÉ TOUT
-///
-/// L'installer refusait de démarrer sans Redis. Le raisonnement était bon — les
-/// positions SONT le cache, et un repli silencieux masquerait la panne jusqu'en
-/// production — mais la conséquence ne l'était pas : plus aucun développeur ne
-/// pouvait lancer l'API sans faire tourner un Redis, y compris pour travailler
-/// sur le catalogue ou les commandes, qui n'ont rien à voir avec les livraisons.
-///
-/// CE QUI REND CE REPLI ACCEPTABLE
-///
-/// Il n'est JAMAIS choisi implicitement hors développement : ailleurs, l'absence
-/// de Redis reste une erreur de démarrage. Et il journalise bruyamment ce qu'il
-/// est, à chaque démarrage.
-///
-/// CE QU'IL NE FAIT PAS, ET QU'IL NE DOIT PAS FAIRE
-///
-/// Il ne partage rien entre processus. Deux instances de l'API auraient chacune
-/// leur flotte de livreurs, et le dispatch ne trouverait que ceux « de son
-/// côté ». C'est précisément le défaut qu'on refuse en production — et c'est
-/// pourquoi ce type est interne et non configurable.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>REPLI DE DÉVELOPPEMENT UNIQUEMENT.</summary>
 internal sealed class InMemoryDriverLocationCache : IDriverLocationCache
 {
     private readonly ConcurrentDictionary<DriverId, DriverPosition> _positions = new();

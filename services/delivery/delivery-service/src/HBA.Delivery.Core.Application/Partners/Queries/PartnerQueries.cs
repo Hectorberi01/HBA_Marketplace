@@ -4,19 +4,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Deliveries.Application.Partners.Queries;
 
-/// <summary>
-/// Une clé, telle qu'on accepte de la MONTRER.
-///
-/// NI <c>Hash</c>, NI QUOI QUE CE SOIT QUI S'EN APPROCHE.
-///
-/// La tentation d'exposer directement l'entité <c>PartnerApiKey</c> est réelle —
-/// elle a exactement les champs voulus, plus un. Ce « plus un » est le condensat,
-/// et il n'a rien à faire dans une réponse HTTP : il ne sert à personne côté
-/// console, et il transforme une lecture d'administration en fuite de matériel
-/// cryptographique dès qu'un journal d'accès enregistre les corps de réponse.
-///
-/// C'est pour cela que ce type existe alors qu'il ressemble tant à l'entité.
-/// </summary>
+/// <summary>Une clé, telle qu'on accepte de la MONTRER.</summary>
 public sealed record PartnerApiKeyView(
     Guid Id,
     string Prefix,
@@ -26,12 +14,7 @@ public sealed record PartnerApiKeyView(
     DateTime? RevokedAtUtc,
     DateTime? LastUsedAtUtc);
 
-/// <summary>
-/// Un partenaire, vu de la console d'administration.
-///
-/// <c>WebhookConfigured</c> est un BOOLÉEN et non l'URL accompagnée de son secret :
-/// savoir qu'un rappel est en place suffit à l'exploitation.
-/// </summary>
+/// <summary>Un partenaire, vu de la console d'administration.</summary>
 public sealed record PartnerView(
     Guid Id,
     string Name,
@@ -84,9 +67,9 @@ internal sealed class PartnerQueryHandler
             partner.WebhookUrl,
             partner.WebhookSecret is not null,
             partner.ApiKeys
-                // Les clés révoquées restent visibles : on doit pouvoir répondre
-                // à « depuis quand cette clé est-elle coupée ? », qui est la
-                // première question posée quand un partenaire tombe en 401.
+                // Les clés révoquées restent visibles : on doit pouvoir répondre à
+                // « depuis quand cette clé est-elle coupée ? », qui est la première
+                // question posée quand un partenaire tombe en 401.
                 .OrderByDescending(k => k.CreatedAtUtc)
                 .Select(k => new PartnerApiKeyView(
                     k.Id, k.Prefix, k.Label, k.IsActive,

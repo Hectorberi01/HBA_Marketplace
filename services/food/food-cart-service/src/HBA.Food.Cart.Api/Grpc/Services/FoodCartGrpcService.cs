@@ -12,36 +12,11 @@ using System.Runtime.CompilerServices;
 
 using HBA.FoodCarts.Contracts;
 using ContratsFoodCarts = HBA.FoodCarts.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.FoodCarts.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.FoodCarts.Api.Grpc.Services;
 
-/// <summary>
-/// Le service gRPC exposé par food-cart-service.
-///
-/// SANS `MapInternalGrpcService&lt;FoodCartGrpcService&gt;()` DANS `Program`,
-/// food-order-service NE PEUT PAS LIRE LE PANIER.
-///
-/// Le client existe de l'autre côté, la configuration pointe la bonne adresse,
-/// et l'appel rend `UNIMPLEMENTED`. Le symptôme apparaît au premier passage en
-/// commande, pas au démarrage — la même erreur a déjà été faite côté commerce,
-/// et le commentaire y est encore.
-/// </summary>
+/// <summary>Le service gRPC exposé par food-cart-service.</summary>
 internal sealed class FoodCartGrpcService : Proto.FoodCartApi.FoodCartApiBase
 {
     private readonly ContratsFoodCarts.IFoodCartModuleApi _carts;
@@ -72,15 +47,7 @@ internal sealed class FoodCartGrpcService : Proto.FoodCartApi.FoodCartApiBase
         return Repondre(cart);
     }
 
-    /// <summary>
-    /// UN PANIER SANS IDENTIFIANT EST UN PANIER QUI N'EXISTE PAS.
-    ///
-    /// `GetActiveCartQuery` rend un panier VIDE plutôt qu'une erreur, pour que
-    /// l'écran affiche « votre panier est vide ». Le rendre tel quel par le
-    /// réseau ferait croire à food-order-service qu'il tient un panier — de
-    /// `CartId` nul, sans restaurant, sans ligne — et la commande partirait à
-    /// zéro franc au lieu d'être refusée.
-    /// </summary>
+    /// <summary>UN PANIER SANS IDENTIFIANT EST UN PANIER QUI N'EXISTE PAS.</summary>
     private static Proto.GetFoodCartResponse Repondre(ContratsFoodCarts.FoodCartSummary? cart)
     {
         if (cart is null || cart.CartId == Guid.Empty)

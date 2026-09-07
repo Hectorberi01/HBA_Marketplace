@@ -10,8 +10,7 @@ public interface IPaymentGatewayResolver
 
 /// <summary>
 /// Résout le bon <see cref="IPaymentGateway"/> parmi ceux enregistrés, par nom
-/// (insensible à la casse). N'a aucune dépendance d'infrastructure : il consomme
-/// la collection de ports injectée par le conteneur.
+/// (insensible à la casse).
 /// </summary>
 public sealed class PaymentGatewayResolver : IPaymentGatewayResolver
 {

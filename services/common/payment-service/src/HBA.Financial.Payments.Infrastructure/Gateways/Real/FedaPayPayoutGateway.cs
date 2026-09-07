@@ -8,16 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HBA.Financial.Payments.Infrastructure.Gateways.Real;
 
-/// <summary>
-/// Reversement (dépôt) RÉEL via FedaPay. Flux en deux temps :
-///  1. POST /payouts       → crée le dépôt (statut « pending »).
-///  2. PUT  /payouts/start → déclenche l'envoi (statut « started »).
-///
-/// Un « start » accepté ne prouve PAS que l'argent est arrivé. Le cycle de vie
-/// FedaPay est pending → started → processing → sent | failed. Seul « sent » est une
-/// preuve de versement. D'où <see cref="GetStatusAsync"/>, utilisé par la
-/// réconciliation pour clore (ou rembourser) le retrait.
-/// </summary>
+/// <summary>Reversement (dépôt) RÉEL via FedaPay.</summary>
 public sealed class FedaPayPayoutGateway : IPayoutGateway
 {
     private readonly IHttpClientFactory _httpClientFactory;
@@ -35,15 +26,8 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
     }
 
     /// <summary>
-    /// Traduit un refus du PSP en message destiné au VENDEUR, et journalise le détail
-    /// technique.
-    ///
-    /// Le motif d'échec d'un retrait est stocké dans <c>Withdrawal.FailureReason</c> et
-    /// affiché tel quel dans l'app vendeur. Y recopier le corps HTTP de FedaPay revenait
-    /// à montrer au vendeur « {"message":"Opération non autorisée","errors":{}} » : il n'y
-    /// comprend rien, ne peut rien y faire, et cela expose les entrailles de notre
-    /// intégration PSP. Le détail va donc dans les logs (pour nous), le sens va au
-    /// vendeur (pour lui).
+    /// Traduit un refus du PSP en message destiné au VENDEUR, et journalise le
+    /// détail technique.
     /// </summary>
     private string Explain(HttpStatusCode status, string body, string step)
     {
@@ -53,14 +37,15 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
 
         return status switch
         {
-            // 401/403 ne parlent JAMAIS du vendeur : c'est NOTRE compte marchand qui n'est
-            // pas habilité aux dépôts (fonctionnalité à activer chez FedaPay, ou clé sans
-            // la portée « payouts »). Le vendeur n'a rien à corriger — inutile de le culpabiliser.
+            // 401/403 ne parlent JAMAIS du vendeur : c'est NOTRE compte marchand
+            // qui n'est pas habilité aux dépôts (fonctionnalité à activer chez
+            // FedaPay, ou clé sans la portée « payouts »).
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden =>
                 "Versement impossible pour le moment : notre compte de reversement n'est pas autorisé "
                 + "par l'opérateur. Vos fonds ont été recrédités et nos équipes sont alertées.",
 
-            // 422 / 400 : le plus souvent le numéro Mobile Money du vendeur — là, il PEUT agir.
+            // 422 / 400 : le plus souvent le numéro Mobile Money du vendeur — là,
+            // il PEUT agir.
             HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity =>
                 "Versement refusé par l'opérateur. Vérifiez le numéro Mobile Money de votre compte "
                 + "de reversement (opérateur et indicatif pays), puis réessayez.",
@@ -77,10 +62,8 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
         }
         catch (Exception ex)
         {
-            // Exception réseau / timeout / parsing : issue INDÉTERMINÉE. Le dépôt est
-            // peut-être parti chez FedaPay. On ne renvoie donc PAS « Failed » (qui
-            // déclencherait un remboursement, puis potentiellement un second versement) :
-            // la réconciliation tranchera.
+            // Exception réseau / timeout / parsing : issue INDÉTERMINÉE. Le dépôt
+            // est peut-être parti chez FedaPay.
             _logger.LogError(ex, "FedaPay payout — issue indéterminée (réf. {Reference}).", instruction.Reference);
 
             return PayoutResult.Unknown(
@@ -91,9 +74,8 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
 
     private async Task<PayoutResult> SendInternalAsync(PayoutInstruction instruction, CancellationToken cancellationToken)
     {
-        // Routage : l'opérateur du vendeur détermine le « mode » FedaPay ET le pays.
-        // Un opérateur non routable est un échec DÉFINITIF (rien n'est parti) : on
-        // préfère refuser que d'expédier un numéro sénégalais vers MTN Bénin.
+        // Routage : l'opérateur du vendeur détermine le « mode » FedaPay ET le
+        // pays.
         var route = ResolveRoute(instruction.Beneficiary.Provider);
         if (route is null)
         {
@@ -106,8 +88,7 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
         var client = _httpClientFactory.CreateClient(FedaPayHttpGateway.ClientName);
         var (firstName, lastName) = SplitName(instruction.Beneficiary.Name);
 
-        // FedaPay exige le numéro en E.164 avec « + » (ex. « +22997808080 »). Sans le
-        // « + », la détection d'opérateur échoue et la création part en erreur.
+        // FedaPay exige le numéro en E.164 avec « + » (ex.
         var number = ToE164(instruction.Beneficiary.Msisdn, country);
         if (string.IsNullOrEmpty(number))
         {
@@ -128,9 +109,9 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
                 {
                     firstname = firstName,
                     lastname = lastName,
-                    // Email stable par bénéficiaire : FedaPay identifie le client par
-                    // email ; un email dérivé du numéro évite de recréer un client à
-                    // chaque versement. Domaine que nous contrôlons (jamais un tiers).
+                    // Email stable par bénéficiaire : FedaPay identifie le client
+                    // par email ; un email dérivé du numéro évite de recréer un
+                    // client à chaque versement.
                     email = BuildEmail(number),
                     phone_number = new { number, country }
                 },
@@ -144,8 +125,8 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
 
         if (!createResponse.IsSuccessStatusCode)
         {
-            // 4xx = rejet argumenté par FedaPay → rien n'est parti → échec définitif.
-            // 5xx = panne côté PSP → on ne peut RIEN affirmer → indéterminé.
+            // 4xx = rejet argumenté par FedaPay → rien n'est parti → échec
+            // définitif.
             var reason = Explain(createResponse.StatusCode, createBody, "création");
 
             return IsDefinitiveRejection(createResponse.StatusCode)
@@ -158,8 +139,8 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
         var payoutId = ExtractPayoutId(createBody);
         if (payoutId is null)
         {
-            // Le dépôt EXISTE peut-être (la création a réussi) mais on n'a pas son id :
-            // impossible de le démarrer ni de le réconcilier. Indéterminé, jamais un échec.
+            // Le dépôt EXISTE peut-être (la création a réussi) mais on n'a pas son
+            // id : impossible de le démarrer ni de le réconcilier.
             return PayoutResult.Unknown("FedaPay : identifiant de dépôt absent de la réponse de création.");
         }
 
@@ -179,22 +160,17 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
             var startBody = await startResponse.Content.ReadAsStringAsync(cancellationToken);
             Explain(startResponse.StatusCode, startBody, "démarrage");
 
-            // Le dépôt existe (id connu) mais n'a pas démarré. On le renvoie en
-            // « Unknown » AVEC sa référence : la réconciliation ira lire son vrai statut
-            // (il peut rester « pending », auquel cas aucun argent n'est parti).
+            // Le dépôt existe (id connu) mais n'a pas démarré.
             return PayoutResult.Unknown(
                 "Versement transmis à l'opérateur, confirmation en attente.",
                 payoutId.ToString());
         }
 
-        // « Accepted » = créé + démarré. Le versement est EN COURS, pas confirmé.
+        // « Accepted » = créé + démarré.
         return PayoutResult.Accepted(payoutId.Value.ToString());
     }
 
-    /// <summary>
-    /// Statut réel d'un dépôt (GET /payouts/{id}). C'est la seule source de vérité :
-    /// « sent » prouve le versement, « failed » autorise le remboursement.
-    /// </summary>
+    /// <summary>Statut réel d'un dépôt (GET /payouts/{id}).</summary>
     public async Task<PayoutStatusResult> GetStatusAsync(string providerReference, CancellationToken cancellationToken = default)
     {
         try
@@ -208,8 +184,8 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
 
             if (!response.IsSuccessStatusCode)
             {
-                // Ce message ne remonte PAS au vendeur : sur « Unknown », la réconciliation
-                // ne touche pas au retrait. Il n'a de valeur que pour nous — donc au journal.
+                // Ce message ne remonte PAS au vendeur : sur « Unknown », la
+                // réconciliation ne touche pas au retrait.
                 _logger.LogWarning(
                     "FedaPay payout — lecture du statut impossible pour {Reference} ({StatusCode}). Réponse : {Body}",
                     providerReference, (int)response.StatusCode, body);
@@ -228,18 +204,7 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
         }
     }
 
-    /// <summary>
-    /// Webhook de dépôt FedaPay. Payload : { "name": "payout.sent", "entity": { id, status } }.
-    ///
-    /// Deux gardes essentielles :
-    ///  1. On n'accepte que les événements dont le NOM commence par « payout. ». Les
-    ///     événements de transaction partagent la même URL et les identifiants FedaPay
-    ///     sont propres à chaque type d'entité (le dépôt n°4212 et la transaction n°4212
-    ///     existent tous les deux) : sans ce filtre, un « payout.canceled » irait chercher
-    ///     un PAIEMENT portant le même numéro et le marquerait échoué.
-    ///  2. Signature vérifiée AVANT toute interprétation : un webhook falsifié pourrait
-    ///     sinon faire clôturer un retrait jamais versé, ou déclencher un remboursement.
-    /// </summary>
+    /// <summary>Webhook de dépôt FedaPay.</summary>
     public PayoutWebhookEvent ParseWebhook(string rawBody, string? signatureHeader)
     {
         try
@@ -253,8 +218,9 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
                 return PayoutWebhookEvent.NotPayout;
             }
 
-            // À partir d'ici l'événement NOUS concerne : une signature invalide est un rejet,
-            // pas un « on ignore » (on ne veut pas acquitter un faux webhook en silence).
+            // À partir d'ici l'événement NOUS concerne : une signature invalide est
+            // un rejet, pas un « on ignore » (on ne veut pas acquitter un faux
+            // webhook en silence).
             if (!FedaPayHttpGateway.VerifyFedaPaySignature(rawBody, signatureHeader, _options.WebhookSecret))
             {
                 return PayoutWebhookEvent.Unsigned;
@@ -266,7 +232,8 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
                 : null;
 
             // Le statut de l'entité fait foi ; à défaut, on le déduit du nom de
-            // l'événement (« payout.sent » → sent), car c'est parfois la seule info.
+            // l'événement (« payout.sent » → sent), car c'est parfois la seule
+            // info.
             var status = entity.TryGetProperty("status", out var s) ? s.GetString() : null;
             status ??= name.Contains('.') ? name[(name.IndexOf('.') + 1)..] : null;
 
@@ -284,12 +251,7 @@ public sealed class FedaPayPayoutGateway : IPayoutGateway
         => (int)status is >= 400 and < 500
            && status is not HttpStatusCode.RequestTimeout and not HttpStatusCode.TooManyRequests;
 
-    /// <summary>
-    /// Opérateur du vendeur → (mode FedaPay, pays). Le mode encode le pays : on ne
-    /// peut donc PAS router un opérateur inconnu, ni un opérateur multi-pays ambigu
-    /// (« Wave » existe en CI et au SN — sans pays sur le compte, on refuse).
-    /// Ajouter un pays au compte de versement du vendeur permettra d'étendre cette table.
-    /// </summary>
+    /// <summary>Opérateur du vendeur → (mode FedaPay, pays).</summary>
     private static (string Mode, string Country)? ResolveRoute(string? provider) =>
         (provider ?? string.Empty).ToLowerInvariant() switch
         {

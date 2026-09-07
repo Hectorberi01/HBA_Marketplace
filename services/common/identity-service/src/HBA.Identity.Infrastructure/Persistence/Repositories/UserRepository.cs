@@ -33,14 +33,14 @@ internal sealed class UserRepository : IUserRepository
     public async Task<(IReadOnlyList<User> Items, int Total, IReadOnlyDictionary<string, int> StatusCounts)> ListPagedAsync(
         int page, int pageSize, string? search, UserStatus? status, string? sort, bool desc, CancellationToken cancellationToken = default)
     {
-        // Base = recherche appliquée, filtre statut NON appliqué (pour des facettes stables).
+        // Base = recherche appliquée, filtre statut NON appliqué (pour des facettes
+        // stables).
         var baseQuery = _dbContext.Users.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = $"%{search.Trim()}%";
-            // ILike (Npgsql) = insensible à la casse. Uniquement sur des colonnes string
-            // simples : Email/PhoneNumber sont des value objects convertis, non traduisibles.
+            // ILike (Npgsql) = insensible à la casse.
             baseQuery = baseQuery.Where(u =>
                 EF.Functions.ILike(u.FirstName, term) || EF.Functions.ILike(u.LastName, term));
         }
@@ -119,7 +119,8 @@ internal sealed class UserRepository : IUserRepository
     public async Task<IReadOnlyList<(DateTime Day, int Count)>> SignupsByDayAsync(
         DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
     {
-        // GROUP BY sur la date (jour) : Npgsql traduit `.Date` en CAST/date côté SQL.
+        // GROUP BY sur la date (jour) : Npgsql traduit `.Date` en CAST/date côté
+        // SQL.
         var rows = await _dbContext.Users
             .AsNoTracking()
             .Where(u => u.CreatedOnUtc >= fromUtc && u.CreatedOnUtc < toUtc)

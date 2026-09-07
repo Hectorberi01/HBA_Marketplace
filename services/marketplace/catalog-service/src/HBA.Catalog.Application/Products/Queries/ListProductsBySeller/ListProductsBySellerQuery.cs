@@ -26,9 +26,7 @@ internal sealed class ListProductsBySellerQueryHandler
     {
         // Cette requête sert DEUX publics : la page boutique (acheteurs, trafic
         // élevé) et le back-office du vendeur (une personne, qui doit voir son
-        // produit dès qu'elle le publie). D'où un TTL court, doublé d'une
-        // invalidation à chaque écriture sur un produit de cette boutique — le
-        // vendeur relit bien ses propres écritures.
+        // produit dès qu'elle le publie).
         var summaries = await _cache.GetOrCreateAsync(
             CatalogCacheKeys.ProductsBySeller(query.SellerId),
             async ct =>

@@ -9,37 +9,11 @@ internal sealed class ProductRepository : IProductRepository
 
     public ProductRepository(CatalogDbContext dbContext) => _dbContext = dbContext;
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// TOUTE LECTURE D'AGRÉGAT PASSE PAR ICI, ET C'EST VITAL.
-    ///
-    /// <c>Product.CurrentRevision</c> LÈVE si les révisions ne sont pas chargées —
-    /// délibérément : un produit sans révision courante est une donnée corrompue,
-    /// pas un cas à traiter poliment. Le prix de ce choix est qu'un seul `Include`
-    /// oublié fait tomber le service à l'exécution, sur une exception qui parle du
-    /// dépôt et pas de la requête fautive.
-    ///
-    /// D'où cette méthode unique. Ajouter une requête qui charge des Product sans
-    /// l'appeler est la seule façon de reproduire la panne.
-    ///
-    /// ELLE CHARGE TOUTES LES RÉVISIONS, PAS SEULEMENT LA COURANTE.
-    ///
-    /// Assumé : l'agrégat a besoin de la courante ET de la publiée, et une fiche
-    /// très retravaillée en compte une dizaine — pas mille. Filtrer à deux
-    /// identifiants dans un `Include` n'est pas exprimable en EF Core sans requête
-    /// filtrée, et une requête filtrée qui manquerait sa cible rendrait un agrégat
-    /// dont `CurrentRevision` lève : le même défaut, mais intermittent.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>TOUTE LECTURE D'AGRÉGAT PASSE PAR ICI, ET C'EST VITAL.</summary>
     private static IQueryable<Product> AvecAgregat(IQueryable<Product> source)
         => source
             .Include(p => p.Revisions).ThenInclude(r => r.Condition).ThenInclude(c => c.Defects)
             // SANS CET INCLUDE, LA FICHE TECHNIQUE DISPARAÎT SILENCIEUSEMENT.
-            //
-            // `Specifications` rendrait une collection vide, la comparaison du §6
-            // conclurait à une modification critique — puisque l'ancienne empreinte
-            // serait vide — et CHAQUE enregistrement ouvrirait une révision. La file
-            // de validation se remplirait de fiches dont rien n'a changé.
             .Include(p => p.Revisions).ThenInclude(r => r.Specifications).ThenInclude(g => g.Items)
             .Include(p => p.Variants)
             .Include(p => p.Media);
@@ -88,11 +62,6 @@ internal sealed class ProductRepository : IProductRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             // LA RECHERCHE PORTE SUR LA RÉVISION COURANTE, PAS SUR LA PUBLIÉE.
-            //
-            // C'est une console vendeur/admin : on y cherche la fiche telle qu'on
-            // l'a écrite, y compris quand elle attend validation sous un nouveau
-            // nom. Chercher dans la publiée rendrait introuvable la fiche qu'on
-            // vient justement de renommer — le cas le plus fréquent.
             var term = $"%{search.Trim()}%";
             baseQuery = baseQuery.Where(p => _dbContext.ProductRevisions
                 .Any(r => r.Id == p.CurrentRevisionId && EF.Functions.ILike(r.Name, term)));
@@ -126,19 +95,7 @@ internal sealed class ProductRepository : IProductRepository
         return (items, total, statusCounts.ToDictionary(x => x.Status.ToString(), x => x.Count));
     }
 
-    /// <summary>
-    /// CE SLUG-CI NE CONCERNE QUE CE QUI EST PUBLIÉ.
-    ///
-    /// L'ancienne version interrogeait `products.slug`, colonne qui n'existe plus :
-    /// le slug vit sur la révision, et deux révisions du même produit le partagent.
-    /// Ce qui doit rester unique est l'URL publique — donc le slug PARMI LES
-    /// RÉVISIONS PUBLIÉES, exactement ce que garantit l'index partiel
-    /// `ux_product_revisions_published_slug`.
-    ///
-    /// Vérifier plus large refuserait à un vendeur de réutiliser le nom de sa
-    /// propre fiche archivée. Vérifier moins laisserait deux fiches visibles se
-    /// disputer la même adresse.
-    /// </summary>
+    /// <summary>CE SLUG-CI NE CONCERNE QUE CE QUI EST PUBLIÉ.</summary>
     public async Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken = default)
     {
         var slugResult = Slug.Create(slug);
@@ -152,22 +109,7 @@ internal sealed class ProductRepository : IProductRepository
             .AnyAsync(r => r.Slug == slugValue && r.Status == RevisionStatus.Published, cancellationToken);
     }
 
-    /// <summary>
-    /// Les slugs déjà occupés parmi ceux proposés — une seule requête.
-    /// </summary>
-    /// <remarks>
-    /// `Contains` SUR UNE LISTE D'OBJETS-VALEURS EST TRADUISIBLE, `StartsWith` SUR
-    /// LEUR CHAÎNE NE L'EST PAS. EF convertit chaque élément de la liste et émet un
-    /// `IN (…)` ; il ne sait rien faire de `r.Slug.Value`, le convertisseur lui étant
-    /// opaque. C'est pour cette raison que l'appelant fournit ses candidats au lieu
-    /// de demander un préfixe.
-    ///
-    /// MÊME FILTRE QUE `SlugExistsAsync` : seules les révisions PUBLIÉES occupent
-    /// une adresse. Un brouillon que personne ne publiera jamais ne doit pas
-    /// réserver un slug pour tout le monde. Les deux méthodes doivent rester
-    /// d'accord — elles répondent à la même question, l'une pour un slug, l'autre
-    /// pour cent.
-    /// </remarks>
+    /// <summary>Les slugs déjà occupés parmi ceux proposés — une seule requête.</summary>
     public async Task<IReadOnlyCollection<Slug>> ListTakenSlugsAsync(
         IReadOnlyCollection<Slug> candidats, CancellationToken cancellationToken = default)
     {
@@ -186,9 +128,7 @@ internal sealed class ProductRepository : IProductRepository
             .ToListAsync(cancellationToken);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LA VITRINE (§17)
-    // ═════════════════════════════════════════════════════════════════════════
 
     public async Task<Product?> GetPublishedBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
@@ -196,18 +136,13 @@ internal sealed class ProductRepository : IProductRepository
         if (slugResult.IsFailure)
         {
             // Un slug malformé ne vaut pas une erreur : c'est une URL qui ne
-            // désigne rien. L'appelant rendra 404, comme pour un slug inconnu.
+            // désigne rien.
             return null;
         }
 
         var valeur = slugResult.Value;
 
         // ON PART DU PRODUIT, PAS DE LA RÉVISION.
-        //
-        // Une révision dépubliée garde `Status = Published` — voir l'encadré du
-        // port. Chercher d'abord la révision rendrait donc les fiches retirées de
-        // la vente. En partant du produit, la condition de visibilité est posée
-        // une fois, au bon endroit.
         var id = await _dbContext.Products
             .AsNoTracking()
             .Where(p => p.Status == ProductStatus.Published
@@ -229,11 +164,7 @@ internal sealed class ProductRepository : IProductRepository
         RecherchePublique criteres, CancellationToken cancellationToken = default)
     {
         // LE FILTRE DE VISIBILITÉ EST POSÉ EN PREMIER, ET IL N'EST PAS
-        //    PARAMÉTRABLE.
-        //
-        // Aucun argument de cette méthode ne peut l'élargir. C'est la seule
-        // différence structurelle avec `ListPagedAsync`, et c'est celle qui
-        // compte.
+        // PARAMÉTRABLE.
         var visibles = _dbContext.Products
             .AsNoTracking()
             .Where(p => p.Status == ProductStatus.Published && p.PublishedRevisionId != null)
@@ -274,10 +205,6 @@ internal sealed class ProductRepository : IProductRepository
         if (!string.IsNullOrWhiteSpace(criteres.Query))
         {
             // RECHERCHE SUR LA RÉVISION PUBLIÉE, PAS SUR LA COURANTE.
-            //
-            // L'inverse rendrait trouvable une fiche par un nom que personne n'a
-            // encore validé — et le clic mènerait à une fiche affichant l'ancien
-            // nom, celui de la révision publiée.
             var terme = $"%{criteres.Query.Trim()}%";
             visibles = visibles.Where(x =>
                 EF.Functions.ILike(x.Revision.Name, terme)
@@ -310,10 +237,6 @@ internal sealed class ProductRepository : IProductRepository
         int page, int pageSize, CancellationToken cancellationToken = default)
     {
         // ON JOINT LA RÉVISION COURANTE, ET ON FILTRE SUR SON STATUT À ELLE.
-        //
-        // Voir l'encadré du port : un produit publié dont la nouvelle version
-        // attend validation reste `Published`. Filtrer sur le statut du produit
-        // viderait la file de ses entrées les plus urgentes.
         var attente = _dbContext.Products
             .AsNoTracking()
             .SelectMany(
@@ -344,15 +267,7 @@ internal sealed class ProductRepository : IProductRepository
             return new Dictionary<Guid, string>();
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // ON PROJETTE LA PROPRIÉTÉ ENTIÈRE, ET ON LA DÉPAQUETTE CÔTÉ CLIENT.
-        //
-        // `Sku` et `ProductId` portent un CONVERTISSEUR DE VALEUR. Pour EF, la
-        // propriété EST la colonne : il sait traduire `v.Sku == valeur`, pas
-        // `v.Sku.Value` — cela lui demanderait de descendre DANS le type converti.
-        // La requête n'échoue pas à la compilation : elle lève à l'exécution, et
-        // ressort en 500 « Une erreur inattendue est survenue ».
-        // ═════════════════════════════════════════════════════════════════════
         var lignes = await _dbContext.Products
             .AsNoTracking()
             .SelectMany(p => p.Variants)
@@ -363,12 +278,7 @@ internal sealed class ProductRepository : IProductRepository
         return lignes.ToDictionary(l => l.Id, l => l.Sku.Value);
     }
 
-    /// <summary>
-    /// Les noms COURANTS des produits donnés.
-    ///
-    /// Courants et non publiés : cet écran est celui des mises en vente du vendeur,
-    /// qui doit reconnaître sa fiche sous le nom qu'il vient de lui donner.
-    /// </summary>
+    /// <summary>Les noms COURANTS des produits donnés.</summary>
     public async Task<IReadOnlyDictionary<Guid, string>> GetNamesByIdsAsync(
         IReadOnlyCollection<Guid> productIds, CancellationToken cancellationToken = default)
     {
@@ -397,20 +307,7 @@ internal sealed class ProductRepository : IProductRepository
             .ToDictionary(l => l.Id.Value, l => l.Name!);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Deux temps : on ORDONNE des identifiants, puis on CHARGE les agrégats.
-    //
-    // POURQUOI PAS UNE SEULE REQUÊTE AVEC JOINTURE.
-    //
-    // Trier par le nom de la révision courante demande une jointure. Or EF Core
-    // abandonne les `Include` dès qu'une requête projette autre chose que
-    // l'entité racine — la jointure rendrait donc des Product SANS révisions,
-    // et `CurrentRevision` lèverait à la première lecture. Le défaut n'apparaît
-    // qu'au tri par nom, c'est-à-dire sur un chemin qu'aucun test de fumée ne
-    // prend.
-    //
-    // Deux allers-retours, et une pagination qui reste faite par la base.
-    // ═════════════════════════════════════════════════════════════════════════
 
     private IQueryable<ProductId> OrdonnerParNomCourant(IQueryable<Product> source, bool desc)
     {
@@ -443,11 +340,7 @@ internal sealed class ProductRepository : IProductRepository
             .Where(p => ids.Contains(p.Id))
             .ToListAsync(cancellationToken);
 
-        // L'ORDRE DE LA BASE EST PERDU PAR LE `WHERE ... IN`, ON LE REPOSE ICI.
-        //
-        // Sans ce reclassement, la page 2 d'une liste triée par nom rendrait les
-        // bons produits dans le mauvais ordre — un défaut qu'on impute d'abord au
-        // client, puisque le tri « marche » sur la page 1.
+        // L'ORDRE DE LA BASE EST PERDU PAR LE `WHERE ...
         var parId = charges.ToDictionary(p => p.Id);
         return ids.Where(parId.ContainsKey).Select(id => parId[id]).ToList();
     }

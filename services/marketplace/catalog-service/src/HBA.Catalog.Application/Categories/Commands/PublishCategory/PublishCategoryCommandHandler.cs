@@ -41,17 +41,7 @@ internal sealed class PublishCategoryCommandHandler : ICommandHandler<PublishCat
 
             foreach (var descendant in descendants)
             {
-                // ─────────────────────────────────────────────────────────────────
                 // LES DESCENDANTS ARCHIVÉS SONT IGNORÉS, PAS RESSUSCITÉS.
-                //
-                // `Publish()` refuse une catégorie archivée. Propager cet échec ferait
-                // avorter toute l'opération à cause d'une seule branche retirée
-                // volontairement du catalogue ; la publier de force annulerait une
-                // décision d'archivage que personne n'a demandé de revenir.
-                //
-                // On saute donc, et le compteur renvoyé laisse l'administrateur
-                // constater l'écart avec ce qu'il attendait.
-                // ─────────────────────────────────────────────────────────────────
                 if (descendant.Publish().IsFailure)
                 {
                     continue;
@@ -61,8 +51,7 @@ internal sealed class PublishCategoryCommandHandler : ICommandHandler<PublishCat
             }
         }
 
-        // Une seule transaction : soit la branche entière bascule, soit rien. Publier
-        // à moitié laisserait un arbre incohérent, sans moyen de savoir où reprendre.
+        // Une seule transaction : soit la branche entière bascule, soit rien.
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return published;
     }

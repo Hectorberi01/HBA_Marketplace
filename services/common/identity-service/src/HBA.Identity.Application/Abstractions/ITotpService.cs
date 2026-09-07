@@ -1,8 +1,8 @@
 namespace HBA.Identity.Application.Abstractions;
 
 /// <summary>
-/// Service de double authentification basé TOTP (RFC 6238), implémenté avec
-/// Otp.NET en Infrastructure.
+/// Service de double authentification basé TOTP (RFC 6238), implémenté avec Otp.NET
+/// en Infrastructure.
 /// </summary>
 public interface ITotpService
 {

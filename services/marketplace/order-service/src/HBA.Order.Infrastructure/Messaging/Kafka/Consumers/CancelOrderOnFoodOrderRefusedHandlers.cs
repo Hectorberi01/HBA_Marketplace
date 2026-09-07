@@ -4,71 +4,13 @@ using HBA.Food.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using HBA.Orders.Application.Orders.Commands;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Orders.Application.Orders.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Orders.Application.Orders;
 using HBA.Orders.Application.Orders.EventHandlers;
 
 namespace HBA.Orders.Infrastructure.Messaging.Kafka.Consumers;
 
-/// <summary>
-/// Le restaurant refuse ou annule → la commande est annulée.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// SANS CES DEUX GESTIONNAIRES, LE CLIENT RESTE DÉBITÉ.
-///
-/// Un restaurateur refuse une commande — plat épuisé, cuisine saturée, fermeture
-/// imprévue. Le ticket passe « refusé », l'événement part… et la commande reste
-/// « confirmée ». L'argent est encaissé, le repas n'existera jamais, et rien
-/// dans le système ne relie les deux faits.
-///
-/// C'était l'une des sept ruptures du parcours Food.
-///
-/// ON ANNULE, ON NE REMBOURSE PAS ICI.
-///
-/// Le monolithe enchaînait les deux dans le même fichier — annulation puis
-/// `RefundPaymentCommand`. Cette commande appartient à financial-service, et
-/// order-service n'a pas à la connaître.
-///
-/// L'annulation publie `OrderCancelled` ; c'est financial qui rembourse en la
-/// consommant. La règle tient : gRPC quand on a besoin d'une réponse, Kafka
-/// quand on annonce un fait. Ici on annonce.
-///
-/// « DÉJÀ TERMINALE » N'EST PAS UN ÉCHEC.
-///
-/// Kafka livre au moins une fois. Traiter le second passage en erreur ferait
-/// rejouer le message trois fois puis abandonner en Critical — une alerte pour
-/// une commande correctement traitée.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// « CE TICKET EST-IL LE MIEN ? »
-///
-/// ÉCRIT PARCE QUE LA MOITIÉ DES TICKETS NE L'ÉTAIT PAS.
-///
-/// Le ticket de cuisine de restaurant-service naît de DEUX ponts : une commande
-/// order-service dont une ligne est un plat, ou une `MealOrder` de
-/// food-order-service. Ses événements portent un `OrderId` — et jusqu'au lot 6.4,
-/// rien ne disait de quel univers.
-///
-/// Les trois gestionnaires de ce service ont chacun un jumeau dans
-/// food-order-service, abonné aux MÊMES événements. Sans filtre, pour chaque
-/// ticket, l'un des deux jeux travaillait forcément sur un identifiant étranger :
-/// « commande introuvable » traité comme une panne, reprises Kafka, puis Critical
-/// — sur un fonctionnement parfaitement normal.
-///
-/// « ABSENT » VAUT « Marketplace », ET C'EST EXACT.
-///
-/// Un message écrit avant ce lot ne porte pas le champ ; le contrat le rend alors
-/// « Marketplace ». Tous les tickets de cette époque viennent de la marketplace :
-/// le défaut les décrit, il ne les devine pas.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Le restaurant refuse ou annule → la commande est annulée.</summary>
+/// <summary>« CE TICKET EST-IL LE MIEN ? »</summary>
 internal static class TicketDeLaMarketplace
 {
     public static bool Nous(string? origine)
@@ -76,14 +18,6 @@ internal static class TicketDeLaMarketplace
 }
 
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Orders.Application.Orders.EventHandlers.CancelOrderOnFoodOrderRejectedHandler")]
 public sealed class CancelOrderOnFoodOrderRejectedHandler
     : IIntegrationEventHandler<FoodOrderRejectedIntegrationEvent>
@@ -103,9 +37,8 @@ public sealed class CancelOrderOnFoodOrderRejectedHandler
         => TicketDeLaMarketplace.Nous(e.OrderOrigin)
             ? OrderRefusal.AnnulerAsync(_sender, _logger, e.OrderId, Motif(e), cancellationToken)
 
-            // Le refus d'un repas est traité par `CancelMealOrderOnKitchenRejectionHandler`,
-            // chez food-order-service. Rien à faire, rien à journaliser : ce chemin
-            // est emprunté par la moitié des messages.
+            // Le refus d'un repas est traité par
+            // `CancelMealOrderOnKitchenRejectionHandler`, chez food-order-service.
             : Task.CompletedTask;
 
     private static string Motif(FoodOrderRejectedIntegrationEvent e)
@@ -114,15 +47,7 @@ public sealed class CancelOrderOnFoodOrderRejectedHandler
             : $"Refusée par le restaurant ({e.Reason}) : {e.Comment}";
 }
 
-/// <summary>
-/// Le ticket est annulé après acceptation → la commande suit.
-/// </summary>
-/// <remarks>
-/// Distinct du refus : ici le restaurant avait accepté, puis quelque chose l'en
-/// a empêché. <c>WasInKitchen</c> dit si la préparation avait commencé — ce qui
-/// détermine, côté exploitation, si une compensation est due au restaurateur.
-/// Le client, lui, est remboursé dans les deux cas.
-/// </remarks>
+/// <summary>Le ticket est annulé après acceptation → la commande suit.</summary>
 [NomDeConsommateur("HBA.Orders.Application.Orders.EventHandlers.CancelOrderOnFoodOrderCancelledHandler")]
 public sealed class CancelOrderOnFoodOrderCancelledHandler
     : IIntegrationEventHandler<FoodOrderCancelledIntegrationEvent>
@@ -150,14 +75,7 @@ public sealed class CancelOrderOnFoodOrderCancelledHandler
             cancellationToken);
 }
 
-/// <summary>
-/// Le geste commun aux deux : refuser la commande côté fournisseur.
-/// </summary>
-/// <remarks>
-/// Deux façons d'écrire la même annulation finiraient par diverger — l'une
-/// absorberait le rejeu, l'autre non, et la différence ne se verrait qu'en
-/// production, un jour de redémarrage.
-/// </remarks>
+/// <summary>Le geste commun aux deux : refuser la commande côté fournisseur.</summary>
 internal static class OrderRefusal
 {
     public static async Task AnnulerAsync(
@@ -174,8 +92,7 @@ internal static class OrderRefusal
 
         if (resultat.Error.Code == "ordering.already_terminal")
         {
-            // Rejeu du message sur une commande déjà close. Rien à faire, et
-            // surtout rien à signaler.
+            // Rejeu du message sur une commande déjà close.
             logger.LogDebug(
                 "Commande {OrderId} déjà dans un état terminal — annulation ignorée (rejeu).",
                 orderId);

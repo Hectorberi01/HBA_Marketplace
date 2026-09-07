@@ -58,27 +58,7 @@ internal sealed class GetSellerCancellationSeriesQueryHandler
     }
 }
 
-/// <summary>
-/// Les paiements de la plateforme : la courbe, et le classement par prestataire.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE SEAU « inconnu » N'EST PAS FILTRÉ, ET C'EST DÉLIBÉRÉ.
-///
-/// Le retirer rendrait un taux d'échec calculé sur un sous-ensemble présenté
-/// comme un total. Il apparaît donc dans le classement, sous son nom, et il doit
-/// décroître jusqu'à zéro après le déploiement du lot 2.
-///
-/// LA DEVISE INCONNUE, ELLE, TOMBE AVEC LE FILTRE DE DEVISE.
-///
-/// Les messages d'avant le lot 2 sont rangés sous `XXX` : ils sortent donc du
-/// résultat dès qu'on demande une devise réelle, et le seau « inconnu » ne
-/// contient plus alors que les messages qui portaient une devise SANS
-/// prestataire. Les deux manques sont distincts et ne se recouvrent pas
-/// forcément — c'est ce qui rend l'appel `?currency=XXX` utile pour compter ce
-/// qui reste à rattraper.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Les paiements de la plateforme : la courbe, et le classement par prestataire.</summary>
 internal sealed class GetPaymentSeriesQueryHandler
     : IQueryHandler<GetPaymentSeriesQuery, PaymentSeriesDto>
 {
@@ -86,14 +66,7 @@ internal sealed class GetPaymentSeriesQueryHandler
 
     public GetPaymentSeriesQueryHandler(IRegistreDesRollUps registre) => _registre = registre;
 
-    /// <summary>
-    /// Le taux d'échec, ou <c>null</c> quand il n'y a eu aucune issue.
-    /// </summary>
-    /// <remarks>
-    /// `null` ET NON `0` : un taux sur zéro tentative n'est pas « aucun échec »,
-    /// il n'existe pas. Rendre zéro afficherait une barre verte rassurante un
-    /// jour où le prestataire n'a rien traité du tout.
-    /// </remarks>
+    /// <summary>Le taux d'échec, ou <c>null</c> quand il n'y a eu aucune issue.</summary>
     private static decimal? Taux(int encaisses, int echoues)
     {
         var total = encaisses + echoues;

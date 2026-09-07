@@ -20,7 +20,10 @@ using HBA.Engagement.Reviews.Infrastructure.Caching.Redis;
 using HBA.Engagement.Reviews.Infrastructure.Observability;
 namespace HBA.Engagement.Reviews.Infrastructure;
 
-/// <summary>Enregistre le module Reviews : DbContext, repository, API publique, handlers, validators, outbox.</summary>
+/// <summary>
+/// Enregistre le module Reviews : DbContext, repository, API publique, handlers,
+/// validators, outbox.
+/// </summary>
 public sealed class ReviewsModuleInstaller : IModuleInstaller
 {
     public string ModuleName => "Reviews";
@@ -29,24 +32,19 @@ public sealed class ReviewsModuleInstaller : IModuleInstaller
 
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Il etait branche par le
-        // socle pour les vingt-six services a la fois ; il l'est desormais ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheEngagementReviews(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteEngagementReviews(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Chaîne de connexion « Default » absente.");
 
-        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc
-        // hors de cet installeur : elles sont desormais enregistrees par
-        // `AjouterMessagerieEngagementReviews()`, que le composition root peut oublier.
-        // Un oubli ne casserait rien de visible — le service demarre et n'emet
-        // plus rien. Cette garde, elle, est enregistree ici : elle doit exister
-        // quand ce qu'elle verifie est absent.
+        // L'outbox et l'inbox sont descendues dans `Messaging/Kafka/`, donc hors de
+        // cet installeur : elles sont desormais enregistrees par
+        // `AjouterMessagerieEngagementReviews()`, que le composition root peut
+        // oublier.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<ReviewsDbContext>(options =>

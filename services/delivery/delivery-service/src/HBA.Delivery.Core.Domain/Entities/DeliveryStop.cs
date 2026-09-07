@@ -4,30 +4,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Deliveries.Domain.Deliveries;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UN POINT DE LA COURSE — COLLECTE OU REMISE.
-///
-/// CE QUI EST OBLIGATOIRE, ET POURQUOI CE N'EST PAS LE GPS
-///
-/// Le cahier d'architecture décrit un point par ses coordonnées. Au Bénin, cela ne
-/// suffit pas, et cela ne peut pas être la donnée principale :
-///
-///   • la plupart des rues n'ont ni nom ni numéro ; il n'existe pas de code postal
-///     opérationnel — une adresse se donne par commune, quartier et point de repère ;
-///   • un acheteur sur deux ne partagera pas sa position, par habitude ou par
-///     économie de données ;
-///   • un point GPS relevé dans un bâtiment dérive de plusieurs dizaines de mètres,
-///     ce qui, dans un quartier dense, désigne la mauvaise concession.
-///
-/// Ce qu'un livreur utilise réellement, c'est le REPÈRE (« en face de la pharmacie
-/// Sainte-Rita ») et le TÉLÉPHONE. Les deux sont donc obligatoires ; la position ne
-/// l'est pas. Elle aide — elle ne remplace pas.
-///
-/// C'est l'inverse de ce que ferait une plateforme conçue pour l'Europe, et c'est
-/// délibéré.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UN POINT DE LA COURSE — COLLECTE OU REMISE.</summary>
 public sealed class DeliveryStop : ValueObject
 {
     private const int MaxContactName = 120;
@@ -72,7 +49,7 @@ public sealed class DeliveryStop : ValueObject
     /// <summary>Code de commune, issu du référentiel fermé des 77 communes.</summary>
     public string CommuneCode { get; private init; }
 
-    /// <summary>Quartier, tel qu'il se dit. Facultatif.</summary>
+    /// <summary>Quartier, tel qu'il se dit.</summary>
     public string? Quartier { get; private init; }
 
     /// <summary>Point de repère. C'est l'information que le livreur lit en premier.</summary>
@@ -81,25 +58,7 @@ public sealed class DeliveryStop : ValueObject
     /// <summary>Consignes d'accès : étage, portail, « appeler avant ».</summary>
     public string? Instructions { get; private init; }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// POSITION OBLIGATOIRE — DÉCISION PRODUIT, PAS CONTRAINTE TECHNIQUE.
-    ///
-    /// Elle était facultative, et pour de bonnes raisons : au Bénin, les rues
-    /// n'ont pas de nom, un acheteur sur deux ne partage pas sa position, et le
-    /// point de repère reste ce qu'un livreur utilise réellement pour trouver la
-    /// porte.
-    ///
-    /// Mais la tarification à la distance ne peut pas s'en passer : sans les deux
-    /// extrémités, il n'y a ni kilomètres, ni zone, ni prix. Le choix est donc
-    /// assumé — on exige la position pour pouvoir facturer au juste prix.
-    ///
-    /// LE REPÈRE RESTE OBLIGATOIRE, LUI AUSSI. La position sert à CALCULER ;
-    /// le repère sert à TROUVER. Un point GPS relevé dans un bâtiment dérive de
-    /// plusieurs dizaines de mètres — dans un quartier dense, cela désigne la
-    /// mauvaise concession. Les deux sont complémentaires, jamais substituables.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>POSITION OBLIGATOIRE — DÉCISION PRODUIT, PAS CONTRAINTE TECHNIQUE.</summary>
     public Coordinates Position { get; private init; }
 
     /// <summary>Libellé de la commune, résolu depuis le référentiel.</summary>
@@ -125,9 +84,7 @@ public sealed class DeliveryStop : ValueObject
                 Error.Validation("delivery.stop.contact_required", "Le nom du contact est requis."));
         }
 
-        // Le téléphone est normalisé ET obligatoire. Un livreur qui ne trouve pas
-        // appelle : sans numéro, le colis repart, et la course est perdue pour tout
-        // le monde. C'est le champ le plus rentable du formulaire.
+        // Le téléphone est normalisé ET obligatoire.
         var normalizedPhone = BeninGeography.NormalizePhone(phone);
         if (normalizedPhone is null)
         {

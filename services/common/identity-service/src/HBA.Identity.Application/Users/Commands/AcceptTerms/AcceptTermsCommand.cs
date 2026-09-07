@@ -5,14 +5,7 @@ using HBA.Identity.Domain.Users;
 
 namespace HBA.Identity.Application.Users.Commands.AcceptTerms;
 
-/// <summary>
-/// L'utilisateur accepte une version donnée des conditions générales.
-///
-/// La VERSION vient du client, et c'est voulu : c'est exactement le texte qu'il a
-/// eu sous les yeux. Enregistrer côté serveur « la version courante » sans savoir
-/// laquelle a été affichée reviendrait à faire signer un document qu'on n'a pas
-/// montré — et le jour du litige, on ne saurait pas ce qui a été accepté.
-/// </summary>
+/// <summary>L'utilisateur accepte une version donnée des conditions générales.</summary>
 public sealed record AcceptTermsCommand(Guid UserId, string Version) : ICommand;
 
 internal sealed class AcceptTermsCommandHandler : ICommandHandler<AcceptTermsCommand>

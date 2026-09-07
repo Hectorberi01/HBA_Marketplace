@@ -11,19 +11,10 @@ namespace HBA.Identity.Application.Users.Commands.RequestEmailVerification;
 /// <summary>
 /// Charge le compte, génère un code numérique (seul le hash est stocké), l'inscrit
 /// comme code de vérification en attente, puis publie l'event d'envoi d'e-mail.
-/// N'active pas le compte et ne touche pas à <c>EmailVerified</c>.
 /// </summary>
 internal sealed class RequestEmailVerificationCommandHandler : ICommandHandler<RequestEmailVerificationCommand>
 {
-    /// <summary>
-    /// LE CODE NE TRAVERSE PLUS LE BUS EN CLAIR.
-    ///
-    /// Il partait tel quel dans l'événement, donc dans
-    /// `identity.outbox_messages.Content` — table jamais purgée — puis sur un
-    /// topic Kafka retenu sept jours. Une lecture de l'un ou l'autre valait
-    /// prise de compte. Il est désormais chiffré ici, et déchiffré par le seul
-    /// service qui doit l'envoyer.
-    /// </summary>
+    /// <summary>LE CODE NE TRAVERSE PLUS LE BUS EN CLAIR.</summary>
     private readonly ISecretProtector _protecteur;
 
     private readonly IUserRepository _userRepository;

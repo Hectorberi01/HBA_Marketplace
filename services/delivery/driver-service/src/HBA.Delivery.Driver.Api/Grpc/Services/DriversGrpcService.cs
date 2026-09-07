@@ -6,41 +6,11 @@ using MediatR;
 
 using System.Globalization;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Drivers.Api.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Drivers.Api.Grpc.Services;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE PORT INTERNE DU DOSSIER LIVREUR.
-///
-/// IL LISAIT UN `ConcurrentDictionary` ; IL LIT MAINTENANT LA BASE. C'est le
-/// même changement que partout dans ce lot, et c'est celui qui compte : deux
-/// réplicas de ce service donnaient auparavant deux réponses différentes à la
-/// même question, sans que rien ne le signale.
-///
-/// CE PORT N'A AUCUN APPELANT AUJOURD'HUI, et c'est un fait à garder en tête :
-/// aucun service du dépôt n'enregistre `AddDriversGrpcClient`. Le raccordement de
-/// delivery-service au dossier passe par l'ÉVÉNEMENT `driver.dossier-verified`,
-/// pas par ce port. Il reste écrit parce que le contrat existe et que
-/// l'éligibilité se posera synchroniquement le jour où dispatch-service sera réel.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE PORT INTERNE DU DOSSIER LIVREUR.</summary>
 internal sealed class DriversGrpcService : DriverApi.DriverApiBase
 {
     private readonly ISender _sender;
@@ -70,12 +40,6 @@ internal sealed class DriversGrpcService : DriverApi.DriverApiBase
         var response = new GetDriversBatchResponse();
 
         // UNE REQUÊTE PAR IDENTIFIANT, ET C'EST UN DÉFAUT ASSUMÉ.
-        //
-        // `IDriverAccountRepository` n'expose pas de lecture par lot, parce que ce
-        // port n'a aucun appelant : écrire la lecture groupée maintenant serait
-        // optimiser un chemin que personne n'emprunte. Le jour où il en aura un,
-        // c'est la première chose à corriger — le dispatch fait exactement cette
-        // erreur-là chez delivery-service et l'a réparée avec `ListByIdsAsync`.
         foreach (var id in request.DriverIds)
         {
             if (!Guid.TryParse(id, out var driverId))
@@ -124,26 +88,7 @@ internal sealed class DriversGrpcService : DriverApi.DriverApiBase
         return response;
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// CETTE OPÉRATION A CHANGÉ DE PROPRIÉTAIRE, ET ELLE REFUSE DE MENTIR.
-    ///
-    /// « Occupé » est un état d'EXPLOITATION : il dit qu'un livreur porte une
-    /// course. Il vit dans `deliveries.drivers`, où `Driver.MarkBusy` et
-    /// `Driver.CompleteMission` l'écrivent au fil des transitions de la course —
-    /// c'est-à-dire au seul endroit qui sache quand il change.
-    ///
-    /// L'implémentation précédente écrivait cet état dans le dictionnaire de ce
-    /// service. Elle rendait donc `found = true` à l'appelant pendant que le
-    /// dispatch, qui lit l'autre table, ne voyait rien. Un refus explicite vaut
-    /// mieux qu'un succès sans effet : le premier se corrige, le second se
-    /// diagnostique après avoir mobilisé deux livreurs sur un colis.
-    ///
-    /// NE PAS LA RÉIMPLÉMENTER ICI. Le geste correct, le jour où un appelant
-    /// en aura besoin, est d'exposer l'opération sur le contrat de
-    /// delivery-service.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>CETTE OPÉRATION A CHANGÉ DE PROPRIÉTAIRE, ET ELLE REFUSE DE MENTIR.</summary>
     public override Task<SetBusyStateResponse> SetBusyState(
         HBA.Drivers.Grpc.V1.SetBusyStateRequest request, ServerCallContext context)
         => throw new RpcException(new Status(
@@ -154,12 +99,6 @@ internal sealed class DriversGrpcService : DriverApi.DriverApiBase
     private static HBA.Drivers.Grpc.V1.DriverProfile ToProto(DriverAccountDto account)
     {
         // LE CONTRAT DEMANDE UN PRÉNOM ET UN NOM ; LE DOMAINE N'EN CONNAÎT QU'UN.
-        //
-        // `DriverAccount.FullName` est un seul champ, comme `Driver.FullName` chez
-        // delivery-service — parce qu'au Bénin la décomposition prénom/nom n'est
-        // pas fiable et que rien dans la plateforme n'en dépend. La découpe se fait
-        // donc ICI, au bord, et elle est APPROXIMATIVE : ce qui suit le premier
-        // espace part dans le nom. Aucune décision ne s'appuie dessus.
         var separateur = account.FullName.IndexOf(' ');
 
         return new HBA.Drivers.Grpc.V1.DriverProfile
@@ -172,10 +111,9 @@ internal sealed class DriversGrpcService : DriverApi.DriverApiBase
             LastName = separateur > 0 ? account.FullName[(separateur + 1)..] : string.Empty,
             Phone = account.Phone,
 
-            // AUCUNE NOTE N'EST CALCULÉE NULLE PART DANS LA PLATEFORME. La
-            // maquette rendait « 4,8 », une valeur inventée que le contrat
-            // présentait comme un fait. Zéro est faux aussi, mais il ne se fait pas
-            // passer pour une mesure.
+            // AUCUNE NOTE N'EST CALCULÉE NULLE PART DANS LA PLATEFORME. La maquette
+            // rendait « 4,8 », une valeur inventée que le contrat présentait comme
+            // un fait.
             Rating = "0",
             CreatedAt = account.RegisteredAtUtc.ToString("O", CultureInfo.InvariantCulture)
         };

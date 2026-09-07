@@ -5,11 +5,7 @@ using HBA.Financial.Payments.Domain.PaymentMethods;
 
 namespace HBA.Financial.Payments.Application.PaymentMethods;
 
-/// <summary>
-/// Enregistre un moyen de paiement. <see cref="Type"/> vaut « MobileMoney » ou
-/// « Card ». Le numéro de carte n'est utilisé que pour en extraire les 4 derniers
-/// chiffres (il n'est jamais persisté).
-/// </summary>
+/// <summary>Enregistre un moyen de paiement.</summary>
 public sealed record AddPaymentMethodCommand(
     Guid UserId,
     string Type,

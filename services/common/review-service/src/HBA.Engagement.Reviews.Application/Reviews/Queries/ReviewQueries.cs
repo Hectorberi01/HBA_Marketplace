@@ -23,14 +23,6 @@ public sealed record GetSellerRatingQuery(Guid SellerId) : IQuery<SellerRatingSu
 public sealed record ListReviewsBySellerQuery(Guid SellerId) : IQuery<IReadOnlyList<ReviewSummary>>;
 
 /// <summary>La file de modération : une page d'avis, filtrable par statut.</summary>
-/// <remarks>
-/// SANS FILTRE, ELLE REND TOUT — Y COMPRIS LE PUBLIÉ.
-///
-/// Le cas courant est `Status = "Flagged"`, et c'est ce que l'écran demande par
-/// défaut. Mais restreindre la requête aux seuls signalés interdirait de relire
-/// un avis rejeté pour le restaurer, ce que `restore` permet précisément. Le
-/// filtre est donc un paramètre, pas une règle.
-/// </remarks>
 public sealed record ListReviewsForModerationQuery(
     int Page = 1,
     int PageSize = PageRequest.DefaultPageSize,
@@ -49,8 +41,7 @@ internal sealed class ListReviewsForModerationQueryHandler
         var (page, pageSize) = PageRequest.Normalize(query.Page, query.PageSize);
 
         // Un statut illisible est ignoré plutôt que refusé : la liste complète se
-        // voit, un 400 sur une valeur mal orthographiée ne se comprend pas. Le
-        // compte par statut rendu avec la page permet de vérifier ce qui a filtré.
+        // voit, un 400 sur une valeur mal orthographiée ne se comprend pas.
         ReviewStatus? statut = Enum.TryParse<ReviewStatus>(query.Status, ignoreCase: true, out var lu)
             ? lu
             : null;
@@ -135,10 +126,8 @@ internal sealed class GetProductRatingQueryHandler : IQueryHandler<GetProductRat
 
     public async Task<Result<ProductRatingSummary>> Handle(GetProductRatingQuery query, CancellationToken cancellationToken)
     {
-        // L'AGRÉGATION la plus coûteuse de la fiche produit : moyenne + comptage sur
-        // tous les avis. Son coût grandit avec le succès du produit — les fiches les
-        // plus vues sont donc les plus chères à recalculer. Elle l'était à chaque
-        // affichage, pour deux nombres qui ne changent qu'à la publication d'un avis.
+        // L'AGRÉGATION la plus coûteuse de la fiche produit : moyenne + comptage
+        // sur tous les avis.
         var summary = await _cache.GetOrCreateAsync(
             ReviewsCacheKeys.Rating(query.ProductId),
             async ct =>
@@ -162,9 +151,10 @@ internal sealed class GetSellerRatingQueryHandler : IQueryHandler<GetSellerRatin
 
     public async Task<Result<SellerRatingSummary>> Handle(GetSellerRatingQuery query, CancellationToken cancellationToken)
     {
-        // Pas de cache ici : recalculé uniquement à la publication/au rejet d'un avis
-        // (par le module Sellers), pas à chaque affichage — la note vendeur est ensuite
-        // persistée sur l'entité vendeur et lue directement depuis la vitrine.
+        // Pas de cache ici : recalculé uniquement à la publication/au rejet d'un
+        // avis (par le module Sellers), pas à chaque affichage — la note vendeur
+        // est ensuite persistée sur l'entité vendeur et lue directement depuis la
+        // vitrine.
         var rating = await _repository.GetSellerRatingAsync(query.SellerId, cancellationToken);
         return new SellerRatingSummary(rating.SellerId, rating.Average, rating.Count);
     }

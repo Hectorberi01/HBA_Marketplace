@@ -10,8 +10,7 @@ public enum RecommendationType
 
 /// <summary>
 /// Suggestion personnalisée, calculée par règles ou ML et rafraîchie en
-/// arrière-plan. Read model : projeté hors du chemin transactionnel, jamais
-/// source de vérité. La clé fonctionnelle est (Type, contexte produit/utilisateur).
+/// arrière-plan.
 /// </summary>
 public sealed class Recommendation
 {

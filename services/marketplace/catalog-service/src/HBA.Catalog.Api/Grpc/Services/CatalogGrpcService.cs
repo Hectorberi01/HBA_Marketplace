@@ -12,22 +12,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using HBA.Products.Contracts;
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Products.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Catalog.Api.Grpc.Services;
 
@@ -44,25 +29,7 @@ internal sealed class CatalogGrpcService : Proto.CatalogApi.CatalogApiBase
         _offers = offers;
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LES QUATRE RPC D'OFFRE — LE PANIER CLIENT EN DÉPEND.
-    //
-    // Le proto les déclarait depuis l'origine sur `CatalogApi` ; aucune n'était
-    // implémentée. Un appel tombait donc en `UNIMPLEMENTED`, et le client levait
-    // `NotSupportedException` avant même de partir.
-    //
-    // LES MONTANTS VOYAGENT EN CHAÎNE, ET C'EST LE PROTO QUI LE VEUT.
-    //
-    // Un `double` sur le fil arrondirait un prix ; un `int` de centimes n'a pas
-    // de sens en franc CFA, qui n'a pas de subdivision en circulation. La chaîne
-    // conserve le décimal exact. Elle est écrite et relue en culture INVARIANTE :
-    // sur un serveur en locale française, « 12500.50 » deviendrait sinon
-    // « 12500,50 » et le client le refuserait.
-    //
-    // CHAÎNE VIDE = ABSENT, JAMAIS ZÉRO. « Pas de promotion » et « gratuit »
-    // sont deux faits différents, et proto3 ne distingue pas un champ absent d'un
-    // champ à zéro sur un scalaire.
-    // ═════════════════════════════════════════════════════════════════════════
 
     public override async Task<Proto.GetOfferResponse> GetOffer(
         Proto.GetOfferRequest request, ServerCallContext context)
@@ -81,10 +48,9 @@ internal sealed class CatalogGrpcService : Proto.CatalogApi.CatalogApiBase
     public override async Task<Proto.GetOffersResponse> GetOffers(
         Proto.GetOffersRequest request, ServerCallContext context)
     {
-        // UN IDENTIFIANT ILLISIBLE EST ÉCARTÉ, PAS FATAL. L'appelant demande un
-        // LOT ; refuser les sept autres offres d'un panier parce que la huitième
-        // ligne porte un identifiant abîmé viderait l'écran au lieu de le
-        // dégrader.
+        // UN IDENTIFIANT ILLISIBLE EST ÉCARTÉ, PAS FATAL. L'appelant demande un LOT
+        // ; refuser les sept autres offres d'un panier parce que la huitième ligne
+        // porte un identifiant abîmé viderait l'écran au lieu de le dégrader.
         var ids = request.OfferIds
             .Select(value => Guid.TryParse(value, out var id) ? id : Guid.Empty)
             .Where(id => id != Guid.Empty)
@@ -150,8 +116,7 @@ internal sealed class CatalogGrpcService : Proto.CatalogApi.CatalogApiBase
         if (o.PromotionEndsOnUtc is { } fin)
         {
             // Aller-retour « O » : conserve la précision et le fuseau, et se
-            // reparse sans ambiguïté. Un format court perdrait l'heure, et une
-            // promotion finirait à minuit au lieu de 18 h.
+            // reparse sans ambiguïté.
             message.PromotionEndsOn = fin.ToString("O", CultureInfo.InvariantCulture);
         }
 

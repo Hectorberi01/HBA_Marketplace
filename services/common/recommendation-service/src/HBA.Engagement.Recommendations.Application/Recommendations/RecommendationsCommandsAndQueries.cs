@@ -23,21 +23,6 @@ public sealed record GetProductRecommendationsQuery(Guid ProductId, string Type)
 public sealed record GetUserRecommendationsQuery(Guid UserId) : IQuery<RecommendationSummary>;
 
 /// <summary>La page des recommandations, tous contextes confondus (administration).</summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'ÉCRITURE EXISTAIT SANS LECTURE D'ENSEMBLE, ET C'EST CE QUI MANQUAIT.
-///
-/// `UpsertRecommendationCommand` persiste réellement, sur le groupe admin — le
-/// commentaire de la route le dit : « écrire une recommandation, c'est écrire la
-/// page d'accueil ». Mais les trois lectures sont adressées : par produit, par
-/// utilisateur, ou « les miennes ». Personne ne pouvait répondre à « qu'avons-nous
-/// mis en avant, et quand ».
-///
-/// UN TYPE ILLISIBLE EST IGNORÉ PLUTÔT QUE REFUSÉ — même choix que la modération
-/// des avis et les listes de facturation : la page complète se voit, et le compte
-/// par type rendu avec elle dit ce qui a filtré.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public sealed record ListRecommendationsQuery(
     int Page = 1,
     int PageSize = PageRequest.DefaultPageSize,
@@ -123,17 +108,6 @@ internal sealed class GetProductRecommendationsQueryHandler : IQueryHandler<GetP
         var recommendation = await _repository.GetByProductAsync(type, query.ProductId, cancellationToken);
 
         // ABSENCE RENDUE COMME UNE RECOMMANDATION VIDE, PAS COMME UN 404.
-        //
-        // Le choix se défend pour une vitrine — « aucun produit lié » n'est pas
-        // une erreur — mais l'objet rendu porte alors `Guid.Empty` et
-        // `DateTime.MinValue`, c'est-à-dire un identifiant et une date qui
-        // n'existent pas. Un client qui affiche `GeneratedAtUtc` sans regarder
-        // la liste écrit « calculé le 01/01/0001 ».
-        //
-        // Non corrigé ici : ces deux lectures sont consommées par les
-        // applications acheteur, et le 404 changerait leur chemin d'erreur. La
-        // console d'administration, elle, passe par la liste ci-dessus et ne
-        // rencontre jamais ce cas.
         return recommendation is null
             ? new RecommendationSummary(Guid.Empty, type.ToString(), query.ProductId, null, Array.Empty<Guid>(), 0d, DateTime.MinValue)
             : RecommendationMapper.ToSummary(recommendation);

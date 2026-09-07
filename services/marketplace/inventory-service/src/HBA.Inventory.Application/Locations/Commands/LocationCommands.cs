@@ -27,9 +27,8 @@ public sealed class CreateFulfillmentLocationCommandValidator : AbstractValidato
     {
         RuleFor(c => c.Type).Must(t => t is "SellerAddress" or "PlatformWarehouse")
             .WithMessage("Type de lieu invalide (SellerAddress, PlatformWarehouse).");
-        // Commune et repère sont validés par le VO Address, qui sait résoudre un code
-        // comme un libellé et rend des messages métier. Les dupliquer ici en règles de
-        // longueur ne ferait que produire deux messages différents pour la même erreur.
+        // Commune et repère sont validés par le VO Address, qui sait résoudre un
+        // code comme un libellé et rend des messages métier.
         RuleFor(c => c.Line).MaximumLength(500);
         RuleFor(c => c.Quartier).MaximumLength(120);
         RuleFor(c => c.Landmark).MaximumLength(200);
@@ -124,11 +123,7 @@ internal sealed class UpdateLocationAddressCommandHandler : ICommandHandler<Upda
 
 // ---- Suppression d'un lieu -------------------------------------------------
 
-/// <summary>
-/// Supprime un lieu d'expédition. <see cref="OwnerId"/> optionnel : s'il est fourni
-/// (mutation vendeur), la suppression n'aboutit que si le lieu appartient bien à ce
-/// propriétaire (anti-IDOR). Null pour le back-office admin (aucun filtre).
-/// </summary>
+/// <summary>Supprime un lieu d'expédition.</summary>
 public sealed record DeleteFulfillmentLocationCommand(Guid LocationId, Guid? OwnerId = null) : ICommand;
 
 internal sealed class DeleteFulfillmentLocationCommandHandler : ICommandHandler<DeleteFulfillmentLocationCommand>
@@ -155,30 +150,15 @@ internal sealed class DeleteFulfillmentLocationCommandHandler : ICommandHandler<
             return Result.Failure(Error.NotFound("inventory.location.not_found", "Lieu d'expédition introuvable."));
         }
 
-        // Scoping vendeur : on ne révèle pas la différence « inexistant » / « pas le vôtre »
-        // (même NotFound), pour ne pas divulguer les ids d'autres boutiques.
+        // Scoping vendeur : on ne révèle pas la différence « inexistant » / « pas
+        // le vôtre » (même NotFound), pour ne pas divulguer les ids d'autres
+        // boutiques.
         if (command.OwnerId is { } ownerId && location.OwnerId != ownerId)
         {
             return Result.Failure(Error.NotFound("inventory.location.not_found", "Lieu d'expédition introuvable."));
         }
 
-        // ─────────────────────────────────────────────────────────────────────────
         // ON NE SUPPRIME PAS UN LIEU QUI PORTE ENCORE DU STOCK.
-        //
-        // Rien n'empêchait cette suppression : ni contrôle ici, ni clé étrangère —
-        // `InventoryItemConfiguration` déclare `LocationId` comme une simple colonne,
-        // sans `HasOne` vers les lieux. Les articles survivaient donc au lieu, rattachés
-        // à un identifiant qui ne désignait plus rien.
-        //
-        // Ils ne réapparaissaient nulle part : toute lecture de stock passe par les
-        // lieux du vendeur, si bien que ces articles disparaissaient des écrans SANS
-        // avertissement, tandis que les offres pointant ce lieu restaient actives. Le
-        // stock semblait s'être évaporé.
-        //
-        // Le contrôle est posé DANS LE DOMAINE, pas dans l'interface : c'est une règle
-        // d'intégrité, pas une commodité d'affichage. Elle vaut donc pour le BFF
-        // vendeur, pour l'admin, et pour tout futur appelant.
-        // ─────────────────────────────────────────────────────────────────────────
         var attached = await _items.ListByLocationsAsync(new[] { command.LocationId }, cancellationToken);
         if (attached.Count > 0)
         {

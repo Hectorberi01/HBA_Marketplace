@@ -1,9 +1,8 @@
 namespace HBA.Communication.Notifications.Application.Notifications;
 
 /// <summary>
-/// Catégories de notification proposées au réglage vendeur, et correspondance
-/// avec le « relatedType » porté par chaque notification. Une catégorie inconnue
-/// (relatedType non mappé) n'est jamais coupable : le push part toujours.
+/// Catégories de notification proposées au réglage vendeur, et correspondance avec
+/// le « relatedType » porté par chaque notification.
 /// </summary>
 public static class NotificationCategories
 {

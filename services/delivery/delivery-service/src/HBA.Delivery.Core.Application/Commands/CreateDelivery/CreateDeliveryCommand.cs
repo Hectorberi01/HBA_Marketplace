@@ -38,31 +38,19 @@ public sealed record CreateDeliveryCommand(
     DeliveryPackageInput Package,
 
     // CE N'ÉTAIT PAS UNE VALEUR, C'ÉTAIT UNE CONCLUSION — ISSUE-057.
-    //
-    // Ce paramètre s'appelait `RequiredProof` et laissait l'appelant DÉCIDER de
-    // la preuve. Aucun ne décidait : les deux producteurs réels laissaient
-    // « None », et toute course de la plateforme était clôturable sans preuve.
-    //
-    // L'appelant décrit maintenant ce qu'il sait — ce que valent les
-    // marchandises, si le livreur encaisse — et `ProofPolicy` conclut, dans le
-    // domaine, pour tout le monde de la même façon.
     decimal? DeclaredValue = null,
     bool IsCashOnDelivery = false,
     Guid? PartnerId = null,
     string? QuoteId = null,
 
-    // Heure de livraison souhaitée, pour le seul type « Scheduled ». L'agrégat
-    // tient l'invariant dans les deux sens : programmée sans date, ou date sur
-    // une course qui ne l'est pas, sont refusées.
+    // Heure de livraison souhaitée, pour le seul type « Scheduled ».
     DateTime? ScheduledForUtc = null) : ICommand<Guid>;
 
 internal sealed class CreateDeliveryCommandValidator : AbstractValidator<CreateDeliveryCommand>
 {
     public CreateDeliveryCommandValidator()
     {
-        // Validation de FORME seulement. Les règles métier — commune connue,
-        // téléphone béninois valide, repère obligatoire — appartiennent au
-        // domaine, qui les applique quel que soit le chemin d'entrée.
+        // Validation de FORME seulement.
         RuleFor(c => c.Reference).NotEmpty().MaximumLength(120);
         RuleFor(c => c.Pickup).NotNull();
         RuleFor(c => c.Dropoff).NotNull();
@@ -92,36 +80,11 @@ internal sealed class CreateDeliveryCommandHandler : ICommandHandler<CreateDeliv
 
     public async Task<Result<Guid>> Handle(CreateDeliveryCommand command, CancellationToken cancellationToken)
     {
-        // ─────────────────────────────────────────────────────────────────────
         // IDEMPOTENCE PAR LA RÉFÉRENCE, ET NON PAR UN EN-TÊTE.
-        //
-        // Un site partenaire qui rejoue sa requête après un délai dépassé doit
-        // retrouver SA course, pas en créer une seconde : sinon deux livreurs se
-        // déplacent, et le partenaire est facturé deux fois pour une commande.
-        //
-        // On ne s'appuie pas sur un en-tête « Idempotency-Key » : il est optionnel,
-        // souvent oublié par les intégrateurs, et sa fenêtre de validité expire.
-        // La référence de commande, elle, est toujours là — c'est justement ce qui
-        // identifie l'opération du point de vue de l'appelant.
-        //
-        // La clé porte AUSSI la source : deux systèmes différents peuvent
-        // légitimement émettre une commande nommée « 1024 ».
-        // ─────────────────────────────────────────────────────────────────────
         var existing = await _repository.GetByReferenceAsync(command.Reference, command.Source, cancellationToken);
         if (existing is not null)
         {
-            // ─────────────────────────────────────────────────────────────────
             // UN REJEU NE DOIT PAS RÉVÉLER LA COURSE D'UN AUTRE.
-            //
-            // La clé d'idempotence est (référence, source), et la source
-            // « ExternalPartner » est COMMUNE à tous les partenaires. Deux
-            // intégrateurs qui numérotent leurs commandes « 1024 » entrent donc
-            // en collision : sans ce contrôle, le second recevrait l'identifiant
-            // de la course du premier, puis pourrait la suivre et l'annuler.
-            //
-            // Ce n'est pas un cas tordu : « 1 », « 1000 », « ORDER-1 » sont les
-            // premières commandes de tout site marchand.
-            // ─────────────────────────────────────────────────────────────────
             if (existing.PartnerId != command.PartnerId)
             {
                 return Result.Failure<Guid>(
@@ -132,16 +95,7 @@ internal sealed class CreateDeliveryCommandHandler : ICommandHandler<CreateDeliv
             return existing.Id.Value;
         }
 
-        // ─────────────────────────────────────────────────────────────────────
         // STATUT ET QUOTA DU PARTENAIRE — VÉRIFIÉS ICI, PAS DANS LE FILTRE HTTP.
-        //
-        // Un filtre d'authentification établit QUI appelle ; il n'a pas à décider
-        // ce que cet appelant a le droit de faire. Mettre le quota là-haut le
-        // rendrait contournable par tout autre chemin d'entrée — une commande
-        // interne, un futur consommateur de file, un test d'intégration.
-        //
-        // La règle appartient au métier : elle vaut quel que soit le transport.
-        // ─────────────────────────────────────────────────────────────────────
         if (command.PartnerId is { } partnerId)
         {
             var guard = await CheckPartnerAsync(new PartnerId(partnerId), cancellationToken);
@@ -181,18 +135,7 @@ internal sealed class CreateDeliveryCommandHandler : ICommandHandler<CreateDeliv
             return Result.Failure<Guid>(delivery.Error);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
         // LA RECHERCHE DÉMARRE TOUT DE SUITE — SAUF POUR UNE COURSE PROGRAMMÉE.
-        //
-        // Pour une course immédiate, rien ne justifie de la laisser dormir : un
-        // « Pending » qui persiste est une course que personne ne cherche à
-        // pourvoir.
-        //
-        // Pour une course programmée, l'inverse est vrai. Elle reste « Pending »
-        // jusqu'à l'ouverture de sa fenêtre, et c'est la boucle de dispatch qui
-        // l'ouvre — voir IDeliveryRepository.ListScheduledDueAsync. Appeler
-        // StartSearching ici échouerait d'ailleurs : l'agrégat refuse.
-        // ─────────────────────────────────────────────────────────────────────
         if (delivery.Value.ScheduledForUtc is null)
         {
             var searching = delivery.Value.StartSearching();
@@ -202,14 +145,7 @@ internal sealed class CreateDeliveryCommandHandler : ICommandHandler<CreateDeliv
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────────
         // LE DEVIS EST CONSOMMÉ ICI, ET UNE SEULE FOIS.
-        //
-        // Il porte le prix convenu ; sans lui, la course n'a pas de montant et
-        // rien ne pourra être facturé. La consommation refuse deux cas distincts,
-        // et le message le dit : un devis EXPIRÉ se redemande, un devis DÉJÀ
-        // UTILISÉ révèle un défaut dans l'intégration de l'appelant.
-        // ─────────────────────────────────────────────────────────────────────
         if (command.QuoteId is not null)
         {
             var quote = await _pricingQuotes.ConsumeQuoteAsync(command.QuoteId, delivery.Value.Id.Value, cancellationToken);
@@ -233,14 +169,7 @@ internal sealed class CreateDeliveryCommandHandler : ICommandHandler<CreateDeliv
         return delivery.Value.Id.Value;
     }
 
-    /// <summary>
-    /// Le partenaire a-t-il le droit de créer une course, maintenant ?
-    ///
-    /// Deux refus distincts, et la distinction compte pour l'intégrateur :
-    /// « suspendu » se règle avec le service commercial, « quota atteint » se
-    /// règle en attendant demain ou en demandant un relèvement. Un message unique
-    /// enverrait la moitié des partenaires frapper à la mauvaise porte.
-    /// </summary>
+    /// <summary>Le partenaire a-t-il le droit de créer une course, maintenant ?</summary>
     private async Task<Result> CheckPartnerAsync(PartnerId partnerId, CancellationToken cancellationToken)
     {
         var partner = await _partners.GetByIdAsync(partnerId, cancellationToken);
@@ -256,11 +185,9 @@ internal sealed class CreateDeliveryCommandHandler : ICommandHandler<CreateDeliv
                     "Votre compte partenaire n'est pas actif. Contactez votre interlocuteur HBA."));
         }
 
-        // Quota nul = illimité. Le contrôle est APPROXIMATIF sous forte
-        // concurrence : deux requêtes simultanées peuvent lire le même compte et
-        // passer toutes les deux. C'est assumé — un plafond anti-abus dépassé
-        // d'une unité ne coûte rien, alors qu'un verrou sur le chemin de création
-        // coûterait à chaque appel.
+        // Quota nul = illimité. Le contrôle est APPROXIMATIF sous forte concurrence
+        // : deux requêtes simultanées peuvent lire le même compte et passer toutes
+        // les deux.
         if (partner.DailyQuota > 0)
         {
             var today = await _partners.CountDeliveriesTodayAsync(partnerId, cancellationToken);
@@ -280,8 +207,8 @@ internal sealed class CreateDeliveryCommandHandler : ICommandHandler<CreateDeliv
     {
         Coordinates? position = null;
 
-        // Les deux coordonnées vont ensemble : une seule des deux est traitée
-        // comme aucune. Voir Coordinates.Create pour le refus du point (0, 0).
+        // Les deux coordonnées vont ensemble : une seule des deux est traitée comme
+        // aucune.
         if (input.Latitude is { } lat && input.Longitude is { } lon)
         {
             var coordinates = Coordinates.Create(lat, lon);

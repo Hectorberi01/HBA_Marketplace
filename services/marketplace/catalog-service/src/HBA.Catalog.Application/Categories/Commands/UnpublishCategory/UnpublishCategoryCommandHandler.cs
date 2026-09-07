@@ -41,8 +41,8 @@ internal sealed class UnpublishCategoryCommandHandler : ICommandHandler<Unpublis
 
             foreach (var descendant in descendants)
             {
-                // Les archivées sont déjà hors de l'arbre visible : les « dépublier »
-                // n'aurait aucun sens et `Unpublish()` les refuse. On les saute.
+                // Les archivées sont déjà hors de l'arbre visible : les « dépublier
+                // » n'aurait aucun sens et `Unpublish()` les refuse.
                 if (descendant.Unpublish().IsFailure)
                 {
                     continue;

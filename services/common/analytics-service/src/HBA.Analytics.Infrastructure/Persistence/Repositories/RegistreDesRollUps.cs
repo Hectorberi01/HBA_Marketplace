@@ -3,35 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HBA.Analytics.Infrastructure.Persistence.Repositories;
 
-/// <summary>
-/// Implémentation EF de <see cref="IRegistreDesRollUps"/>.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// « OBTENIR OU CRÉER » CHERCHE D'ABORD DANS LE SUIVI, PAS EN BASE.
-///
-/// Une seule commande confirmée touche N lignes vendeur ET une ligne plateforme,
-/// dans le MÊME `SaveChanges`. Une commande à deux lignes du même vendeur, ou
-/// deux commandes du même jour traitées dans la même transaction, demanderaient
-/// deux fois la même ligne : `FindAsync` rend l'entité déjà suivie sans
-/// retourner en base, donc les deux incréments s'appliquent à un seul objet.
-///
-/// `FirstOrDefaultAsync` NE FERAIT PAS CELA : il exécute toujours la requête et,
-/// pour une ligne AJOUTÉE mais pas encore enregistrée, ne trouve rien. On
-/// créerait alors une SECONDE entité de même clé, et `SaveChanges` échouerait sur
-/// une violation de clé primaire — au mieux. C'est pourquoi ces trois méthodes
-/// emploient `FindAsync` et lui seul.
-///
-/// L'ORDRE DES ARGUMENTS DE `FindAsync` EST CELUI DE LA CLÉ DÉCLARÉE, et il n'y
-/// a aucun contrôle de type dessus : intervertir devise et nature compilerait et
-/// ne trouverait jamais rien — donc créerait une ligne par événement, sans
-/// erreur. Les clés sont écrites ici dans le même ordre que dans
-/// `RollUpConfigurations`.
-///
-/// LA LECTURE EST EN `AsNoTracking` : ces lignes ne seront pas modifiées, et les
-/// suivre ferait porter au suivi jusqu'à 366 entités par requête de graphe.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Implémentation EF de <see cref="IRegistreDesRollUps"/>.</summary>
 public sealed class RegistreDesRollUps : IRegistreDesRollUps
 {
     private readonly AnalyticsDbContext _contexte;

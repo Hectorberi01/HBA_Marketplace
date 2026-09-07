@@ -27,8 +27,7 @@ internal sealed class ApproveUserCommandHandler : ICommandHandler<ApproveUserCom
         }
 
         // `Approve()` accepte aussi un compte suspendu : c'est le retour en arrière
-        // d'un refus. Volontaire — un administrateur qui s'est trompé doit pouvoir
-        // se dédire sans passer par une seconde commande.
+        // d'un refus.
         var result = user.Approve();
         if (result.IsFailure)
         {

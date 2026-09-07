@@ -9,10 +9,9 @@ using HBA.Merchants.Domain.Sellers;
 namespace HBA.Merchants.Application.Sellers.Commands.RegisterSeller;
 
 /// <summary>
-/// Onboarde un vendeur. Vérifie d'abord, via un appel IN-PROCESS au module
-/// Identity (ses Contracts), que le compte existe et que l'e-mail est confirmé —
-/// jamais d'accès direct à la base d'Identity. Refuse les doublons (un compte =
-/// un vendeur, nom de boutique unique).
+/// Onboarde un vendeur. Vérifie d'abord, via un appel IN-PROCESS au module Identity
+/// (ses Contracts), que le compte existe et que l'e-mail est confirmé — jamais
+/// d'accès direct à la base d'Identity.
 /// </summary>
 internal sealed class RegisterSellerCommandHandler : ICommandHandler<RegisterSellerCommand, Guid>
 {
@@ -64,19 +63,8 @@ internal sealed class RegisterSellerCommandHandler : ICommandHandler<RegisterSel
 
         await _sellerRepository.AddAsync(result.Value, cancellationToken);
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE VENDEUR DEVIENT MEMBRE DE SON PROPRE DOSSIER, DANS LA MÊME
-        //    TRANSACTION.
-        //
-        // Sans cette ligne, tout vendeur inscrit APRÈS la reprise du 19 août n'a
-        // aucune appartenance — et l'appartenance EST la garde de toutes les
-        // routes d'équipe. Il ne pourrait ni voir son équipe, ni inviter
-        // personne : le propriétaire serait le seul compte de la plateforme à
-        // n'avoir aucun droit sur sa propre boutique.
-        //
-        // La panne serait de surcroît invisible en recette, où l'on éprouve avec
-        // les comptes existants — ceux que la migration a rattachés.
-        // ═════════════════════════════════════════════════════════════════════
+        // TRANSACTION.
         await _memberRepository.AddAsync(
             SellerMember.Owner(result.Value.Id.Value, command.UserId), cancellationToken);
 

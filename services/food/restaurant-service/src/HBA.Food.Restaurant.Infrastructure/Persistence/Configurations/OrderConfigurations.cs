@@ -37,15 +37,7 @@ internal sealed class PreparationStationConfiguration : IEntityTypeConfiguration
     }
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA COMMANDE FOOD ET SON TICKET (§10 à §13).
-///
-/// Une seule racine, deux tables possédées : les lignes, et leurs options figées.
-/// Le ticket de cuisine n'a pas de table à lui — il EST la commande vue de la
-/// cuisine, et son statut se dérive de ses lignes.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA COMMANDE FOOD ET SON TICKET (§10 à §13).</summary>
 internal sealed class FoodOrderConfiguration : IEntityTypeConfiguration<FoodOrder>
 {
     public void Configure(EntityTypeBuilder<FoodOrder> builder)
@@ -58,13 +50,6 @@ internal sealed class FoodOrderConfiguration : IEntityTypeConfiguration<FoodOrde
             .ValueGeneratedNever();
 
         // EN ENTIER, PAS EN CHAÎNE — CONTRAIREMENT À `PaymentOrderType`.
-        //
-        // Le reste de CE fichier stocke ses énumérations en entier (`Status`,
-        // `RejectionReason`). Deux conventions dans une même table rendraient la
-        // lecture directe en base plus pénible qu'une convention imparfaite tenue
-        // partout. Le revers connu — la valeur dépend de l'ORDRE de déclaration en
-        // C# — est explicité dans `FoodOrderOrigin`, qui interdit d'insérer une
-        // valeur au milieu.
         builder.Property(o => o.Origin).HasConversion<int>().IsRequired();
 
         builder.Property(o => o.OrderId).IsRequired();
@@ -81,27 +66,6 @@ internal sealed class FoodOrderConfiguration : IEntityTypeConfiguration<FoodOrde
         builder.Property(o => o.Priority).IsRequired();
 
         // UNE COMMANDE COMMERCIALE N'A QU'UNE PART CUISINE — DANS SON UNIVERS.
-        //
-        // C'est le rempart contre le double traitement : l'outbox promet « au moins
-        // une fois », pas « exactement une fois ». Sans cet index, un événement
-        // rejoué créerait un second ticket et la cuisine préparerait deux fois le
-        // même repas. Le gestionnaire vérifie déjà, l'index garantit.
-        //
-        // IL PORTAIT `OrderId` SEUL, ET C'ÉTAIT UN PIÈGE À DEUX FACES.
-        //
-        // Deux ponts écrivent ici avec des identifiants venant d'agrégats
-        // distincts (voir `FoodOrderOrigin`). Sur `OrderId` seul :
-        //
-        //   • une collision entre un identifiant de commande marketplace et un
-        //     identifiant de `MealOrder` — improbable avec des GUID, mais rien
-        //     dans le schéma ne l'interdisait — aurait REFUSÉ le second ticket,
-        //     c'est-à-dire perdu une commande payée ;
-        //   • et surtout la garde d'idempotence du gestionnaire, qui cherche par
-        //     `OrderId`, n'avait aucun moyen de rendre « le ticket de CET
-        //     univers ».
-        //
-        // L'univers fait donc partie de la clé, comme `ix_payments_order` le fait
-        // déjà pour `(OrderType, OrderId)` côté paiement.
         builder.HasIndex(o => new { o.Origin, o.OrderId })
             .IsUnique()
             .HasDatabaseName("ux_food_orders_order");
@@ -110,13 +74,8 @@ internal sealed class FoodOrderConfiguration : IEntityTypeConfiguration<FoodOrde
         // restaurant et statut : c'est l'index le plus sollicité du module.
         builder.HasIndex(o => new { o.RestaurantId, o.Status });
 
-        // VERROU OPTIMISTE (§20 : « garantir une seule transition de statut
-        // valide en cas d'actions concurrentes »).
-        //
-        // Deux caissiers sur le même écran acceptent la même commande ; deux
-        // cuisiniers marquent prête la même ligne. Sans verrou, la seconde
-        // écriture écrase la première en silence — et c'est justement le cas que le
-        // cahier nomme.
+        // VERROU OPTIMISTE (§20 : « garantir une seule transition de statut valide
+        // en cas d'actions concurrentes »).
         builder.UsePostgresRowVersion();
 
         builder.OwnsOne(o => o.Rejection, refus =>
@@ -133,8 +92,7 @@ internal sealed class FoodOrderConfiguration : IEntityTypeConfiguration<FoodOrde
         builder.Ignore(o => o.Items);
 
         // Propriétés CALCULÉES : elles se dérivent des lignes et n'ont rien à faire
-        // en base. Les stocker créerait une seconde vérité qui divergerait au
-        // premier oubli de mise à jour.
+        // en base.
         builder.Ignore(o => o.KitchenStatus);
         builder.Ignore(o => o.Total);
         builder.Ignore(o => o.Stations);

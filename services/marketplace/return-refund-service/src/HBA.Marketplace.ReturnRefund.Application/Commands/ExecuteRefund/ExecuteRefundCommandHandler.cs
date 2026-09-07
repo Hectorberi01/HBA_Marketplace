@@ -7,46 +7,10 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Marketplace.ReturnRefund.Application.Commands.ExecuteRefund;
 
-/// <summary>
-/// Exécute UN remboursement décidé : appelle le prestataire, puis écrit l'issue.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CETTE COMMANDE N'AVAIT AUCUN ÉMETTEUR. AUCUN REMBOURSEMENT N'ABOUTISSAIT.
-///
-/// Le gestionnaire était écrit, complet, testable — et personne ne l'appelait.
-/// `DecideRefundCommandHandler` écrivait la décision en base, `RefundRetryWorker`
-/// se contentait de journaliser « active », et rien, nulle part, ne reliait les
-/// deux. `ReturnStatus.Refunded` était INATTEIGNABLE : aucun chemin du code ne
-/// menait à `MarkRefundSucceeded`.
-///
-/// Le raccord est désormais : `DecideRefund` écrit un `Refund` en `Pending` →
-/// `RefundRetryWorker` balaie les remboursements en attente → cette commande.
-///
-/// POURQUOI UN BALAYAGE ET NON UN APPEL DIRECT DEPUIS LA DÉCISION.
-///
-/// Appeler le prestataire dans la foulée de `DecideRefund` — dans le gestionnaire
-/// de domaine, ou juste après — verserait l'argent AVANT que la décision ne soit
-/// committée : les gestionnaires de domaine s'exécutent à l'INTÉRIEUR de
-/// `SaveChangesAsync` (voir `ModuleDbContext`), avant le `base.SaveChangesAsync`.
-/// Un incident entre les deux laisserait un virement parti sans aucune trace en
-/// base. Le balayage lit ce qui est COMMITTÉ : il ne peut rien exécuter qui
-/// n'existe pas.
-///
-/// Le prix est un délai — quelques secondes entre la décision et le versement.
-/// C'est précisément le délai que `ReturnRefundApprovedIntegrationEvent` sert à
-/// expliquer au client.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Exécute UN remboursement décidé : appelle le prestataire, puis écrit l'issue.</summary>
 internal sealed class ExecuteRefundCommandHandler : ICommandHandler<Commands.ExecuteRefundCommand>
 {
-    /// <summary>
-    /// AU-DELÀ, ON ARRÊTE D'ESSAYER ET ON APPELLE UN HUMAIN.
-    ///
-    /// Un remboursement irréparable — paiement sans référence prestataire, opérateur
-    /// qui refuse le canal, montant devenu incohérent — échouerait sinon toutes les
-    /// vingt secondes pour toujours, en noyant les journaux et sans que personne
-    /// n'apprenne que le client attend.
-    /// </summary>
+    /// <summary>AU-DELÀ, ON ARRÊTE D'ESSAYER ET ON APPELLE UN HUMAIN.</summary>
     private const int MaxTentatives = 5;
 
     private readonly IReturnRequestRepository _returns;
@@ -94,9 +58,7 @@ internal sealed class ExecuteRefundCommandHandler : ICommandHandler<Commands.Exe
         if (tentativesEchouees >= MaxTentatives)
         {
             // ON N'ABANDONNE PAS EN SILENCE. Le dossier passe en `ManualReview`,
-            // état depuis lequel un opérateur peut relancer, rejeter ou clore. Sans
-            // cette sortie, un client attendrait son argent sans qu'aucune ligne de
-            // travail n'existe nulle part.
+            // état depuis lequel un opérateur peut relancer, rejeter ou clore.
             var escalade = request.EscalateToManualReview(
                 $"Remboursement non abouti apres {tentativesEchouees} tentatives : arbitrage requis.",
                 _clock.UtcNow);
@@ -111,8 +73,8 @@ internal sealed class ExecuteRefundCommandHandler : ICommandHandler<Commands.Exe
                 "Le remboursement a echoue trop de fois : le dossier passe en arbitrage manuel."));
         }
 
-        // Lu AVANT la réservation : si order-service est indisponible, mieux vaut ne
-        // rien avoir écrit et laisser le tour suivant réessayer.
+        // Lu AVANT la réservation : si order-service est indisponible, mieux vaut
+        // ne rien avoir écrit et laisser le tour suivant réessayer.
         var order = await _orders.GetOrderReturnContextAsync(request.OrderId, cancellationToken);
         if (order.IsFailure)
         {
@@ -125,21 +87,7 @@ internal sealed class ExecuteRefundCommandHandler : ICommandHandler<Commands.Exe
             return Result.Failure(money.Error);
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // RÉSERVATION AVANT L'APPEL AU PRESTATAIRE. C'EST LE VERROU.
-        //
-        // `BeginRefund` passe le remboursement en `Processing` et incrémente
-        // `Version`, jeton de concurrence de l'agrégat. Deux exécutants simultanés
-        // — un rejeu et le balayage, ou deux répliques — se disputent ce
-        // `SaveChanges` : le second lève `DbUpdateConcurrencyException` et n'atteint
-        // JAMAIS l'appel au prestataire.
-        //
-        // L'exception n'est pas rattrapée ici : la couche Application ne référence
-        // pas EF Core, et surtout un conflit de concurrence n'est pas une erreur
-        // métier. Elle remonte au `RefundRetryWorker`, qui la journalise et reprend
-        // au tour suivant — où le remboursement sera vu `Processing`, donc déjà
-        // pris en charge.
-        // ═════════════════════════════════════════════════════════════════════
         var reservation = request.BeginRefund(refund.Id, _clock.UtcNow);
         if (reservation.IsFailure)
         {
@@ -149,10 +97,7 @@ internal sealed class ExecuteRefundCommandHandler : ICommandHandler<Commands.Exe
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // LA CLÉ TRANSMISE EST CELLE DU `Refund`, DÉTERMINISTE PAR CONSTRUCTION :
-        // `return:{ReturnId}:refund:{n}`. C'est elle qui rend l'appel rejouable —
-        // payment-service reconnaît une tentative déjà aboutie et rend son issue au
-        // lieu de verser une seconde fois. Une clé tirée au hasard à chaque tentative
-        // n'empêcherait rien du tout.
+        // `return:{ReturnId}:refund:{n}`.
         var payment = await _payments.RefundPaymentAsync(
             order.Value.PaymentId,
             request.Id,
@@ -170,10 +115,7 @@ internal sealed class ExecuteRefundCommandHandler : ICommandHandler<Commands.Exe
         }
 
         // `MarkRefundSucceeded` lève `RefundSucceededDomainEvent`, que le
-        // gestionnaire de domaine traduit en `ReturnRefundedIntegrationEvent`. Cet
-        // événement part dans l'outbox DANS LE MÊME `SaveChangesAsync` que le
-        // passage en `Refunded` : wallet-service ne peut pas contre-passer un gain
-        // pour un remboursement que notre base n'aurait pas enregistré, ni l'inverse.
+        // gestionnaire de domaine traduit en `ReturnRefundedIntegrationEvent`.
         var marked = request.MarkRefundSucceeded(refund.Id, payment.Value.ProviderRefundId, _clock.UtcNow);
         if (marked.IsFailure)
         {

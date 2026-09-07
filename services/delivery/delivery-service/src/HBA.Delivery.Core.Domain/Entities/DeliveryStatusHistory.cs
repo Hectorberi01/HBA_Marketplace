@@ -21,27 +21,7 @@ public enum AssignmentOutcome
     Revoked = 4
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UNE PROPOSITION FAITE À UN LIVREUR — ET SON SORT.
-///
-/// POURQUOI GARDER L'HISTORIQUE PLUTÔT QU'UN SEUL « DriverId »
-///
-/// Il serait plus simple de poser un `CurrentDriverId` sur la course et de
-/// l'écraser à chaque réaffectation. On perdrait alors ce qui compte vraiment :
-///
-///   • le nombre de refus avant acceptation — le seul indicateur qui dise si le
-///     dispatch propose les bonnes courses aux bons livreurs ;
-///   • qui a refusé quoi, et à quelle fréquence : un livreur qui refuse
-///     systématiquement les longues distances n'est pas un mauvais livreur, mais
-///     il ne faut plus les lui proposer en priorité ;
-///   • de quoi répondre à « pourquoi ma commande a mis quarante minutes à
-///     partir » autrement que par une supposition.
-///
-/// Ces lignes sont donc IMMUABLES une fois conclues. On n'écrase pas une
-/// proposition, on en ajoute une.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UNE PROPOSITION FAITE À UN LIVREUR — ET SON SORT.</summary>
 public sealed class DeliveryAssignment : Entity<Guid>
 {
     private DeliveryAssignment(Guid id, DriverId driverId, int attemptNumber)
@@ -72,7 +52,7 @@ public sealed class DeliveryAssignment : Entity<Guid>
     /// <summary>Motif du refus, quand le livreur en donne un.</summary>
     public string? Reason { get; private set; }
 
-    /// <summary>Temps de réponse du livreur. Alimente le score de dispatch.</summary>
+    /// <summary>Temps de réponse du livreur.</summary>
     public TimeSpan? ResponseTime => RespondedAtUtc is null ? null : RespondedAtUtc - OfferedAtUtc;
 
     internal static DeliveryAssignment Offer(DriverId driverId, int attemptNumber)

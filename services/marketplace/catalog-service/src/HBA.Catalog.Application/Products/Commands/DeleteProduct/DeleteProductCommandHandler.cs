@@ -33,12 +33,8 @@ internal sealed class DeleteProductCommandHandler : ICommandHandler<DeleteProduc
             return Result.Failure(Error.NotFound("catalog.product.not_found", $"Produit {command.ProductId} introuvable."));
         }
 
-        // NOMMER LES FICHIERS AVANT DE RETIRER L'AGRÉGAT : après, ses médias
-        // ne sont plus lisibles, et rien ne désignerait plus les octets.
-        //
-        // La version précédente effaçait ici même, en « fail-soft » : un échec
-        // distant était ignoré et le fichier restait, sans trace ni reprise. Passer
-        // par l'outbox transforme cet abandon silencieux en message qui réessaie.
+        // NOMMER LES FICHIERS AVANT DE RETIRER L'AGRÉGAT : après, ses médias ne
+        // sont plus lisibles, et rien ne désignerait plus les octets.
         product.PrepareForDeletion();
 
         _productRepository.Remove(product);

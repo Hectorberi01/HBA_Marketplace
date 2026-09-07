@@ -8,19 +8,7 @@ using HBA.Financial.Payments.Infrastructure.Persistence.Outbox;
 using HBA.Financial.Payments.Infrastructure.Persistence.Inbox;
 using HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Financial.Payments.Infrastructure.Messaging.Kafka.Processors;
-// ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Idempotency`.
-//
-// La table `idempotency_records` de CE service est creee par SES migrations :
-// l'entite qui la decrit lui appartient. Le socle n'en garde que le port,
-// `IIdempotencyStore`, que `IdempotencyEndpointFilter` resout sur chaque route
-// annotee `AllowIdempotency()`.
-//
-// A REGENERER : l'instantane de modele de ce service reference encore le type du
-// socle sous forme de chaine. Il compile et les migrations s'appliquent — mais
-// modele et instantane divergent jusqu'a un `dotnet ef migrations add`, au diff
-// de schema vide.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Financial.Payments.Infrastructure.Idempotency;
 
@@ -42,8 +30,9 @@ public sealed class IdempotencyConfiguration : IEntityTypeConfiguration<Idempote
         builder.Property(r => r.CreatedAtUtc).IsRequired();
         builder.Property(r => r.ExpiresAtUtc).IsRequired();
 
-        // Index de purge. Partiel volontairement absent ici : contrairement à l'outbox,
-        // TOUTES les lignes finissent par expirer, donc un filtre n'écarterait rien.
+        // Index de purge. Partiel volontairement absent ici : contrairement à
+        // l'outbox, TOUTES les lignes finissent par expirer, donc un filtre
+        // n'écarterait rien.
         builder.HasIndex(r => r.ExpiresAtUtc)
             .HasDatabaseName("ix_idempotency_keys_expires_at");
     }

@@ -10,20 +10,7 @@ using HBA.Catalog.Infrastructure.Persistence;
 
 namespace HBA.Catalog.Infrastructure.Public;
 
-/// <summary>
-/// Implémentation in-process de l'API publique du module. Lecture seule,
-/// AsNoTracking, projetée vers les DTOs de Contracts. Les autres modules ne
-/// voient que ça du catalogue.
-///
-/// ─────────────────────────────────────────────────────────────────────────────
-/// C'EST LE CHEMIN LE PLUS CHAUD DE L'APPLICATION.
-///
-/// La fiche produit mobile (/mobile/products/{id}, anonyme) passe par ici à chaque
-/// affichage. Toutes les lectures sont en cache-aside, et partagent leurs clés avec
-/// les query handlers correspondants : une même fiche n'est lue en base qu'une fois
-/// pour les deux chemins.
-/// ─────────────────────────────────────────────────────────────────────────────
-/// </summary>
+/// <summary>Implémentation in-process de l'API publique du module.</summary>
 internal sealed class CatalogModuleApi : ICatalogModuleApi
 {
     private readonly CatalogDbContext _dbContext;
@@ -43,7 +30,7 @@ internal sealed class CatalogModuleApi : ICatalogModuleApi
                 var id = new ProductId(productId);
 
                 // `Include(Revisions)` EST OBLIGATOIRE : sans lui,
-                // `Product.CurrentRevision` lève. Voir l'encadré de ProductRepository.
+                // `Product.CurrentRevision` lève.
                 var product = await _dbContext.Products
                     .AsNoTracking()
                     .Include(p => p.Revisions).ThenInclude(r => r.Condition).ThenInclude(c => c.Defects)
@@ -113,17 +100,7 @@ internal sealed class CatalogModuleApi : ICatalogModuleApi
     {
         var limit = max is < 1 or > 50 ? 12 : max;
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE TAG EST LU SUR LA RÉVISION PUBLIÉE, PAS SUR LA COURANTE.
-        //
-        // Cette liste alimente la VITRINE. La lire sur la révision courante
-        // mettrait en avant une fiche dont un vendeur vient d'ajouter le tag
-        // « featured » à un brouillon que personne n'a validé — la mise en avant
-        // deviendrait libre-service.
-        //
-        // `Tags` est un text[] natif : le filtre se traduit en
-        // `'featured' = ANY(tags)` côté PostgreSQL (index GIN possible).
-        // ═════════════════════════════════════════════════════════════════════
         var ids = await _dbContext.Products
             .AsNoTracking()
             .Where(p => p.Status == ProductStatus.Published

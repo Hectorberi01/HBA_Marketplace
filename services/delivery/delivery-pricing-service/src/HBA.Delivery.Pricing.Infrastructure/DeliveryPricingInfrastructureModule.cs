@@ -17,13 +17,10 @@ public static class DeliveryPricingInfrastructureModule
 {
     public static IServiceCollection AddDeliveryPricingInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // LE CACHE DE CE SERVICE (Caching/Redis/). Ce service n'a pas d'installeur
-        // nomme *ModuleInstaller — son point d'entree d'infrastructure est ici.
+        // LE CACHE DE CE SERVICE (Caching/Redis/).
         services.AjouterCacheDeliveryPricing(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteDeliveryPricing(configuration);
 
         var connectionString = configuration.GetConnectionString("Default")
@@ -31,9 +28,8 @@ public static class DeliveryPricingInfrastructureModule
 
         // L'outbox et les abonnements sont descendus dans `Messaging/Kafka/`, donc
         // hors de ce module d'infrastructure : ils sont enregistres par
-        // `AjouterMessagerieDeliveryPricing()`, que le composition root peut oublier. Un
-        // oubli ne casserait rien de visible. Cette garde, elle, est enregistree
-        // ici : elle doit exister quand ce qu'elle verifie est absent.
+        // `AjouterMessagerieDeliveryPricing()`, que le composition root peut
+        // oublier.
         services.AddHostedService<GardeDeCablage>();
 
         services.AddDbContext<DeliveryPricingDbContext>(options =>
@@ -42,29 +38,7 @@ public static class DeliveryPricingInfrastructureModule
 
         services.AddScoped<IPricingStore, EfDeliveryPricingStore>();
 
-        // ═════════════════════════════════════════════════════════════════════
         // LES DEUX LEVIERS DE L'ESTIMATION D'ITINÉRAIRE.
-        //
-        // Une section absente donne les valeurs par défaut — 5,8 m/s et un
-        // facteur de 1,0 — c'est-à-dire EXACTEMENT le comportement qui était codé
-        // en dur. Aucun déploiement existant ne change de prix du fait de ce
-        // câblage.
-        //
-        // LIAISON À LA MAIN, PAS `Get<T>()` NI `Configure<T>(section)`.
-        //
-        // Les deux vivent dans `Microsoft.Extensions.Configuration.Binder` et
-        // `Microsoft.Extensions.Options.ConfigurationExtensions`, qu'aucun des
-        // deux `PackageReference` de ce projet ne déclare. Ça compilerait
-        // peut-être par transitivité — et casserait le jour où une dépendance
-        // intermédiaire cesse de les traîner, sur un projet qui n'a jamais
-        // demandé ces paquets.
-        //
-        // ET LA LIAISON MANUELLE FERME UN DÉFAUT QUE LE BINDER LAISSAIT OUVERT :
-        // LA CULTURE. « 1.3 » lu par un convertisseur dépendant de la culture
-        // vaut 13 sous une locale française. Un facteur multiplié par dix ne
-        // lève aucune exception : il multiplie par dix le prix de toutes les
-        // courses. `InvariantCulture` est donc imposée ici, explicitement.
-        // ═════════════════════════════════════════════════════════════════════
         var defauts = new EstimationItineraireOptions();
         var section = configuration.GetSection(EstimationItineraireOptions.SectionName);
 
@@ -78,45 +52,18 @@ public static class DeliveryPricingInfrastructureModule
                 section["DureeMinimaleSecondes"], defauts.DureeMinimaleSecondes)
         };
 
-        // POURQUOI `Valider()` ICI ET PAS À LA PREMIÈRE UTILISATION. Une vitesse
-        // à zéro ou un facteur à 0,8 ne casse rien visiblement : ça produit des
-        // devis faux, silencieusement, jusqu'à ce que quelqu'un compare une
-        // facture à une course. Un service qui refuse de démarrer se remarque
-        // dans la minute.
+        // POURQUOI `Valider()` ICI ET PAS À LA PREMIÈRE UTILISATION. Une vitesse à
+        // zéro ou un facteur à 0,8 ne casse rien visiblement : ça produit des devis
+        // faux, silencieusement, jusqu'à ce que quelqu'un compare une facture à une
+        // course.
         estimation.Valider();
 
         services.AddSingleton(Options.Create(estimation));
 
-        // ═════════════════════════════════════════════════════════════════════
         // LA FILE D'ÉVÉNEMENTS N'EST PLUS RÉENREGISTRÉE ICI.
-        //
-        // Ces deux lignes existaient parce que l'hôte n'appelait pas
-        // `AddBuildingBlocksInfrastructure` — elles comblaient une partie du
-        // socle absent, mais pas celle qui empêchait le démarrage. L'hôte prend
-        // désormais le socle entier, qui pose `IntegrationEventQueue` et
-        // `IIntegrationEventPublisher` exactement de la même façon.
-        //
-        // Les garder empilerait deux descripteurs identiques. `OutboxRegistration`
-        // dit pourquoi on s'en abstient : « sans dommage fonctionnel — le dernier
-        // gagne — mais c'est un mensonge dans le conteneur ».
-        //
-        // CONSÉQUENCE À CONNAÎTRE : ce module n'est plus autonome. Un hôte qui
-        // l'appellerait sans poser le socle n'aurait ni file d'événements, ni
-        // dispatcher de domaine, ni métriques d'outbox — et ne démarrerait pas.
-        // ═════════════════════════════════════════════════════════════════════
-        // `AddOutboxProcessor` est descendu dans `Messaging/Kafka/Outbox/` :
-        // le laisser ici ferait tourner DEUX videurs sur la meme table.
         return services;
     }
 
-    /// <remarks>
-    /// UNE VALEUR ILLISIBLE EST UNE ERREUR, PAS UN RETOUR AU DÉFAUT.
-    ///
-    /// `TryParse` suivi d'un repli silencieux ferait démarrer le service avec
-    /// 1,0 alors que l'exploitant croit avoir posé 1,3 — une coquille dans une
-    /// variable d'environnement resterait invisible jusqu'à ce qu'on compare des
-    /// factures. Seule une valeur ABSENTE prend le défaut.
-    /// </remarks>
     private static decimal LireDecimal(string? brut, decimal defaut)
     {
         if (string.IsNullOrWhiteSpace(brut))

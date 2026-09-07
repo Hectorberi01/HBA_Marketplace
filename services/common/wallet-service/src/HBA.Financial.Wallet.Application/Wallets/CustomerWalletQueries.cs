@@ -16,15 +16,7 @@ public sealed record ListCustomerWalletTransactionsQuery(Guid CustomerId, int Ta
 public sealed record ListCustomerWithdrawalsQuery(Guid CustomerId)
     : IQuery<IReadOnlyList<CustomerWithdrawalView>>;
 
-/// <summary>
-/// File d'administration des demandes de virement, par statut.
-///
-/// SANS CETTE VUE, LES DEMANDES SONT INVISIBLES ET PERSONNE N'EST PAYÉ.
-///
-/// Rien n'exécute ces virements automatiquement — c'est la décision D33. La file
-/// EST le mécanisme : une demande qui n'y figure pas est un client dont les fonds
-/// sont retenus et que personne ne verra jamais.
-/// </summary>
+/// <summary>File d'administration des demandes de virement, par statut.</summary>
 public sealed record ListCustomerWithdrawalsByStatusQuery(string Status)
     : IQuery<IReadOnlyList<CustomerWithdrawalView>>;
 
@@ -66,27 +58,12 @@ internal sealed class CustomerWalletQueryHandler
     {
         var wallet = await _wallets.GetByCustomerAsync(query.CustomerId, cancellationToken);
 
-        // Somme retenue : demandes encore en attente de décision. Les fonds ont déjà
-        // quitté le solde disponible ; les omettre ferait « disparaître » l'argent de
-        // l'écran du client entre sa demande et la décision de l'administrateur —
-        // exactement le défaut corrigé sur le portefeuille vendeur.
+        // Somme retenue : demandes encore en attente de décision.
         var pendingWithdrawal = (await _withdrawals.ListByCustomerAsync(query.CustomerId, cancellationToken: cancellationToken))
             .Where(w => w.Status == CustomerWithdrawalStatus.Requested)
             .Sum(w => w.Amount);
 
         // ZÉRO PLUTÔT QUE 404.
-        //
-        // Le portefeuille naît au PREMIER remboursement. La très grande majorité des
-        // clients n'en auront jamais — c'est le cas NORMAL, pas une anomalie. Leur
-        // répondre « introuvable » sur un écran « mon portefeuille » leur ferait
-        // croire à une panne, et enverrait au support des gens qui n'ont rien à
-        // réclamer.
-        //
-        // La nuance qui rend ce repli légitime : ici l'absence de ligne signifie
-        // vraiment « aucun mouvement ». Ce n'est pas un zéro qui masque une donnée
-        // manquante, c'est la traduction d'un état connu. (Le solde retenu, lui,
-        // reste calculé : il ne peut pas être non nul sans portefeuille, mais s'il
-        // l'était, l'afficher est plus honnête que de le taire.)
         return wallet is null
             ? Result.Success(new CustomerWalletView(query.CustomerId, 0m, 0m, pendingWithdrawal, "XOF"))
             : Result.Success(CustomerWalletMapper.ToView(wallet, pendingWithdrawal));
@@ -96,8 +73,6 @@ internal sealed class CustomerWalletQueryHandler
         ListCustomerWalletTransactionsQuery query, CancellationToken cancellationToken)
     {
         // Le grand livre est indexé par OwnerId : l'identifiant du client y suffit.
-        // Aucun risque de collision avec un vendeur ou un livreur — ce sont des
-        // identifiants distincts, portant de surcroît un `OwnerType` différent.
         var transactions = await _ledger.ListByOwnerAsync(
             query.CustomerId, Math.Clamp(query.Take, 1, MaxTake), cancellationToken);
 
@@ -117,12 +92,6 @@ internal sealed class CustomerWalletQueryHandler
         ListCustomerWithdrawalsByStatusQuery query, CancellationToken cancellationToken)
     {
         // UN STATUT ILLISIBLE EST REFUSÉ, PAS SILENCIEUSEMENT REMPLACÉ.
-        //
-        // Retomber sur `Requested` en cas de faute de frappe donnerait à
-        // l'administrateur une file qui a l'air correcte et qui répond à une autre
-        // question que la sienne : il croirait consulter les virements payés et
-        // verrait des demandes en attente. Sur une sortie d'argent, une réponse
-        // plausible mais fausse est pire qu'un refus.
         if (!Enum.TryParse<CustomerWithdrawalStatus>(query.Status, ignoreCase: true, out var statut))
         {
             return Result.Failure<IReadOnlyList<CustomerWithdrawalView>>(Error.Validation(

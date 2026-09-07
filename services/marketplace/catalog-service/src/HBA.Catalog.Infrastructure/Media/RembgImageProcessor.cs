@@ -5,53 +5,12 @@ using SkiaSharp;
 
 namespace HBA.Catalog.Infrastructure.Media;
 
-/// <summary>
-/// Détourage LOCAL via un service rembg (u2net) auto-hébergé.
-///
-/// ─────────────────────────────────────────────────────────────────────────────────
-/// UN SEUL ALLER-RETOUR, CONTRE QUATRE POUR CLOUDINARY
-///
-/// L'adaptateur Cloudinary téléverse l'original, signe la requête, interroge le rendu
-/// en boucle tant qu'il reçoit un 423, puis détruit l'asset distant. Ici : un POST,
-/// une réponse. Le modèle tourne dans le conteneur voisin, il n'y a rien à stocker
-/// ailleurs ni à nettoyer.
-///
-/// ─────────────────────────────────────────────────────────────────────────────────
-/// LE RÉENCODAGE EN JPEG N'EST PAS UN LUXE
-///
-/// rembg répond TOUJOURS en PNG — son serveur code « image/png » en dur. Or une photo
-/// de vêtement en PNG pèse souvent trois à quatre fois son équivalent JPEG, et la
-/// chaîne applique une limite de 5 Mo (`UploadValidation.MaxImageBytes`) : rendre le
-/// PNG tel quel ferait échouer l'envoi APRÈS que le vendeur a validé son aperçu.
-///
-/// Deux autres raisons, moins visibles mais aussi coûteuses :
-///  • Cloudinary rendait du JPEG. L'app mobile s'y fie et renomme le fichier en «.jpg»
-///    après traitement : lui servir du PNG produirait des fichiers mal étiquetés.
-///  • Un JPEG n'a pas de canal alpha. C'est NOUS qui aplatissons sur blanc, donc le
-///    résultat ne dépend pas de ce que le service a bien voulu faire du fond.
-/// ─────────────────────────────────────────────────────────────────────────────────
-/// </summary>
+/// <summary>Détourage LOCAL via un service rembg (u2net) auto-hébergé.</summary>
 public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvailability
 {
     public const string ClientName = "rembg-image-processor";
 
-    /// <summary>
-    /// Côté maximal du rendu, en pixels.
-    ///
-    /// CE PLAFOND EST UN GARDE-FOU MÉMOIRE, PAS UN RÉGLAGE ESTHÉTIQUE.
-    ///
-    /// `UploadValidation` ne borne que le POIDS (5 Mo) ; un JPEG de 5 Mo peut faire
-    /// 8000 × 6000. Le décodage réclame alors largeur × hauteur × 4 octets — environ
-    /// 190 Mo — et la surface de destination autant. Près d'un demi-gigaoctet pour UNE
-    /// photo, dans des conteneurs plafonnés à 512 Mo.
-    ///
-    /// Et ces allocations sont NON MANAGÉES : le ramasse-miettes ne les voit pas, le
-    /// processus ne lève pas d'OutOfMemoryException — il reçoit un SIGKILL du noyau.
-    /// Une panne sans exception, sans trace, sans corrélation évidente.
-    ///
-    /// 2000 px est la valeur à laquelle l'app mobile réduit déjà ses prises de vue
-    /// (`_maxSide`) : la chaîne reste cohérente, et le pic mémoire tombe à ~16 Mo.
-    /// </summary>
+    /// <summary>Côté maximal du rendu, en pixels.</summary>
     private const int MaxSide = 2000;
 
     private readonly IHttpClientFactory _httpClientFactory;
@@ -84,10 +43,9 @@ public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvail
         {
             var client = _httpClientFactory.CreateClient(ClientName);
 
-            // On ne passe PAS `bgc` : le service rendrait un PNG opaque pleine couleur,
-            // bien plus lourd à transférer et à décoder, pour un fond blanc que nous
-            // reposons de toute façon nous-mêmes. Un PNG à canal alpha, majoritairement
-            // transparent, se compresse beaucoup mieux.
+            // On ne passe PAS `bgc` : le service rendrait un PNG opaque pleine
+            // couleur, bien plus lourd à transférer et à décoder, pour un fond
+            // blanc que nous reposons de toute façon nous-mêmes.
             var url = $"{_options.BaseUrl.TrimEnd('/')}/api/remove";
 
             using var form = new MultipartFormDataContent();
@@ -95,11 +53,11 @@ public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvail
             file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
             // Le champ s'appelle « file » — c'est le nom du paramètre côté serveur.
             form.Add(file, "file", string.IsNullOrWhiteSpace(fileName) ? "upload" : fileName);
-            // `EffectiveModel`, jamais `Model` : la liste blanche de licences s'applique ici.
+            // `EffectiveModel`, jamais `Model` : la liste blanche de licences
+            // s'applique ici.
             form.Add(new StringContent(_options.EffectiveModel), "model");
             // Lissage du masque. Il érode légèrement les contours fins : c'est un
-            // compromis, pas une amélioration gratuite. Sur des photos de vêtements
-            // prises en intérieur, le gain sur les bords dentelés l'emporte.
+            // compromis, pas une amélioration gratuite.
             form.Add(new StringContent("true"), "ppm");
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -122,8 +80,8 @@ public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvail
                 return Error.Failure("image.process.empty", "Le service de détourage a renvoyé une image vide.");
             }
 
-            // L'orientation se lit sur l'ORIGINAL : le PNG produit par rembg n'a plus
-            // d'EXIF (voir `ReadOrientation`).
+            // L'orientation se lit sur l'ORIGINAL : le PNG produit par rembg n'a
+            // plus d'EXIF (voir `ReadOrientation`).
             var jpeg = ToOpaqueJpeg(cutout, ReadOrientation(content), _options.JpegQuality);
             if (jpeg is null)
             {
@@ -136,8 +94,8 @@ public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvail
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Annulation venue de l'APPELANT (client parti) : on la laisse remonter, et
-            // on ne l'impute pas au service — il n'y est pour rien.
+            // Annulation venue de l'APPELANT (client parti) : on la laisse
+            // remonter, et on ne l'impute pas au service — il n'y est pour rien.
             throw;
         }
         catch (OperationCanceledException)
@@ -154,20 +112,7 @@ public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvail
         }
     }
 
-    /// <summary>
-    /// Orientation EXIF de l'image d'ORIGINE.
-    ///
-    /// ─────────────────────────────────────────────────────────────────────────────
-    /// Un téléphone tenu à la verticale enregistre souvent les pixels À PLAT et note
-    /// la rotation dans l'EXIF ; les visionneuses l'appliquent à l'affichage. rembg
-    /// travaille sur les pixels bruts et rend un PNG, format qui ne transporte pas
-    /// cette information.
-    ///
-    /// Sans reprise explicite, le détourage ressortait donc COUCHÉ là où l'original
-    /// s'affichait droit — sur toutes les photos prises en portrait, c'est-à-dire la
-    /// quasi-totalité des photos de vendeurs.
-    /// ─────────────────────────────────────────────────────────────────────────────
-    /// </summary>
+    /// <summary>Orientation EXIF de l'image d'ORIGINE.</summary>
     private static SKEncodedOrigin ReadOrientation(byte[] original)
     {
         try
@@ -178,15 +123,14 @@ public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvail
         }
         catch
         {
-            // Orientation illisible : on ne tourne rien. Une photo droite vaut mieux
-            // qu'une photo tournée au hasard.
+            // Orientation illisible : on ne tourne rien.
             return SKEncodedOrigin.TopLeft;
         }
     }
 
     /// <summary>
-    /// Aplatit le PNG détouré sur du blanc OPAQUE, applique l'orientation, réduit si
-    /// nécessaire, et réencode en JPEG.
+    /// Aplatit le PNG détouré sur du blanc OPAQUE, applique l'orientation, réduit
+    /// si nécessaire, et réencode en JPEG.
     /// </summary>
     private static byte[]? ToOpaqueJpeg(byte[] png, SKEncodedOrigin origin, int quality)
     {
@@ -197,13 +141,7 @@ public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvail
             return null;
         }
 
-        // ─────────────────────────────────────────────────────────────────────────
         // DIMENSIONS LUES AVANT DÉCODAGE.
-        //
-        // `SKCodec.Info` n'ouvre que l'en-tête. C'est ce qui permet de décider d'une
-        // réduction AVANT d'allouer les pixels — décoder puis redimensionner aurait
-        // déjà consommé la mémoire qu'on cherche à ne pas prendre.
-        // ─────────────────────────────────────────────────────────────────────────
         var source = codec.Info;
         if (source.Width <= 0 || source.Height <= 0)
         {
@@ -214,8 +152,8 @@ public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvail
         var scale = longest > MaxSide ? (float)MaxSide / longest : 1f;
         var scaled = scale < 1f ? codec.GetScaledDimensions(scale) : new SKSizeI(source.Width, source.Height);
 
-        // Alpha PREMUL au décodage : c'est ce qui permet à Skia de composer le sujet
-        // sur le blanc. Un décodage opaque écraserait la transparence en noir.
+        // Alpha PREMUL au décodage : c'est ce qui permet à Skia de composer le
+        // sujet sur le blanc.
         var decodeInfo = new SKImageInfo(scaled.Width, scaled.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
         using var bitmap = SKBitmap.Decode(codec, decodeInfo);
         if (bitmap is null)
@@ -247,24 +185,10 @@ public sealed class RembgImageProcessor : IImageProcessor, IImageProcessingAvail
         return encoded?.ToArray();
     }
 
-    /// <summary>
-    /// Transformation remettant l'image d'aplomb selon son orientation EXIF.
-    ///
-    /// Écrite en coefficients explicites plutôt qu'en composition de rotations et de
-    /// symétries : chaque cas se relit et se vérifie à la main — `x' = a·x + b·y + c`,
-    /// `y' = d·x + e·y + f` — là où un empilement de `PostConcat` s'inverse à la
-    /// moindre inattention, et produit alors une image retournée que rien ne signale.
-    ///
-    /// <paramref name="w"/> et <paramref name="h"/> sont les dimensions de l'image
-    /// DÉCODÉE. Les quatre cas diagonaux échangent les axes : la surface de
-    /// destination doit être créée en h × w (c'est ce que fait `swap` chez l'appelant).
-    ///
-    /// Les huit cas de la norme sont traités, miroirs compris : ils coûtent une ligne
-    /// chacun, et n'en couvrir que la moitié laisserait passer des photos inversées.
-    /// </summary>
+    /// <summary>Transformation remettant l'image d'aplomb selon son orientation EXIF.</summary>
     private static SKMatrix OrientationMatrix(SKEncodedOrigin origin, int w, int h) => origin switch
     {
-        //                                          a   b   c    d   e   f
+        // a b c d e f
         SKEncodedOrigin.TopLeft => Affine(1, 0, 0, 0, 1, 0),
         SKEncodedOrigin.TopRight => Affine(-1, 0, w, 0, 1, 0),   // miroir horizontal
         SKEncodedOrigin.BottomRight => Affine(-1, 0, w, 0, -1, h),   // 180°

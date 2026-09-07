@@ -6,24 +6,6 @@ namespace HBA.Analytics.Application.RollUps.Queries;
 /// La période d'un graphe : bornes vérifiées une seule fois, pour les trois
 /// requêtes.
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE PLAFOND EXISTE PARCE QUE LA RÉPONSE EST UN POINT PAR JOUR.
-///
-/// Sans borne, `?from=1970-01-01` demande vingt mille points — et le coût n'est
-/// pas la lecture, qui reste indexée, mais la SÉRIALISATION et le rendu chez le
-/// client. C'est le même défaut que `MerchantTodayDto` documente pour lui-même :
-/// une lecture qui devient chère exactement chez les vendeurs qui réussissent.
-///
-/// 366 JOURS, ET NON 365 : une année bissextile complète doit passer, sinon
-/// « l'an dernier » échoue une année sur quatre, et personne ne comprend
-/// pourquoi.
-///
-/// CE QUE CETTE CLASSE NE FAIT PAS : borner le NOMBRE de séries. Un jour où l'on
-/// rendra plusieurs devises dans une même réponse, le plafond portera sur le
-/// produit jours × devises, pas sur les jours seuls.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public sealed record PeriodeDemandee(DateOnly Du, DateOnly Au)
 {
     /// <summary>Nombre maximal de journées rendues en une requête.</summary>
@@ -35,16 +17,7 @@ public sealed record PeriodeDemandee(DateOnly Du, DateOnly Au)
     /// <summary>Nombre de journées, bornes incluses.</summary>
     public int Jours => Au.DayNumber - Du.DayNumber + 1;
 
-    /// <summary>
-    /// Construit la période, ou dit pourquoi elle est refusée.
-    /// </summary>
-    /// <remarks>
-    /// LES DEUX BORNES SONT OPTIONNELLES, ET LEUR ABSENCE N'EST PAS UNE ERREUR :
-    /// un tableau de bord qui s'ouvre sans paramètre doit afficher quelque chose.
-    /// C'est le `to` qui ancre la fenêtre par défaut — reculer depuis
-    /// « aujourd'hui » quand seul `from` est donné rendrait une période dont la
-    /// longueur dépend du jour où on la demande.
-    /// </remarks>
+    /// <summary>Construit la période, ou dit pourquoi elle est refusée.</summary>
     public static Result<PeriodeDemandee> Construire(DateOnly? du, DateOnly? au)
     {
         var fin = au ?? DateOnly.FromDateTime(DateTime.UtcNow);
@@ -70,14 +43,6 @@ public sealed record PeriodeDemandee(DateOnly Du, DateOnly Au)
     }
 
     /// <summary>Toutes les journées de la période, sans trou.</summary>
-    /// <remarks>
-    /// LES JOURS SANS VENTE RENDENT UN ZÉRO, PAS UN TROU.
-    ///
-    /// Une courbe à laquelle il manque des points relie le 3 au 7 par une droite,
-    /// et donne à lire une activité continue là où il n'y en a eu aucune. Le
-    /// dépôt ne stocke pas les lignes à zéro — elles n'existent que dans la
-    /// réponse, et c'est ici qu'elles naissent.
-    /// </remarks>
     public IEnumerable<DateOnly> Journees()
     {
         for (var jour = Du; jour <= Au; jour = jour.AddDays(1))

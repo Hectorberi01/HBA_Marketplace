@@ -7,11 +7,6 @@ using HBA.Merchants.Contracts.IntegrationEvents;
 using HBA.Shared.IntegrationEvents;
 using Microsoft.Extensions.Logging;
 // LES ESPACES DE NOMS QUE CE FICHIER HABITAIT, DEVENUS DES `using`.
-//
-// Il vivait dans `HBA.Identity.Application.Users.EventHandlers` et y resolvait ses voisins SANS `using` : le
-// compilateur cherche d'abord dans les espaces de noms englobants. Descendu
-// dans `Messaging/Kafka/Consumers`, il a perdu ce voisinage — d'ou les lignes
-// ci-dessous, qui rendent explicite ce qui etait implicite.
 using HBA.Identity.Application.Users;
 using HBA.Identity.Application.Users.EventHandlers;
 
@@ -20,44 +15,6 @@ namespace HBA.Identity.Infrastructure.Messaging.Kafka.Consumers;
 /// <summary>
 /// Attribue un rôle métier à un compte, sur foi d'un événement d'un autre service.
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// PERSONNE N'ATTRIBUAIT CES RÔLES. C'ÉTAIT LE TROU CENTRAL.
-///
-/// Les rôles `Seller`, `FoodPartner` et `Driver` étaient SEMÉS par
-/// `IdentityDataSeeder` et attribués par AUCUN code : seul « Buyer » l'était, à
-/// l'inscription. Conséquence, invisible tant qu'on ne se connectait pas : les
-/// BFF Merchant, Restaurant et Driver répondaient 403 à TOUT LE MONDE, y compris
-/// au fondateur d'un restaurant validé.
-///
-/// Rien ne le signalait. Le vendeur s'inscrivait, son dossier était approuvé, sa
-/// boutique ouverte — et son application refusait de s'ouvrir sans que le moindre
-/// journal ne relie les deux faits.
-///
-/// PAR ÉVÉNEMENT D'INTÉGRATION, ET NON PAR APPEL DIRECT.
-///
-/// L'alternative — merchant-service appelant identity-service pour poser un rôle —
-/// aurait donné à trois services le droit de modifier les autorisations d'un
-/// compte. C'est identity-service, et lui seul, qui décide de ce qu'un compte a
-/// le droit de faire ; les autres se contentent d'annoncer un FAIT MÉTIER
-/// (« ce vendeur est inscrit », « ce restaurant est validé »).
-///
-/// Les trois événements existaient déjà et étaient publiés. Le contrat de
-/// `RestaurantApprovedIntegrationEvent` documente même son `OwnerUserId` par
-/// « le compte HBA du restaurateur — celui qui reçoit le rôle » : l'intention
-/// était écrite, le consommateur n'a jamais été branché.
-///
-/// ON NE LÈVE JAMAIS.
-///
-/// Ces gestionnaires réagissent à un fait acquis : le vendeur EST inscrit, le
-/// restaurant EST validé. Échouer ferait rejouer l'événement indéfiniment par
-/// l'outbox sans jamais aboutir si la cause est un rôle absent en base. On
-/// journalise en erreur — le symptôme, lui, est bruyant côté utilisateur.
-///
-/// L'opération est idempotente : `User.AssignRole` ignore un rôle déjà présent.
-/// Un événement rejoué ne produit rien.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public sealed class BusinessRoleGrant
 {
     private readonly IUserRepository _users;
@@ -96,14 +53,6 @@ public sealed class BusinessRoleGrant
         if (role is null)
         {
             // CRITICAL, ET PAS ERROR. CE N'EST PAS UN COMPTE, C'EST LA PLATEFORME.
-            //
-            // Le rôle est semé au démarrage par `IdentityDataSeeder`. Son absence
-            // signifie que l'amorçage n'a pas eu lieu — un défaut d'installation,
-            // pas une donnée manquante. Et il ne touche pas CE partenaire : il
-            // touche TOUS ceux qui s'inscriront tant que la table restera vide.
-            //
-            // Rejouer n'y changerait rien (voir « ON NE LÈVE JAMAIS » ci-dessus),
-            // d'où le journal plutôt que l'exception. Mais au niveau qui réveille.
             _logger.LogCritical(
                 "Rôle « {Role} » INTROUVABLE en base ({Raison}, compte {UserId}). "
                 + "L'amorçage des rôles système n'a pas eu lieu : AUCUN partenaire ne "
@@ -128,30 +77,7 @@ public sealed class BusinessRoleGrant
             "Rôle « {Role} » attribué au compte {UserId} ({Raison}).", roleName, userId, reason);
     }
 
-    /// <summary>
-    /// Retire un rôle métier.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// CE N'EST PAS LE SYMÉTRIQUE DE `GrantAsync`, ET L'APPELANT DOIT LE SAVOIR.
-    ///
-    /// Un rôle métier peut avoir PLUSIEURS causes. `Seller` est accordé à
-    /// l'inscription d'un vendeur ET au rattachement à une équipe : le retirer
-    /// parce qu'une des deux a disparu enfermerait dehors quelqu'un pour qui
-    /// l'autre tient toujours — un comptable révoqué chez un commerçant, mais
-    /// vendeur lui-même, qui perdrait l'accès à SON PROPRE dossier sans que rien
-    /// n'y ait été fait.
-    ///
-    /// La décision « la dernière cause a disparu » se prend donc chez celui qui les
-    /// connaît. Cette méthode exécute, elle ne juge pas.
-    ///
-    /// MÊME DISCIPLINE QUE `GrantAsync` : ON NE LÈVE JAMAIS.
-    ///
-    /// Un compte absent ou un rôle non semé sont journalisés, pas propagés :
-    /// échouer ferait rejouer l'événement indéfiniment par l'outbox sans jamais
-    /// aboutir. `User.RemoveRole` est idempotent — un rejeu ne produit rien.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Retire un rôle métier.</summary>
     public async Task RevokeAsync(
         Guid userId, string roleName, string reason, CancellationToken cancellationToken)
     {
@@ -182,42 +108,13 @@ public sealed class BusinessRoleGrant
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // LES SESSIONS EN COURS NE SONT PAS RÉVOQUÉES, ET C'EST DÉLIBÉRÉ.
-        //
-        // Un jeton déjà émis porte la claim et continuera de franchir
-        // `MapSellerGroup` jusqu'à son expiration. Ce n'est pas un trou : la garde
-        // qui décide est la vérification d'appartenance, côté merchant, et elle
-        // refuse dès la révocation. Appeler `RevokeUserSessionsAsync` déconnecterait
-        // le compte de TOUTE la plateforme — de ses achats compris — pour un
-        // retrait qui ne concerne qu'un dossier vendeur.
         _logger.LogInformation(
             "Rôle « {Role} » retiré du compte {UserId} ({Raison}).", roleName, userId, reason);
     }
 }
 
-/// <summary>
-/// Vendeur inscrit → rôle `Seller`.
-/// </summary>
-/// <remarks>
-/// À L'INSCRIPTION, PAS À L'APPROBATION DU KYB.
-///
-/// Un vendeur dont le dossier est en cours d'instruction doit pouvoir ouvrir son
-/// application : y déposer ses pièces, suivre l'avancement, préparer sa boutique.
-/// Attendre l'approbation le laisserait dehors précisément pendant la période où
-/// il a le plus besoin d'y entrer.
-///
-/// Ce que le rôle ouvre, c'est la SURFACE de l'application partenaire. Ce que le
-/// KYB conditionne — vendre, encaisser — est vérifié par merchant-service sur le
-/// statut du vendeur, pas par ce rôle.
-/// </remarks>
+/// <summary>Vendeur inscrit → rôle `Seller`.</summary>
 // LA CLE D'IDEMPOTENCE DE CE FICHIER EST FIGEE, PAS DEDUITE.
-//
-// `IntegrationEventDispatcher` la derivait du nom complet du type. Descendre ce
-// fichier dans `Messaging/Kafka/Consumers` a change son espace de noms, donc sa
-// cle, donc a orpheline ses traces dans `consumer_inbox` : au premier rejeu,
-// chaque evenement deja traite serait repasse pour neuf.
-//
-// Les valeurs ci-dessous reproduisent le nom complet d'AVANT le deplacement.
-// Ce sont des cles de base de donnees : elles ne se refactorisent pas.
 [NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.GrantSellerRoleHandler")]
 public sealed class GrantSellerRoleHandler : IIntegrationEventHandler<SellerRegisteredIntegrationEvent>
 {
@@ -232,23 +129,7 @@ public sealed class GrantSellerRoleHandler : IIntegrationEventHandler<SellerRegi
         => _grant.GrantAsync(e.UserId, RoleName, "inscription vendeur", cancellationToken);
 }
 
-/// <summary>
-/// Restaurant validé → rôle `FoodPartner`.
-/// </summary>
-/// <remarks>
-/// ICI, C'EST BIEN L'APPROBATION — CONTRAIREMENT AU VENDEUR.
-///
-/// La dissymétrie est voulue. Un dossier de restaurant est déposé par un
-/// candidat ; tant qu'il n'est pas validé, l'établissement n'existe pas pour la
-/// plateforme. Il n'y a pas d'équivalent du dépôt de pièces à faire entre-temps.
-///
-/// CONSÉQUENCE À CONNAÎTRE : LE PERSONNEL N'EST PAS COUVERT.
-///
-/// Seul `OwnerUserId` reçoit le rôle. Un cuisinier ou un caissier ajouté par le
-/// §8 n'en obtient aucun, et l'écran de cuisine — qui est fait POUR eux — leur
-/// reste fermé. Le combler demande un événement « membre ajouté » que food-service
-/// ne publie pas encore.
-/// </remarks>
+/// <summary>Restaurant validé → rôle `FoodPartner`.</summary>
 [NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.GrantFoodPartnerRoleHandler")]
 public sealed class GrantFoodPartnerRoleHandler : IIntegrationEventHandler<RestaurantApprovedIntegrationEvent>
 {
@@ -263,36 +144,7 @@ public sealed class GrantFoodPartnerRoleHandler : IIntegrationEventHandler<Resta
         => _grant.GrantAsync(e.OwnerUserId, RoleName, "validation du restaurant", cancellationToken);
 }
 
-/// <summary>
-/// Livreur vérifié → rôle `Driver`.
-/// </summary>
-/// <remarks>
-/// Ici l'attente est justifiée : conduire pour la plateforme suppose des pièces
-/// contrôlées — permis, assurance, véhicule. Ouvrir l'application avant la
-/// vérification laisserait accepter des courses à quelqu'un dont rien n'est
-/// établi.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE HANDLER ÉCOUTE `HBA.Drivers.Contracts`, PLUS `HBA.Deliveries.Contracts`.
-///
-/// `DriverVerifiedIntegrationEvent` était déclaré dans LES DEUX, aux champs
-/// identiques (`DriverId`, `UserId`). `KafkaEventNaming.EventType` ne regarde que
-/// le nom de CLASSE et l'enveloppe Kafka ne transporte que ce nom : les deux
-/// rendaient « driver.verified », et `ResolveEventType` retenait le premier par
-/// ordre alphabétique du nom complet.
-///
-/// CE QUE ÇA PROVOQUAIT : si le type retenu n'était pas celui pour lequel ce
-/// handler est enregistré, `GetServices` n'en trouvait AUCUN et l'événement passait
-/// SANS EFFET — pas d'exception, pas d'échec de désérialisation, l'offset committé
-/// juste après. Le rôle `Driver` n'était pas attribué, le BFF livreur répondait 403
-/// à un livreur pourtant vérifié, et rien ne reliait le refus à la vérification.
-/// C'est exactement le trou que tout ce fichier existe pour fermer.
-///
-/// POURQUOI DRIVERS : l'agrégat décrit est LE LIVREUR, pas la course. La
-/// déclaration côté Deliveries a été retirée ; delivery-service publie désormais
-/// ce type-ci.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Livreur vérifié → rôle `Driver`.</summary>
 [NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.GrantDriverRoleHandler")]
 public sealed class GrantDriverRoleHandler : IIntegrationEventHandler<DriverVerifiedIntegrationEvent>
 {
@@ -307,34 +159,7 @@ public sealed class GrantDriverRoleHandler : IIntegrationEventHandler<DriverVeri
         => _grant.GrantAsync(e.UserId, RoleName, "vérification du livreur", cancellationToken);
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// MEMBRE RATTACHÉ À UNE ÉQUIPE VENDEUR → RÔLE `Seller`.
-///
-/// SANS CE CONSOMMATEUR, TOUT LE MODULE DES MEMBRES RESTE INERTE.
-///
-/// `MapSellerGroup` filtre sur la claim de rôle du jeton, et rien d'autre :
-///
-///     .RequireAuthorization(policy => policy.RequireRole(SellerRole, AdminRole, ModeratorRole))
-///
-/// Un membre parfaitement écrit en base — rôles corrects, permissions calculées,
-/// appartenance active — est donc refoulé par le ROUTAGE. Avant tout handler,
-/// avant que la moindre permission de ce module ne soit consultée, et avec un 403
-/// au corps vide. Les tables, les gardes et les capacités du chantier membres ne
-/// servent à rien tant que cette ligne n'existe pas.
-///
-/// C'est exactement le trou que `GrantFoodPartnerRoleHandler` documente pour le
-/// personnel de restaurant, et qui reste ouvert de son côté : « seul `OwnerUserId`
-/// reçoit le rôle […] l'écran de cuisine, qui est fait POUR eux, leur reste
-/// fermé ». Le combler côté vendeur donne le gabarit pour l'y combler aussi.
-///
-/// ATTRIBUÉ À L'ENTRÉE DANS L'ÉQUIPE, PAS À L'INVITATION.
-///
-/// L'invitation ne prouve rien : elle est émise sur une adresse, éventuellement
-/// sans compte en face. C'est l'acceptation — jeton valide, non expiré, adresse
-/// concordante — qui établit le fait.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>MEMBRE RATTACHÉ À UNE ÉQUIPE VENDEUR → RÔLE `Seller`.</summary>
 [NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.GrantSellerRoleToMemberHandler")]
 public sealed class GrantSellerRoleToMemberHandler
     : IIntegrationEventHandler<SellerMemberJoinedIntegrationEvent>
@@ -349,34 +174,7 @@ public sealed class GrantSellerRoleToMemberHandler
             e.UserId, GrantSellerRoleHandler.RoleName, "rattachement à une équipe vendeur", cancellationToken);
 }
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// MEMBRE SORTI D'UNE ÉQUIPE → RÔLE `Seller` RETIRÉ, MAIS PAS TOUJOURS.
-///
-/// LA RÉVOCATION N'EST PAS LE SYMÉTRIQUE DE L'OCTROI.
-///
-/// Le rôle `Seller` a deux causes possibles : être vendeur soi-même, ou appartenir
-/// à l'équipe d'un vendeur. En perdre une ne veut pas dire les avoir perdues
-/// toutes. Un comptable révoqué chez un commerçant peut être vendeur par ailleurs,
-/// ou comptable chez un confrère : lui retirer le rôle l'enfermerait dehors de son
-/// propre dossier, sur lequel personne n'a rien fait — la panne la moins
-/// diagnosticable qui soit, puisque la cause est ailleurs que le symptôme.
-///
-/// LE DRAPEAU VIENT DE seller-service, ET IL NE POUVAIT VENIR QUE DE LÀ.
-///
-/// identity ne connaît pas les appartenances. L'interroger dans l'autre sens
-/// créerait un appel de service circulaire — merchant dépend déjà d'identity — sur
-/// le chemin d'un événement, c'est-à-dire au pire endroit possible.
-///
-/// ET RIEN N'EST FAIT SUR UNE SUSPENSION.
-///
-/// Une suspension est temporaire : retirer puis rendre le rôle à chaque
-/// aller-retour produirait de la charge et des fenêtres d'incohérence pour un
-/// résultat identique. Un membre suspendu franchit `MapSellerGroup` et se fait
-/// refuser par la vérification d'appartenance, avec un motif lisible — ce qui est
-/// exactement ce qu'on veut lui dire.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>MEMBRE SORTI D'UNE ÉQUIPE → RÔLE `Seller` RETIRÉ, MAIS PAS TOUJOURS.</summary>
 [NomDeConsommateur("HBA.Identity.Application.Users.EventHandlers.RevokeSellerRoleOnMemberRemovedHandler")]
 public sealed class RevokeSellerRoleOnMemberRemovedHandler
     : IIntegrationEventHandler<SellerMemberRevokedIntegrationEvent>

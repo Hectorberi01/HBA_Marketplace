@@ -8,16 +8,7 @@ using HBA.Financial.Payments.Infrastructure.Gateways;
 
 namespace HBA.Financial.Payments.Infrastructure.Gateways.Real;
 
-/// <summary>
-/// Adaptateur FedaPay RÉEL (page de paiement hébergée). Flux :
-///  1. POST /transactions → crée la transaction (montant, devise, callback).
-///  2. POST /transactions/{id}/token → renvoie l'URL de paiement (Mobile Money + carte).
-///  3. L'acheteur paie sur la page FedaPay ; on confirme par webhook signé
-///     (x-fedapay-signature) ou en interrogeant GET /transactions/{id}.
-///
-/// Branche ta clé secrète dans « Payments:FedaPay » : dès qu'elle est renseignée,
-/// l'installer remplace le stub par cet adaptateur.
-/// </summary>
+/// <summary>Adaptateur FedaPay RÉEL (page de paiement hébergée).</summary>
 public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
 {
     private readonly FedaPayOptions _options;
@@ -29,24 +20,14 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
 
     public override string Provider => "FedaPay";
 
-    /// <summary>
-    /// CET ADAPTATEUR NE REMBOURSE PAS, ET IL LE DIT AU DÉMARRAGE.
-    ///
-    /// Le remboursement FedaPay se pilote depuis le tableau de bord marchand : l'API
-    /// REST publique n'expose pas d'endpoint de remboursement. Tant que ce n'est pas
-    /// le cas, chaque annulation de commande payée par FedaPay doit être remboursée
-    /// À LA MAIN dans le tableau de bord.
-    ///
-    /// La constante est lue par `PaymentsModuleInstaller` AVANT toute instanciation :
-    /// c'est elle qui fait refuser le démarrage en production, et qui produit
-    /// l'annonce bruyante ailleurs.
-    /// </summary>
+    /// <summary>CET ADAPTATEUR NE REMBOURSE PAS, ET IL LE DIT AU DÉMARRAGE.</summary>
     public const bool RefundSupported = false;
 
     /// <inheritdoc />
     public override bool SupportsRefund => RefundSupported;
 
-    // La page hébergée collecte elle-même le numéro / la carte : pas besoin du MSISDN en amont.
+    // La page hébergée collecte elle-même le numéro / la carte : pas besoin du
+    // MSISDN en amont.
     public override bool RequiresPayerPhone => false;
 
     protected override string HttpClientName => ClientName;
@@ -62,9 +43,7 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
     private async Task<GatewaySession> CreateHostedAsync(GatewayChargeContext context, CancellationToken ct)
     {
         // FedaPay valide callback_url comme une URL http(s) : on ne lui transmet
-        // jamais un schéma applicatif (marketplace://…). On préfère l'URL configurée
-        // (https) si présente, sinon on omet le champ (le retour est géré par la
-        // WebView + l'interrogation du statut).
+        // jamais un schéma applicatif (marketplace://…).
         var callbackUrl = HttpUrlOrNull(_options.CallbackUrl) ?? HttpUrlOrNull(context.ReturnUrl);
 
         using var createRequest = new HttpRequestMessage(HttpMethod.Post, "transactions")
@@ -119,14 +98,11 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
     }
 
     public override Task<GatewayRefundResult> RefundAsync(string providerReference, CancellationToken ct = default)
-        // Le remboursement FedaPay se pilote depuis le tableau de bord (pas d'endpoint
-        // public dans l'API REST documentée) : non couvert ici.
+        // Le remboursement FedaPay se pilote depuis le tableau de bord (pas
+        // d'endpoint public dans l'API REST documentée) : non couvert ici.
         => Task.FromResult(new GatewayRefundResult(Success: false, providerReference, "Remboursement FedaPay non pris en charge via l'API (tableau de bord requis)."));
 
-    /// <summary>
-    /// Webhook FedaPay : payload de forme { name, entity:{ id, status } }. On lit le
-    /// statut dans l'entité (et non au premier niveau), d'où l'override.
-    /// </summary>
+    /// <summary>Webhook FedaPay : payload de forme { name, entity:{ id, status } }.</summary>
     public override Task<GatewayEvent> ParseWebhookAsync(string rawBody, string? signatureHeader, CancellationToken ct = default)
     {
         if (!VerifyFedaPaySignature(rawBody, signatureHeader, WebhookSecret))
@@ -139,10 +115,9 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
             using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(rawBody) ? "{}" : rawBody);
             var root = doc.RootElement;
 
-            // GARDE : les événements de DÉPÔT (payout.*) arrivent sur la même URL et
-            // portent un id d'entité distinct — mais numériquement collisionnable avec
-            // celui d'une transaction. Sans ce filtre, un « payout.canceled » ferait
-            // échouer le PAIEMENT qui porte le même numéro. Ils sont traités ailleurs.
+            // GARDE : les événements de DÉPÔT (payout.*) arrivent sur la même URL
+            // et portent un id d'entité distinct — mais numériquement
+            // collisionnable avec celui d'une transaction.
             var eventName = root.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? string.Empty : string.Empty;
             if (eventName.StartsWith("payout", StringComparison.OrdinalIgnoreCase))
             {
@@ -153,27 +128,8 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
 
             var status = entity.TryGetProperty("status", out var s) ? s.GetString() ?? string.Empty : string.Empty;
 
-            // ═════════════════════════════════════════════════════════════════
-            // LE MONTANT D'UN REMBOURSEMENT N'EST LISIBLE QUE SUR UNE ENTITÉ
-            // DE REMBOURSEMENT — JAMAIS SUR LA TRANSACTION.
-            //
-            // Sur un événement `transaction.*`, `entity.amount` est le montant de
-            // la COMMANDE (50 000 F), pas celui du remboursement (5 000 F). Le
-            // lire là serait reproduire à l'identique le défaut qu'on corrige :
-            // une commande close comme intégralement remboursée pour un geste
-            // partiel.
-            //
-            // On ne renseigne donc le montant que lorsque l'ÉVÉNEMENT annonce une
-            // entité de remboursement (`refund.*`), auquel cas `entity.amount` est
-            // bien le montant remboursé et `entity.id` sa référence chez FedaPay.
-            //
-            // SI CE N'EST PAS LE CAS — un simple `status: refunded` sur la
-            // transaction —, le montant reste NUL et `GatewayOutcomeApplier`
-            // REFUSE d'imputer quoi que ce soit. C'est délibéré : FedaPay pilote
-            // ses remboursements depuis le tableau de bord, sans que l'API dise
-            // combien a été rendu. Mieux vaut un webhook refusé, visible dans le
-            // tableau de bord FedaPay, qu'une écriture comptable inventée.
-            // ═════════════════════════════════════════════════════════════════
+            // LE MONTANT D'UN REMBOURSEMENT N'EST LISIBLE QUE SUR UNE ENTITÉ DE
+            // REMBOURSEMENT — JAMAIS SUR LA TRANSACTION.
             if (eventName.StartsWith("refund", StringComparison.OrdinalIgnoreCase))
             {
                 var montantRembourse = LireMontant(entity);
@@ -225,26 +181,7 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
         return null;
     }
 
-    /// <summary>
-    /// Vérifie la signature du webhook FedaPay. Le header « x-fedapay-signature »
-    /// est au format « t=<timestamp>,s=<hmac_hex> » (comme Stripe) : la signature
-    /// est le HMAC-SHA256 hex de « <t>.<corps_brut> » avec le secret du endpoint.
-    /// Repli : si le header est une signature hex brute (sans « t= »), on retombe
-    /// sur la vérification générique HMAC(corps).
-    ///
-    /// SECRET VIDE VALAIT « ACCEPTÉ SANS VÉRIFICATION ».
-    ///
-    /// FedaPay est le prestataire réellement branché ici (Mobile Money UEMOA), et
-    /// la route de webhook est `AllowAnonymous`. Sans
-    /// `Payments:FedaPay:WebhookSecret`, un POST anonyme suffisait donc à faire
-    /// passer une transaction en « approved » — commande payée, gains vendeur
-    /// provisionnés. `GatewayWebhook.AllowUnsignedWhenSecretMissing` tranche
-    /// désormais, et vaut faux par défaut.
-    ///
-    /// CETTE MÉTHODE SERT AUSSI AUX WEBHOOKS DE VERSEMENT
-    /// (`FedaPayPayoutGateway`) : un fail-open y validait des payouts vendeur
-    /// inventés, pas seulement des encaissements.
-    /// </summary>
+    /// <summary>Vérifie la signature du webhook FedaPay.</summary>
     internal static bool VerifyFedaPaySignature(string rawBody, string? signatureHeader, string secret)
     {
         if (string.IsNullOrEmpty(secret))
@@ -291,7 +228,10 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
     private void Authorize(HttpRequestMessage request)
         => request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
 
-    /// <summary>Ne retient une URL que si elle est en http(s) (FedaPay refuse les schémas applicatifs).</summary>
+    /// <summary>
+    /// Ne retient une URL que si elle est en http(s) (FedaPay refuse les schémas
+    /// applicatifs).
+    /// </summary>
     private static string? HttpUrlOrNull(string? url)
         => !string.IsNullOrWhiteSpace(url)
            && Uri.TryCreate(url, UriKind.Absolute, out var u)
@@ -314,10 +254,7 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
         throw new InvalidOperationException($"FedaPay — échec {step} ({(int)response.StatusCode}) : {body}");
     }
 
-    /// <summary>
-    /// FedaPay enveloppe parfois ses réponses sous « v1/transaction ». On lit l'id
-    /// que la réponse soit enveloppée ou plate.
-    /// </summary>
+    /// <summary>FedaPay enveloppe parfois ses réponses sous « v1/transaction ».</summary>
     private static string? ExtractTransactionId(string json)
     {
         using var doc = JsonDocument.Parse(json);
@@ -337,12 +274,7 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
         return tx.TryGetProperty("status", out var s) ? s.GetString() : null;
     }
 
-    /// <summary>
-    /// Montant porté par une entité de remboursement FedaPay. Nul si absent — et
-    /// le nul est traité comme « on ne sait pas », jamais comme « montant total ».
-    /// Les montants FedaPay sont exprimés dans l'unité de la devise (le franc CFA
-    /// n'a pas de subdivision), donc aucune conversion.
-    /// </summary>
+    /// <summary>Montant porté par une entité de remboursement FedaPay.</summary>
     private static decimal? LireMontant(JsonElement entity)
         => entity.TryGetProperty("amount", out var montant) && montant.ValueKind == JsonValueKind.Number
             ? montant.GetDecimal()
@@ -367,8 +299,7 @@ public sealed class FedaPayHttpGateway : HttpPaymentGatewayBase
     /// <summary>
     /// Identifiant de la TRANSACTION à laquelle se rattache un remboursement :
     /// c'est lui qui corrèle avec `payments.ProviderReference`, pas l'id du
-    /// remboursement. Sans lui, le webhook ne trouve aucun paiement et est
-    /// acquitté en silence.
+    /// remboursement.
     /// </summary>
     private static string? ExtractTransactionReference(JsonElement entity)
     {

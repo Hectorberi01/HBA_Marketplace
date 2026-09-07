@@ -5,26 +5,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Inventory.Application.Stock.Commands;
 
-/// <summary>
-/// Déplace du stock d'un lieu d'expédition vers un autre.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// `INVENTORY_TRANSFER` ÉTAIT DÉCLARÉE, ATTRIBUÉE, ET NE GARDAIT RIEN
-/// (ISSUE-044).
-///
-/// Le rôle `INVENTORY_MANAGER` promet « Stocks, ajustements, transferts » depuis
-/// le premier jour. Le mot « transfert » n'apparaissait NULLE PART dans
-/// inventory-service — ni route, ni commande, ni méthode de domaine.
-///
-/// LES DEUX ARTICLES SONT DÉSIGNÉS PAR LEUR IDENTIFIANT, PAS PAR (SKU, LIEU).
-///
-/// La seconde forme obligerait à créer l'article de destination s'il n'existe pas
-/// — donc à décider, dans un transfert, du seuil de réapprovisionnement d'une
-/// ligne neuve. Exiger que la destination existe force le vendeur à la créer
-/// sciemment, avec son seuil, avant d'y envoyer de la marchandise.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Déplace du stock d'un lieu d'expédition vers un autre.</summary>
 public sealed record TransferStockCommand(
     Guid SourceItemId,
     Guid DestinationItemId,
@@ -73,10 +54,10 @@ internal sealed class TransferStockCommandHandler : ICommandHandler<TransferStoc
             return Result.Failure(transfert.Error);
         }
 
-        // LES DEUX MOUVEMENTS DANS LA MÊME UNITÉ DE TRAVAIL QUE LES DEUX
-        // MUTATIONS. N'en écrire qu'un — ou les écrire après coup — produirait un
-        // journal où de la marchandise apparaît ou disparaît sans contrepartie,
-        // c'est-à-dire un journal dont on ne peut rien conclure.
+        // LES DEUX MOUVEMENTS DANS LA MÊME UNITÉ DE TRAVAIL QUE LES DEUX MUTATIONS.
+        // N'en écrire qu'un — ou les écrire après coup — produirait un journal où
+        // de la marchandise apparaît ou disparaît sans contrepartie, c'est-à-dire
+        // un journal dont on ne peut rien conclure.
         await _movements.AddAsync(transfert.Value.Sortie, cancellationToken);
         await _movements.AddAsync(transfert.Value.Entree, cancellationToken);
 

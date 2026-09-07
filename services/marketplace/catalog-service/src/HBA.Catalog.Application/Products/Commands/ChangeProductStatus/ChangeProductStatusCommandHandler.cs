@@ -7,23 +7,7 @@ using HBA.Catalog.Domain.Products;
 
 namespace HBA.Catalog.Application.Products.Commands.ChangeProductStatus;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ROUTE UN STATUT CIBLE VENDEUR VERS LA TRANSITION MÉTIER CORRESPONDANTE.
-///
-/// CE HANDLER NE PEUT PAS APPROUVER, REJETER, SUSPENDRE NI RESTAURER.
-///
-/// C'est la règle absolue du §4, posée une deuxième fois à l'endroit où elle
-/// pourrait être contournée. Ces quatre transitions appartiennent à
-/// l'administrateur (§16) et passent par leurs propres commandes, avec l'identité
-/// du relecteur. Les accepter ici donnerait au vendeur le droit d'approuver sa
-/// propre fiche par un appel d'apparence anodine — un simple changement de statut.
-///
-/// L'agrégat refuserait de toute façon la plupart de ces enchaînements. Mais s'y
-/// fier supposerait que la liste blanche des transitions ne bouge jamais ; ce
-/// refus-ci ne dépend d'aucune autre règle.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ROUTE UN STATUT CIBLE VENDEUR VERS LA TRANSITION MÉTIER CORRESPONDANTE.</summary>
 internal sealed class ChangeProductStatusCommandHandler : ICommandHandler<ChangeProductStatusCommand>
 {
     private readonly IProductRepository _productRepository;
@@ -63,25 +47,7 @@ internal sealed class ChangeProductStatusCommandHandler : ICommandHandler<Change
 
         var maintenant = DateTimeOffset.UtcNow;
 
-        // ═════════════════════════════════════════════════════════════════════
         // LES ATTRIBUTS REQUIS SE VÉRIFIENT ICI, PAS DANS L'AGRÉGAT (§23).
-        //
-        // `Product.SubmitForReview` contrôle ce qu'il POSSÈDE — boutique,
-        // description, images. Les attributs requis, eux, dépendent du SCHÉMA de la
-        // catégorie, qui vit dans une autre table : le domaine ne peut pas le
-        // connaître sans devenir dépendant d'un dépôt.
-        //
-        // C'est donc le handler qui charge le schéma et le confie à
-        // `ValidationDesAttributs`. La règle reste dans le domaine, seule la lecture
-        // est ici — l'inverse aurait mis la règle dans un validateur qui, pour
-        // travailler, devrait interroger la base.
-        //
-        // ET SEULEMENT À LA SOUMISSION.
-        //
-        // Pas à la création ni à la modification : le §23 exige les attributs
-        // « avant soumission », et les exiger plus tôt empêcherait d'enregistrer une
-        // ébauche à l'étape 1 du formulaire, qui en compte onze.
-        // ═════════════════════════════════════════════════════════════════════
         if (cible is ProductStatus.PendingReview)
         {
             var revision = product.CurrentRevision;
@@ -109,11 +75,6 @@ internal sealed class ChangeProductStatusCommandHandler : ICommandHandler<Change
                     "Cette transition appartient à l'administration : approbation, rejet, suspension et restauration passent par l'API admin.")),
 
             // ON NE REVIENT PAS À DRAFT PAR CETTE ROUTE.
-            //
-            // Le retour en brouillon est la CONSÉQUENCE d'un rejet (REJECTED →
-            // DRAFT, §5), pas une action que le vendeur déclenche. L'ouvrir ici lui
-            // permettrait de sortir de PENDING_REVIEW pendant la relecture — voir
-            // l'encadré correspondant dans ProductStatusTransitions.
             ProductStatus.Draft => Result.Failure(Error.Conflict(
                 "catalog.product.invalid_status_transition",
                 "Le retour en brouillon suit un rejet ; il ne se demande pas.")),

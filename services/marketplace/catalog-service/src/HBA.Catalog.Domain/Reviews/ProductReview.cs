@@ -13,18 +13,7 @@ public enum ReviewDecision
 /// <summary>Un motif de rejet, tel qu'il arrive du formulaire d'administration (§16).</summary>
 public readonly record struct MotifDeRejet(string Code, string? Field, string Message);
 
-/// <summary>
-/// Motifs de rejet standards.
-///
-/// CE N'EST PAS UNE LISTE FERMÉE, ET C'EST DÉLIBÉRÉ.
-///
-/// Les cinq ci-dessous couvrent l'essentiel et donnent au client mobile de quoi
-/// afficher un message traduit sans lire le texte libre. Mais un administrateur
-/// rencontrera des cas qu'aucune énumération n'aura prévus, et lui imposer un code
-/// existant le ferait choisir le moins faux — l'information serait perdue pour de
-/// bon. Le code est donc une chaîne libre, normalisée, avec ces valeurs comme
-/// vocabulaire commun.
-/// </summary>
+/// <summary>Motifs de rejet standards.</summary>
 public static class MotifsDeRejet
 {
     public const string ImagesInvalides = "INVALID_IMAGES";
@@ -34,9 +23,7 @@ public static class MotifsDeRejet
     public const string ContenuInterdit = "PROHIBITED_CONTENT";
 }
 
-/// <summary>
-/// Un motif attaché à une décision. Table <c>product_review_reasons</c> (§20).
-/// </summary>
+/// <summary>Un motif attaché à une décision.</summary>
 public sealed class ProductReviewReason : Entity<Guid>
 {
     private ProductReviewReason()
@@ -67,31 +54,7 @@ public sealed class ProductReviewReason : Entity<Guid>
 }
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UNE DÉCISION D'ADMINISTRATION SUR UNE RÉVISION — TABLE <c>product_reviews</c>.
-///
-/// CETTE TABLE ÉTAIT CITÉE PAR TROIS COMMENTAIRES DU CODE ET N'EXISTAIT PAS.
-///
-/// `ProductLifecycleIntegrationEvents`, `Product.Reject` et `ProductStatus`
-/// renvoyaient tous vers « ProductReview, où vivent les motifs ». Conséquence : un
-/// rejet ne conservait AUCUN motif. Le vendeur apprenait que sa fiche était
-/// refusée, jamais pourquoi — et l'administrateur qui reprenait le dossier une
-/// semaine plus tard ne le savait pas davantage.
-///
-/// AGRÉGAT À PART, PAS UNE COLLECTION DANS `Product`.
-///
-/// Une fiche très retravaillée accumule des dizaines de décisions. Les porter dans
-/// l'agrégat produit ferait grossir sans borne ce que chaque chargement lit — or
-/// `Product` est déjà chargé avec ses révisions, ses variantes et ses médias, à
-/// chaque écriture. Et la file de validation du §16 se lit PAR DÉCISION, pas par
-/// produit : elle n'a aucune raison de traverser l'agrégat.
-///
-/// ELLE EST IMMUABLE APRÈS CRÉATION.
-///
-/// Une décision rendue ne se modifie pas : on en rend une nouvelle. C'est ce qui
-/// fait de cette table un journal exploitable — sans quoi « qui a approuvé cette
-/// fiche, et sur quel contenu » deviendrait une question sans réponse.
-/// ═════════════════════════════════════════════════════════════════════════════
+/// UNE DÉCISION D'ADMINISTRATION SUR UNE RÉVISION — TABLE <c> product_reviews</c>.
 /// </summary>
 public sealed class ProductReview : AggregateRoot<Guid>
 {
@@ -125,16 +88,7 @@ public sealed class ProductReview : AggregateRoot<Guid>
 
     public Guid ProductId { get; private set; }
 
-    /// <summary>
-    /// La révision jugée.
-    ///
-    /// C'EST CE CHAMP QUI DONNE SA VALEUR À LA TABLE.
-    ///
-    /// Sans lui, on saurait qu'une fiche a été approuvée, pas SUR QUEL CONTENU.
-    /// Une fiche modifiée trois fois après une approbation rendrait la décision
-    /// illisible — et un litige sur ce qu'un administrateur avait réellement validé
-    /// deviendrait inarbitrable.
-    /// </summary>
+    /// <summary>La révision jugée.</summary>
     public Guid RevisionId { get; private set; }
 
     /// <summary>Le numéro de version, recopié pour que la file se lise sans jointure.</summary>
@@ -169,17 +123,7 @@ public sealed class ProductReview : AggregateRoot<Guid>
             ReviewDecision.Approved, Nettoyer(comment), nowUtc);
     }
 
-    /// <summary>
-    /// UN REJET SANS MOTIF EST REFUSÉ. C'EST L'INVARIANT DE CETTE CLASSE.
-    ///
-    /// Le §16 montre un rejet avec un tableau `reasons`, sans dire qu'il est
-    /// obligatoire. Le rendre facultatif produirait exactement ce que ce lot
-    /// corrige : un vendeur qui apprend que sa fiche est refusée sans savoir quoi
-    /// changer, resoumet à l'identique, et occupe la file une seconde fois.
-    ///
-    /// Le commentaire libre, lui, reste facultatif : il ajoute du contexte, il ne
-    /// remplace pas un motif qu'un client puisse traduire.
-    /// </summary>
+    /// <summary>UN REJET SANS MOTIF EST REFUSÉ.</summary>
     public static Result<ProductReview> Rejet(
         Guid productId,
         Guid revisionId,

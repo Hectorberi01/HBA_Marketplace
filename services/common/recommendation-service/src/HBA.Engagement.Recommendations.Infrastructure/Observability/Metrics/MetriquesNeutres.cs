@@ -1,13 +1,6 @@
 using HBA.Shared.Application.Observability;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // COPIE DEPUIS `HBA.Shared.Infrastructure.Observability`.
-//
-// Les INTERFACES restent partagees — ce sont les ports dont depend la couche
-// Application. Les implementations neutres, elles, appartiennent au service :
-// c'est lui qui decide s'il compte quelque chose, et par quoi il remplace le
-// neutre le jour ou il compte vraiment.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Engagement.Recommendations.Infrastructure.Observability.Metrics;
 

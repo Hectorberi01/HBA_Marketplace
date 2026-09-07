@@ -6,24 +6,16 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Food.Application.Menus;
 
-/// <summary>
-/// La carte d'un restaurant.
-///
-/// DEUX PUBLICS, DEUX RÉPONSES — d'où le drapeau.
-///
-/// Le CLIENT ne doit voir que ce qu'il peut commander : lui afficher un plat
-/// épuisé, c'est le faire choisir puis refuser son panier. Le RESTAURATEUR doit
-/// voir toute sa carte, épuisés compris — sinon il ne peut pas remettre en vente
-/// ce qu'il ne voit plus.
-///
-/// Servir la même réponse aux deux forcerait l'un des deux écrans à mentir.
-/// </summary>
+/// <summary>La carte d'un restaurant.</summary>
 public enum MenuAudience
 {
-    /// <summary>Un client. Ne voit que ce qu'il peut commander, et seulement d'un établissement EN SERVICE.</summary>
+    /// <summary>
+    /// Un client. Ne voit que ce qu'il peut commander, et seulement d'un
+    /// établissement EN SERVICE.
+    /// </summary>
     Public = 0,
 
-    /// <summary>Le restaurateur chez lui. Voit tout : cartes hors créneau, sections masquées, plats épuisés.</summary>
+    /// <summary>Le restaurateur chez lui.</summary>
     Owner = 1
 }
 
@@ -53,13 +45,6 @@ internal sealed class MenuQueryHandler : IQueryHandler<GetMenuQuery, RestaurantM
         var restaurant = await _restaurants.GetByIdAsync(new RestaurantId(query.RestaurantId), cancellationToken);
 
         // UN ÉTABLISSEMENT NON VALIDÉ OU SUSPENDU N'EXISTE PAS POUR UN CLIENT.
-        //
-        // La première version rendait la carte de n'importe quel identifiant. Un
-        // dossier en brouillon — jamais examiné — était consultable, et une
-        // suspension ne retirait rien de la vitrine.
-        //
-        // Même réponse que pour un identifiant inconnu : distinguer les deux
-        // dirait à qui teste des identifiants lesquels existent.
         if (restaurant is null
             || (query.Audience == MenuAudience.Public && !restaurant.IsPubliclyVisible))
         {
@@ -68,25 +53,11 @@ internal sealed class MenuQueryHandler : IQueryHandler<GetMenuQuery, RestaurantM
         }
 
         // L'HEURE EST LUE ICI, ET PASSÉE PARTOUT ENSUITE.
-        //
-        // Un seul instant pour toute la projection. La relire par niveau ferait
-        // qu'à 15 h 00 pile la carte du midi pourrait se fermer entre le moment où
-        // l'on décide de l'afficher et celui où l'on compte ses plats — et la
-        // réponse annoncerait une carte vide sans dire pourquoi.
         var maintenant = DateTime.UtcNow;
         var toutVoir = query.Audience == MenuAudience.Owner;
 
-        // UN PLAT NE PEUT PAS ÊTRE « COMMANDABLE » DANS UN RESTAURANT QUI NE
-        // PREND RIEN.
-        //
-        // IsOrderableAt ne regarde que l'article : disponible, groupes
-        // satisfiables. Il ignore l'établissement. Sans cette variable, la carte
-        // d'un restaurant fermé ou suspendu annonçait chaque plat comme
-        // commandable — le client choisissait, et le panier refusait.
-        //
-        // SURCHARGE À UN SEUL PARAMÈTRE, ET IL LE FAUT : la version complète
-        // demande s'il reste un article commandable, réponse qui se construit à
-        // partir de cette variable même. La passer ici serait circulaire.
+        // UN PLAT NE PEUT PAS ÊTRE « COMMANDABLE » DANS UN RESTAURANT QUI NE PREND
+        // RIEN.
         var etablissementSert = restaurant.CanAcceptOrders(maintenant) == OrderingBlockedReason.None;
 
         var cartes = await _menus.ListByRestaurantAsync(query.RestaurantId, cancellationToken);
@@ -96,21 +67,13 @@ internal sealed class MenuQueryHandler : IQueryHandler<GetMenuQuery, RestaurantM
         var vues = new List<MenuView>();
 
         // CE COMPTE NE PEUT PAS SE DÉDUIRE DES VUES CONSTRUITES.
-        //
-        // Pour le restaurateur, elles contiennent les plats épuisés et les cartes
-        // hors créneau. Le comptage doit donc suivre la règle du CLIENT, quelle
-        // que soit l'audience — sinon un restaurateur lirait « ouvert » là où son
-        // client lit « tout est épuisé », et ne comprendrait pas pourquoi personne
-        // ne commande.
         var resteQuelqueChose = false;
 
         foreach (var carte in cartes.OrderBy(m => m.DisplayOrder).ThenBy(m => m.Name, StringComparer.Ordinal))
         {
             var carteEstServie = carte.IsServedAt(maintenant);
 
-            // Hors créneau, la carte disparaît de la vitrine. Le restaurateur, lui,
-            // continue de la voir — sinon il ne pourrait plus modifier son menu du
-            // soir avant 18 h.
+            // Hors créneau, la carte disparaît de la vitrine.
             if (!carteEstServie && !toutVoir)
             {
                 continue;
@@ -137,7 +100,7 @@ internal sealed class MenuQueryHandler : IQueryHandler<GetMenuQuery, RestaurantM
                     .ToList();
 
                 // LE COMPTE SUIT TOUJOURS LA RÈGLE DU CLIENT : carte servie,
-                // section visible, article commandable. Les trois.
+                // section visible, article commandable.
                 if (carteEstServie && section.IsActive)
                 {
                     resteQuelqueChose |= articles.Any(a =>
@@ -192,26 +155,21 @@ internal sealed class MenuQueryHandler : IQueryHandler<GetMenuQuery, RestaurantM
             item.ImageMediaId,
             item.LegacyImageUrl,
 
-            // Le repli, une seule fois, ici. Voir `MenuItemView.DisplayImageUrl`.
+            // Le repli, une seule fois, ici.
             item.ImagePublicUrl ?? item.LegacyImageUrl,
             item.BasePrice.Amount,
             item.BasePrice.Currency,
 
-            // TROIS CONDITIONS, PAS UNE. L'article doit être disponible, sa
-            // carte servie à cette heure, et l'établissement en train de prendre
-            // des commandes. Un plat du menu du midi affiché « commandable » à 20 h
-            // ferait choisir le client puis refuserait son panier.
+            // TROIS CONDITIONS, PAS UNE. L'article doit être disponible, sa carte
+            // servie à cette heure, et l'établissement en train de prendre des
+            // commandes.
             orderableContext && item.IsOrderableAt(nowUtc),
 
-            // `HasImage`, PAS `DisplayImageUrl is not null`. Une URL obsolète
-            // (bucket renommé) ne doit pas faire croire à l'absence de photo, et
-            // c'est le `mediaId` qui décide de la vendabilité. Les deux champs
-            // peuvent donc légitimement se contredire : `HasImage` vrai, adresse
-            // cassée — et c'est ce cas-là qu'il faut pouvoir diagnostiquer.
+            // `HasImage`, PAS `DisplayImageUrl is not null`.
             item.HasImage,
 
-            // Le RETOUR est annoncé quand il est connu : « de retour demain »
-            // vaut mieux que « indisponible », qui ne dit pas s'il faut revenir.
+            // Le RETOUR est annoncé quand il est connu : « de retour demain » vaut
+            // mieux que « indisponible », qui ne dit pas s'il faut revenir.
             item.Availability.UnavailableUntilUtc,
             item.OptionGroups
                 .OrderBy(g => g.DisplayOrder)

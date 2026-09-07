@@ -19,22 +19,10 @@ public sealed record SetStationActiveCommand(Guid RestaurantId, Guid StationId, 
 
 public sealed record ReorderStationCommand(Guid RestaurantId, Guid StationId, int DisplayOrder) : ICommand;
 
-/// <summary>
-/// Supprime un poste.
-///
-/// REFUSÉE TANT QUE DES ARTICLES LE DÉSIGNENT. Un article pointant vers un
-/// poste disparu ne serait affiché sur AUCUN écran de cuisine découpé par poste —
-/// et le plat serait commandé, encaissé, jamais préparé. Fermer le poste
-/// (<c>SetStationActiveCommand</c>) est le geste courant ; la suppression est
-/// pour l'erreur de saisie.
-/// </summary>
+/// <summary>Supprime un poste.</summary>
 public sealed record DeleteStationCommand(Guid RestaurantId, Guid StationId) : ICommand;
 
-/// <summary>
-/// Fixe le temps et le poste de préparation d'un article (§6, §9).
-///
-/// Les deux ensemble : ils se règlent au même moment et sur le même écran.
-/// </summary>
+/// <summary>Fixe le temps et le poste de préparation d'un article (§6, §9).</summary>
 public sealed record SetItemPreparationCommand(
     Guid RestaurantId, Guid ItemId, int? Minutes, Guid? StationId) : ICommand;
 
@@ -72,14 +60,6 @@ internal sealed class StationCommandHandler
         }
 
         // LE CODE EST UNIQUE PAR RESTAURANT.
-        //
-        // L'index en base le garantit, mais un doublon y devient une exception de
-        // contrainte, illisible. Et le cas est fréquent : deux personnes créent
-        // « GRILL » le même jour. On le dit, plutôt que de laisser deux postes
-        // homonymes scinder l'écran de cuisine en deux.
-        //
-        // La comparaison porte sur le code NORMALISÉ — celui que l'agrégat vient
-        // de produire, pas celui que l'utilisateur a tapé.
         var existant = await _stations.GetByCodeAsync(
             command.RestaurantId, poste.Value.Code, cancellationToken);
 
@@ -134,10 +114,6 @@ internal sealed class StationCommandHandler
     public async Task<Result> Handle(SetItemPreparationCommand command, CancellationToken cancellationToken)
     {
         // LE POSTE DOIT EXISTER ET APPARTENIR À CE RESTAURANT.
-        //
-        // Le domaine ne peut pas le vérifier : le poste est un autre agrégat. Sans
-        // ce contrôle, un article partirait vers un poste inexistant — ou vers
-        // celui d'un concurrent — et son ticket n'apparaîtrait sur aucun écran.
         if (command.StationId is { } stationId && stationId != Guid.Empty)
         {
             var poste = await LoadAsync(stationId, command.RestaurantId, cancellationToken);

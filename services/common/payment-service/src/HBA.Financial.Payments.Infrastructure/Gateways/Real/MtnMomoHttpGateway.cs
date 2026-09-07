@@ -6,15 +6,7 @@ using HBA.Financial.Payments.Application.Abstractions.Gateways;
 
 namespace HBA.Financial.Payments.Infrastructure.Gateways.Real;
 
-/// <summary>
-/// Adaptateur MTN Mobile Money RÉEL (Collection API). Flux : on obtient un jeton
-/// OAuth (Basic ApiUser:ApiKey), puis on lance un RequestToPay identifié par un
-/// X-Reference-Id (la référence de corrélation), et on lit le statut par GET.
-/// Le jeton est mis en cache jusqu'à sa quasi-expiration.
-///
-/// Branche tes identifiants sandbox dans « Payments:MtnMomo » : dès qu'ils sont
-/// renseignés, l'installer remplace le stub par cet adaptateur.
-/// </summary>
+/// <summary>Adaptateur MTN Mobile Money RÉEL (Collection API).</summary>
 public sealed class MtnMomoHttpGateway : HttpPaymentGatewayBase
 {
     private readonly MtnMomoOptions _options;
@@ -29,17 +21,7 @@ public sealed class MtnMomoHttpGateway : HttpPaymentGatewayBase
 
     public override string Provider => "MtnMomo";
 
-    /// <summary>
-    /// CET ADAPTATEUR NE REMBOURSE PAS, ET IL LE DIT AU DÉMARRAGE.
-    ///
-    /// Le remboursement MoMo passe par le produit Disbursement — une API distincte,
-    /// avec ses propres identifiants et son propre bac à sable. Non branchée ici :
-    /// aucun remboursement MTN ne part automatiquement.
-    ///
-    /// La constante est lue par `PaymentsModuleInstaller` AVANT toute instanciation :
-    /// c'est elle qui fait refuser le démarrage en production, et qui produit
-    /// l'annonce bruyante ailleurs.
-    /// </summary>
+    /// <summary>CET ADAPTATEUR NE REMBOURSE PAS, ET IL LE DIT AU DÉMARRAGE.</summary>
     public const bool RefundSupported = false;
 
     /// <inheritdoc />
@@ -90,7 +72,8 @@ public sealed class MtnMomoHttpGateway : HttpPaymentGatewayBase
         var response = await CreateClient().SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
 
-        // RequestToPay renvoie 202 sans corps : la référence est notre X-Reference-Id.
+        // RequestToPay renvoie 202 sans corps : la référence est notre
+        // X-Reference-Id.
         return new GatewaySession(referenceId, RedirectUrl: null, ClientSecret: null);
     }
 
@@ -113,7 +96,7 @@ public sealed class MtnMomoHttpGateway : HttpPaymentGatewayBase
 
     public override Task<GatewayRefundResult> RefundAsync(string providerReference, CancellationToken ct = default)
         // Le remboursement MoMo passe par le produit Disbursement (API distincte),
-        // non couvert ici. À implémenter quand le payout vendeur sera branché.
+        // non couvert ici.
         => Task.FromResult(new GatewayRefundResult(Success: false, providerReference, "Remboursement MoMo non pris en charge (API Disbursement requise)."));
 
     private async Task<string> GetAccessTokenAsync(CancellationToken ct)

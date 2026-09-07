@@ -48,21 +48,10 @@ internal sealed class SellerRepository : ISellerRepository
             var motif = $"%{search.Trim()}%";
 
             // `EF.Functions.ILike` ET NON `.ToLower().Contains()`.
-            //
-            // Le second traduit en `lower(...) LIKE ...`, ce qui écarte l'index de
-            // `ShopName` — et cette colonne en porte un, unique. `ILike` est
-            // l'opérateur natif de PostgreSQL, et il reste indexable.
             recherche = recherche.Where(s => EF.Functions.ILike(s.ShopName, motif));
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // LES FACETTES SE COMPTENT AVANT LE FILTRE DE STATUT KYB.
-        //
-        // Après, la facette sélectionnée serait la seule non nulle et toutes les
-        // autres afficheraient zéro — la console dirait « aucun dossier en revue »
-        // au modérateur qui vient justement de filtrer sur « vérifié ». Elles
-        // suivent donc la recherche, et elle seule.
-        // ═════════════════════════════════════════════════════════════════════
         var facettes = await recherche
             .GroupBy(s => s.KybStatus)
             .Select(g => new { Statut = g.Key, Compte = g.Count() })
@@ -80,21 +69,7 @@ internal sealed class SellerRepository : ISellerRepository
 
         var total = await recherche.CountAsync(cancellationToken);
 
-        // ═════════════════════════════════════════════════════════════════════
         // `AsSplitQuery` EST OBLIGATOIRE DÈS QU'ON PAGINE AVEC UN `.Include`.
-        //
-        // En requête unique, `Skip`/`Take` s'appliquent aux LIGNES DU JOIN, pas aux
-        // vendeurs : un vendeur portant trois pièces consommerait trois places de
-        // la page, et la page rendrait sept vendeurs sur vingt demandés. Le défaut
-        // ne se voit qu'avec des dossiers inégalement fournis — c'est-à-dire en
-        // production, et pas sur un jeu de test où chacun a une pièce.
-        //
-        // ET L'ORDRE DOIT ÊTRE TOTAL. `CreatedOnUtc` seul ne départage pas deux
-        // inscriptions de la même milliseconde ; en requête scindée, les deux
-        // requêtes pourraient alors ne pas s'accorder sur la frontière de page, et
-        // un vendeur apparaîtrait sur deux pages ou sur aucune. L'identifiant
-        // tranche.
-        // ═════════════════════════════════════════════════════════════════════
         IReadOnlyList<Seller> vendeurs = await recherche
             .Include(s => s.KybDocuments)
             .AsSplitQuery()

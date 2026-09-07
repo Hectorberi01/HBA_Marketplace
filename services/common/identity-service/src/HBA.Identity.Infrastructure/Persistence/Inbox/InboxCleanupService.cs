@@ -9,33 +9,7 @@ using HBA.Identity.Infrastructure.Messaging.Kafka.Retry;
 using HBA.Identity.Infrastructure.Messaging.Kafka.Processors;
 namespace HBA.Identity.Infrastructure.Persistence.Inbox;
 
-/// <summary>
-/// Purge les traces d'idempotence de l'inbox.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE SERVICE N'EXISTAIT NULLE PART, ET C'EST UN VRAI MANQUE.
-///
-/// `OutboxPurger` existait. `IdempotencyPurger` existait. RIEN ne purgeait
-/// `consumer_inbox` : chaque evenement traite y laissait une ligne, definitivement,
-/// dans les quinze services qui consomment.
-///
-/// Ce n'est pas urgent — quelques centaines de milliers de lignes par an — mais
-/// c'est une table qui ne cesse jamais de grossir, indexee sur une cle CONSULTEE A
-/// CHAQUE MESSAGE RECU. Elle finira par couter sur le chemin chaud, et ce jour-la
-/// personne ne cherchera la.
-///
-/// LA RETENTION EST LONGUE, ET C'EST DELIBERE. Une trace d'inbox est ce qui
-/// empeche un evenement d'etre retraite. La supprimer trop tot ne casse rien
-/// tant que le message ne revient pas — et quand il revient, l'effet metier est
-/// rejoue sans que rien ne le signale. Trente jours couvre largement une
-/// remise a zero d'offsets, qui est le seul cas ou un message ancien revient.
-///
-/// CE QUE ÇA NE COUVRE PAS : un rejeu deliberement plus ancien que la retention.
-/// Avant une remise a zero d'offsets au-dela de trente jours, il faut savoir que
-/// les gestionnaires non idempotents par eux-memes refont leur effet.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Purge les traces d'idempotence de l'inbox.</summary>
 internal sealed class InboxCleanupService : BackgroundService
 {
     private static readonly TimeSpan Retention = TimeSpan.FromDays(30);

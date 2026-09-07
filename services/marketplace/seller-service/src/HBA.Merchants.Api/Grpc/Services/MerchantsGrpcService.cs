@@ -12,22 +12,7 @@ using System.Runtime.CompilerServices;
 
 using HBA.Merchants.Contracts;
 using ContratsMerchants = HBA.Merchants.Contracts;  // alias non masquable : voir tools/migration-grpc/lot_d_resolution.py
-// ═════════════════════════════════════════════════════════════════════════════
 // DEPLACE DEPUIS `HBA.Merchants.Contracts.Grpc` (lot B de la migration gRPC).
-//
-// LE SERVEUR VIVAIT DANS L'ASSEMBLAGE DE CONTRATS, DONC CHEZ TOUS SES
-// CONSOMMATEURS. Les dix services qui consomment merchant.proto liaient
-// l'implementation de seller-service ; les huit qui consomment order.proto
-// liaient celle d'order-service. Aucun ne s'en servait.
-//
-// Le serveur est la surface d'UN service : il vit desormais dans son `.Api`.
-// L'assemblage de contrats ne porte plus que le stub genere, le client et son
-// enregistrement — le lot C descendra ces deux-la chez les appelants.
-//
-// CE QUE ÇA NE CHANGE PAS : le cablage. `Program.cs` appelle toujours
-// `MapInternalGrpcService<...>()`, avec la meme autorisation et les memes
-// intercepteurs. Un deplacement de fichier ne rend rien plus sur.
-// ═════════════════════════════════════════════════════════════════════════════
 
 namespace HBA.Merchants.Api.Grpc.Services;
 
@@ -109,25 +94,7 @@ internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
         return new Proto.ValidateSellerResponse { Valid = active, Status = active ? "Active" : "Inactive" };
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE COMPTE DE REVERSEMENT. UN SEUL APPELANT LÉGITIME : wallet-service.
-    ///
-    /// CE RPC REND UN NUMÉRO MOBILE MONEY. Il n'est atteignable que sur le port
-    /// gRPC INTERNE — `MapInternalGrpcService`, clé d'appel interne exigée par
-    /// l'intercepteur — et jamais par la passerelle. C'est la seule raison pour
-    /// laquelle une coordonnée de paiement peut voyager ici, et c'est aussi
-    /// pourquoi elle ne voyage PAS dans `GetSeller`, dont la réponse est mise en
-    /// cache et servie en boucle par la fiche produit mobile.
-    ///
-    /// « VENDEUR INCONNU » ET « VENDEUR SANS COMPTE » SONT DEUX RÉPONSES.
-    ///
-    /// Les confondre est précisément le défaut qu'on répare : l'appelant doit
-    /// pouvoir dire au vendeur « configurez votre compte » plutôt que « aucun
-    /// compte configuré » à quelqu'un qui en a un, ou « vendeur introuvable » à
-    /// quelqu'un qui existe.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE COMPTE DE REVERSEMENT. UN SEUL APPELANT LÉGITIME : wallet-service.</summary>
     public override async Task<Proto.GetSellerPayoutResponse> GetSellerPayout(
         Proto.GetSellerPayoutRequest request, ServerCallContext context)
     {
@@ -157,25 +124,7 @@ internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
         return response;
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE CONTEXTE D'AUTORISATION D'UN COMPTE.
-    ///
-    /// CE RPC EST APPELÉ SUR CHAQUE REQUÊTE VENDEUR DE LA PLATEFORME.
-    ///
-    /// C'est le chemin le plus chaud du service, et il est servi par un cache
-    /// évincé transactionnellement (voir `MerchantAccessApi`). Y ajouter une
-    /// lecture non mise en cache reviendrait à poser une requête SQL sur chaque
-    /// appel autorisé des cinq services appelants.
-    ///
-    /// `found = false` N'EST PAS UN REFUS.
-    ///
-    /// C'est « ce compte n'appartient à aucune équipe vendeur » — le cas de
-    /// l'immense majorité des comptes, qui sont des acheteurs. C'est l'appelant
-    /// qui décide s'il en tire un 403 ou un 404, selon ce que sa route peut
-    /// révéler sans permettre d'énumérer les vendeurs.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE CONTEXTE D'AUTORISATION D'UN COMPTE.</summary>
     public override async Task<Proto.GetMemberAccessResponse> GetMemberAccess(
         Proto.GetMemberAccessRequest request, ServerCallContext context)
     {
@@ -218,13 +167,9 @@ internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
     }
 
     /// <summary>
-    /// Vérification explicite, quand le vendeur vient de la RESSOURCE et non du jeton.
+    /// Vérification explicite, quand le vendeur vient de la RESSOURCE et non du
+    /// jeton.
     /// </summary>
-    /// <remarks>
-    /// LE `seller_id` REÇU EST VÉRIFIÉ, JAMAIS ACCEPTÉ — c'est la règle du §36.
-    /// Il désigne le vendeur visé ; c'est l'appartenance résolue depuis
-    /// l'identifiant d'UTILISATEUR qui décide.
-    /// </remarks>
     public override async Task<Proto.CheckMerchantCapabilityResponse> CheckMerchantCapability(
         Proto.CheckMerchantCapabilityRequest request, ServerCallContext context)
     {
@@ -247,13 +192,6 @@ internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
         var memeVendeur = acces is not null && acces.SellerId == sellerId;
 
         // `store_id` EST ENFIN LU (lot F), ET UN CHAMP VIDE N'EST PAS UNE ERREUR.
-        //
-        // proto3 ne distingue pas « absent » de « chaîne vide » : un appelant qui
-        // ne situe pas sa ressource n'envoie rien, et c'est le cas nominal — un avis
-        // ne porte pas de boutique. Une chaîne présente mais illisible, en revanche,
-        // est une faute d'appelant : la laisser passer pour un `null` appliquerait
-        // la garde LARGE sur une requête qui demandait le cadrage, c'est-à-dire
-        // exactement l'inverse de l'intention.
         Guid? boutique = null;
 
         if (!string.IsNullOrWhiteSpace(request.StoreId))
@@ -271,10 +209,6 @@ internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
             Allowed = memeVendeur && acces!.CanInStore(boutique, request.Permission),
 
             // RENDU MÊME EN CAS DE REFUS, TANT QUE L'APPARTENANCE EXISTE.
-            //
-            // C'est ce qui permet à l'appelant d'auditer « le membre X a tenté Y
-            // et s'est vu refuser » plutôt que « un compte a tenté Y ». Un refus
-            // sans acteur est une trace qui ne sert à personne.
             MemberId = memeVendeur ? acces!.MemberId.ToString() : string.Empty
         };
     }
@@ -312,9 +246,9 @@ internal sealed class MerchantsGrpcService : Proto.MerchantApi.MerchantApiBase
             SellerId = store.SellerId.ToString(),
             Name = store.Name,
 
-            // LES DEUX, ET PAS SEULEMENT LE STATUT. Le client déduisait
-            // `IsSelling` de cette chaîne et se trompait de vocabulaire — voir
-            // l'encadré du champ `is_selling` dans le proto.
+            // LES DEUX, ET PAS SEULEMENT LE STATUT. Le client déduisait `IsSelling`
+            // de cette chaîne et se trompait de vocabulaire — voir l'encadré du
+            // champ `is_selling` dans le proto.
             Status = store.Status,
             IsSelling = store.IsSelling
         };

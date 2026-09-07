@@ -10,9 +10,8 @@ using HBA.Identity.Domain.Users;
 namespace HBA.Identity.Application.Users.Commands.Login;
 
 /// <summary>
-/// Vérifie les identifiants et le statut, applique la MFA si activée, puis émet
-/// les jetons. Les échecs d'authentification renvoient un message générique pour
-/// ne pas révéler quels comptes existent.
+/// Vérifie les identifiants et le statut, applique la MFA si activée, puis émet les
+/// jetons.
 /// </summary>
 internal sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginResponse>
 {
@@ -64,55 +63,14 @@ internal sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginR
 
         var user = await _userRepository.GetByEmailAsync(emailResult.Value.Value, cancellationToken);
 
-        // ─────────────────────────────────────────────────────────────────────────
         // COMPTE SUPPRIMÉ : on sort AVANT la vérification du mot de passe.
-        //
-        // Deux raisons, et la première est un vrai risque de plantage :
-        //
-        //  1. Un compte anonymisé porte `PasswordHash = "DELETED"` — qui n'est PAS un
-        //     hachage BCrypt valide. Selon l'implémentation, `Verify` lève une
-        //     exception (« salt invalide ») au lieu de renvoyer false. On répondrait
-        //     alors 500 à quelqu'un qui tente simplement de se connecter à un compte
-        //     qu'il a lui-même supprimé.
-        //
-        //  2. On renvoie EXACTEMENT la même erreur que pour un mot de passe faux. Dire
-        //     « ce compte a été supprimé » confirmerait à un tiers que cette adresse a
-        //     existé chez nous — une fuite d'information, offerte sans authentification.
-        //
-        // L'utilisateur légitime, lui, sait qu'il a supprimé son compte : le message
-        // générique ne le désoriente pas.
-        // ─────────────────────────────────────────────────────────────────────────
         if (user is not null && user.Status == UserStatus.Deleted)
         {
             _security.LoginFailed(Method, "deleted", ClientType);
             return Result.Failure<LoginResponse>(InvalidCredentials);
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // LE VERROU SE VÉRIFIE AVANT LE MOT DE PASSE.
-        //
-        // Sinon il ne servirait à rien : c'est justement la vérification du mot
-        // de passe qu'on veut refuser à un attaquant qui essaie en boucle.
-        //
-        // RÉPONSE GÉNÉRIQUE, ET C'EST UN ARBITRAGE QUI COÛTE.
-        //
-        // Répondre « compte verrouillé, réessayez dans 15 minutes » serait plus
-        // clair pour le titulaire — mais ce contrôle a lieu AVANT toute preuve
-        // d'identité. Ce message confirmerait à un inconnu que l'adresse existe
-        // chez nous, sans qu'il ait rien eu à prouver. Les messages explicites
-        // qui suivent (« suspendu », « en attente ») se paient, eux, après un
-        // mot de passe juste.
-        //
-        // Le titulaire légitime n'est donc pas informé du verrou. Il réessaiera,
-        // et cela marchera. C'est le prix, assumé, de ne pas offrir un annuaire
-        // de comptes à qui le demande.
-        //
-        // CE QUE CETTE PROTECTION NE PEUT PAS FAIRE : un compte INEXISTANT n'a
-        // pas de ligne à incrémenter, donc jamais de verrou. Qui essaie onze fois
-        // et n'est jamais bloqué apprend que l'adresse est inconnue. C'est
-        // inhérent au verrouillage par compte ; l'écrire vaut mieux que le
-        // découvrir.
-        // ═════════════════════════════════════════════════════════════════════
         if (user is not null && user.IsLockedOut(DateTime.UtcNow))
         {
             _security.LoginFailed(Method, "locked_out", ClientType);
@@ -137,17 +95,6 @@ internal sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginR
         }
 
         // Le verrou d'accès est le STATUT, plus `EmailVerified`.
-        //
-        // L'ancienne garde portait sur `EmailVerified`. Elle ne servait à rien :
-        // aucun service d'e-mailing n'étant branché, l'inscription appelait
-        // `ConfirmEmail` d'office pour que le compte puisse se connecter. Le
-        // contrôle vérifiait donc une valeur que le code venait de poser lui-même
-        // trois lignes plus haut.
-        //
-        // Désormais un compte naît `PendingVerification` et n'en sort que par
-        // l'approbation d'un administrateur. `EmailVerified` redevient ce qu'il
-        // prétend être : le constat qu'une adresse a été confirmée — aujourd'hui
-        // faux pour tout le monde, et honnêtement faux.
         if (user.Status == UserStatus.PendingVerification)
         {
             _security.LoginFailed(Method, "pending_approval", ClientType);
@@ -157,17 +104,6 @@ internal sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginR
         }
 
         // Le compte a-t-il le droit d'entrer sur CETTE surface ?
-        //
-        // Placé APRÈS la vérification du mot de passe, et volontairement : le
-        // message est explicite (« ce compte n'a pas accès à cette application »)
-        // plutôt que générique. Cela n'aide pas un attaquant — il faut déjà
-        // connaître le mot de passe pour l'obtenir, et l'app acheteur, ouverte à
-        // tous, lui aurait de toute façon confirmé que le compte existe. C'est le
-        // même arbitrage que les messages « suspendu » et « e-mail non vérifié »
-        // juste au-dessus.
-        //
-        // Placé AVANT la MFA : inutile de faire saisir un code à quelqu'un qu'on
-        // s'apprête à refuser.
         if (command.RequiredRoles is { Count: > 0 })
         {
             var roleIds = user.RoleIds.Select(id => new RoleId(id)).ToList();
@@ -191,21 +127,7 @@ internal sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginR
 
             if (user.MfaSecret is null || !_totpService.VerifyCode(user.MfaSecret, command.MfaCode))
             {
-                // ═════════════════════════════════════════════════════════════
                 // UN CODE MFA FAUX NE COÛTAIT RIEN.
-                //
-                // Six chiffres, une fenêtre de tolérance de part et d'autre de
-                // l'instant courant : quelques centaines de milliers de
-                // possibilités, essayables sans limite. Le second facteur
-                // ralentissait un attaquant qui avait déjà le mot de passe, il ne
-                // l'arrêtait pas.
-                //
-                // Le plus perfide : le titulaire qui avait pris la peine
-                // d'activer la double authentification se croyait mieux protégé.
-                //
-                // Même compteur que le mot de passe — un code faux APRÈS un mot
-                // de passe juste est un signal plus fort, pas plus faible.
-                // ═════════════════════════════════════════════════════════════
                 await RegisterFailureAsync(user, "mfa", cancellationToken);
 
                 _security.LoginFailed("password_mfa", "mfa_invalid", ClientType);
@@ -213,18 +135,10 @@ internal sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginR
             }
         }
 
-        // Authentification complète : le compteur d'échecs retombe. Placé ici et
-        // non plus haut — après le mot de passe mais avant la MFA, il aurait remis
-        // à zéro le compteur que la boucle de codes MFA est censée alimenter.
+        // Authentification complète : le compteur d'échecs retombe.
         user.RegisterSuccessfulLogin();
 
         // `amr` DIT CE QUI S'EST RÉELLEMENT PASSÉ, PAS CE QUI EST CONFIGURÉ.
-        //
-        // `user.MfaEnabled` est vrai dès que le second facteur est ACTIVÉ ; sur ce
-        // chemin il est aussi VÉRIFIÉ, puisqu'un code faux est reparti en échec
-        // vingt lignes plus haut. Poser `otp` sur le seul réglage, sans cette
-        // garantie, ferait mentir le claim — et un client qui exige `mfa` avant un
-        // geste sensible se croirait protégé par un facteur qui n'a pas joué.
         var session = user.MfaEnabled
             ? AuthenticationSnapshot.ByPasswordAndOtp(DateTime.UtcNow)
             : AuthenticationSnapshot.ByPassword(DateTime.UtcNow);
@@ -236,16 +150,7 @@ internal sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginR
         return new LoginResponse(MfaRequired: false, Tokens: tokens);
     }
 
-    /// <summary>
-    /// Enregistre l'échec et PERSISTE immédiatement.
-    ///
-    /// LE SaveChanges N'EST PAS OPTIONNEL ICI.
-    ///
-    /// Le chemin d'échec ne sauvegardait rien — il n'avait rien à sauvegarder. Un
-    /// compteur incrémenté puis abandonné avec le scope de la requête serait un
-    /// compteur qui ne compte pas, et la protection entière tiendrait dans une
-    /// ligne morte.
-    /// </summary>
+    /// <summary>Enregistre l'échec et PERSISTE immédiatement.</summary>
     private async Task RegisterFailureAsync(User user, string stage, CancellationToken cancellationToken)
     {
         var justLocked = user.RegisterFailedLogin(DateTime.UtcNow);
@@ -254,9 +159,7 @@ internal sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginR
 
         if (justLocked)
         {
-            // Émise UNE FOIS, au basculement. À chaque tentative, la métrique
-            // mesurerait l'acharnement de l'attaquant plutôt que le nombre de
-            // comptes touchés — et c'est le second chiffre qui doit alerter.
+            // Émise UNE FOIS, au basculement.
             _security.AccountLocked(stage);
         }
     }

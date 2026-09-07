@@ -18,24 +18,7 @@ public sealed record GetPlatformActivitySeriesQuery(
 public sealed record GetSignupSeriesQuery(DateOnly? From, DateOnly? To)
     : IQuery<SignupSeriesDto>;
 
-/// <summary>
-/// Ce que ces trois requêtes partagent : une devise, et le refus d'inventer.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA DEVISE PAR DÉFAUT EST UNE HYPOTHÈSE, ET ELLE EST ÉCRITE ICI POUR ÊTRE VUE.
-///
-/// La plateforme n'opère qu'en francs CFA aujourd'hui, et les tables portent la
-/// devise en clé précisément pour que ça change sans reprise de données. Tant
-/// qu'il n'y en a qu'une, exiger le paramètre ferait échouer tous les appels
-/// pour une valeur qu'il n'y a pas à choisir.
-///
-/// CE QUE CE DÉFAUT CACHERA LE JOUR OÙ IL Y EN AURA DEUX : une série qui semble
-/// complète et qui ne montre qu'une devise. La réponse porte donc `Currency` —
-/// un client qui l'affiche verra tout de suite ce qu'il regarde, et le jour où
-/// il faudra rendre plusieurs devises, l'appelant demandera explicitement.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Ce que ces trois requêtes partagent : une devise, et le refus d'inventer.</summary>
 internal static class DeviseDemandee
 {
     public const string ParDefaut = "XOF";
@@ -67,9 +50,7 @@ internal sealed class GetSellerSalesSeriesQueryHandler
 
         // LE FILTRE DE DEVISE EST ICI, PAS DANS LA REQUETE SQL, et c'est un choix
         // de peu de conséquence : la lecture est déjà bornée par (vendeur,
-        // période), donc au plus 366 x natures x devises lignes. Le jour où l'on
-        // rendra plusieurs devises, c'est ce filtre qui disparaît — pas la requête
-        // qui change.
+        // période), donc au plus 366 x natures x devises lignes.
         var parJour = lignes
             .Where(ligne => string.Equals(ligne.Currency, devise, StringComparison.Ordinal))
             .GroupBy(ligne => ligne.Day)

@@ -72,17 +72,5 @@ public interface IMediaGrpcClient
     Task<Result> ValidateMediaAsync(string mediaId, Guid ownerId, CancellationToken cancellationToken);
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
 // `IReturnPolicyApplicationService` A ÉTÉ RETIRÉ AVEC LES ROUTES QU'IL DEVAIT
-//    SERVIR.
-//
-// Il déclarait `ListAsync` et `UpsertAsync` sur les politiques de retour.
-// AUCUNE classe ne l'implémentait, et aucun code ne l'injectait : les deux
-// routes d'administration, elles, faisaient le travail à la main dans des
-// lambdas — et le faisaient faux, puisqu'elles ne persistaient rien.
-//
-// Une interface sans implémentation n'est pas une intention documentée : c'est
-// une promesse que la relecture prend pour un contrat existant. Le jour où la
-// politique de retour deviendra configurable, elle se réécrira avec le lot —
-// et `ReturnPolicyDto` / `UpsertReturnPolicyDto` sont conservés pour cela.
-// ═════════════════════════════════════════════════════════════════════════════
+// SERVIR.

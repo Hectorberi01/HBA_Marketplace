@@ -11,16 +11,7 @@ using HBA.Food.Application.Orders;
 
 namespace HBA.Food.Infrastructure.Public;
 
-/// <summary>
-/// Implémentation in-process de l'API publique du module Food. Lecture seule.
-///
-/// AUCUN CACHE, CONTRAIREMENT À CELLE DES VENDEURS.
-///
-/// Cette lecture sert à AUTORISER une commande : servir une réponse périmée de
-/// dix minutes accepterait des repas d'un restaurant qui vient de fermer, ou qui
-/// s'est mis en pause parce que sa bouteille de gaz est vide. La fraîcheur prime
-/// sur le nombre de requêtes.
-/// </summary>
+/// <summary>Implémentation in-process de l'API publique du module Food.</summary>
 internal sealed class FoodModuleApi : IFoodModuleApi
 {
     private readonly FoodDbContext _dbContext;
@@ -50,16 +41,11 @@ internal sealed class FoodModuleApi : IFoodModuleApi
 
     private async Task<RestaurantSummary> MapAsync(Restaurant restaurant, CancellationToken cancellationToken)
     {
-        // L'HEURE EST LUE ICI, ET NULLE PART DANS LE DOMAINE. C'est la
-        // frontière : au-delà, tout se teste en passant un instant.
+        // L'HEURE EST LUE ICI, ET NULLE PART DANS LE DOMAINE. C'est la frontière :
+        // au-delà, tout se teste en passant un instant.
         var maintenant = DateTime.UtcNow;
 
         // LA CHARGE EST LUE MÊME QUAND L'ÉTABLISSEMENT EST BLOQUÉ.
-        //
-        // « Forte demande » et « fermé » ne sont pas le même axe : un restaurant
-        // saturé n'est pas fermé, il est LENT. L'écran doit pouvoir afficher les
-        // deux, et un client qui voit « saturé » sait qu'il peut revenir dans dix
-        // minutes — là où « fermé » l'enverrait ailleurs pour la soirée.
         var charge = restaurant.AssessLoad(
             await _dbContext.FoodOrders
                 .AsNoTracking()
@@ -74,13 +60,6 @@ internal sealed class FoodModuleApi : IFoodModuleApi
         var etatDuLieu = restaurant.CanAcceptOrders(maintenant);
 
         // LA CARTE N'EST INTERROGÉE QUE SI RIEN D'AUTRE NE BLOQUE DÉJÀ.
-        //
-        // Double raison. La première est un motif : un restaurant fermé dont la
-        // carte est vide doit répondre « fermé », pas « épuisé » — « revenez
-        // demain » aide, « tout est épuisé » laisse croire qu'il suffit d'attendre
-        // le prochain plat. La seconde est le coût : cette lecture autorise chaque
-        // commande, et les cas bloqués — la nuit, une pause, une suspension —
-        // n'ont plus rien à demander.
         var blocage = etatDuLieu != OrderingBlockedReason.None
             ? etatDuLieu
             : restaurant.CanAcceptOrders(
@@ -124,17 +103,7 @@ internal sealed class FoodModuleApi : IFoodModuleApi
             restaurant.IsPubliclyVisible);
     }
 
-    /// <summary>
-    /// L'appartenance d'un compte au personnel d'un établissement.
-    ///
-    /// SANS SUIVI EF, ET AVEC SES DÉROGATIONS.
-    ///
-    /// Le `Include` n'est pas optionnel : les dérogations sont une collection
-    /// possédée dans une table à part. Sans elles, `EffectivePermissions` ne
-    /// rendrait que les défauts du rôle — un caissier à qui l'on a nommément
-    /// accordé la gestion de la carte se verrait refuser, et un manager à qui on
-    /// l'a retirée passerait quand même. Les deux erreurs sont silencieuses.
-    /// </summary>
+    /// <summary>L'appartenance d'un compte au personnel d'un établissement.</summary>
     public async Task<FoodStaffMembership?> GetStaffMembershipAsync(
         Guid userId, CancellationToken cancellationToken = default)
     {
@@ -158,10 +127,7 @@ internal sealed class FoodModuleApi : IFoodModuleApi
             membre.EffectivePermissions.Select(p => p.ToCode()).ToList());
     }
 
-    /// <summary>
-    /// Les rattachements d'un ticket. Sans suivi EF : lecture pure, appelée par le
-    /// retour de course pour retrouver la commande à clore.
-    /// </summary>
+    /// <summary>Les rattachements d'un ticket.</summary>
     public async Task<FoodOrderRef?> GetOrderAsync(
         Guid foodOrderId, CancellationToken cancellationToken = default)
     {
@@ -178,30 +144,7 @@ internal sealed class FoodModuleApi : IFoodModuleApi
                 FoodOrderOriginTranslation.Traduire(commande.Origin));
     }
 
-    /// <summary>
-    /// Un article de carte, avec ses groupes d'options et leurs écarts de prix.
-    ///
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// C'EST LA LECTURE QUI PERMET AU PANIER DE NE PLUS CROIRE LE CLIENT.
-    ///
-    /// Voir le contrat. Trois conséquences ici :
-    ///
-    /// LE RESTAURANT EST VÉRIFIÉ, PAS SEULEMENT L'ARTICLE. Un identifiant de plat
-    /// appartenant à un AUTRE établissement rend `null`. Sans ce filtre, un client
-    /// composerait un panier « chez A » avec le plat le moins cher de B, et
-    /// l'invariant mono-restaurant du panier n'y verrait rien : il compare des
-    /// `RestaurantId` qu'on lui a donnés.
-    ///
-    /// `IsOrderable` COMBINE QUATRE CONDITIONS, comme la carte publique : le lieu
-    /// prend des commandes, la carte est servie à cette heure, la section est
-    /// visible, l'article est disponible. En omettre une ferait accepter dans le
-    /// panier ce que la carte refuse d'afficher — et le client découvrirait le
-    /// refus au paiement.
-    ///
-    /// AUCUN CACHE, pour la raison écrite en tête de cette classe : ce prix
-    /// autorise un encaissement.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>Un article de carte, avec ses groupes d'options et leurs écarts de prix.</summary>
     public async Task<MenuItemView?> GetMenuItemAsync(
         Guid restaurantId, Guid menuItemId, CancellationToken cancellationToken = default)
     {
@@ -225,21 +168,12 @@ internal sealed class FoodModuleApi : IFoodModuleApi
             .FirstOrDefaultAsync(r => r.Id == new RestaurantId(restaurantId), cancellationToken);
 
         // UN ÉTABLISSEMENT INVISIBLE N'A PAS DE CARTE LISIBLE DE L'EXTÉRIEUR.
-        //
-        // Même règle que `GetMenuQuery` pour le public : un dossier en brouillon
-        // ou suspendu répond « introuvable », plutôt que « voici son plat, mais
-        // vous ne pouvez pas le commander ».
         if (restaurant is null || !restaurant.IsPubliclyVisible)
         {
             return null;
         }
 
         // COMPARAISON PAR L'IDENTITÉ FORTE, PAS PAR `.Value`.
-        //
-        // `c.Id.Value == …` oblige EF à traduire un accès de propriété sur un
-        // type converti ; selon la version du fournisseur, il rend soit une
-        // requête qui ne compile pas, soit un filtrage remonté en mémoire — donc
-        // le chargement de toutes les sections du dépôt pour en garder une.
         var sectionId = new MenuCategoryId(article.MenuCategoryId);
         var section = await _dbContext.MenuCategories
             .AsNoTracking()
@@ -286,42 +220,11 @@ internal sealed class FoodModuleApi : IFoodModuleApi
                 .ToList());
     }
 
-    /// <summary>
-    /// Reste-t-il au moins UN article commandable ?
-    ///
-    /// LE FILTRE HORAIRE SE FAIT EN MÉMOIRE, ET C'EST ASSUMÉ.
-    ///
-    /// `MenuItemConfiguration` l'explique déjà pour l'index : la disponibilité
-    /// dépend de l'heure, PostgreSQL refuse un index partiel dont le prédicat
-    /// n'est pas immuable, et « maintenant » ne l'est pas. On charge donc les
-    /// quelques dizaines de lignes d'une carte et l'on tranche ici.
-    ///
-    /// Ce compromis vaut À L'ÉCHELLE D'UN RESTAURANT. Il cesserait de valoir
-    /// pour « tous les plats disponibles de la ville ».
-    ///
-    /// LES SECTIONS MASQUÉES SONT ÉCARTÉES D'ABORD : un article rangé dans une
-    /// section que le restaurateur a masquée n'apparaît sur aucun écran, il ne
-    /// peut donc rendre l'établissement commandable.
-    ///
-    /// LES GROUPES D'OPTIONS COMPTENT. `IsOrderableAt` refuse un plat dont une
-    /// taille obligatoire est épuisée — pas seulement un plat marqué indisponible.
-    /// Un pré-filtre SQL sur la seule disponibilité de l'article se tromperait
-    /// dans la mauvaise direction : il annoncerait commandable ce que le panier
-    /// refuserait ensuite.
-    /// </summary>
+    /// <summary>Reste-t-il au moins UN article commandable ?</summary>
     private async Task<bool> HasOrderableItemAsync(
         Guid restaurantId, DateTime nowUtc, CancellationToken cancellationToken)
     {
         // TROIS NIVEAUX À TRAVERSER DEPUIS LA BASCULE À DEUX NIVEAUX.
-        //
-        // Avant, il suffisait d'écarter les sections masquées. Il faut désormais
-        // écarter d'abord les CARTES hors créneau — à 20 h, le menu du midi et
-        // tous ses plats ne comptent pour rien, même s'ils sont disponibles et
-        // dans une section visible.
-        //
-        // C'est précisément le cas que le second niveau existe pour représenter,
-        // et l'oublier ici annoncerait « ouvert » un restaurant dont la seule
-        // carte servie est vide.
         var cartes = await _dbContext.Menus
             .AsNoTracking()
             .Where(m => m.RestaurantId == restaurantId && m.IsActive)

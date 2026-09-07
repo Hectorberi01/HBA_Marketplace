@@ -8,13 +8,7 @@ using HBA.Food.Infrastructure.Persistence.Inbox;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Food.Infrastructure.Persistence;
 
-/// <summary>
-/// Factory design-time pour les outils EF (`dotnet ef migrations add`).
-///
-/// Utilisée UNIQUEMENT par la ligne de commande : au démarrage réel, c'est
-/// l'installer du module qui construit le DbContext. D'où le répartiteur d'events
-/// inerte — générer une migration ne doit déclencher aucun effet de bord.
-/// </summary>
+/// <summary>Factory design-time pour les outils EF (`dotnet ef migrations add`).</summary>
 public sealed class FoodDbContextFactory : IDesignTimeDbContextFactory<FoodDbContext>
 {
     public FoodDbContext CreateDbContext(string[] args)

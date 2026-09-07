@@ -5,16 +5,7 @@ using HBA.Catalog.Domain.Brands.Events;
 
 namespace HBA.Catalog.Application.Brands.EventHandlers;
 
-/// <summary>
-/// Frontière domaine → intégration pour les deux événements de marque du §19.
-///
-/// SANS EUX, UNE DEMANDE DORT DANS UNE TABLE QUE PERSONNE N'OUVRE.
-///
-/// Le premier consommateur attendu est la notification d'administration. Un
-/// vendeur qui demande une marque et n'obtient jamais de réponse ne redemande pas :
-/// il choisit une marque approchante au catalogue, et c'est le référentiel que ce
-/// mécanisme protégeait qui se dégrade.
-/// </summary>
+/// <summary>Frontière domaine → intégration pour les deux événements de marque du §19.</summary>
 public sealed class BrandRequestedDomainEventHandler : IDomainEventHandler<BrandRequestedDomainEvent>
 {
     private readonly IIntegrationEventPublisher _publisher;
