@@ -1,13 +1,3 @@
-# La definition de analytics-service. `docker-compose.dev.yml` l'INCLUT.
-#
-# Aucun port publie : dans la pile complete, seule la passerelle publie.
-# Le port n'est ouvert que par `docker-compose.override.yml`, que Compose
-# fusionne si l'on part de ce dossier — `include:` ne le prend pas.
-#
-# Le contexte de build remonte a la racine : un chemin relatif dans un fichier
-# inclus se resout depuis SON dossier. Et l'authentification vient d'un fichier,
-# parce qu'une ancre YAML ne traverse pas `include:`.
-
 services:
   analytics-service:
     build:
@@ -23,11 +13,6 @@ services:
       CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_analytics;Username=hba;Password=hba
       KAFKA__BOOTSTRAPSERVERS: kafka:29092
       KAFKA__CONSUMERGROUP: hba-analytics-service
-
-      # Pas de `KAFKA__PRODUCER` : ce service ne publie rien, il n'a pas d'outbox.
-
-      # Adresse d'AUTORISATION. Sans elle, `AddMerchantsGrpcClient` leve a la
-      # construction de l'hote.
       SERVICES__MERCHANT: http://seller-service:9090
     depends_on:
       postgres:

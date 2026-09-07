@@ -1,26 +1,3 @@
-# ══════════════════════════════════════════════════════════════════════════
-# LANCER identity-service SEUL, SANS LE RESTE DE LA PLATEFORME.
-#
-#   docker compose -f services/common/identity-service/docker-compose.yml up --build
-#
-# CE FICHIER NE REDECRIT RIEN. Chaque bloc `extends` pointe sur
-# `docker-compose.dev.yml`, qui reste la SEULE description complete de la
-# pile — celle que `ComposeProd` lit pour engendrer la production, et que
-# les controles `adresses-service` et `config-et-gardes` verifient. Une
-# variable se change la-bas, et arrive ici sans etre recopiee.
-#
-# LA BASE DE CETTE PILE EST LA SIENNE, ET ELLE PART VIDE.
-# Le volume `postgres-data` est nomme par le PROJET (`hba-identity-service`) : ce
-# n'est pas celui de la pile complete. Au premier demarrage,
-# `infra/postgres/init/` cree les bases, puis `MigrateOnStartup` pose les
-# schemas. Repartir de zero : `docker compose down -v` depuis ce dossier.
-#
-# LE PORT 8080 EST PUBLIE ICI, alors qu'aucun service ne publie dans la pile
-# complete — seule la passerelle le fait. Sans passerelle, un service
-# injoignable ne sert a rien. DEUX PILES PAR-SERVICE NE PEUVENT DONC PAS
-# TOURNER ENSEMBLE : elles se disputent 8080, et l'infrastructure aussi.
-# ══════════════════════════════════════════════════════════════════════════
-
 name: hba-identity-service
 
 services:
