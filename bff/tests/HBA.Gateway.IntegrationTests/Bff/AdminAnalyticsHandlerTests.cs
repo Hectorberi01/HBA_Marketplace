@@ -78,27 +78,14 @@ public sealed class AdminAnalyticsHandlerTests
         _analytics.PaymentsResult = ServiceResult<PaymentSeries>.Success(200, Paiements(Debut(jours), Aujourdhui));
     }
 
-    [Fact]
-    public async Task Les_deux_courbes_arrivent_dans_un_seul_appel()
-    {
-        GivenLesDeux(GetAdminAnalyticsHandler.DefaultDays);
-
-        var envelope = await Handler().HandleAsync(null, CancellationToken.None);
-
-        envelope.Data.Activity.Should().HaveCount(GetAdminAnalyticsHandler.DefaultDays);
-        envelope.Data.Signups.Should().HaveCount(GetAdminAnalyticsHandler.DefaultDays);
-        envelope.Data.Currency.Should().Be("XOF");
-        envelope.Warnings.Should().BeEmpty();
-    }
-
     /// <summary>
-    /// LES DEUX COURBES SONT BORNÉES SUR LA MÊME PÉRIODE, ET C'EST TOUTE LA RAISON
+    /// LES TROIS COURBES SONT BORNÉES SUR LA MÊME PÉRIODE, ET C'EST TOUTE LA RAISON
     /// D'ÊTRE DE CET ÉCRAN AGRÉGÉ.
     /// </summary>
     [Fact]
-    public async Task Les_deux_courbes_couvrent_exactement_la_meme_periode()
+    public async Task Les_trois_courbes_couvrent_exactement_la_meme_periode()
     {
-        GivenLesDeux(GetAdminAnalyticsHandler.DefaultDays);
+        GivenLesTrois(GetAdminAnalyticsHandler.DefaultDays);
 
         var envelope = await Handler().HandleAsync(null, CancellationToken.None);
 
@@ -106,6 +93,8 @@ public sealed class AdminAnalyticsHandlerTests
         envelope.Data.To.Should().Be(Aujourdhui);
         envelope.Data.Activity!.First().Day.Should().Be(envelope.Data.Signups!.First().Day);
         envelope.Data.Activity!.Last().Day.Should().Be(envelope.Data.Signups!.Last().Day);
+        envelope.Data.Activity!.First().Day.Should().Be(envelope.Data.Payments!.First().Day);
+        envelope.Data.Activity!.Last().Day.Should().Be(envelope.Data.Payments!.Last().Day);
     }
 
     [Fact]
@@ -126,17 +115,16 @@ public sealed class AdminAnalyticsHandlerTests
     [Fact]
     public async Task Une_courbe_indisponible_laisse_l_autre_s_afficher()
     {
-        var du = Debut(GetAdminAnalyticsHandler.DefaultDays);
+        GivenLesTrois(GetAdminAnalyticsHandler.DefaultDays);
         _analytics.ActivityResult = ServiceResult<PlatformActivitySeries>.Failure(503, "analytics à terre");
-        _analytics.SignupsResult = ServiceResult<SignupSeries>.Success(200, Inscriptions(du, Aujourdhui));
 
         var envelope = await Handler().HandleAsync(null, CancellationToken.None);
 
         envelope.Data.Activity.Should().BeNull();
         envelope.Data.TotalOrders.Should().BeNull();
         envelope.Data.TotalGmv.Should().BeNull();
-        envelope.Data.Currency.Should().BeNull();
         envelope.Data.Signups.Should().NotBeNull();
+        envelope.Data.Payments.Should().NotBeNull();
         envelope.Warnings.Should().Contain(w => w.Source == "Analytics");
     }
 
@@ -170,8 +158,7 @@ public sealed class AdminAnalyticsHandlerTests
         envelope.Data.Activity.Should().HaveCount(GetAdminAnalyticsHandler.DefaultDays);
         envelope.Data.Signups.Should().HaveCount(GetAdminAnalyticsHandler.DefaultDays);
         envelope.Data.Payments.Should().HaveCount(GetAdminAnalyticsHandler.DefaultDays);
-        envelope.Data.Payments!.First().Day.Should().Be(envelope.Data.Activity!.First().Day);
-        envelope.Data.Payments!.Last().Day.Should().Be(envelope.Data.Activity!.Last().Day);
+        envelope.Data.Currency.Should().Be("XOF");
         envelope.Warnings.Should().BeEmpty();
     }
 
