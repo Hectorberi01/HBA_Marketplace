@@ -553,7 +553,8 @@ public sealed class Order : AggregateRoot<OrderId>
 
         Status = OrderStatus.Cancelled;
         CancellationReason = reason;
-        Raise(new OrderCancelledDomainEvent(Id.Value, BuyerId, reason));
+        Raise(new OrderCancelledDomainEvent(
+            Id.Value, BuyerId, reason, BuildSellerShares(), Currency));
         return Result.Success();
     }
 
@@ -634,7 +635,8 @@ public sealed class Order : AggregateRoot<OrderId>
 
         Status = OrderStatus.Cancelled;
         CancellationReason = reason;
-        Raise(new OrderCancelledDomainEvent(Id.Value, BuyerId, reason));
+        Raise(new OrderCancelledDomainEvent(
+            Id.Value, BuyerId, reason, BuildSellerShares(), Currency));
         return Result.Success();
     }
 
@@ -798,7 +800,8 @@ public sealed class Order : AggregateRoot<OrderId>
         Status = OrderStatus.Cancelled;
         CancellationReason = reason;
         UnderReviewSinceUtc = null;
-        Raise(new OrderCancelledDomainEvent(Id.Value, BuyerId, reason));
+        Raise(new OrderCancelledDomainEvent(
+            Id.Value, BuyerId, reason, BuildSellerShares(), Currency));
         return Result.Success();
     }
 

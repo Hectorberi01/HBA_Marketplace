@@ -669,7 +669,9 @@
       "champs": {
         "OrderId": "Guid",
         "BuyerId": "Guid",
-        "Reason": "string"
+        "Reason": "string",
+        "SellerShares": "IReadOnlyCollection<OrderSellerShare>?",
+        "Currency": "string?"
       },
       "requis": [
         "BuyerId",
@@ -780,7 +782,10 @@
       "champs": {
         "PaymentId": "Guid",
         "OrderId": "Guid",
-        "OrderType": "string"
+        "OrderType": "string",
+        "Provider": "string?",
+        "Amount": "decimal?",
+        "Currency": "string?"
       },
       "requis": [
         "OrderId",
@@ -813,7 +818,10 @@
         "PaymentId": "Guid",
         "OrderId": "Guid",
         "OrderType": "string",
-        "Reason": "string"
+        "Reason": "string",
+        "Provider": "string?",
+        "Amount": "decimal?",
+        "Currency": "string?"
       },
       "requis": [
         "OrderId",

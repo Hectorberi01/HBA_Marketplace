@@ -149,7 +149,8 @@ public sealed class Payment : AggregateRoot<PaymentId>
         Status = PaymentStatus.Failed;
         FailureReason = reason;
         Raise(new PaymentFailedDomainEvent(
-            Id.Value, OrderId, OrderType.ToString(), reason, Provider, Method.ToString(), Amount.Currency));
+            Id.Value, OrderId, OrderType.ToString(), reason, Provider, Method.ToString(),
+            Amount.Currency, Amount.Amount));
         return Result.Success();
     }
 

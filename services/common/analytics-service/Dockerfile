@@ -30,7 +30,7 @@ WORKDIR /src
 COPY Directory.Build.props Directory.Packages.props ./
 COPY shared ./shared
 
-# LES TROIS CONTRATS QUE CE SERVICE CONSOMME NE SONT PAS DANS `shared/`.
+# LES QUATRE CONTRATS QUE CE SERVICE CONSOMME NE SONT PAS DANS `shared/`.
 #
 # Ils ont rejoint leur propriétaire, et `COPY shared` ne les embarque plus. Sans
 # ces lignes, `dotnet restore` échoue A L'INTERIEUR DE L'IMAGE, sur un message qui
@@ -42,6 +42,7 @@ COPY shared ./shared
 COPY services/marketplace/order-service/src/HBA.Order.Contracts ./services/marketplace/order-service/src/HBA.Order.Contracts
 COPY services/marketplace/seller-service/src/HBA.Merchants.Contracts ./services/marketplace/seller-service/src/HBA.Merchants.Contracts
 COPY services/common/identity-service/src/HBA.Identity.Contracts ./services/common/identity-service/src/HBA.Identity.Contracts
+COPY services/common/payment-service/src/HBA.Financial.Payments.Contracts ./services/common/payment-service/src/HBA.Financial.Payments.Contracts
 
 COPY services/common/analytics-service ./services/common/analytics-service
 

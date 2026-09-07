@@ -77,4 +77,65 @@ public sealed class PaymentEventContractTests
 
         type.GetProperties().Select(p => p.Name).Should().NotIntersectWith(interdits);
     }
+
+    /// <summary>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// LOT 2 — `Provider`, `Amount` ET `Currency` SONT OPTIONNELS, ET ILS DOIVENT
+    ///    LE RESTER.
+    ///
+    /// C'est toute la convention additive (D32) : un champ ajouté en `required`
+    /// casse la désérialisation des messages DÉJÀ EN VOL dans l'outbox au moment
+    /// du déploiement. Le symptôme est le pire qui soit — le consommateur lève
+    /// sur un message qu'il ne pourra jamais accepter, et le rejeu le lui
+    /// représente indéfiniment.
+    ///
+    /// Ce test ne vérifie pas que les champs existent : il vérifie qu'ils ne sont
+    /// PAS obligatoires. C'est la seule des deux propriétés qui se casse en
+    /// silence.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(PaymentCapturedIntegrationEvent))]
+    [InlineData(typeof(PaymentFailedIntegrationEvent))]
+    public void Les_trois_champs_ajoutes_au_lot_2_sont_optionnels(Type type)
+    {
+        foreach (var nom in new[] { "Provider", "Amount", "Currency" })
+        {
+            var propriete = type.GetProperty(nom);
+
+            propriete.Should().NotBeNull($"« {nom} » débloque les graphes de paiement du lot 2");
+
+            propriete!.GetCustomAttributes()
+                .Select(attribut => attribut.GetType().Name)
+                .Should().NotContain(
+                    "RequiredMemberAttribute",
+                    $"« {nom} » doit rester optionnel : un message en vol ne le porte pas");
+        }
+    }
+
+    /// <summary>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// `Provider` N'EST PAS `ProviderReference`, ET LA DISTINCTION EST TOUT.
+    ///
+    /// La liste des champs interdits ci-dessus contient `ProviderReference` — un
+    /// identifiant qui sert à REJOUER un appel chez le prestataire, donc l'affaire
+    /// de payment-service et de personne d'autre.
+    ///
+    /// `Provider` ne porte que le NOM du prestataire — « fedapay », « kkiapay ».
+    /// Il ne permet aucun appel, il ne signe rien, et sans lui « quel fournisseur
+    /// nous coûte des ventes ce mois-ci » n'a pas de réponse.
+    ///
+    /// Ce test existe pour qu'un futur relecteur qui verrait « Provider » dans un
+    /// événement de paiement ne l'ajoute pas à la liste des interdits par réflexe.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(EvenementsAttendus))]
+    public void Le_nom_du_prestataire_est_permis_sa_reference_ne_l_est_pas(Type type, string _)
+    {
+        var proprietes = type.GetProperties().Select(propriete => propriete.Name).ToArray();
+
+        proprietes.Should().NotContain("ProviderReference");
+        proprietes.Should().NotContain("ProviderToken");
+    }
 }

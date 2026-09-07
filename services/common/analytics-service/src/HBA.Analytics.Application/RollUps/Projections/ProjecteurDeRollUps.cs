@@ -69,6 +69,82 @@ public sealed class ProjecteurDeRollUps
         }
     }
 
+    /// <summary>
+    /// Une commande annulée débite les vendeurs qui y avaient une part.
+    /// </summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// DEUX SILENCES DIFFÉRENTS PRODUISENT ICI LE MÊME RIEN, ET C'EST ASSUMÉ.
+    ///
+    /// `parts` est nulle pour un message d'AVANT le lot 2 — il y avait un
+    /// vendeur, on ne sait pas lequel. Elle est VIDE pour une commande de repas —
+    /// il n'y en avait pas. Dans les deux cas il n'y a rien à écrire, et
+    /// distinguer les deux ne changerait aucune ligne de la table.
+    ///
+    /// Ce qui change, c'est ce qu'on peut en dire : voir l'encadré
+    /// d'`AnnulationJournaliereVendeur`. Il n'existe pas de série d'annulations
+    /// au niveau de la PLATEFORME dans ce lot, et c'est pour cela.
+    ///
+    /// LA DEVISE EST OBLIGATOIRE DÈS QU'IL Y A DES PARTS. Un message qui porte
+    /// des parts sans devise serait un producteur incohérent — le contrat les
+    /// ajoute ensemble. Le repli sur la devise inconnue existe quand même : il
+    /// vaut mieux une ligne rangée sous « XXX » qu'un montant perdu.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    public async Task CommandeAnnuleeAsync(
+        DateTime survenuLeUtc,
+        string? devise,
+        IReadOnlyCollection<PartDeVendeur>? parts,
+        CancellationToken cancellationToken = default)
+    {
+        if (parts is null || parts.Count == 0)
+        {
+            return;
+        }
+
+        var jour = JourneeAnalytique.De(survenuLeUtc);
+        var deviseRangee = FournisseurDePaiement.NormaliserLaDevise(devise);
+        var maintenant = DateTime.UtcNow;
+
+        foreach (var part in parts)
+        {
+            var ligne = await _registre.ObtenirOuCreerAnnulationAsync(
+                part.SellerId, jour, deviseRangee, cancellationToken);
+
+            ligne.Ajouter(part.Amount, maintenant);
+        }
+    }
+
+    /// <summary>
+    /// Une tentative de paiement a rendu son verdict.
+    /// </summary>
+    /// <remarks>
+    /// UN SEUL POINT D'ENTRÉE POUR LES DEUX ISSUES, ET C'EST LA CONDITION DU
+    /// TAUX. Deux méthodes se seraient mises à diverger — un repli ajouté d'un
+    /// côté, une normalisation oubliée de l'autre — et le taux aurait été calculé
+    /// sur deux séries qui ne se comparent plus.
+    ///
+    /// `montant` NUL VAUT ZÉRO, ET LE COMPTE RESTE JUSTE. C'est ce qui permet au
+    /// dénominateur du taux de rester complet même quand le montant manque.
+    /// </remarks>
+    public async Task PaiementAsync(
+        DateTime survenuLeUtc,
+        string issue,
+        string? fournisseur,
+        decimal? montant,
+        string? devise,
+        CancellationToken cancellationToken = default)
+    {
+        var ligne = await _registre.ObtenirOuCreerPaiementAsync(
+            JourneeAnalytique.De(survenuLeUtc),
+            FournisseurDePaiement.Normaliser(fournisseur),
+            FournisseurDePaiement.NormaliserLaDevise(devise),
+            issue,
+            cancellationToken);
+
+        ligne.Ajouter(montant ?? 0m, DateTime.UtcNow);
+    }
+
     /// <summary>Un compte s'est inscrit.</summary>
     public async Task InscriptionAsync(
         DateTime survenuLeUtc, string nature, CancellationToken cancellationToken = default)

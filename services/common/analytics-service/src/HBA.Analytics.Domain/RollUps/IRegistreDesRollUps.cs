@@ -51,4 +51,26 @@ public interface IRegistreDesRollUps
 
     Task<IReadOnlyList<InscriptionJournaliere>> LireInscriptionsAsync(
         DateOnly du, DateOnly au, CancellationToken cancellationToken = default);
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // LOT 2 — LES DEUX FAMILLES QUE LES CHAMPS OPTIONNELS ONT DEBLOQUEES.
+    //
+    // Elles suivent exactement les memes regles que les trois premieres :
+    // « obtenir ou creer » n'enregistre pas, l'incrementation n'est pas
+    // idempotente par elle-meme, et la lecture rend les lignes brutes sans
+    // remplir les journees vides.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    Task<AnnulationJournaliereVendeur> ObtenirOuCreerAnnulationAsync(
+        Guid sellerId, DateOnly jour, string devise, CancellationToken cancellationToken = default);
+
+    Task<PaiementJournalier> ObtenirOuCreerPaiementAsync(
+        DateOnly jour, string fournisseur, string devise, string issue,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AnnulationJournaliereVendeur>> LireAnnulationsAsync(
+        Guid sellerId, DateOnly du, DateOnly au, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PaiementJournalier>> LirePaiementsAsync(
+        DateOnly du, DateOnly au, CancellationToken cancellationToken = default);
 }

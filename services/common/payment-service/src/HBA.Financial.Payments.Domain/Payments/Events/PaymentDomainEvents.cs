@@ -20,9 +20,22 @@ public sealed record PaymentCapturedDomainEvent(
     decimal Amount, string Currency) : DomainEvent;
 
 /// <summary>Le paiement a échoué — déclenche l'annulation de la commande.</summary>
+/// <remarks>
+/// `Amount` A ÉTÉ AJOUTÉ EN DERNIÈRE POSITION, ET C'EST DÉLIBÉRÉ.
+///
+/// La capture le portait déjà, l'échec non — une asymétrie sans raison : les
+/// deux naissent du MÊME agrégat, qui connaît son montant dans les deux cas.
+/// Sans lui, « quel volume avons-nous perdu chez ce prestataire » n'a pas de
+/// source, alors que « quel volume avons-nous encaissé » en a une.
+///
+/// En dernière position pour qu'aucun des paramètres existants ne se décale :
+/// un enregistrement positionnel dont on insère un paramètre au milieu compile
+/// parfaitement si les types voisins coïncident, et transporte alors les
+/// mauvaises valeurs.
+/// </remarks>
 public sealed record PaymentFailedDomainEvent(
     Guid PaymentId, Guid OrderId, string OrderType, string Reason, string Provider,
-    string Method, string Currency) : DomainEvent;
+    string Method, string Currency, decimal Amount) : DomainEvent;
 
 /// <summary>
 /// Le paiement a été remboursé.

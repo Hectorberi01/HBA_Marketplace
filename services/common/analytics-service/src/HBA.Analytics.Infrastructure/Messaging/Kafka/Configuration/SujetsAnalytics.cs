@@ -6,13 +6,22 @@ namespace HBA.Analytics.Infrastructure.Messaging.Kafka.Configuration;
 /// <summary>
 /// LES SUJETS QUE CE SERVICE ECOUTE.
 ///
-/// Ils sont deduits des 3 evenement(s) declares dans `Consumers/` et du service
+/// Ils sont deduits des 6 evenement(s) declares dans `Consumers/` et du service
 /// qui les publie — le sujet porte le domaine du PRODUCTEUR, jamais celui du
 /// consommateur (voir `HbaTopics`).
 ///
 ///   OrderConfirmed    order-service    -> service.order.v1
+///   OrderCancelled    order-service    -> service.order.v1
 ///   SellerRegistered  seller-service   -> service.merchant.v1   (« merchant », pas « seller »)
 ///   UserRegistered    identity-service -> service.identity.v1
+///   PaymentCaptured   payment-service  -> service.financial.v1  (« financial », pas « payment »)
+///   PaymentFailed     payment-service  -> service.financial.v1
+///
+/// LA DERNIERE LIGNE EST LE SECOND PIEGE DE CETTE LISTE. Le dossier s'appelle
+/// `payment-service`, le sujet porte `financial` — et wallet et billing, qui
+/// n'ont pas de conteneur a eux, publient sur le MEME sujet parce qu'ils
+/// tournent dans ce processus. S'abonner a `service.payment.v1` ne produirait
+/// aucune erreur : seulement un taux d'echec plat a zero.
 ///
 /// LA DEUXIEME LIGNE EST CELLE QU'ON SE TROMPE. Le dossier s'appelle
 /// `seller-service`, l'espace de noms `HBA.Merchants.*`, et le sujet porte le
@@ -32,7 +41,8 @@ public static class SujetsAnalytics
     [
         "service.order.v1",
         "service.merchant.v1",
-        "service.identity.v1"
+        "service.identity.v1",
+        "service.financial.v1"
     ];
 
     internal static IServiceCollection AjouterSujetsAnalytics(this IServiceCollection services)

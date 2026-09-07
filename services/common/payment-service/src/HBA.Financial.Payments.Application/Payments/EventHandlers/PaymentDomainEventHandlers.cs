@@ -31,7 +31,26 @@ public sealed class PaymentCapturedDomainEventHandler : IDomainEventHandler<Paym
             {
                 PaymentId = domainEvent.PaymentId,
                 OrderId = domainEvent.OrderId,
-                OrderType = domainEvent.OrderType
+                OrderType = domainEvent.OrderType,
+
+                // ═════════════════════════════════════════════════════════════
+                // CES TROIS VALEURS ÉTAIENT DÉJÀ LÀ, TROIS LIGNES PLUS HAUT.
+                //
+                // `_metrics.Success` les consomme pour le compteur, puis cet
+                // événement partait sans elles. Ce n'était donc pas une donnée à
+                // aller chercher — c'était une donnée à ne pas jeter, et son
+                // absence rendait « quel fournisseur nous coûte des ventes ce
+                // mois-ci » sans réponse.
+                //
+                // LA MÉTRIQUE NE REMPLACE PAS L'ÉVÉNEMENT. Elle est agrégée à la
+                // seconde par le collecteur, sans identifiant : on n'en tire ni
+                // série journalière durable, ni recalcul après coup. C'est ce que
+                // le roll-up d'analytics fait, et il lui faut le fait, pas le
+                // compteur.
+                // ═════════════════════════════════════════════════════════════
+                Provider = domainEvent.Provider,
+                Amount = domainEvent.Amount,
+                Currency = domainEvent.Currency,
             },
             cancellationToken);
     }
@@ -59,7 +78,15 @@ public sealed class PaymentFailedDomainEventHandler : IDomainEventHandler<Paymen
                 PaymentId = domainEvent.PaymentId,
                 OrderId = domainEvent.OrderId,
                 OrderType = domainEvent.OrderType,
-                Reason = domainEvent.Reason
+                Reason = domainEvent.Reason,
+
+                // MÊMES TROIS CHAMPS QUE SUR LA CAPTURE, ET C'EST LA CONDITION
+                // POUR QUE LE TAUX D'ÉCHEC EXISTE : un taux se calcule sur deux
+                // séries comparables. Les porter d'un seul côté donnerait un
+                // numérateur sans dénominateur.
+                Provider = domainEvent.Provider,
+                Amount = domainEvent.Amount,
+                Currency = domainEvent.Currency,
             },
             cancellationToken);
     }

@@ -53,6 +53,33 @@ namespace HBA.Analytics.Infrastructure.Migrations
                     b.ToTable("platform_daily", "analytics");
                 });
 
+            modelBuilder.Entity("HBA.Analytics.Domain.RollUps.AnnulationJournaliereVendeur", b =>
+                {
+                    b.Property<Guid>("SellerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("OrdersCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SellerId", "Day", "Currency");
+
+                    b.ToTable("seller_cancellation_daily", "analytics");
+                });
+
             modelBuilder.Entity("HBA.Analytics.Domain.RollUps.InscriptionJournaliere", b =>
                 {
                     b.Property<DateOnly>("Day")
@@ -71,6 +98,38 @@ namespace HBA.Analytics.Infrastructure.Migrations
                     b.HasKey("Day", "Kind");
 
                     b.ToTable("signup_daily", "analytics");
+                });
+
+            modelBuilder.Entity("HBA.Analytics.Domain.RollUps.PaiementJournalier", b =>
+                {
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Day", "Provider", "Currency", "Outcome");
+
+                    b.ToTable("payment_daily", "analytics");
                 });
 
             modelBuilder.Entity("HBA.Analytics.Domain.RollUps.VenteJournaliereVendeur", b =>

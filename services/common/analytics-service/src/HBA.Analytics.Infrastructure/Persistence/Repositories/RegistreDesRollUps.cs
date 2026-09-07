@@ -123,6 +123,70 @@ public sealed class RegistreDesRollUps : IRegistreDesRollUps
             .OrderBy(ligne => ligne.Day)
             .ToListAsync(cancellationToken);
 
+    public async Task<AnnulationJournaliereVendeur> ObtenirOuCreerAnnulationAsync(
+        Guid sellerId, DateOnly jour, string devise, CancellationToken cancellationToken = default)
+    {
+        var existante = await _contexte.SellerCancellationDaily
+            .FindAsync(new object?[] { sellerId, jour, devise }, cancellationToken);
+
+        if (existante is not null)
+        {
+            return existante;
+        }
+
+        var nouvelle = new AnnulationJournaliereVendeur
+        {
+            SellerId = sellerId,
+            Day = jour,
+            Currency = devise,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+
+        _contexte.SellerCancellationDaily.Add(nouvelle);
+        return nouvelle;
+    }
+
+    public async Task<PaiementJournalier> ObtenirOuCreerPaiementAsync(
+        DateOnly jour, string fournisseur, string devise, string issue,
+        CancellationToken cancellationToken = default)
+    {
+        var existante = await _contexte.PaymentDaily
+            .FindAsync(new object?[] { jour, fournisseur, devise, issue }, cancellationToken);
+
+        if (existante is not null)
+        {
+            return existante;
+        }
+
+        var nouvelle = new PaiementJournalier
+        {
+            Day = jour,
+            Provider = fournisseur,
+            Currency = devise,
+            Outcome = issue,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+
+        _contexte.PaymentDaily.Add(nouvelle);
+        return nouvelle;
+    }
+
+    public async Task<IReadOnlyList<AnnulationJournaliereVendeur>> LireAnnulationsAsync(
+        Guid sellerId, DateOnly du, DateOnly au, CancellationToken cancellationToken = default)
+        => await _contexte.SellerCancellationDaily
+            .AsNoTracking()
+            .Where(ligne => ligne.SellerId == sellerId && ligne.Day >= du && ligne.Day <= au)
+            .OrderBy(ligne => ligne.Day)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<PaiementJournalier>> LirePaiementsAsync(
+        DateOnly du, DateOnly au, CancellationToken cancellationToken = default)
+        => await _contexte.PaymentDaily
+            .AsNoTracking()
+            .Where(ligne => ligne.Day >= du && ligne.Day <= au)
+            .OrderBy(ligne => ligne.Day)
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<InscriptionJournaliere>> LireInscriptionsAsync(
         DateOnly du, DateOnly au, CancellationToken cancellationToken = default)
         => await _contexte.SignupDaily

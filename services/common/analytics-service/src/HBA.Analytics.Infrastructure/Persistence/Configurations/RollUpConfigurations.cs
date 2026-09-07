@@ -69,3 +69,47 @@ public sealed class InscriptionJournaliereConfiguration : IEntityTypeConfigurati
         builder.Property(ligne => ligne.UpdatedAtUtc).IsRequired();
     }
 }
+
+/// <summary>Voir l'encadré de <see cref="VenteJournaliereVendeurConfiguration"/>.</summary>
+public sealed class AnnulationJournaliereVendeurConfiguration
+    : IEntityTypeConfiguration<AnnulationJournaliereVendeur>
+{
+    public void Configure(EntityTypeBuilder<AnnulationJournaliereVendeur> builder)
+    {
+        builder.ToTable("seller_cancellation_daily");
+
+        builder.HasKey(ligne => new { ligne.SellerId, ligne.Day, ligne.Currency });
+
+        builder.Property(ligne => ligne.Currency).HasMaxLength(3).IsRequired();
+        builder.Property(ligne => ligne.Amount).HasPrecision(18, 2);
+        builder.Property(ligne => ligne.UpdatedAtUtc).IsRequired();
+    }
+}
+
+/// <summary>
+/// Voir l'encadré de <see cref="VenteJournaliereVendeurConfiguration"/>.
+/// </summary>
+/// <remarks>
+/// L'ORDRE DE LA CLÉ EST CELUI DE LA LECTURE : (jour, prestataire, devise,
+/// issue). La seule requête du service filtre sur une PLAGE DE JOURS et rien
+/// d'autre, donc sur le préfixe de la clé. Mettre le prestataire en tête —
+/// tentant, puisque c'est lui qu'on regarde — obligerait à balayer la table
+/// entière pour une période.
+/// </remarks>
+public sealed class PaiementJournalierConfiguration : IEntityTypeConfiguration<PaiementJournalier>
+{
+    public void Configure(EntityTypeBuilder<PaiementJournalier> builder)
+    {
+        builder.ToTable("payment_daily");
+
+        builder.HasKey(ligne => new { ligne.Day, ligne.Provider, ligne.Currency, ligne.Outcome });
+
+        builder.Property(ligne => ligne.Provider)
+            .HasMaxLength(FournisseurDePaiement.LongueurMax).IsRequired();
+        builder.Property(ligne => ligne.Currency).HasMaxLength(3).IsRequired();
+        builder.Property(ligne => ligne.Outcome)
+            .HasMaxLength(IssueDePaiement.LongueurMax).IsRequired();
+        builder.Property(ligne => ligne.Amount).HasPrecision(18, 2);
+        builder.Property(ligne => ligne.UpdatedAtUtc).IsRequired();
+    }
+}

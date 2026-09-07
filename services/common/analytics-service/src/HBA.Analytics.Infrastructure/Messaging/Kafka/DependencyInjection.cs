@@ -1,6 +1,7 @@
 using HBA.Analytics.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Analytics.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Analytics.Infrastructure.Messaging.Kafka.Inbox;
+using HBA.Financial.Payments.Contracts.IntegrationEvents;
 using HBA.Identity.Contracts.IntegrationEvents;
 using HBA.Merchants.Contracts.IntegrationEvents;
 using HBA.Orders.Contracts.IntegrationEvents;
@@ -64,6 +65,19 @@ public static class DependencyInjection
         services.AddScoped<
             IIntegrationEventHandler<UserRegisteredIntegrationEvent>,
             UserRegisteredRollUpHandler>();                        // service.identity.v1
+
+        // ── LOT 2 : ce que les champs optionnels ont debloque ────────────────
+        services.AddScoped<
+            IIntegrationEventHandler<OrderCancelledIntegrationEvent>,
+            OrderCancelledRollUpHandler>();                        // service.order.v1
+
+        services.AddScoped<
+            IIntegrationEventHandler<PaymentCapturedIntegrationEvent>,
+            PaymentCapturedRollUpHandler>();                       // service.financial.v1
+
+        services.AddScoped<
+            IIntegrationEventHandler<PaymentFailedIntegrationEvent>,
+            PaymentFailedRollUpHandler>();                         // service.financial.v1
 
         return services;
     }

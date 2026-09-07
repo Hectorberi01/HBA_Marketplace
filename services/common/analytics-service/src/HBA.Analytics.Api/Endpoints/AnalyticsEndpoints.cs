@@ -48,6 +48,12 @@ public static class AnalyticsEndpoints
 
         seller.MapGet("/sales", GetSellerSalesAsync);
 
+        // MÊME GARDE, MÊME CAPACITÉ. `SELLER_ANALYTICS_VIEW` ouvre « les chiffres
+        // de ce vendeur » : ses ventes et ce qu'il a perdu sont la même
+        // information vue des deux côtés, et les séparer en deux capacités
+        // donnerait un droit qu'aucun rôle ne saurait attribuer sans l'autre.
+        seller.MapGet("/cancellations", GetSellerCancellationsAsync);
+
         // ═════════════════════════════════════════════════════════════════════
         // LE BACK-OFFICE, SUR RÔLE ET NON SUR PERMISSION.
         //
@@ -67,6 +73,12 @@ public static class AnalyticsEndpoints
 
         admin.MapGet("/activity", GetPlatformActivityAsync);
         admin.MapGet("/signups", GetSignupsAsync);
+
+        // LE TAUX D'ÉCHEC PAR PRESTATAIRE — le graphe que le document de
+        // conception nommait « CETTE ABSENCE VAUT D'ÊTRE REGARDÉE POUR
+        // ELLE-MÊME ». Il existe parce que `PaymentCaptured` et `PaymentFailed`
+        // portent enfin `Provider`, `Amount` et `Currency`.
+        admin.MapGet("/payments", GetPaymentsAsync);
 
         return app;
     }
@@ -97,6 +109,27 @@ public static class AnalyticsEndpoints
         => await DenyUnlessOwnSellerAsync(sellerId, user, access, ct)
         ?? (await sender.Send(new GetSellerSalesSeriesQuery(sellerId, from, to, currency), ct))
             .Match(Results.Ok);
+
+    /// <summary>
+    /// Les annulations du vendeur, jour par jour. Permission `SELLER_ANALYTICS_VIEW`.
+    /// </summary>
+    private static async Task<IResult> GetSellerCancellationsAsync(
+        Guid sellerId,
+        DateOnly? from,
+        DateOnly? to,
+        string? currency,
+        ClaimsPrincipal user,
+        IMerchantAccessApi access,
+        ISender sender,
+        CancellationToken ct)
+        => await DenyUnlessOwnSellerAsync(sellerId, user, access, ct)
+        ?? (await sender.Send(new GetSellerCancellationSeriesQuery(sellerId, from, to, currency), ct))
+            .Match(Results.Ok);
+
+    /// <summary>Les paiements de la plateforme, jour par jour et par prestataire.</summary>
+    private static async Task<IResult> GetPaymentsAsync(
+        DateOnly? from, DateOnly? to, string? currency, ISender sender, CancellationToken ct)
+        => (await sender.Send(new GetPaymentSeriesQuery(from, to, currency), ct)).Match(Results.Ok);
 
     /// <summary>L'activité de la plateforme, jour par jour.</summary>
     private static async Task<IResult> GetPlatformActivityAsync(

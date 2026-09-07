@@ -67,7 +67,29 @@ public sealed class OrderCancelledDomainEventHandler : IDomainEventHandler<Order
 
     public Task HandleAsync(OrderCancelledDomainEvent domainEvent, CancellationToken cancellationToken = default)
         => _publisher.PublishAsync(
-            new OrderCancelledIntegrationEvent { OrderId = domainEvent.OrderId, BuyerId = domainEvent.BuyerId, Reason = domainEvent.Reason },
+            new OrderCancelledIntegrationEvent
+            {
+                OrderId = domainEvent.OrderId,
+                BuyerId = domainEvent.BuyerId,
+                Reason = domainEvent.Reason,
+
+                // MÊME TRADUCTION QUE POUR LA CONFIRMATION, ET POUR LA MÊME
+                // RAISON : deux records distincts portent la même idée — l'un
+                // dans le domaine, l'autre dans les Contracts — pour que le
+                // contrat public ne dépende pas du modèle interne d'Ordering.
+                //
+                // `ToList()` SUR UNE LISTE QUI PEUT ÊTRE VIDE, JAMAIS `null`.
+                // Le domaine rend toujours une collection ; c'est le champ du
+                // CONTRAT qui est nullable, et son `null` ne veut dire qu'une
+                // chose : « message émis avant l'ajout du champ ». Rendre `null`
+                // ici pour une liste vide effacerait la distinction que
+                // l'encadré du contrat vient d'établir.
+                SellerShares = domainEvent.SellerShares
+                    .Select(part => new HBA.Orders.Contracts.IntegrationEvents.OrderSellerShare(
+                        part.SellerId, part.ItemCount, part.Amount))
+                    .ToList(),
+                Currency = domainEvent.Currency,
+            },
             cancellationToken);
 }
 

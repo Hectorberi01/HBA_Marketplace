@@ -52,6 +52,13 @@ public sealed class AnalyticsDbContext : ModuleDbContext, IAnalyticsUnitOfWork
 
     public DbSet<InscriptionJournaliere> SignupDaily => Set<InscriptionJournaliere>();
 
+    /// <summary>Lot 2 — ce qu'un vendeur perd en annulations.</summary>
+    public DbSet<AnnulationJournaliereVendeur> SellerCancellationDaily
+        => Set<AnnulationJournaliereVendeur>();
+
+    /// <summary>Lot 2 — les tentatives de paiement, par prestataire et par issue.</summary>
+    public DbSet<PaiementJournalier> PaymentDaily => Set<PaiementJournalier>();
+
     /// <summary>
     /// Traces de consommation Kafka (§19.5).
     ///

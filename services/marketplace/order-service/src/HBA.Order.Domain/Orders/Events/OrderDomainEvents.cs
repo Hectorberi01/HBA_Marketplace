@@ -43,6 +43,13 @@ public sealed record OrderPlacedDomainEvent(Guid OrderId, Guid BuyerId, Guid Car
 /// expédition attribuée au vendeur « 00000000-… ».
 /// </param>
 /// <param name="RestaurantId">L'établissement qui prépare, ou null hors restauration.</param>
+/// <param name="OrderId">La commande confirmée.</param>
+/// <param name="BuyerId">L'acheteur.</param>
+/// <param name="Currency">La devise des montants de la répartition.</param>
+/// <param name="PromotionCode">Le code promo consommé par cette vente, ou null.</param>
+/// <param name="SellerShares">
+/// Les vendeurs concernés et la part de chacun. VIDE pour une commande de repas.
+/// </param>
 public sealed record OrderConfirmedDomainEvent(
     Guid OrderId,
     Guid BuyerId,
@@ -53,7 +60,47 @@ public sealed record OrderConfirmedDomainEvent(
     Guid? RestaurantId) : DomainEvent;
 
 /// <summary>La commande a été annulée (réservations libérées).</summary>
-public sealed record OrderCancelledDomainEvent(Guid OrderId, Guid BuyerId, string Reason) : DomainEvent;
+/// <remarks>
+/// ═════════════════════════════════════════════════════════════════════════════
+/// IL PORTE DÉSORMAIS LA RÉPARTITION PAR VENDEUR, COMME LA CONFIRMATION.
+///
+/// La raison est la même que pour `OrderConfirmedDomainEvent` : c'est la
+/// commande — et elle seule — qui connaît ses lignes, donc leurs vendeurs et
+/// leurs montants. La reconstituer en aval obligerait à relire les lignes depuis
+/// un autre schéma, ce que l'architecture modulaire interdit précisément.
+///
+/// LES TROIS ANNULATIONS NE SE VALENT PAS, ET LE CONSOMMATEUR DOIT LE SAVOIR.
+///
+///   `Cancel`             avant la confirmation — la commande n'a jamais été
+///                        payée. Le vendeur ne perd rien qu'il ait gagné.
+///   `RejectByProvider`   après la confirmation — le restaurant refuse. La
+///                        répartition est VIDE : un repas n'a pas de vendeur.
+///   `CancelAfterReview`  après la confirmation — l'exploitation solde une
+///                        commande payée devenue inexécutable. C'est la seule
+///                        des trois où un vendeur perd une vente conclue.
+///
+/// `Reason` est le seul champ qui permette de les distinguer, et il est libre :
+/// un consommateur qui voudrait compter séparément « perdu après paiement » n'a
+/// pas de prise fiable aujourd'hui. C'est une limite connue de ce lot.
+/// ═════════════════════════════════════════════════════════════════════════════
+/// </remarks>
+/// <param name="OrderId">La commande annulée.</param>
+/// <param name="BuyerId">L'acheteur, pour la notification.</param>
+/// <param name="Reason">
+/// Le motif, en texte LIBRE. C'est le seul champ qui distingue les trois
+/// annulations ci-dessus, et il n'offre aucune prise fiable pour les compter
+/// séparément.
+/// </param>
+/// <param name="SellerShares">
+/// Les vendeurs concernés et la part de chacun. VIDE pour une commande de repas.
+/// </param>
+/// <param name="Currency">La devise des montants ci-dessus.</param>
+public sealed record OrderCancelledDomainEvent(
+    Guid OrderId,
+    Guid BuyerId,
+    string Reason,
+    IReadOnlyCollection<OrderSellerShare> SellerShares,
+    string Currency) : DomainEvent;
 
 /// <summary>La commande a été livrée (escrow à libérer, payout vendeur à déclencher).</summary>
 public sealed record OrderDeliveredDomainEvent(Guid OrderId, Guid BuyerId) : DomainEvent;
