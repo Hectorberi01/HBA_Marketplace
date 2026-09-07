@@ -1,0 +1,34 @@
+# Ce qui rend analytics-service lancable seul :
+#
+#   cd services/common/analytics-service && docker compose up --build
+#
+# Compose fusionne ce fichier avec `docker-compose.yml` quand on part d'ici.
+# `include:` ne le prend pas : la pile complete recoit la definition du service
+# et rien d'autre.
+#
+# `SERVICES__MERCHANT` vise seller-service, absent d'ici : le service demarre,
+# ce sont les appels d'autorisation vendeur qui echoueront.
+#
+# La base est la sienne — volume nomme par le projet, pas celui de la pile
+# complete. Elle part vide. Deux piles par-service ne tournent pas ensemble.
+
+name: hba-analytics-service
+
+services:
+  postgres:
+    extends:
+      file: ../../../docker-compose.dev.yml
+      service: postgres
+
+  kafka:
+    extends:
+      file: ../../../docker-compose.dev.yml
+      service: kafka
+
+  analytics-service:
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+
+volumes:
+  postgres-data:

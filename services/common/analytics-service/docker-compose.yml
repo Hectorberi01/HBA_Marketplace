@@ -1,61 +1,40 @@
-# ══════════════════════════════════════════════════════════════════════════
-# LANCER analytics-service SEUL, SANS LE RESTE DE LA PLATEFORME.
+# La definition de analytics-service. `docker-compose.dev.yml` l'INCLUT.
 #
-#   docker compose -f services/common/analytics-service/docker-compose.yml up --build
+# Aucun port publie : dans la pile complete, seule la passerelle publie.
+# Le port n'est ouvert que par `docker-compose.override.yml`, que Compose
+# fusionne si l'on part de ce dossier — `include:` ne le prend pas.
 #
-# CE FICHIER NE REDECRIT RIEN. Chaque bloc `extends` pointe sur
-# `docker-compose.dev.yml`, qui reste la SEULE description complete de la
-# pile — celle que `ComposeProd` lit pour engendrer la production, et que
-# les controles `adresses-service` et `config-et-gardes` verifient. Une
-# variable se change la-bas, et arrive ici sans etre recopiee.
-#
-# CE QUI NE REPONDRA PAS, ET C'EST LE PRINCIPE DE CETTE PILE :
-#   SERVICES__MERCHANT -> seller-service, absent d'ici.
-#
-# Le service DEMARRE quand meme : les adresses sont PRESENTES, et c'est
-# leur absence qui ferait lever a la construction de l'hote. Ce sont les
-# APPELS qui echoueront, chacun sur sa route.
-#
-# LA BASE DE CETTE PILE EST LA SIENNE, ET ELLE PART VIDE.
-# Le volume `postgres-data` est nomme par le PROJET (`hba-analytics-service`) : ce
-# n'est pas celui de la pile complete. Au premier demarrage,
-# `infra/postgres/init/` cree les bases, puis `MigrateOnStartup` pose les
-# schemas. Repartir de zero : `docker compose down -v` depuis ce dossier.
-#
-# LE PORT 8080 EST PUBLIE ICI, alors qu'aucun service ne publie dans la pile
-# complete — seule la passerelle le fait. Sans passerelle, un service
-# injoignable ne sert a rien. DEUX PILES PAR-SERVICE NE PEUVENT DONC PAS
-# TOURNER ENSEMBLE : elles se disputent 8080, et l'infrastructure aussi.
-# ══════════════════════════════════════════════════════════════════════════
-
-name: hba-analytics-service
+# Le contexte de build remonte a la racine : un chemin relatif dans un fichier
+# inclus se resout depuis SON dossier. Et l'authentification vient d'un fichier,
+# parce qu'une ancre YAML ne traverse pas `include:`.
 
 services:
-  kafka:
-    extends:
-      file: ../../../docker-compose.dev.yml
-      service: kafka
-
-  postgres:
-    extends:
-      file: ../../../docker-compose.dev.yml
-      service: postgres
-
   analytics-service:
-    extends:
-      file: ../../../docker-compose.dev.yml
-      service: analytics-service
+    build:
+      context: ../../..
+      dockerfile: services/common/analytics-service/Dockerfile
+    env_file:
+      - ../../../infra/env/dev-auth.env
+    environment:
+      SERVICE_NAME: analytics-service
+      ASPNETCORE_ENVIRONMENT: Development
+      HOSTING__HTTPPORT: 8080
+      HOSTING__GRPCPORT: 9090
+      CONNECTIONSTRINGS__DEFAULT: Host=postgres;Port=5432;Database=hba_analytics;Username=hba;Password=hba
+      KAFKA__BOOTSTRAPSERVERS: kafka:29092
+      KAFKA__CONSUMERGROUP: hba-analytics-service
+
+      # Pas de `KAFKA__PRODUCER` : ce service ne publie rien, il n'a pas d'outbox.
+
+      # Adresse d'AUTORISATION. Sans elle, `AddMerchantsGrpcClient` leve a la
+      # construction de l'hote.
+      SERVICES__MERCHANT: http://seller-service:9090
     depends_on:
-      kafka:
-        condition: service_healthy
       postgres:
         condition: service_healthy
-    ports:
-      - "8080:8080"
-      - "9090:9090"
-
-volumes:
-  postgres-data:
+      kafka:
+        condition: service_healthy
+    networks: [hba-backend]
 
 networks:
   hba-backend:
