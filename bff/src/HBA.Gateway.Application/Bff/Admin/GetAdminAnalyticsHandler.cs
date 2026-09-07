@@ -14,9 +14,10 @@ public sealed record AdminActivityPointDto(
 
 /// <summary>Un jour d'inscriptions.</summary>
 /// <param name="Day">La journée, en UTC.</param>
-/// <param name="Buyers">Comptes créés. INCLUT les futurs vendeurs.</param>
+/// <param name="Buyers">Comptes créés. INCLUT les futurs vendeurs ET livreurs.</param>
 /// <param name="Sellers">Dossiers vendeur ouverts.</param>
-public sealed record AdminSignupPointDto(DateOnly Day, int Buyers, int Sellers);
+/// <param name="Drivers">Comptes livreur ouverts.</param>
+public sealed record AdminSignupPointDto(DateOnly Day, int Buyers, int Sellers, int Drivers);
 
 /// <summary>Les courbes du back-office, en un seul appel.</summary>
 /// <param name="From">Première journée, incluse.</param>
@@ -87,7 +88,7 @@ public sealed class GetAdminAnalyticsHandler
             Signups: inscriptions is null
                 ? null
                 : [.. inscriptions.Points.Select(point => new AdminSignupPointDto(
-                    point.Day, point.Buyers, point.Sellers))],
+                    point.Day, point.Buyers, point.Sellers, point.Drivers))],
             TotalOrders: activite?.TotalOrders,
             TotalGmv: activite?.TotalGmv));
     }

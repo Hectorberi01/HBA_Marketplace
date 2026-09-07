@@ -11,7 +11,8 @@ public static class SujetsAnalytics
         "service.order.v1",
         "service.merchant.v1",
         "service.identity.v1",
-        "service.financial.v1"
+        "service.financial.v1",
+        "service.driver.v1"
     ];
 
     internal static IServiceCollection AjouterSujetsAnalytics(this IServiceCollection services)

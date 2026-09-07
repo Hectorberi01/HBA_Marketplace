@@ -34,10 +34,12 @@ public sealed class AdminAnalyticsHandlerTests
         var points = new List<SignupPoint>();
         for (var jour = du; jour <= au; jour = jour.AddDays(1))
         {
-            points.Add(new SignupPoint(jour, 5, 1));
+            points.Add(new SignupPoint(jour, 5, 1, 2));
         }
 
-        return new SignupSeries(du, au, points, points.Sum(p => p.Buyers), points.Sum(p => p.Sellers));
+        return new SignupSeries(
+            du, au, points,
+            points.Sum(p => p.Buyers), points.Sum(p => p.Sellers), points.Sum(p => p.Drivers));
     }
 
     private void GivenLesDeux(int jours)
@@ -123,8 +125,24 @@ public sealed class AdminAnalyticsHandlerTests
         var jour = envelope.Data.Signups!.First();
         jour.Buyers.Should().Be(5);
         jour.Sellers.Should().Be(1);
+        jour.Drivers.Should().Be(2);
 
         typeof(AdminAnalyticsDto).GetProperties().Select(p => p.Name)
             .Should().NotContain("TotalSignups");
+    }
+
+    /// <summary>
+    /// LES LIVREURS SONT UNE TROISIÈME SÉRIE, PAS UNE PART DES DEUX AUTRES.
+    /// </summary>
+    [Fact]
+    public async Task Les_livreurs_arrivent_dans_leur_propre_serie()
+    {
+        GivenLesDeux(GetAdminAnalyticsHandler.DefaultDays);
+
+        var envelope = await Handler().HandleAsync(null, CancellationToken.None);
+
+        var jour = envelope.Data.Signups!.First();
+        jour.Drivers.Should().Be(2);
+        (jour.Buyers + jour.Sellers).Should().NotBe(jour.Buyers + jour.Sellers + jour.Drivers);
     }
 }

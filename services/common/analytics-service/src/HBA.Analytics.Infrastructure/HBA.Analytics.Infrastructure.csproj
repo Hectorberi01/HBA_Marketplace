@@ -8,7 +8,7 @@
   </ItemGroup>
 
   <!--
-    LES QUATRE CONTRATS QUE CE SERVICE CONSOMME, ET RIEN D'AUTRE.
+    LES CINQ CONTRATS QUE CE SERVICE CONSOMME, ET RIEN D'AUTRE.
 
     Un fait metier, un contrat, un proprietaire : chaque evenement vient du
     service qui le publie. Les redeclarer ici en produirait un second exemplaire
@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\..\..\marketplace\seller-service\src\HBA.Merchants.Contracts\HBA.Merchants.Contracts.csproj" />
     <ProjectReference Include="..\..\..\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\..\payment-service\src\HBA.Financial.Payments.Contracts\HBA.Financial.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\delivery\driver-service\src\HBA.Drivers.Contracts\HBA.Drivers.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

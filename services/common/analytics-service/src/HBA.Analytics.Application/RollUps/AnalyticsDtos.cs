@@ -89,11 +89,12 @@ public sealed record PlatformActivitySeriesDto(
 /// <summary>Un jour d'inscriptions.</summary>
 /// <param name="Day">La journée UTC.</param>
 /// <param name="Buyers">
-/// Comptes créés. INCLUT les futurs vendeurs : un vendeur s'inscrit d'abord comme
-/// utilisateur.
+/// Comptes créés. INCLUT les futurs vendeurs ET les futurs livreurs : les deux
+/// s'inscrivent d'abord comme utilisateur. LES TROIS SÉRIES NE S'ADDITIONNENT PAS.
 /// </param>
 /// <param name="Sellers">Dossiers vendeur ouverts.</param>
-public sealed record SignupPointDto(DateOnly Day, int Buyers, int Sellers);
+/// <param name="Drivers">Comptes livreur ouverts, vérification non comprise.</param>
+public sealed record SignupPointDto(DateOnly Day, int Buyers, int Sellers, int Drivers);
 
 /// <summary>La série d'inscriptions sur une période.</summary>
 /// <param name="From">Première journée rendue, incluse.</param>
@@ -101,9 +102,11 @@ public sealed record SignupPointDto(DateOnly Day, int Buyers, int Sellers);
 /// <param name="Points">Un point par journée de la période, zéros compris.</param>
 /// <param name="TotalBuyers">Somme des comptes créés.</param>
 /// <param name="TotalSellers">Somme des dossiers vendeur ouverts.</param>
+/// <param name="TotalDrivers">Somme des comptes livreur ouverts.</param>
 public sealed record SignupSeriesDto(
     DateOnly From,
     DateOnly To,
     IReadOnlyList<SignupPointDto> Points,
     int TotalBuyers,
-    int TotalSellers);
+    int TotalSellers,
+    int TotalDrivers);

@@ -176,14 +176,15 @@ internal sealed class GetSignupSeriesQueryHandler
         {
             if (!parJour.TryGetValue(jour, out var duJour))
             {
-                points.Add(new SignupPointDto(jour, 0, 0));
+                points.Add(new SignupPointDto(jour, 0, 0, 0));
                 continue;
             }
 
             points.Add(new SignupPointDto(
                 jour,
                 duJour.Where(ligne => ligne.Kind == NatureDInscription.Acheteur).Sum(ligne => ligne.Count),
-                duJour.Where(ligne => ligne.Kind == NatureDInscription.Vendeur).Sum(ligne => ligne.Count)));
+                duJour.Where(ligne => ligne.Kind == NatureDInscription.Vendeur).Sum(ligne => ligne.Count),
+                duJour.Where(ligne => ligne.Kind == NatureDInscription.Livreur).Sum(ligne => ligne.Count)));
         }
 
         return new SignupSeriesDto(
@@ -191,6 +192,7 @@ internal sealed class GetSignupSeriesQueryHandler
             periode.Value.Au,
             points,
             points.Sum(point => point.Buyers),
-            points.Sum(point => point.Sellers));
+            points.Sum(point => point.Sellers),
+            points.Sum(point => point.Drivers));
     }
 }

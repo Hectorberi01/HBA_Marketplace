@@ -1,6 +1,7 @@
 using HBA.Analytics.Infrastructure.Messaging.Kafka.Configuration;
 using HBA.Analytics.Infrastructure.Messaging.Kafka.Consumers;
 using HBA.Analytics.Infrastructure.Messaging.Kafka.Inbox;
+using HBA.Drivers.Contracts.IntegrationEvents;
 using HBA.Financial.Payments.Contracts.IntegrationEvents;
 using HBA.Identity.Contracts.IntegrationEvents;
 using HBA.Merchants.Contracts.IntegrationEvents;
@@ -19,7 +20,7 @@ public static class DependencyInjection
         services.AjouterSujetsAnalytics();
         services.AjouterInboxAnalytics();
 
-        // LES TROIS GESTIONNAIRES, ET LEUR SUJET EN REGARD.
+        // CHAQUE GESTIONNAIRE, ET SON SUJET EN REGARD.
         services.AddScoped<
             IIntegrationEventHandler<OrderConfirmedIntegrationEvent>,
             OrderConfirmedRollUpHandler>();                        // service.order.v1
@@ -31,6 +32,10 @@ public static class DependencyInjection
         services.AddScoped<
             IIntegrationEventHandler<UserRegisteredIntegrationEvent>,
             UserRegisteredRollUpHandler>();                        // service.identity.v1
+
+        services.AddScoped<
+            IIntegrationEventHandler<DriverCreatedIntegrationEvent>,
+            DriverCreatedRollUpHandler>();                         // service.driver.v1
 
         // ── LOT 2 : ce que les champs optionnels ont debloque ────────────────
         services.AddScoped<

@@ -43,6 +43,7 @@ COPY services/marketplace/order-service/src/HBA.Order.Contracts ./services/marke
 COPY services/marketplace/seller-service/src/HBA.Merchants.Contracts ./services/marketplace/seller-service/src/HBA.Merchants.Contracts
 COPY services/common/identity-service/src/HBA.Identity.Contracts ./services/common/identity-service/src/HBA.Identity.Contracts
 COPY services/common/payment-service/src/HBA.Financial.Payments.Contracts ./services/common/payment-service/src/HBA.Financial.Payments.Contracts
+COPY services/delivery/driver-service/src/HBA.Drivers.Contracts ./services/delivery/driver-service/src/HBA.Drivers.Contracts
 
 COPY services/common/analytics-service ./services/common/analytics-service
 
