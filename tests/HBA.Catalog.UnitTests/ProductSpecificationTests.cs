@@ -3,34 +3,10 @@ using HBA.Catalog.Domain.Products;
 
 namespace HBA.Catalog.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA FICHE TECHNIQUE (§12) ET SON EFFET SUR LES RÉVISIONS (§6).
-///
-/// Deux choses se jouent ici, et la seconde est la moins visible.
-///
-/// 1. L'ORDRE. C'est la raison d'être des deux tables plutôt que d'un jsonb : le
-///    vendeur choisit dans quel ordre ses caractéristiques s'affichent. Un test qui
-///    vérifierait seulement la PRÉSENCE des lignes laisserait passer un
-///    réordonnancement silencieux — et personne ne dépose de signalement pour une
-///    fiche technique dans le désordre, on se contente de la trouver mal faite.
-///
-/// 2. L'EMPREINTE. `EstModificationCritique` compare deux représentations
-///    différentes de la même chose : des entités construites d'un côté, une saisie
-///    brute de l'autre. Les deux calculs vivent dans deux méthodes distinctes, et
-///    rien dans le compilateur ne les tient en phase. S'ils divergent, TOUTE
-///    modification passe pour critique : une révision de plus à chaque
-///    enregistrement, la file de validation remplie de fiches identiques, et des
-///    vendeurs qui attendent un administrateur pour avoir corrigé un mot-clé.
-///    C'est le genre de panne qui se voit en production et jamais en test — sauf
-///    ici.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA FICHE TECHNIQUE (§12) ET SON EFFET SUR LES RÉVISIONS (§6).</summary>
 public sealed class ProductSpecificationTests
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // Enregistrement et ordre
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Les_groupes_et_leurs_lignes_sont_enregistres_dans_lordre_de_saisie()
@@ -48,14 +24,7 @@ public sealed class ProductSpecificationTests
         ecran.Select(i => i.Value).Should().Equal("Super Retina XDR OLED", "6,3 pouces");
     }
 
-    /// <summary>
-    /// SANS RANG EXPLICITE, C'EST LA POSITION DE SAISIE QUI FAIT FOI.
-    ///
-    /// Le formulaire du §12 n'envoie pas toujours de `displayOrder` — le vendeur
-    /// glisse-dépose ses groupes et le client s'en remet à l'ordre du tableau. Un
-    /// défaut à zéro pour tous rendrait l'affichage dépendant de l'ordre de lecture
-    /// de PostgreSQL, c'est-à-dire arbitraire et changeant.
-    /// </summary>
+    /// <summary>SANS RANG EXPLICITE, C'EST LA POSITION DE SAISIE QUI FAIT FOI.</summary>
     [Fact]
     public void Un_groupe_sans_rang_explicite_prend_sa_position_de_saisie()
     {
@@ -84,11 +53,7 @@ public sealed class ProductSpecificationTests
             .Should().Equal("Écran", "Connectivité");
     }
 
-    /// <summary>
-    /// Les rattachements que `AttacherA` pose. Ils ne se voient qu'à l'insertion en
-    /// base — et là, le message parle d'une violation de clé étrangère sans nommer
-    /// le champ vide. Autant les vérifier ici, où l'échec dit ce qui manque.
-    /// </summary>
+    /// <summary>Les rattachements que `AttacherA` pose.</summary>
     [Fact]
     public void Chaque_groupe_est_rattache_a_sa_revision_et_chaque_ligne_a_son_groupe()
     {
@@ -110,9 +75,7 @@ public sealed class ProductSpecificationTests
         produit.CurrentRevision.Specifications.Should().BeEmpty();
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Refus de saisie
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Un_groupe_sans_nom_est_refuse()
@@ -160,14 +123,7 @@ public sealed class ProductSpecificationTests
         creation.Error.Code.Should().Be("catalog.specification.item_incomplete");
     }
 
-    /// <summary>
-    /// UN REFUS DOIT LAISSER LA RÉVISION INTACTE, PAS À MOITIÉ RÉÉCRITE.
-    ///
-    /// `Remplacer` construit les groupes AVANT d'appliquer le reste, exactement pour
-    /// cela. Inverser les deux lignes laisserait une fiche avec le nouveau nom, le
-    /// nouveau prix et l'ancienne fiche technique — et un `Result` en échec qui
-    /// ferait croire que rien n'a bougé.
-    /// </summary>
+    /// <summary>UN REFUS DOIT LAISSER LA RÉVISION INTACTE, PAS À MOITIÉ RÉÉCRITE.</summary>
     [Fact]
     public void Une_specification_invalide_nabime_pas_la_revision_existante()
     {
@@ -185,9 +141,7 @@ public sealed class ProductSpecificationTests
         produit.CurrentRevision.Specifications.Should().HaveCount(2);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Remplacement en bloc
-    // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Le formulaire envoie la fiche technique ENTIÈRE. Fusionner ligne à ligne
@@ -219,17 +173,9 @@ public sealed class ProductSpecificationTests
         produit.CurrentRevision.Specifications.Should().BeEmpty();
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Empreinte : ce qui ouvre une révision et ce qui n'en ouvre pas (§6)
-    // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// LE TEST QUI TIENT LES DEUX CALCULS D'EMPREINTE EN PHASE.
-    ///
-    /// Réenregistrer une fiche publiée à l'identique ne doit RIEN ouvrir. Si les
-    /// deux méthodes d'empreinte divergent d'un espace ou d'un séparateur, ce test
-    /// tombe — et c'est le seul endroit où la divergence se voit.
-    /// </summary>
+    /// <summary>LE TEST QUI TIENT LES DEUX CALCULS D'EMPREINTE EN PHASE.</summary>
     [Fact]
     public void Reenregistrer_la_meme_fiche_technique_nouvre_pas_de_revision()
     {
@@ -242,11 +188,7 @@ public sealed class ProductSpecificationTests
         produit.CurrentRevision.Status.Should().Be(RevisionStatus.Published);
     }
 
-    /// <summary>
-    /// « Caractéristiques essentielles » est dans la liste limitative du §6. Passer
-    /// « 4400 mAh » à « 5000 mAh » sur une fiche EN VENTE change ce que l'acheteur
-    /// croit acheter — et doit repasser devant un administrateur.
-    /// </summary>
+    /// <summary>« Caractéristiques essentielles » est dans la liste limitative du §6.</summary>
     [Fact]
     public void Changer_une_valeur_de_la_fiche_technique_ouvre_une_nouvelle_revision()
     {
@@ -285,13 +227,7 @@ public sealed class ProductSpecificationTests
         produit.Revisions.Should().HaveCount(2);
     }
 
-    /// <summary>
-    /// RÉORDONNER EST UNE MODIFICATION, MÊME SI AUCUNE VALEUR NE CHANGE.
-    ///
-    /// L'ordre est ce que l'acheteur lit en premier. Placer « Batterie » avant
-    /// « Écran » sur une fiche relue change la fiche telle qu'elle a été approuvée ;
-    /// l'empreinte porte donc le rang, et ce test le fixe.
-    /// </summary>
+    /// <summary>RÉORDONNER EST UNE MODIFICATION, MÊME SI AUCUNE VALEUR NE CHANGE.</summary>
     [Fact]
     public void Reordonner_les_groupes_ouvre_une_nouvelle_revision()
     {
@@ -306,9 +242,7 @@ public sealed class ProductSpecificationTests
 
     /// <summary>
     /// Les espaces autour d'une valeur ne sont pas une modification : la saisie est
-    /// nettoyée à la construction, l'empreinte doit l'être aussi. Sans le `Trim`
-    /// dans `EmpreinteDe`, un copier-coller depuis un tableur — qui traîne toujours
-    /// une espace — ouvrirait une révision à chaque enregistrement.
+    /// nettoyée à la construction, l'empreinte doit l'être aussi.
     /// </summary>
     [Fact]
     public void Des_espaces_superflus_ne_sont_pas_une_modification_critique()
@@ -328,15 +262,11 @@ public sealed class ProductSpecificationTests
         produit.Revisions.Should().HaveCount(1);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // La traduction depuis le transport (§12, §14)
-    // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// `GroupeSpecSaisi` est un miroir de `GroupeDeSpecifications` : deux types de
-    /// même forme, recopiés à la main. C'est exactement le genre de frontière où un
-    /// champ se perd sans que rien ne le signale — la fiche technique arriverait
-    /// vide, et le vendeur croirait à un problème de son côté.
+    /// même forme, recopiés à la main.
     /// </summary>
     [Fact]
     public void La_fabrique_traduit_les_specifications_du_transport_vers_le_domaine()

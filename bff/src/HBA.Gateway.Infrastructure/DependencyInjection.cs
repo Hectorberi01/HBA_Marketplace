@@ -25,9 +25,7 @@ public static class DependencyInjection
         // module, son point d'entree d'infrastructure est donc ici.
         services.AjouterCacheGateway(configuration);
 
-        // LES SONDES DE CE SERVICE (Observability/). Jusqu'ici seule la base
-        // etait verifiee : un service dont le consommateur Kafka etait mort
-        // repondait « ready », et le deploiement individuel le croyait sain.
+        // LES SONDES DE CE SERVICE (Observability/).
         services.AjouterObservabiliteGateway(configuration);
 
         services
@@ -35,12 +33,6 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(ServicesOptions.SectionName))
             .ValidateDataAnnotations()
             // `ValidateOnStart` FAIT ÉCHOUER LE DÉMARRAGE, ET C'EST VOULU.
-            //
-            // Sans lui, la validation ne s'exécute qu'au PREMIER accès aux
-            // options — c'est-à-dire à la première requête client. Le conteneur
-            // serait passé « healthy », aurait été mis en rotation, et n'aurait
-            // révélé l'adresse manquante qu'en rendant des 500 à de vrais
-            // utilisateurs. Un déploiement doit échouer avant de prendre du trafic.
             .ValidateOnStart();
 
         services
@@ -49,8 +41,8 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        // Nécessaire à la propagation : la seule dépendance de cette couche à
-        // la requête en cours, et elle est explicite.
+        // Nécessaire à la propagation : la seule dépendance de cette couche à la
+        // requête en cours, et elle est explicite.
         services.AddHttpContextAccessor();
         services.AddTransient<OutboundHeaderPropagationHandler>();
 
@@ -73,29 +65,12 @@ public static class DependencyInjection
         AddServiceClient<IMediaClient, HttpClients.Media.MediaClient>(services, ServiceKeys.Media, outbound);
 
         // QUATORZIÈME — VOIR L'ENCADRÉ D'`IDriversClient`.
-        //
-        // Son adresse et sa clé existaient déjà ; seul le client manquait, donc
-        // driver-service était relayable et NON interrogeable. Le compteur de
-        // livreurs à vérifier de l'écran d'accueil admin est le premier à en
-        // avoir besoin.
         AddServiceClient<IDriversClient, HttpClients.Drivers.DriversClient>(services, ServiceKeys.Drivers, outbound);
 
         // QUINZIÈME — LE PREMIER LECTEUR D'analytics-service.
-        //
-        // Le service est déployé, relayé par `ReverseProxy`, et jusqu'ici
-        // INTERROGEABLE PAR PERSONNE depuis la passerelle : les applications
-        // pouvaient l'appeler directement, aucun écran agrégé ne le pouvait.
-        // C'est exactement l'état que `IDriversClient` décrit au-dessus — adresse
-        // et clé présentes, client absent.
         AddServiceClient<IAnalyticsClient, HttpClients.Analytics.AnalyticsClient>(services, ServiceKeys.Analytics, outbound);
 
         // PORTÉE REQUÊTE, PAS SINGLETON.
-        //
-        // Le registre reçoit les quinze clients typés. En singleton, il les
-        // capturerait DÉFINITIVEMENT : les instances d'`HttpClient` ne seraient
-        // jamais renouvelées, et le pool de connexions cesserait de suivre les
-        // changements DNS. Dans Docker, un conteneur redéployé change d'adresse —
-        // la passerelle continuerait d'appeler l'ancienne, indéfiniment, en 502.
         services.AddScoped<IServiceClientRegistry, ServiceClientRegistry>();
 
         return services;
@@ -120,21 +95,12 @@ public static class DependencyInjection
                 client.BaseAddress = new Uri(addresses.Resolve(serviceKey)!, UriKind.Absolute);
 
                 // Le délai est géré par la pile de résilience, PAS ici.
-                //
-                // `HttpClient.Timeout` lève un `TaskCanceledException` que Polly
-                // ne distingue pas d'une annulation par le client : le disjoncteur
-                // ne compterait pas ces échecs et ne s'ouvrirait jamais.
                 client.Timeout = Timeout.InfiniteTimeSpan;
             })
             .AddHttpMessageHandler<OutboundHeaderPropagationHandler>()
             .AddHbaResilience(outbound);
 
         // `GetRequiredService`, PAS une seconde instanciation.
-        //
-        // Réenregistrer l'implémentation en `AddSingleton<IServiceClient, X>()`
-        // créerait un DEUXIÈME objet, sans HttpClient configuré ni résilience :
-        // le registre BFF aurait alors un client sans adresse de base, et chaque
-        // section serait indisponible sans que rien n'explique pourquoi.
         services.AddTransient<IServiceClient>(provider => provider.GetRequiredService<TInterface>());
     }
 }

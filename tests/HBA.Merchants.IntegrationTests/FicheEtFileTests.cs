@@ -5,34 +5,10 @@ using Xunit;
 
 namespace HBA.Merchants.IntegrationTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUE CHAQUE SURFACE DOIT PORTER — ET CE QU'ELLE NE DOIT PAS.
-///
-/// Deux changements se gardent ici, et ils tirent en sens inverse.
-///
-/// LA SÉPARATION DES CONTRATS (D24) A RETIRÉ SIX CHAMPS DE `SellerSummary`.
-///
-/// Ils ne traversaient pas le proto ; le mappeur gRPC leur donnait une valeur
-/// neutre indiscernable d'une vraie, et `Payout: null` avait ainsi bloqué tous les
-/// retraits de la plateforme. Ils vivent désormais sur `SellerDetail`.
-///
-/// Le piège : `GET /merchants/me` rendait le contrat inter-services. S'il l'avait
-/// suivi dans son allègement, l'écran d'accueil de l'application vendeur aurait
-/// perdu ses six champs SANS UNE ERREUR — `SellerAccount`, côté passerelle, est un
-/// record positionnel sans `[JsonPropertyName]` : les champs manquants seraient
-/// devenus `0` et `null` à la désérialisation. Rien n'aurait échoué.
-///
-/// LA FILE D'ADMINISTRATION (§6), ELLE, A DÛ EN PERDRE.
-///
-/// Elle rendait le résumé COMPLET de chaque vendeur — numéro Mobile Money, RCCM,
-/// IFU, téléphone du gérant, références des pièces d'identité — sans pagination ni
-/// filtre. Ce test-ci vérifie qu'elle ne les porte plus.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>CE QUE CHAQUE SURFACE DOIT PORTER — ET CE QU'ELLE NE DOIT PAS.</summary>
 [Collection(MerchantsIntegrationCollection.Nom)]
-// SANS CE TRAIT, LA CLASSE TOURNE DANS `make test` ET ÉCHOUE SUR UN POSTE
-// SANS DOCKER. C'est le filtre de la cible `test` — voir le Makefile.
+// SANS CE TRAIT, LA CLASSE TOURNE DANS `make test` ET ÉCHOUE SUR UN POSTE SANS
+// DOCKER. C'est le filtre de la cible `test` — voir le Makefile.
 [Trait("Docker", "true")]
 public sealed class FicheEtFileTests
 {
@@ -40,13 +16,7 @@ public sealed class FicheEtFileTests
 
     public FicheEtFileTests(MerchantsIntegrationFixture fixture) => _fixture = fixture;
 
-    /// <summary>
-    /// LE TEST QUI EMPÊCHE `/me` DE MAIGRIR EN SILENCE.
-    ///
-    /// Il énumère les six champs un par un plutôt que d'en vérifier un seul :
-    /// c'est une liste de compatibilité, et elle doit échouer sur celui qui
-    /// disparaîtrait, pas sur un représentant.
-    /// </summary>
+    /// <summary>LE TEST QUI EMPÊCHE `/me` DE MAIGRIR EN SILENCE.</summary>
     [Fact]
     public async Task La_fiche_me_porte_tout_ce_que_l_application_vendeur_lit()
     {
@@ -82,14 +52,7 @@ public sealed class FicheEtFileTests
         data.GetProperty("stores").GetArrayLength().Should().Be(1);
     }
 
-    /// <summary>
-    /// LA FILE NE DOIT PLUS PORTER LE FICHIER FOURNISSEURS.
-    ///
-    /// Le rôle administrateur reste nécessaire ; il n'est plus l'excuse de la
-    /// charge utile. Ces trois champs sont ceux dont la divulgation coûtait le plus
-    /// cher : la destination des virements, les papiers d'identité, les
-    /// informations légales.
-    /// </summary>
+    /// <summary>LA FILE NE DOIT PLUS PORTER LE FICHIER FOURNISSEURS.</summary>
     [Fact]
     public async Task La_file_d_administration_ne_porte_ni_compte_de_retrait_ni_pieces()
     {
@@ -115,18 +78,11 @@ public sealed class FicheEtFileTests
         ligne.GetProperty("kybDocumentCount").GetInt32().Should().Be(1);
     }
 
-    /// <summary>
-    /// La pagination du §25 : les compteurs vivent dans `meta`, pas dans `data`.
-    /// </summary>
+    /// <summary>La pagination du §25 : les compteurs vivent dans `meta`, pas dans `data`.</summary>
     [Fact]
     public async Task La_file_est_paginee_et_ses_compteurs_vivent_dans_meta()
     {
         // DEUX, ET NON « CEUX QUE LES AUTRES TESTS ONT LAISSÉS ».
-        //
-        // Les tests d'une collection partagent la base mais pas leur ordre :
-        // s'appuyer sur les vendeurs d'un voisin rendrait celui-ci vert ou rouge
-        // selon la place que xUnit lui donne. Il crée donc lui-même de quoi
-        // dépasser une page.
         await Parcours.InscrireAsync(_fixture, $"Page A {Guid.NewGuid():N}");
         await Parcours.InscrireAsync(_fixture, $"Page B {Guid.NewGuid():N}");
 
@@ -144,13 +100,7 @@ public sealed class FicheEtFileTests
         meta.GetProperty("hasNext").GetBoolean().Should().BeTrue();
     }
 
-    /// <summary>
-    /// LES FACETTES SE COMPTENT SUR LA RECHERCHE, PAS SUR LA PAGE.
-    ///
-    /// Compter la page rendrait « 1 en revue » sur une file qui en contient
-    /// quarante, et la console afficherait à son modérateur un travail dix fois
-    /// plus petit que le vrai.
-    /// </summary>
+    /// <summary>LES FACETTES SE COMPTENT SUR LA RECHERCHE, PAS SUR LA PAGE.</summary>
     [Fact]
     public async Task Les_facettes_comptent_la_file_entiere_et_non_la_page()
     {
@@ -173,9 +123,7 @@ public sealed class FicheEtFileTests
             "les deux dossiers de la recherche sont en revue, même si la page n'en montre qu'un");
     }
 
-    /// <summary>
-    /// Le filtre du modérateur — le seul qui manquait vraiment.
-    /// </summary>
+    /// <summary>Le filtre du modérateur — le seul qui manquait vraiment.</summary>
     [Fact]
     public async Task Le_filtre_sur_le_statut_kyb_ecarte_les_dossiers_non_commences()
     {
@@ -197,13 +145,7 @@ public sealed class FicheEtFileTests
         ids.Should().NotContain(sansDossier.SellerId);
     }
 
-    /// <summary>
-    /// UN FILTRE ILLISIBLE EST IGNORÉ, PAS REFUSÉ.
-    ///
-    /// La console construit ces valeurs depuis ses propres listes déroulantes : un
-    /// 400 sur une faute de frappe transformerait une colonne mal nommée en écran
-    /// blanc, et le modérateur croirait la file en panne.
-    /// </summary>
+    /// <summary>UN FILTRE ILLISIBLE EST IGNORÉ, PAS REFUSÉ.</summary>
     [Fact]
     public async Task Un_statut_kyb_inconnu_ne_filtre_rien_et_ne_casse_pas_l_ecran()
     {

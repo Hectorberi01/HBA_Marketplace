@@ -4,7 +4,6 @@ namespace HBA.Controls.Controles;
 /// Un seul nom de chaîne de connexion : « Default ».
 /// </summary>
 /// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
 /// CE QUI ÉTAIT CASSÉ.
 ///
 /// Le compose ne renseigne que `CONNECTIONSTRINGS__DEFAULT`. Un module hérité du
@@ -25,7 +24,6 @@ namespace HBA.Controls.Controles;
 ///   • `shared/` et `apps/` : le contrôle d'origine ne regardait que
 ///     `services/`, et ce port garde ce périmètre plutôt que de l'élargir en
 ///     silence — un élargissement change ce que « 0 faute » veut dire.
-/// ═══════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class ChainesConnexionControle : IControle
 {

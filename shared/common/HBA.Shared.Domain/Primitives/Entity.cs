@@ -1,8 +1,6 @@
 namespace HBA.Shared.Domain.Primitives;
 
-/// <summary>
-/// Entité : objet avec identité, comparé par son Id (pas par ses valeurs).
-/// </summary>
+/// <summary>Entité : objet avec identité, comparé par son Id (pas par ses valeurs).</summary>
 public abstract class Entity<TId> : IEquatable<Entity<TId>>
     where TId : notnull
 {

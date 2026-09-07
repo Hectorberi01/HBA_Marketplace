@@ -2,21 +2,7 @@ using HBA.Deliveries.Domain.Deliveries;
 
 namespace HBA.Delivery.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ISSUE-057 — « `RequiredProof` n'est renseigné par aucun producteur ».
-///
-/// Le champ existait, était persisté, était projeté vers l'application livreur —
-/// et valait `None` sur TOUTE course de la plateforme, parce que c'était la
-/// valeur par défaut du contrat et qu'aucun des deux producteurs ne la
-/// remplaçait. `MarkDelivered` ne demande rien quand `RequiredProof` vaut
-/// `None` : n'importe quelle course se clôturait d'un geste.
-///
-/// La politique est désormais appliquée par `Delivery.Create` — voir
-/// `ProofPolicy`. Ces tests éprouvent qu'aucun chemin de création ne peut plus
-/// produire une course sans exigence.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ISSUE-057 — « `RequiredProof` n'est renseigné par aucun producteur ».</summary>
 public sealed class PolitiqueDePreuveTests
 {
     /// <summary>
@@ -36,8 +22,8 @@ public sealed class PolitiqueDePreuveTests
 
         course.RequiredProof.Should().Be(ProofOfDeliveryKind.Photo);
 
-        // Pas de code émis pour une preuve par photo : `IssuedPin` ne vaut que
-        // pour `Pin`, et un code posé là serait un secret que personne n'utilise.
+        // Pas de code émis pour une preuve par photo : `IssuedPin` ne vaut que pour
+        // `Pin`, et un code posé là serait un secret que personne n'utilise.
         course.IssuedPin.Should().BeNull();
     }
 
@@ -51,9 +37,9 @@ public sealed class PolitiqueDePreuveTests
     }
 
     /// <summary>
-    /// Le seuil est INCLUSIF, et le test le dit explicitement : « au-dessus de
-    /// 50 000 » et « à partir de 50 000 » sont deux règles différentes, et celle
-    /// qu'on a choisie doit être lisible ailleurs que dans un `&gt;=`.
+    /// Le seuil est INCLUSIF, et le test le dit explicitement : « au-dessus de 50
+    /// 000 » et « à partir de 50 000 » sont deux règles différentes, et celle qu'on
+    /// a choisie doit être lisible ailleurs que dans un `&gt;=`.
     /// </summary>
     [Fact]
     public void Le_seuil_de_valeur_est_inclusif()
@@ -81,9 +67,7 @@ public sealed class PolitiqueDePreuveTests
 
     /// <summary>
     /// Une valeur inconnue ne fait pas retomber la course en `None` : c'est
-    /// exactement le trou d'ISSUE-057. Elle est traitée comme faible — donc
-    /// photo — et l'encadré de `ProofPolicy` dit que c'est le choix risqué côté
-    /// litige.
+    /// exactement le trou d'ISSUE-057.
     /// </summary>
     [Fact]
     public void Une_valeur_inconnue_ne_supprime_pas_l_exigence()
@@ -95,9 +79,7 @@ public sealed class PolitiqueDePreuveTests
     }
 
     /// <summary>
-    /// Une valeur négative est une erreur d'intégration, pas une déclaration
-    /// basse. L'accepter ferait choisir « Photo » sur une donnée dont on sait
-    /// déjà qu'elle est fausse.
+    /// Une valeur négative est une erreur d'intégration, pas une déclaration basse.
     /// </summary>
     [Fact]
     public void Une_valeur_negative_est_refusee()
@@ -119,15 +101,7 @@ public sealed class PolitiqueDePreuveTests
         creation.Error.Code.Should().Be("delivery.declared_value_negative");
     }
 
-    /// <summary>
-    /// CE QUE LA POLITIQUE NE PRODUIT JAMAIS, ÉCRIT NOIR SUR BLANC.
-    ///
-    /// `Signature` existe dans l'énumération et l'agrégat sait la vérifier ;
-    /// aucune règle ne la choisit, parce que l'application livreur ne sait pas
-    /// encore capturer une signature. Ce test échouera le jour où quelqu'un
-    /// ajoutera la règle — et c'est le but : il faudra alors vérifier que
-    /// l'écran existe.
-    /// </summary>
+    /// <summary>CE QUE LA POLITIQUE NE PRODUIT JAMAIS, ÉCRIT NOIR SUR BLANC.</summary>
     [Fact]
     public void La_politique_ne_produit_jamais_de_signature_aujourd_hui()
     {

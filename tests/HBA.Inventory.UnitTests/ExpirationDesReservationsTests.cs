@@ -3,20 +3,7 @@ using HBA.Inventory.Domain.Stock.Events;
 
 namespace HBA.Inventory.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ISSUE-031 — « les réservations expirées ne sont jamais libérées » (CRITICAL).
-///
-/// `ExpiresAtUtc` était écrite à chaque réservation et relue par PERSONNE : aucun
-/// `BackgroundService` n'existait dans inventory. Toute réservation non confirmée
-/// immobilisait son stock définitivement, et le stock vendable s'érodait à chaque
-/// panier abandonné — silencieusement, cumulativement.
-///
-/// Ces tests portent sur la règle d'agrégat (`ExpireReservations`), que le
-/// balayeur ne fait qu'appeler en boucle. Le CÂBLAGE du balayeur lui-même n'est
-/// pas couvert ici : voir l'encadré du `.csproj`.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ISSUE-031 — « les réservations expirées ne sont jamais libérées » (CRITICAL).</summary>
 public sealed class ExpirationDesReservationsTests
 {
     [Fact]
@@ -43,8 +30,7 @@ public sealed class ExpirationDesReservationsTests
 
     /// <summary>
     /// LE TEST QUI PROTÈGE LA VENTE. Une réservation confirmée a TOUJOURS une
-    /// échéance dépassée — la vente date d'il y a des semaines. La reprendre
-    /// rendrait à la vente un stock déjà retiré d'`OnHand` et déjà facturé.
+    /// échéance dépassée — la vente date d'il y a des semaines.
     /// </summary>
     [Fact]
     public void Une_reservation_confirmee_expiree_n_est_jamais_touchee()
@@ -82,9 +68,9 @@ public sealed class ExpirationDesReservationsTests
     }
 
     /// <summary>
-    /// Le balayage est rejoué à chaque tour du travailleur : un second passage
-    /// doit être un no-op complet, sinon le journal annoncerait indéfiniment un
-    /// volume libéré qui n'existe plus.
+    /// Le balayage est rejoué à chaque tour du travailleur : un second passage doit
+    /// être un no-op complet, sinon le journal annoncerait indéfiniment un volume
+    /// libéré qui n'existe plus.
     /// </summary>
     [Fact]
     public void Un_second_balayage_ne_libere_rien_de_plus()
@@ -106,8 +92,7 @@ public sealed class ExpirationDesReservationsTests
 
     /// <summary>
     /// Un seul balayage traite toutes les réservations dépassées de l'article, et
-    /// laisse les autres en place. Le volume rendu est la somme des seules
-    /// expirées.
+    /// laisse les autres en place.
     /// </summary>
     [Fact]
     public void Le_balayage_additionne_le_volume_de_toutes_les_reservations_depassees()
@@ -128,8 +113,7 @@ public sealed class ExpirationDesReservationsTests
     /// <summary>
     /// SANS CET ÉVÉNEMENT, ISSUE-031 SERAIT CORRIGÉE EN BASE ET INVISIBLE POUR
     /// L'ACHETEUR. L'article était passé « en rupture » (`StockDepleted`), donc
-    /// l'offre a été retirée de la vente. Rendre le stock sans le dire laisserait
-    /// l'offre éteinte pour toujours.
+    /// l'offre a été retirée de la vente.
     /// </summary>
     [Fact]
     public void Un_article_epuise_puis_balaye_annonce_son_reapprovisionnement()

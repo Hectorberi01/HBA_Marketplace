@@ -5,10 +5,10 @@ using System.Linq;
 namespace HBA.Shared.Application.Pagination;
 
 /// <summary>
-/// Page de résultats d'une requête de liste, accompagnée du <b>total non paginé</b>
+/// Page de résultats d'une requête de liste, accompagnée du total non paginé
 /// (indispensable au front pour afficher « page 2 / 7 ») et, optionnellement, de
-/// <b>facettes</b> — la répartition par statut calculée sur l'ensemble filtré, pas
-/// sur la seule page, pour que les graphes restent justes.
+/// facettes — la répartition par statut calculée sur l'ensemble filtré, pas sur la
+/// seule page, pour que les graphes restent justes.
 /// </summary>
 public sealed record PagedResult<T>(
     IReadOnlyList<T> Items,

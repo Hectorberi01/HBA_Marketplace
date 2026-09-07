@@ -6,48 +6,19 @@ namespace HBA.Merchants.IntegrationTests;
 /// <summary>Une enveloppe lue sur le courtier, réduite à ce que les tests observent.</summary>
 internal sealed record Enveloppe(string EventType, string AggregateId, JsonElement Data);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LIRE LE COURTIER COMME UN TIERS LE LIRAIT.
-///
-/// POURQUOI ON N'INTERROGE PAS LA TABLE `outbox_messages`.
-///
-/// Vérifier qu'une ligne d'outbox existe prouve seulement que le gestionnaire de
-/// domaine a tourné. Or c'est PRÉCISÉMENT ce que les tests unitaires savent déjà
-/// faire, et ce n'est pas là que le lien se rompt : entre la ligne écrite et le
-/// message reçu il y a une sérialisation, un nom de sujet dérivé de
-/// `SERVICE_NAME`, un processeur d'arrière-plan et un producteur — quatre endroits
-/// où l'on peut échouer sans qu'une ligne d'outbox manque.
-///
-/// Pire, la table est un observable INSTABLE : le processeur marque puis nettoie
-/// ses lignes traitées, donc l'assertion dépendrait du moment où on regarde. Le
-/// courtier, lui, conserve.
-///
-/// CHAQUE LECTURE PART DU DÉBUT, AVEC UN GROUPE NEUF.
-///
-/// Réutiliser un groupe ferait dépendre chaque appel des offsets committés par le
-/// précédent : deux tests lisant le même sujet se voleraient leurs messages, et
-/// l'échec dépendrait de l'ordre d'exécution. Un groupe jetable par lecture rend
-/// les tests indépendants — au prix de relire tout le sujet, ce qui, sur quelques
-/// dizaines de messages, ne se mesure pas.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LIRE LE COURTIER COMME UN TIERS LE LIRAIT.</summary>
 internal static class BusDeTest
 {
-    /// <summary>Sujet de publication de seller-service : `SERVICE_NAME` vaut `merchant-service`.</summary>
+    /// <summary>
+    /// Sujet de publication de seller-service : `SERVICE_NAME` vaut
+    /// `merchant-service`.
+    /// </summary>
     public const string SujetMerchant = "service.merchant.v1";
 
     /// <summary>Sujet d'identity, sur lequel les tests injectent l'anonymisation.</summary>
     public const string SujetIdentity = "service.identity.v1";
 
-    /// <summary>
-    /// LA PREMIÈRE ATTENTE EST LONGUE, LES SUIVANTES COURTES.
-    ///
-    /// Le premier `Consume` d'un groupe neuf couvre la découverte du coordinateur
-    /// et le rééquilibrage initial — plusieurs secondes sur une machine chargée.
-    /// Les suivants ne font que lire. Une seule valeur pour les deux serait soit
-    /// instable, soit inutilement lente sur chaque message.
-    /// </summary>
+    /// <summary>LA PREMIÈRE ATTENTE EST LONGUE, LES SUIVANTES COURTES.</summary>
     private static readonly TimeSpan PremiereAttente = TimeSpan.FromSeconds(20);
 
     private static readonly TimeSpan AttenteSuivante = TimeSpan.FromSeconds(2);
@@ -65,8 +36,7 @@ internal static class BusDeTest
             AutoOffsetReset = AutoOffsetReset.Earliest,
 
             // Sans quoi la souscription à un sujet encore inexistant lève au lieu
-            // de rendre simplement zéro message. Au premier test, le service n'a
-            // peut-être encore rien publié.
+            // de rendre simplement zéro message.
             AllowAutoCreateTopics = true
         };
 
@@ -105,20 +75,7 @@ internal static class BusDeTest
         return enveloppes;
     }
 
-    /// <summary>
-    /// Attend que <paramref name="attendu"/> messages satisfassent le filtre.
-    /// </summary>
-    /// <remarks>
-    /// UNE ATTENTE ACTIVE, PAS UN `Task.Delay` FIXE.
-    ///
-    /// Le processeur d'outbox scrute toutes les CINQ secondes, et le rééquilibrage
-    /// initial du courtier s'y ajoute. Un délai fixe assez court rend le test
-    /// instable ; assez long, il ralentit toute la suite. On sonde, et l'on
-    /// s'arrête dès que c'est bon.
-    ///
-    /// Un test instable est pire qu'un test absent : on finit par le désactiver, et
-    /// par désactiver ses voisins avec lui.
-    /// </remarks>
+    /// <summary>Attend que <paramref name="attendu"/> messages satisfassent le filtre.</summary>
     public static async Task<IReadOnlyList<Enveloppe>> AttendreAsync(
         string bootstrapServers,
         string sujet,
@@ -145,18 +102,9 @@ internal static class BusDeTest
     }
 
     /// <summary>
-    /// Publie un message dans l'enveloppe que `KafkaIntegrationEventConsumer` attend.
+    /// Publie un message dans l'enveloppe que `KafkaIntegrationEventConsumer`
+    /// attend.
     /// </summary>
-    /// <remarks>
-    /// `Id` DOIT ÊTRE DANS `data`, PAS SEULEMENT DANS `eventId`.
-    ///
-    /// C'est `IntegrationEvent.Id` — donc une propriété de la CHARGE UTILE — que le
-    /// gestionnaire passe à l'inbox. Le `eventId` de l'enveloppe ne le renseigne
-    /// pas : sans `id` dans `data`, chaque rejeu recevrait un identifiant neuf à la
-    /// désérialisation et l'inbox ne reconnaîtrait jamais rien. Le test
-    /// d'idempotence passerait alors pour la pire des raisons — il n'éprouverait
-    /// plus la garde, seulement la capacité du courtier à livrer deux fois.
-    /// </remarks>
     public static async Task PublierAsync(
         string bootstrapServers,
         string sujet,

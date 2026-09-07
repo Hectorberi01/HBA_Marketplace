@@ -13,14 +13,7 @@ using Xunit;
 
 namespace HBA.Financial.AuthorizationTests;
 
-/// <summary>
-/// financial-service : le service de l'ARGENT ne demandait qu'un compte.
-/// </summary>
-/// <remarks>
-/// Avec le jeton d'un acheteur créé en trente secondes, on remboursait un
-/// paiement encaissé, on se posait à 0 % de commission, on approuvait un retrait
-/// et on lançait un lot de règlement. Ces tests tiennent la frontière.
-/// </remarks>
+/// <summary>financial-service : le service de l'ARGENT ne demandait qu'un compte.</summary>
 public sealed class FinancialAuthorizationTests : IClassFixture<FinancialFactory>
 {
     private readonly FinancialFactory _factory;
@@ -28,8 +21,8 @@ public sealed class FinancialAuthorizationTests : IClassFixture<FinancialFactory
     public FinancialAuthorizationTests(FinancialFactory factory) => _factory = factory;
 
     /// <summary>
-    /// Chaque ligne correspond à un geste qui déplace de l'argent ou fixe ce que
-    /// la plateforme prélève. Aucun ne doit être atteignable sans rôle.
+    /// Chaque ligne correspond à un geste qui déplace de l'argent ou fixe ce que la
+    /// plateforme prélève.
     /// </summary>
     [Theory]
     [InlineData("POST", "/api/financial/payments/{id}/refund")]
@@ -108,18 +101,7 @@ public sealed class FinancialAuthorizationTests : IClassFixture<FinancialFactory
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// LE TEST DE LA RÉGRESSION QU'ON VIENT DE RÉPARER.
-    ///
-    /// Ces deux routes avaient été rangées sous `MapAdminGroup` faute de savoir
-    /// convertir `userId` en `driverId` : l'écran « Gains » du BFF livreur
-    /// répondait 403 à TOUS les livreurs. Un 403 ici signifie que la régression
-    /// est revenue.
-    ///
-    /// L'assertion ne peut pas être « 200 » : la requête franchit l'autorisation,
-    /// atteint le handler, cherche sa base et échoue. C'est ce franchissement qui
-    /// est éprouvé — voir AuthorizationTestFactory.
-    /// </summary>
+    /// <summary>LE TEST DE LA RÉGRESSION QU'ON VIENT DE RÉPARER.</summary>
     [Theory]
     [InlineData("/api/financial/wallets/drivers/{id}")]
     [InlineData("/api/financial/wallets/drivers/{id}/transactions?take=10")]
@@ -135,38 +117,7 @@ public sealed class FinancialAuthorizationTests : IClassFixture<FinancialFactory
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
     }
 
-    /// <summary>
-    /// LE WEBHOOK PSP DOIT RESTER ANONYME — SA SERRURE EST LA SIGNATURE.
-    ///
-    /// Cette route a vécu dans un groupe authentifié : tout webhook de Stripe,
-    /// FedaPay, MTN ou Moov repartait en 401, aucun encaissement ne remontait, et
-    /// les commandes payées restaient « en attente de paiement ».
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// ICI, DEUX 401 DIFFÉRENTS SE RESSEMBLENT — ET LE PREMIER JET DE CE TEST
-    ///    LES A CONFONDUS.
-    ///
-    /// Il affirmait « pas de 401 », et il échouait. La route était pourtant bien
-    /// anonyme : le 401 venait du HANDLER, pas du pipeline.
-    /// `ProcessGatewayWebhookCommandHandler` rend
-    /// `Error.Unauthorized("payments.webhook_invalid_signature")` quand la
-    /// signature ne se vérifie pas — et cette requête poste `{}` sans en-tête de
-    /// signature. C'est la serrure qui fonctionne, pas une porte fermée par
-    /// erreur.
-    ///
-    /// Le discriminant est structurel, pas textuel : le pipeline
-    /// d'authentification répond à un refus par un DÉFI, donc par un en-tête
-    /// `WWW-Authenticate: Bearer`. Un refus métier traduit par `ApiResults.Match`
-    /// n'en pose aucun. C'est donc l'absence de ce défi qui prouve que la route
-    /// est restée anonyme — et l'assertion tient même si la validation de
-    /// signature change de code d'erreur demain.
-    ///
-    /// Ne pas « corriger » ce test en lui faisant poster une signature valide :
-    /// il faudrait alors le secret d'un prestataire, et le test deviendrait celui
-    /// du HMAC, pas celui de l'autorisation.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>LE WEBHOOK PSP DOIT RESTER ANONYME — SA SERRURE EST LA SIGNATURE.</summary>
     [Fact]
     public async Task Le_webhook_du_prestataire_reste_anonyme()
     {
@@ -179,9 +130,8 @@ public sealed class FinancialAuthorizationTests : IClassFixture<FinancialFactory
     }
 
     /// <summary>
-    /// Le pendant du test précédent : une route voisine du même service, elle,
-    /// DOIT défier. Sans lui, « aucun défi » ne prouverait rien — un service qui
-    /// aurait perdu son authentification entière passerait les deux.
+    /// Le pendant du test précédent : une route voisine du même service, elle, DOIT
+    /// défier.
     /// </summary>
     [Fact]
     public async Task Une_route_protegee_defie_bien_l_appelant()
@@ -231,13 +181,6 @@ public sealed class FinancialFactory : AuthorizationTestFactory<Program>
         services.AddScoped<ISellerModuleApi, VendeurInconnu>();
 
         // `IMerchantAccessApi` AUSSI, ET PAS SEULEMENT `ISellerModuleApi`.
-        //
-        // Depuis le lot D1, la garde ne demande plus « quel est le vendeur de ce
-        // compte » mais « ce compte a-t-il cette capacité ». Les deux contrats sont
-        // servis par le MÊME client gRPC, et l'enregistrement de `IMerchantAccessApi`
-        // le résout par un cast depuis `ISellerModuleApi` : substituer l'un sans
-        // l'autre fait lever un `InvalidCastException` à la première requête, et le
-        // test rendrait 500 là où il doit distinguer un refus.
         services.RemoveAll<IMerchantAccessApi>();
         services.AddScoped<IMerchantAccessApi, AucuneCapacite>();
 
@@ -265,13 +208,7 @@ internal sealed class VendeurInconnu : ISellerModuleApi
         Guid sellerId, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<StoreSummary>>([]);
 
-    /// <summary>
-    /// Vendeur inconnu — et c'est `Unknown`, pas `NotConfigured`.
-    ///
-    /// La distinction est tout l'objet de <see cref="SellerPayout"/> : servir
-    /// « aucun compte configuré » à un identifiant qui ne désigne personne est ce
-    /// qui rendait le défaut du retrait vendeur illisible pour le support.
-    /// </summary>
+    /// <summary>Vendeur inconnu — et c'est `Unknown`, pas `NotConfigured`.</summary>
     public Task<SellerPayout> GetSellerPayoutAsync(Guid sellerId, CancellationToken cancellationToken = default)
         => Task.FromResult(SellerPayout.Unknown);
 }
@@ -295,17 +232,7 @@ internal sealed class UnSeulLivreur : IDeliveryModuleApi
         => Task.FromResult<DeliveryTracking?>(null);
 }
 
-/// <summary>
-/// merchant-service qui ne reconnaît aucune appartenance — donc aucune capacité.
-/// </summary>
-/// <remarks>
-/// IL REND `null` ET NON UN ACCÈS VIDE.
-///
-/// Un `MerchantAccess` sans permission passerait la résolution et échouerait à la
-/// capacité : le test verrait un 403 « rôle insuffisant » là où le cas éprouvé est
-/// « ce compte n'est rattaché à personne ». Les deux refus se ressemblent en HTTP
-/// et ne disent pas la même chose.
-/// </remarks>
+/// <summary>merchant-service qui ne reconnaît aucune appartenance — donc aucune capacité.</summary>
 internal sealed class AucuneCapacite : IMerchantAccessApi
 {
     public Task<MerchantAccess?> GetAccessAsync(Guid userId, CancellationToken cancellationToken = default)

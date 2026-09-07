@@ -6,7 +6,6 @@ namespace HBA.Controls.Controles;
 /// Départ à froid : chaque migration tient-elle sur une base VIDE ?
 /// </summary>
 /// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
 /// POURQUOI CE CONTRÔLE EXISTE.
 ///
 /// Une migration écrite à la main l'est presque toujours en REGARDANT une base
@@ -82,7 +81,6 @@ namespace HBA.Controls.Controles;
 ///     qui écarte aussi `.vs`, `TestResults` et tout dossier commençant par un
 ///     point. Le Python n'écartait que `.git`. Un type déclaré dans un tel
 ///     dossier serait donc vu comme introuvable — aucun n'existe ici.
-/// ═══════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class MigrationsControle : IControle
 {
@@ -114,7 +112,10 @@ public sealed class MigrationsControle : IControle
     private static readonly Regex SqlBrut = new(
         @"migrationBuilder\.Sql\s*\((.*?)\)\s*;", RegexOptions.Singleline | RegexOptions.Compiled);
 
-    /// <summary>Un nom de table dans du SQL brut : `CREATE TABLE [IF NOT EXISTS] [schema.]nom`.</summary>
+    /// <summary>
+    /// Un nom de table dans du SQL brut : `CREATE TABLE [IF NOT EXISTS]
+    /// [schema.]nom`.
+    /// </summary>
     private static readonly Regex NomDeTable = new(
         @"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:[\w""]+\.)?""?(\w+)""?",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -261,9 +262,7 @@ public sealed class MigrationsControle : IControle
 
         if (contextes == 0)
         {
-            // UN ZÉRO ICI NE VEUT PAS DIRE « TOUT VA BIEN ». C'est le défaut que
-            // `Depot.Dossier` ferme pour les chemins ; ici c'est le CRITÈRE qui
-            // pourrait ne plus rien trouver, et il faut le dire en faute.
+            // UN ZÉRO ICI NE VEUT PAS DIRE « TOUT VA BIEN ».
             fautes.Add(
                 "aucun dossier `Migrations` trouvé sous services/ : ce contrôle n'a RIEN "
                 + "rejoué, et son zéro ne dit rien de l'état du dépôt.");
@@ -318,11 +317,6 @@ public sealed class MigrationsControle : IControle
 
 
     /// <summary>Les services, sous la forme « univers/nom-du-service ».</summary>
-    /// <remarks>
-    /// « src/services » N'A JAMAIS EXISTÉ ICI, et les services sont rangés par
-    /// univers. Sans cette énumération à DEUX niveaux, le script d'origine levait
-    /// un FileNotFoundError au lieu de vérifier quoi que ce soit.
-    /// </remarks>
     private static List<string> Services(string racine)
     {
         var trouves = new List<string>();
@@ -361,14 +355,7 @@ public sealed class MigrationsControle : IControle
         => chemin.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             .Any(s => Depot.Ignores.Contains(s));
 
-    /// <summary>
-    /// Rejoue un historique de migrations à sec, dans l'ordre d'application.
-    /// </summary>
-    /// <remarks>
-    /// LE TRI LEXICOGRAPHIQUE **EST** L'ORDRE D'APPLICATION : le préfixe des
-    /// migrations EF est un horodatage à largeur fixe. Seul `Up()` compte —
-    /// `Down()` s'exécute dans un autre état et n'est jamais joué au démarrage.
-    /// </remarks>
+    /// <summary>Rejoue un historique de migrations à sec, dans l'ordre d'application.</summary>
     private static List<(string Fichier, string Message)> Rejouer(
         string dossier, IReadOnlyList<string> fichiers)
     {
@@ -514,11 +501,6 @@ public sealed class MigrationsControle : IControle
     }
 
     /// <summary>Le texte entre les parenthèses de l'appel qui commence à `depart`.</summary>
-    /// <remarks>
-    /// UNE EXPRESSION RÉGULIÈRE NE SUFFIT PAS : `CreateTable` porte des
-    /// parenthèses imbriquées sur plusieurs dizaines de lignes. On compte donc la
-    /// profondeur.
-    /// </remarks>
     private static (string Texte, int Apres) Arguments(string source, int depart)
     {
         var i = source.IndexOf('(', depart);
@@ -554,9 +536,7 @@ public sealed class MigrationsControle : IControle
         return trouve.Success ? trouve.Groups[1].Value : null;
     }
 
-    /// <summary>
-    /// `{ NomDeClasseConfiguration → (table, fichier) }` pour tout `shared/`.
-    /// </summary>
+    /// <summary>`{ NomDeClasseConfiguration → (table, fichier) }` pour tout `shared/`.</summary>
     private static Dictionary<string, (string Table, string Fichier)> TablesDesConfigurationsPartagees()
     {
         var trouvees = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
@@ -581,12 +561,6 @@ public sealed class MigrationsControle : IControle
     }
 
     /// <summary>Tables déclarées par une configuration EF : `ToTable("nom")`.</summary>
-    /// <remarks>
-    /// LES CONFIGURATIONS QU'UN SERVICE APPLIQUE SANS LES HÉBERGER COMPTENT AUSSI.
-    /// Quatre DbContext appliquent `ConsumerInboxConfiguration` et
-    /// `IdempotencyConfiguration` de `shared/` : chacun a besoin des tables dans
-    /// SON schéma, et ce contrôle ne regardait que `services/`.
-    /// </remarks>
     private static Dictionary<string, string> TablesConfigurees(
         string dossierService,
         IReadOnlyDictionary<string, (string Table, string Fichier)> partagees)
@@ -600,8 +574,8 @@ public sealed class MigrationsControle : IControle
         foreach (var fichier in Depot.Fichiers(dossierService, ".cs")
                      .OrderBy(f => f, StringComparer.Ordinal))
         {
-            // Les migrations décrivent le schéma, elles ne le CONFIGURENT pas :
-            // les lire ferait passer chaque table pour « configurée ».
+            // Les migrations décrivent le schéma, elles ne le CONFIGURENT pas : les
+            // lire ferait passer chaque table pour « configurée ».
             var chemin = "/" + Depot.Relatif(fichier).Replace('\\', '/') + "/";
             if (chemin.Contains("/Migrations/", StringComparison.Ordinal))
             {
@@ -805,24 +779,7 @@ public sealed class MigrationsControle : IControle
         }
     }
 
-    /// <summary>
-    /// POSTGRESQL DISTINGUE LA CASSE DÈS QU'ON MET DES GUILLEMETS.
-    /// </summary>
-    /// <remarks>
-    /// `se."Metadata"` et `se."metadata"` sont deux colonnes différentes. Une
-    /// migration de reprise écrite à la main a désigné la première alors que la
-    /// configuration EF mappe la seconde (`HasColumnName("metadata")`) — et
-    /// PostgreSQL l'a dit lui-même, à l'exécution, sur une base neuve :
-    ///
-    ///     42703: column se.Metadata does not exist
-    ///     Hint: Perhaps you meant to reference the column "se.metadata".
-    ///
-    /// ON NE PRÉTEND PAS ANALYSER DU SQL. On cherche UNIQUEMENT les identifiants
-    /// entre guillemets qui ne correspondent à aucune colonne connue mais qui en
-    /// égalent une À LA CASSE PRÈS. Un identifiant totalement inconnu est ignoré :
-    /// il vient d'un autre schéma, d'un alias ou d'une expression, et le signaler
-    /// noierait le vrai constat.
-    /// </remarks>
+    /// <summary>POSTGRESQL DISTINGUE LA CASSE DÈS QU'ON MET DES GUILLEMETS.</summary>
     private static List<(string Fichier, string Message)> CasseDesIdentifiantsSql(
         string dossierService)
     {
@@ -863,14 +820,6 @@ public sealed class MigrationsControle : IControle
     }
 
     /// <summary>Tous les types du dépôt, sous la forme « Namespace.Type ».</summary>
-    /// <remarks>
-    /// ON ÉCARTE LES SNAPSHOTS ET LES DESIGNERS PAR LEUR SUFFIXE, PAS PAR
-    /// « Snapshot dans le nom ». Le premier jet écartait tout fichier dont le NOM
-    /// contenait « Snapshot » — donc `PolicySnapshot.cs`, un value object
-    /// parfaitement vivant. Le contrôle a immédiatement annoncé que le snapshot de
-    /// return-refund déclarait un type introuvable : un faux positif fabriqué par
-    /// son propre filtre, sur le premier dépôt venu.
-    /// </remarks>
     private static HashSet<string> TypesDeclares()
     {
         var trouves = new HashSet<string>(StringComparer.Ordinal);
@@ -905,23 +854,7 @@ public sealed class MigrationsControle : IControle
         return trouves;
     }
 
-    /// <summary>
-    /// LE SNAPSHOT PEUT DÉCRIRE DES TYPES QUI N'EXISTENT PLUS.
-    /// </summary>
-    /// <remarks>
-    /// `DeliveriesDbContextModelSnapshot` déclarait trois agrégats —
-    /// DeliveryQuote, DeliveryZone et PricingRule — sous un namespace INTROUVABLE
-    /// dans tout le dépôt. Le domaine de tarification avait été déplacé vers
-    /// delivery-pricing-service ; le code était parti, le snapshot était resté.
-    ///
-    /// CE QUE CET ÉCART COÛTE : le prochain `dotnet ef migrations add` sur ce
-    /// contexte génère, tout seul, une migration qui SUPPRIME les tables
-    /// correspondantes — au milieu d'un diff portant sur autre chose, sans que
-    /// personne l'ait demandé.
-    ///
-    /// Aucun autre contrôle ne le voit : le rejeu à froid compare les migrations
-    /// ENTRE ELLES, jamais au modèle.
-    /// </remarks>
+    /// <summary>LE SNAPSHOT PEUT DÉCRIRE DES TYPES QUI N'EXISTENT PLUS.</summary>
     private static List<(string Fichier, string Message)> EntitesDuSnapshot(
         string dossierService, HashSet<string> connus)
     {

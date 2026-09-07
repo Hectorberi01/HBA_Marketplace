@@ -15,8 +15,7 @@ public sealed class DeliveryClient : ServiceHttpClient, IDeliveryClient
     public override string ServiceKey => ServiceKeys.Delivery;
 
     // AUCUN IDENTIFIANT DANS L'URL : le service résout depuis le jeton, que
-    // `OutboundHeaderPropagationHandler` transmet. Passer un `driverId` ici
-    // rouvrirait la faille que `ResolveDriverQuery` a fermée côté service.
+    // `OutboundHeaderPropagationHandler` transmet.
     public Task<ServiceResult<DriverAccount>> GetMyDriverAccountAsync(
         CancellationToken cancellationToken)
         => GetAsync<DriverAccount>("/api/deliveries/drivers/me", cancellationToken);

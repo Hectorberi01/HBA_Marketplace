@@ -1,26 +1,6 @@
 namespace HBA.Controls;
 
-/// <summary>
-/// Engendre <c>docker-compose.prod.yml</c> depuis <c>docker-compose.dev.yml</c>.
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// POURQUOI UN GÉNÉRATEUR PLUTÔT QU'UN SECOND FICHIER TENU À LA MAIN.
-///
-/// La source est `docker-compose.dev.yml`, seule description complète des vingt
-/// services. Un second compose écrit à la main divergerait au premier
-/// changement de variable, et la divergence ne se verrait qu'en production.
-///
-/// LES VALEURS NE SONT JAMAIS ICI. Chaque secret devient une référence
-/// `${VAR:?...}` : Compose REFUSE de démarrer si la variable est absente,
-/// plutôt que de lancer un service avec une chaîne vide.
-///
-/// LE TRAVAIL EST LIGNE À LIGNE, ET C'EST DÉLIBÉRÉ. Charger le compose dans un
-/// modèle objet puis le réécrire perdrait les commentaires — or ce dépôt met la
-/// raison d'un réglage dans le commentaire qui le précède. Un compose de
-/// production sans ses raisons est un compose que personne n'ose corriger.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Engendre <c>docker-compose.prod.yml</c> depuis <c>docker-compose.dev.yml</c>.</summary>
 public static class ComposeProd
 {
     /// <summary>Le verbe qui déclenche la génération.</summary>
@@ -34,8 +14,8 @@ public static class ComposeProd
     private const string VersionTraefik = "traefik:v3.3";
 
     // Le service `gateway` est publié sous le nom `api-gateway` : le compose le
-    // demandait sous son nom de dossier, et le `pull` cherchait une image qui
-    // n'a jamais existé.
+    // demandait sous son nom de dossier, et le `pull` cherchait une image qui n'a
+    // jamais existé.
     private static readonly Dictionary<string, string> NomsImages = new()
     {
         ["gateway"] = "api-gateway",
@@ -119,7 +99,7 @@ public static class ComposeProd
     };
 
     // Aucun service ne publie de port sur le VPS : publier, c'est publier sur
-    // Internet. Les consoles passent par la boucle locale et un tunnel SSH.
+    // Internet.
     private static readonly HashSet<string> PortsAutorises = [];
 
     private static readonly Dictionary<string, string> PortsExposes = new()
@@ -155,21 +135,12 @@ public static class ComposeProd
     // service compose -> nom de variable de sa clé privée, dérivé du Dockerfile.
     private static readonly Dictionary<string, string> ClesInternes = new();
 
-    // Les services qui fusionnent l'ancre partagée. Une ancre définie que
-    // personne ne fusionne, ou l'inverse, ne doit pas passer inaperçu.
+    // Les services qui fusionnent l'ancre partagée.
     private static readonly List<string> Fusions = [];
 
     // ── Lecture du compose source ────────────────────────────────────────────
 
-    /// <summary>
-    /// Découpe en lignes EN CONSERVANT le saut de ligne de chacune.
-    /// </summary>
-    /// <remarks>
-    /// Tout ce générateur assemble des lignes qui portent déjà leur `\n`, comme
-    /// le faisait `readlines()`. Découper sans les fins obligerait à décider, à
-    /// chaque concaténation, s'il faut en rajouter un — et un oubli ne se verrait
-    /// qu'à la lecture du compose engendré.
-    /// </remarks>
+    /// <summary>Découpe en lignes EN CONSERVANT le saut de ligne de chacune.</summary>
     private static string[] LignesAvecFin(string texte)
         => System.Text.RegularExpressions.Regex.Split(texte, "(?<=\n)")
             .Where(l => l.Length > 0)
@@ -212,12 +183,6 @@ public static class ComposeProd
         => "INTERNAL_KEY_" + projet.ToUpperInvariant().Replace(".", "_");
 
     /// <summary>Le `build:` d'un bloc de service, sous forme de dictionnaire.</summary>
-    /// <remarks>
-    /// CE QUE CETTE FONCTION NE COUVRE PAS : la forme courte `build: ./chemin`,
-    /// et les ancres YAML à l'intérieur d'un `build:`. Le compose source n'en
-    /// utilise pas ; si cela changeait, la clé privée du service concerné
-    /// manquerait — et le contrôle des clés, plus bas, le dirait.
-    /// </remarks>
     private static Dictionary<string, string>? BuildDeBloc(IReadOnlyList<string> corps)
     {
         for (var i = 0; i < corps.Count; i++)
@@ -255,7 +220,7 @@ public static class ComposeProd
         return null;
     }
 
-    /// <summary>Rend (nom, lignes du bloc). `debut` est l'index de la ligne `  nom:`.</summary>
+    /// <summary>Rend (nom, lignes du bloc).</summary>
     private static (string Nom, List<string> Corps) BlocDeService(
         string[] lignes, int debut, int fin)
     {
@@ -276,11 +241,6 @@ public static class ComposeProd
     }
 
     /// <summary>Rejoue l'ancre `x-dev-auth` en version production.</summary>
-    /// <remarks>
-    /// Les clés sont les mêmes — c'est le point : ce que vingt et un services
-    /// attendent ne se décide pas ici. Seules les VALEURS changent, et seulement
-    /// pour celles que <see cref="Secrets"/> désigne.
-    /// </remarks>
     private static List<string> AncreDeProduction(string[] lignes)
     {
         var debut = Array.FindIndex(lignes, l => l.StartsWith("x-dev-auth:", StringComparison.Ordinal));
@@ -377,7 +337,8 @@ public static class ComposeProd
         {
             var l = corps[i];
 
-            // 1. `build:` devient `image:` — sauf pour ce qui se construit sur place.
+            // 1. `build:` devient `image:` — sauf pour ce qui se construit sur
+            // place.
             if (Re(l, @"^    build:\s*$"))
             {
                 var image = NomsImages.GetValueOrDefault(nom, nom);
@@ -661,29 +622,7 @@ public static class ComposeProd
         string Nom, string Image, bool PorteBuild, string? NomConteneur,
         IReadOnlyList<string> DependDe);
 
-    /// <summary>
-    /// Relit le rendu pour en extraire les services.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════
-    /// CE QUI EST PERDU PAR RAPPORT A LA VERSION PYTHON, ET IL FAUT LE SAVOIR.
-    ///
-    /// La version Python chargeait le rendu avec PyYAML. Cela donnait DEUX
-    /// choses : le modèle lu ci-dessous, et la garantie que le rendu est du YAML
-    /// VALIDE. Cette seconde garantie n'existe plus : cet outil n'a aucune
-    /// dépendance, et écrire un analyseur YAML complet pour la retrouver serait
-    /// pire que le mal.
-    ///
-    /// Un rendu syntaxiquement cassé passerait donc ces contrôles et échouerait
-    /// au `docker compose up`, sur le VPS. Ce qui limite la portée du trou :
-    /// le rendu est produit par ce fichier, à partir d'un gabarit fixe, et non
-    /// par une main humaine.
-    ///
-    /// A RETROUVER : un `docker compose config -q` dans la CI est la vraie
-    /// réponse — il valide le fichier avec l'outil qui le consommera, pas avec
-    /// une seconde implémentation qui pourrait diverger.
-    /// ═════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Relit le rendu pour en extraire les services.</summary>
     private static List<ServiceRendu> ServicesDuRendu(string rendu)
     {
         var services = new List<ServiceRendu>();
@@ -797,12 +736,7 @@ public static class ComposeProd
 
     // ── Le generateur, et ses refus ──────────────────────────────────────────
 
-    /// <summary>Engendre le compose de production. Rend le code de sortie.</summary>
-    /// <remarks>
-    /// CHAQUE CONTRÔLE D'APRÈS-COUP REFUSE D'ÉCRIRE, il ne se contente pas
-    /// d'avertir. Un compose de production presque juste s'applique quand même,
-    /// et la faute se découvre sur le VPS.
-    /// </remarks>
+    /// <summary>Engendre le compose de production.</summary>
     public static int Executer()
     {
         var source = Depot.Chemin("docker-compose.dev.yml");
@@ -1060,9 +994,9 @@ public static class ComposeProd
             }
         }
 
-        // UNE ANCRE DEFINIE QUE PERSONNE NE FUSIONNE NE SERT A RIEN, ET
-        // L'INVERSE EST PIRE : ni cle de signature, ni cle interne, ni cle de
-        // chiffrement pour le service concerne.
+        // UNE ANCRE DEFINIE QUE PERSONNE NE FUSIONNE NE SERT A RIEN, ET L'INVERSE
+        // EST PIRE : ni cle de signature, ni cle interne, ni cle de chiffrement
+        // pour le service concerne.
         var attendues = Fusions.Count;
         var obtenues = lignesRendu.Count(l => l.Trim() == "<<: *prod-auth");
         if (attendues == 0 || obtenues != attendues)

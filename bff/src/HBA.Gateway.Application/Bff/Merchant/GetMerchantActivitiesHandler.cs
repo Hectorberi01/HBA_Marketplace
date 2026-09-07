@@ -3,33 +3,7 @@ using HBA.Gateway.Application.Bff.Shared;
 
 namespace HBA.Gateway.Application.Bff.Merchant;
 
-/// <summary>
-/// Le sélecteur d'activité de HBA Partner (§11, §44).
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CRITICITÉ (§23) — ET AUCUNE DÉPENDANCE N'EST CRITIQUE. C'EST VOULU.
-///
-///   Merchant · vendeur    IMPORTANTE — pas de boutiques, mais l'écran vit.
-///   Merchant · boutiques  IMPORTANTE
-///   Food · établissement  OPTIONNELLE — 404 = « ce compte n'a pas de restaurant »,
-///                                       ce qui est le cas de la majorité.
-///
-/// UN ÉCRAN VIDE VAUT MIEUX QU'UNE ERREUR, ICI PLUS QU'AILLEURS.
-///
-/// C'est le PREMIER écran après la connexion. Le faire échouer parce qu'un
-/// service tarde enferme le partenaire dehors : il ne peut ni consulter, ni
-/// comprendre, ni réessayer utilement. Une liste vide accompagnée d'un
-/// avertissement lui laisse au moins l'application.
-///
-/// UN 404 SUR L'ÉTABLISSEMENT N'EST PAS UNE DÉGRADATION.
-///
-/// food-service répond 404 quand le compte ne travaille nulle part — le cas
-/// normal d'un vendeur qui n'a que des boutiques. Le compter comme un incident
-/// remplirait le tableau d'avertissements à chaque connexion de chaque
-/// commerçant.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Le sélecteur d'activité de HBA Partner (§11, §44).</summary>
 public sealed class GetMerchantActivitiesHandler
 {
     public const string ScreenId = "merchant.activities";
@@ -52,9 +26,6 @@ public sealed class GetMerchantActivitiesHandler
         using var context = AggregationContext.Start(ScreenId);
 
         // ── Vague 1 : le dossier vendeur et l'établissement, en parallèle ────
-        //
-        // L'établissement ne dépend que du jeton : rien n'oblige à attendre le
-        // vendeur pour le demander.
         var sellerTask = context.CallAsync(
             "Merchant", () => _merchant.GetMySellerAsync(cancellationToken));
 
@@ -88,7 +59,6 @@ public sealed class GetMerchantActivitiesHandler
                 Name: store.Name,
                 LogoUrl: store.LogoUrl,
                 // Déduit : merchant-service n'a aucun modèle de personnel.
-                // Cf. `MerchantActivityDto.Role`.
                 Role: "OWNER",
                 Status: store.Status,
                 IsOpenNow: store.IsSelling));
@@ -101,7 +71,7 @@ public sealed class GetMerchantActivitiesHandler
                 Id: restaurant.RestaurantId,
                 Name: restaurant.Name,
                 // food-service rend un identifiant de média, pas une URL — et la
-                // passerelle ne les résout pas encore (cf. `FoodRestaurantCardDto`).
+                // passerelle ne les résout pas encore (cf.
                 LogoUrl: null,
                 // Le rôle RÉEL, lui : Food a un modèle de personnel complet.
                 Role: restaurant.Role.ToUpperInvariant(),

@@ -8,19 +8,7 @@ namespace HBA.Gateway.IntegrationTests;
 
 public sealed class RateLimitingTests
 {
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE TEST QUI PROTÈGE `/api/auth/login` DE L'ÉNUMÉRATION.
-    ///
-    /// Sans limite sur cette route, un attaquant essaie des mots de passe aussi
-    /// vite que le réseau le permet. La limite est basse EXPRÈS — dix par minute
-    /// gêne à peine un humain et arrête net un script.
-    ///
-    /// La limite est abaissée à 3 pour ce test : la laisser à 10 exigerait onze
-    /// requêtes réelles, chacune tentant d'atteindre identity-service et attendant
-    /// son délai de connexion.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE TEST QUI PROTÈGE `/api/auth/login` DE L'ÉNUMÉRATION.</summary>
     [Fact]
     public async Task La_route_de_connexion_finit_par_rendre_429()
     {
@@ -44,8 +32,6 @@ public sealed class RateLimitingTests
 
     /// <summary>
     /// Un refus doit avoir la MÊME forme que toute autre erreur de la passerelle.
-    /// Une application cliente qui sait lire un ProblemDetails sait alors lire un
-    /// 429 sans code supplémentaire.
     /// </summary>
     [Fact]
     public async Task Le_refus_est_un_ProblemDetails_avec_Retry_After()
@@ -76,8 +62,8 @@ public sealed class RateLimitingTests
     }
 
     /// <summary>
-    /// La lecture du catalogue doit rester large : limiter tôt casse le
-    /// défilement d'une liste de produits, ce qu'aucun attaquant ne cherche.
+    /// La lecture du catalogue doit rester large : limiter tôt casse le défilement
+    /// d'une liste de produits, ce qu'aucun attaquant ne cherche.
     /// </summary>
     [Fact]
     public async Task La_lecture_du_catalogue_supporte_une_rafale_normale()

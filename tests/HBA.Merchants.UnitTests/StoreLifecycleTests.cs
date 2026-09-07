@@ -4,14 +4,7 @@ using HBA.Merchants.Domain.Stores.Events;
 namespace HBA.Merchants.UnitTests;
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// LA BOUTIQUE — QUATRE STATUTS, DONT DEUX QUI SE RESSEMBLENT ET N'ONT RIEN À VOIR.
-///
-/// `Closed` est une décision du VENDEUR — congés, travaux, réversible d'un clic.
-/// `Suspended` est une sanction de la PLATEFORME — seule elle la lève. Les deux
-/// retirent la boutique de la vente ; confondre les deux, c'est laisser un vendeur
-/// annuler sa propre sanction.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public sealed class StoreLifecycleTests
 {
@@ -24,13 +17,7 @@ public sealed class StoreLifecycleTests
         boutique.DomainEvents.Should().ContainItemsAssignableTo<StoreCreatedDomainEvent>();
     }
 
-    /// <summary>
-    /// SANS POINT DE RETRAIT, UN COLIS N'A PAS D'ORIGINE.
-    ///
-    /// HBA Delivery ne peut pas bâtir la course, et l'acheteur découvrirait le
-    /// blocage APRÈS avoir payé. On refuse à l'ouverture plutôt qu'à la livraison :
-    /// c'est le seul moment où le refus ne coûte rien à personne.
-    /// </summary>
+    /// <summary>SANS POINT DE RETRAIT, UN COLIS N'A PAS D'ORIGINE.</summary>
     [Fact]
     public void Ouvrir_sans_lieu_d_expedition_est_refuse()
     {
@@ -80,12 +67,7 @@ public sealed class StoreLifecycleTests
         boutique.StatusReason.Should().BeNull("la réouverture efface le motif de fermeture");
     }
 
-    /// <summary>
-    /// LA GARDE QUI EMPÊCHE UN VENDEUR D'ANNULER SA PROPRE SANCTION.
-    ///
-    /// Sans elle, la suspension durerait le temps d'un clic : le vendeur rouvre, et
-    /// la décision de la plateforme est effacée sans que personne ne l'apprenne.
-    /// </summary>
+    /// <summary>LA GARDE QUI EMPÊCHE UN VENDEUR D'ANNULER SA PROPRE SANCTION.</summary>
     [Fact]
     public void Une_boutique_suspendue_ne_se_rouvre_pas_depuis_l_espace_vendeur()
     {
@@ -99,13 +81,7 @@ public sealed class StoreLifecycleTests
         boutique.Status.Should().Be(StoreStatus.Suspended);
     }
 
-    /// <summary>
-    /// LEVER LA SUSPENSION NE ROUVRE PAS LA BOUTIQUE, ET C'EST VOULU.
-    ///
-    /// La plateforme lève sa sanction ; elle ne décide pas à la place du vendeur
-    /// qu'il est prêt à vendre. C'est lui qui rouvre, quand son stock et ses prix
-    /// sont à jour — sinon on rouvrirait une vitrine périmée en son nom.
-    /// </summary>
+    /// <summary>LEVER LA SUSPENSION NE ROUVRE PAS LA BOUTIQUE, ET C'EST VOULU.</summary>
     [Fact]
     public void Lever_la_suspension_repasse_la_boutique_en_fermee_pas_en_ouverte()
     {
@@ -146,23 +122,9 @@ public sealed class StoreLifecycleTests
         boutique.StatusReason.Should().Be("produits contrefaits");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Les événements de sanction — deux écarts fermés au lot 2
-    // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// UNE SANCTION N'EST PAS DES CONGÉS, ET LE TYPE DE L'ÉVÉNEMENT LE DIT.
-    ///
-    /// Cet emplacement portait un test `Ecart_` : `Suspend` émettait
-    /// `StoreClosedDomainEvent`, le MÊME type que la fermeture volontaire. Un
-    /// consommateur qui recevait « boutique fermée » ne pouvait pas savoir s'il
-    /// s'agissait d'un vendeur parti en congés ou d'une boutique écartée pour
-    /// contrefaçon — le motif était bien transporté, mais c'est du texte libre :
-    /// rien ne peut s'y brancher.
-    ///
-    /// Ce que cela empêchait : afficher « temporairement fermée, de retour
-    /// bientôt » dans un cas et retirer la boutique des résultats dans l'autre.
-    /// </summary>
+    /// <summary>UNE SANCTION N'EST PAS DES CONGÉS, ET LE TYPE DE L'ÉVÉNEMENT LE DIT.</summary>
     [Fact]
     public void Suspendre_emet_un_evenement_distinct_d_une_fermeture_volontaire()
     {
@@ -185,15 +147,7 @@ public sealed class StoreLifecycleTests
         fermee.DomainEvents.Should().NotContainItemsAssignableTo<StoreSuspendedDomainEvent>();
     }
 
-    /// <summary>
-    /// LA LEVÉE DE SANCTION SE PROPAGE MAINTENANT.
-    ///
-    /// Cet emplacement portait un test `Ecart_` : `LiftSuspension` ne produisait
-    /// rien. La boutique reste hors vente, donc rien d'urgent ne s'ensuivait —
-    /// c'est pourquoi l'absence n'avait jamais gêné. Mais un service qui a mémorisé
-    /// « cette boutique est sanctionnée », pour l'exclure d'un classement ou d'une
-    /// mise en avant, ne l'apprenait jamais autrement qu'en relisant tout.
-    /// </summary>
+    /// <summary>LA LEVÉE DE SANCTION SE PROPAGE MAINTENANT.</summary>
     [Fact]
     public void Lever_la_suspension_annonce_la_levee()
     {

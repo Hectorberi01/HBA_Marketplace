@@ -31,19 +31,7 @@ public sealed class CorrelationIdTests : IClassFixture<GatewayFactory>
         response.Headers.GetValues(Header).Single().Should().Be("abc-123");
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE TEST QUI EMPÊCHE LA FABRICATION DE FAUSSES LIGNES DE JOURNAL.
-    ///
-    /// L'identifiant est recopié tel quel dans les journaux et propagé à treize
-    /// services. Un saut de ligne suivi d'un texte crédible permet d'INSÉRER des
-    /// entrées arbitraires dans Loki — jusqu'à simuler une trace d'audit. Une
-    /// valeur de 100 Ko, elle, serait recopiée sur chaque appel sortant.
-    ///
-    /// Dans les deux cas, la passerelle doit ignorer la valeur du client et en
-    /// générer une propre — sans rejeter la requête, qui n'a rien d'illégitime.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE TEST QUI EMPÊCHE LA FABRICATION DE FAUSSES LIGNES DE JOURNAL.</summary>
     [Theory]
     [InlineData("valeur avec espaces")]
     [InlineData("chemin/avec/slashes")]

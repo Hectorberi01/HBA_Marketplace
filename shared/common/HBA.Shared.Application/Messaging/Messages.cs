@@ -3,8 +3,8 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Shared.Application.Messaging;
 
-// CQRS au-dessus de MediatR. Les commandes/queries renvoient toujours un Result
-// (le pattern Result est constant à toutes les phases — cf. dossier).
+// CQRS au-dessus de MediatR. Les commandes/queries renvoient toujours un Result (le
+// pattern Result est constant à toutes les phases — cf.
 
 /// <summary>Commande sans valeur de retour (effet de bord uniquement).</summary>
 public interface ICommand : IRequest<Result>

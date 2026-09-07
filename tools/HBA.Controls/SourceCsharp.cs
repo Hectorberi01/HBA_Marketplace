@@ -1,47 +1,9 @@
 namespace HBA.Controls;
 
-/// <summary>
-/// Le peu de C# que les contrôles doivent savoir lire.
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// CE TYPE EXISTE PARCE QUE DEUX CONTRÔLES AVAIENT BESOIN DU MÊME DÉCOMPTE, ET
-/// QUE DEUX COPIES AURAIENT DIVERGÉ.
-///
-/// Le contrôle des permissions retire les commentaires pour ne pas prendre un
-/// code de permission cité dans un encadré pour une garde réelle. Celui des
-/// implémentations les retire pour ne pas rater une méthode dont la signature
-/// est séparée de son corps par un commentaire — ce qui lui a valu DIX-NEUF faux
-/// positifs à sa première exécution, sur du code qui compilait parfaitement.
-///
-/// Le second défaut est la preuve du premier : la même lecture naïve, faite deux
-/// fois, se trompe deux fois. Elle est donc écrite une fois.
-///
-/// CE N'EST PAS UN ANALYSEUR C#, ET IL NE FAUT PAS LE PRENDRE POUR TEL. Il sait
-/// distinguer une chaîne d'un commentaire, et rien de plus. Tout contrôle qui
-/// s'appuie dessus doit dire, dans son propre en-tête, ce que sa lecture ne voit
-/// pas.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Le peu de C# que les contrôles doivent savoir lire.</summary>
 public static class SourceCsharp
 {
-    /// <summary>
-    /// Retire commentaires de ligne et de bloc, en respectant les chaînes.
-    /// </summary>
-    /// <remarks>
-    /// UN REMPLACEMENT OU UNE EXPRESSION RÉGULIÈRE NE SUFFIT PAS ICI. Une chaîne
-    /// peut contenir <c>//</c> (une URL, un chemin) et un commentaire peut
-    /// contenir un guillemet. Il faut donc suivre l'état du lecteur caractère
-    /// par caractère.
-    ///
-    /// LES CHAÎNES SONT CONSERVÉES : ce sont elles que l'on cherche.
-    ///
-    /// CE QUI N'EST PAS COUVERT : les chaînes interpolées <c>$"…{expr}…"</c> sont
-    /// traitées comme des chaînes ordinaires, donc un <c>//</c> à l'intérieur
-    /// d'une interpolation serait pris pour du texte. Aucun code de permission
-    /// ne s'écrit de cette façon, et le faire serait déjà l'anomalie que ces
-    /// contrôles refusent.
-    /// </remarks>
+    /// <summary>Retire commentaires de ligne et de bloc, en respectant les chaînes.</summary>
     public static string SansCommentaires(string source)
     {
         var sortie = new System.Text.StringBuilder(source.Length);
@@ -166,15 +128,7 @@ public static class SourceCsharp
         return sortie.ToString();
     }
 
-    /// <summary>
-    /// Tous les fichiers `.cs` du code source du dépôt.
-    /// </summary>
-    /// <remarks>
-    /// LE CODE VIT SOUS `services/`, `shared/` ET `apps/` — jamais sous `src/`.
-    /// Quatre contrôles Python balayaient `&lt;dépôt&gt;/src`, qui n'a jamais
-    /// existé ici, et rendaient « 0 anomalie » sans avoir rien regardé.
-    /// <see cref="Depot.Dossier"/> lève si une racine manque.
-    /// </remarks>
+    /// <summary>Tous les fichiers `.cs` du code source du dépôt.</summary>
     public static IEnumerable<string> Fichiers()
     {
         foreach (var racine in new[] { "services", "shared", "bff" })

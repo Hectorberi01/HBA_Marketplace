@@ -7,29 +7,14 @@ using Xunit;
 
 namespace HBA.Merchants.AuthorizationTests;
 
-/// <summary>
-/// merchant-service : la gouvernance d'un vendeur n'appartient pas au vendeur.
-/// </summary>
-/// <remarks>
-/// Tout tenait dans un seul groupe « authentifié ». Un acheteur, avec le jeton de
-/// sa propre application mobile — même clé de signature sur les cinq hôtes — et un
-/// `sellerId` ramassé dans une fiche produit, validait SON PROPRE dossier KYB,
-/// suspendait un concurrent, ou effaçait un vendeur avec ses boutiques et ses
-/// pièces d'identité.
-/// </remarks>
+/// <summary>merchant-service : la gouvernance d'un vendeur n'appartient pas au vendeur.</summary>
 public sealed class MerchantsAuthorizationTests : IClassFixture<AuthorizationTestFactory<Program>>
 {
     private readonly AuthorizationTestFactory<Program> _factory;
 
     public MerchantsAuthorizationTests(AuthorizationTestFactory<Program> factory) => _factory = factory;
 
-    /// <summary>
-    /// `GET /` EST DANS CETTE LISTE, ET CE N'EST PAS UN EXCÈS DE ZÈLE.
-    ///
-    /// `ListSellersQuery` rend le `SellerSummary` COMPLET de chaque vendeur —
-    /// numéro du compte de retrait, RCCM, IFU, téléphone du gérant. Tout compte
-    /// inscrit vidait le fichier fournisseurs de la plateforme en un appel.
-    /// </summary>
+    /// <summary>`GET /` EST DANS CETTE LISTE, ET CE N'EST PAS UN EXCÈS DE ZÈLE.</summary>
     [Theory]
     [InlineData("GET", "/api/v1/merchants/")]
     [InlineData("POST", "/api/v1/merchants/{id}/kyb/approve")]
@@ -49,15 +34,7 @@ public sealed class MerchantsAuthorizationTests : IClassFixture<AuthorizationTes
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// SUSPENDRE UNE BOUTIQUE EST UNE SANCTION, PAS UNE FERMETURE.
-    ///
-    /// `SuspendStoreCommand` ne porte volontairement pas de `SellerId` et son
-    /// handler n'a aucun contrôle de propriété : dans le groupe vendeur, cette
-    /// absence devenait l'inverse d'une protection — n'importe quel inscrit
-    /// suspendait la boutique de son choix, sans que le propriétaire dispose
-    /// d'une route pour la rouvrir.
-    /// </summary>
+    /// <summary>SUSPENDRE UNE BOUTIQUE EST UNE SANCTION, PAS UNE FERMETURE.</summary>
     [Theory]
     [InlineData("/suspend")]
     [InlineData("/lift-suspension")]
@@ -71,25 +48,7 @@ public sealed class MerchantsAuthorizationTests : IClassFixture<AuthorizationTes
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// L'INSCRIPTION RESTE OUVERTE À TOUT COMPTE AUTHENTIFIÉ. TEST CRITIQUE.
-    ///
-    /// Ces deux routes résolvent le vendeur DEPUIS le jeton, sans identifiant dans
-    /// l'URL. Les fermer reviendrait à empêcher toute inscription vendeur, et un
-    /// 403 ici signifie exactement cela.
-    ///
-    /// Le lot 3 a posé le rôle `Seller` (§22) sur le reste de la surface. Ces deux
-    /// routes en sont exclues, et ce n'est pas une commodité : le rôle est greffé
-    /// PAR l'inscription — `SellerRegisteredIntegrationEvent` →
-    /// `GrantSellerRoleHandler`. L'exiger ici rendrait impossible de jamais le
-    /// devenir : il faudrait être vendeur pour pouvoir s'inscrire comme vendeur.
-    ///
-    /// L'audit avait repéré le piège avant qu'on l'atteigne ; ce test est ce qui
-    /// empêche qu'on le rouvre par symétrie, en « alignant » un jour ce groupe sur
-    /// les autres.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>L'INSCRIPTION RESTE OUVERTE À TOUT COMPTE AUTHENTIFIÉ.</summary>
     [Theory]
     [InlineData("POST", "/api/v1/merchants/")]
     [InlineData("GET", "/api/v1/merchants/me")]
@@ -102,18 +61,7 @@ public sealed class MerchantsAuthorizationTests : IClassFixture<AuthorizationTes
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// ET LE PENDANT : LE RESTE DE LA SURFACE VENDEUR REFUSE UN ACHETEUR.
-    ///
-    /// Avant le lot 3, un jeton suffisait : n'importe quel compte entrait, et seule
-    /// la garde d'appartenance — route par route — l'arrêtait. Cela tenait tant que
-    /// CHAQUE route portait sa garde, c'est-à-dire tant que personne n'en ajoutait
-    /// une en l'oubliant. La protection était une discipline ; c'est maintenant une
-    /// barrière.
-    ///
-    /// 403 et non 404 : ici c'est le RÔLE qui manque, pas la ressource. Cela
-    /// n'apprend rien à personne sur l'existence d'un dossier.
-    /// </summary>
+    /// <summary>ET LE PENDANT : LE RESTE DE LA SURFACE VENDEUR REFUSE UN ACHETEUR.</summary>
     [Theory]
     [InlineData("PUT", "/api/v1/merchants/{id}/profile")]
     [InlineData("PUT", "/api/v1/merchants/{id}/payout-account")]

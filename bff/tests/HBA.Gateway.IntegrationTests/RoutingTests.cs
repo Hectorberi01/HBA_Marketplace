@@ -13,16 +13,7 @@ public sealed class RoutingTests : IClassFixture<GatewayFactory>
 
     public RoutingTests(GatewayFactory factory) => _factory = factory;
 
-    /// <summary>
-    /// LE TEST QUI DÉTECTE UN CLUSTER SANS ADRESSE.
-    ///
-    /// Les clusters ne portent aucune adresse dans `appsettings.json` : c'est
-    /// `ServiceAddressConfigFilter` qui les renseigne depuis la section
-    /// `Services`. Une faute de frappe dans un nom de cluster — `Catalogue` au
-    /// lieu de `Catalog` — laisse le cluster SANS destination. Rien n'échoue au
-    /// démarrage : les requêtes rendent simplement 503, et seule une lecture
-    /// attentive des journaux le révèle.
-    /// </summary>
+    /// <summary>LE TEST QUI DÉTECTE UN CLUSTER SANS ADRESSE.</summary>
     [Fact]
     public void Chaque_cluster_recoit_une_destination_depuis_la_section_Services()
     {
@@ -42,11 +33,7 @@ public sealed class RoutingTests : IClassFixture<GatewayFactory>
             "chaque ClusterId doit correspondre à une clé de la section Services");
     }
 
-    /// <summary>
-    /// Les quinze préfixes publics exigés au §5 sont tous routés. Un préfixe
-    /// oublié ne produirait pas d'erreur : la requête tomberait simplement en 404,
-    /// et le diagnostic partirait du côté du service au lieu de la passerelle.
-    /// </summary>
+    /// <summary>Les quinze préfixes publics exigés au §5 sont tous routés.</summary>
     [Fact]
     public void Les_quinze_prefixes_publics_sont_couverts()
     {
@@ -73,27 +60,7 @@ public sealed class RoutingTests : IClassFixture<GatewayFactory>
         }
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// TOUTE ROUTE DONT LE NOM FINIT PAR `-legacy` DOIT PORTER UN `PathPattern`.
-    ///
-    /// LE DÉFAUT QUE CE TEST ATTRAPE EST UNE PANNE TOTALE, ET ELLE EST MUETTE.
-    ///
-    /// Quand un service passe à `/api/v1/...`, l'ancien chemin reste routé pour ne
-    /// pas casser les applications déjà installées — mais il ne suffit PAS de le
-    /// laisser routé : sans réécriture, la passerelle transmet `/api/catalog/...`
-    /// à un service qui ne sert plus que `/api/v1/catalog/...`. Le cluster répond,
-    /// la passerelle est contente, et le client reçoit 404 sur toute la surface.
-    ///
-    /// Rien ne le signale : le test des quinze préfixes reste VERT, puisque le
-    /// préfixe est bien routé. C'est le `Transform` qui manque, pas la route — et
-    /// c'est précisément ce que ce test regarde.
-    ///
-    /// Le jour où une coquille est retirée (télémétrie à zéro), la route disparaît
-    /// avec elle et ce test n'a plus rien à vérifier. Il ne coûte donc rien à
-    /// garder.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>TOUTE ROUTE DONT LE NOM FINIT PAR `-legacy` DOIT PORTER UN `PathPattern`.</summary>
     [Fact]
     public void Chaque_coquille_de_depreciation_reecrit_vers_le_chemin_versionne()
     {

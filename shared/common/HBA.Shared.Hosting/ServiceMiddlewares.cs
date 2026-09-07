@@ -19,13 +19,6 @@ public sealed class ServiceCorrelationMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         // ON REPREND CELUI DE LA PASSERELLE, ON N'EN REFABRIQUE PAS.
-        //
-        // En générer un nouveau casserait le lien entre la requête du client et
-        // son traitement ici : les journaux du service et ceux de la passerelle
-        // porteraient deux identifiants différents pour la MÊME requête, et le
-        // rapprochement deviendrait impossible — exactement ce que la corrélation
-        // sert à éviter. On n'en crée un que pour les appels qui n'en portent pas :
-        // tâches de fond, sondes, appel direct entre services.
         var correlationId = context.Request.Headers[HeaderName].ToString();
 
         if (string.IsNullOrWhiteSpace(correlationId))
@@ -67,8 +60,7 @@ public sealed class ServiceExceptionMiddleware
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
-            // Le client — ici, souvent la passerelle — a raccroché. Ce n'est pas
-            // une panne du service, et le compter en 500 noierait les vraies.
+            // Le client — ici, souvent la passerelle — a raccroché.
             if (!context.Response.HasStarted)
             {
                 context.Response.StatusCode = 499;
@@ -76,41 +68,7 @@ public sealed class ServiceExceptionMiddleware
         }
         catch (DbUpdateConcurrencyException exception) when (!context.Response.HasStarted)
         {
-            // ═════════════════════════════════════════════════════════════════
             // `ConcurrencyExceptionHandler` N'A JAMAIS EXISTÉ — LOT 5.1.
-            //
-            // Quatre configurations du dépôt — `OrderConfiguration`,
-            // `InventoryItemConfiguration`, `PaymentConfiguration`,
-            // `WalletConfigurations` — et l'encadré de `UsePostgresRowVersion`
-            // annonçaient depuis des mois que le conflit optimiste était
-            // « traduit en 409 par ConcurrencyExceptionHandler ». Ce type
-            // n'existe NULLE PART dans le dépôt. Rien ne traduisait rien.
-            //
-            // CE QUE ÇA PROVOQUAIT : `DbUpdateConcurrencyException` dérive de
-            // `DbUpdateException`, mais son exception interne n'est pas une
-            // `PostgresException` — l'UPDATE n'a pas échoué, il a touché ZÉRO
-            // ligne. `Doublon` rendait donc `null`, le filtre du bloc suivant ne
-            // mordait pas, et le verrou optimiste de TOUT le dépôt ressortait en
-            // 500 « Une erreur inattendue est survenue ».
-            //
-            // Le client — souvent la passerelle, souvent une application qui
-            // réessaie sur 5xx — relançait alors une écriture perdante, sur une
-            // ressource que quelqu'un d'autre venait de modifier. Et
-            // l'exploitation comptait en panne serveur une garde qui avait fait
-            // exactement son travail.
-            //
-            // CE BLOC PASSE AVANT CELUI DES DOUBLONS, ET CE N'EST PAS UN
-            // DÉTAIL DE STYLE : `DbUpdateConcurrencyException` EST une
-            // `DbUpdateException`. Placé après, il ne serait jamais atteint dès
-            // que le filtre du bloc précédent accepterait le cas.
-            //
-            // AUCUN REJEU AUTOMATIQUE ICI, et c'est la règle posée par
-            // `UsePostgresRowVersion` : `ModuleDbContext` dispatche les
-            // événements de domaine et draine l'outbox AVANT `SaveChangesAsync`.
-            // Rejouer dans le même scope re-publierait ces messages. Le rejeu
-            // doit venir d'une requête neuve — donc du client, à qui l'on rend
-            // 409 pour le lui dire.
-            // ═════════════════════════════════════════════════════════════════
             var correlationConcurrence = context.Items[ServiceCorrelationMiddleware.HeaderName]?.ToString();
 
             _logger.LogWarning(
@@ -144,29 +102,7 @@ public sealed class ServiceExceptionMiddleware
         }
         catch (DbUpdateException exception) when (Doublon(exception) is { } contrainte && !context.Response.HasStarted)
         {
-            // ═════════════════════════════════════════════════════════════════
             // UNE CONTRAINTE D'UNICITÉ QUI MORD N'EST PAS UNE PANNE DU SERVICE.
-            //
-            // Le lot 3.1 a posé des index uniques sur les objets financiers :
-            // référence PSP d'un paiement, identifiant de remboursement externe,
-            // clé d'idempotence d'un remboursement de retour et d'un versement
-            // client. Ils existent pour qu'un rejeu ÉCHOUE au lieu d'encaisser ou
-            // de verser deux fois.
-            //
-            // Sans ces lignes, cet échec-là remontait en 500 « Une erreur inattendue
-            // est survenue » : la protection fonctionnait, et le client — souvent la
-            // passerelle, souvent une application qui réessaie — lisait une panne
-            // serveur. Il réessayait donc, indéfiniment, sur une opération qui ne
-            // passera jamais. Et l'exploitation voyait un taux d'erreur 5xx là où
-            // une garde avait fait exactement son travail.
-            //
-            // 409, ET LE NOM DE LA CONTRAINTE RESTE DANS LE JOURNAL.
-            //
-            // Il nomme une table et une colonne : c'est ce dont le support a besoin,
-            // et ce qu'un client n'a pas à connaître. Le corps ne porte que le
-            // `correlationId`, qui suffit à retrouver la ligne de journal — c'est la
-            // même discipline que le message fixe du 500 juste en dessous.
-            // ═════════════════════════════════════════════════════════════════
             var correlationId = context.Items[ServiceCorrelationMiddleware.HeaderName]?.ToString();
 
             _logger.LogWarning(
@@ -216,11 +152,6 @@ public sealed class ServiceExceptionMiddleware
                 Status = StatusCodes.Status500InternalServerError,
 
                 // MESSAGE FIXE. NE JAMAIS Y INTERPOLER `exception.Message`.
-                //
-                // Un service porte la chaîne de connexion à SA base. Une
-                // `NpgsqlException` la contient dans son message. Interpoler ici
-                // ferait sortir mot de passe PostgreSQL compris — vers la
-                // passerelle, qui la relaierait au client.
                 Detail = "Une erreur inattendue est survenue lors du traitement de la requête.",
                 Instance = context.Request.Path
             };
@@ -233,15 +164,9 @@ public sealed class ServiceExceptionMiddleware
     }
 
     /// <summary>
-    /// Le nom de la contrainte d'unicité violée, ou <c>null</c> si ce n'en est pas une.
+    /// Le nom de la contrainte d'unicité violée, ou <c> null</c> si ce n'en est pas
+    /// une.
     /// </summary>
-    /// <remarks>
-    /// ON DESCEND DANS L'EXCEPTION INTERNE, ET C'EST OBLIGATOIRE.
-    ///
-    /// EF Core enveloppe toujours l'erreur du pilote dans une `DbUpdateException`.
-    /// Le `SqlState` — `23505` pour une violation d'unicité — n'est porté que par la
-    /// `PostgresException` en dessous. Tester l'enveloppe ne rendrait jamais rien.
-    /// </remarks>
     private static string? Doublon(DbUpdateException exception)
         => exception.InnerException is PostgresException { SqlState: "23505" } postgres
             ? postgres.ConstraintName ?? "(sans nom)"

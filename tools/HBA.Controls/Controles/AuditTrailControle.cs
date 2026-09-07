@@ -6,7 +6,6 @@ namespace HBA.Controls.Controles;
 /// Un contexte qui promet un journal d'audit a-t-il la table qui va avec ?
 /// </summary>
 /// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
 /// UN JOURNAL D'AUDIT PROMIS PAR LE MODÈLE, ABSENT DE LA BASE.
 ///
 /// CE DÉFAUT NE SE VOIT NI À LA COMPILATION, NI AU DÉMARRAGE.
@@ -53,7 +52,6 @@ namespace HBA.Controls.Controles;
 /// Passer par <see cref="SourceCsharp.SansCommentaires"/> changerait les
 /// comptes ; ce sera un choix à faire une fois le portage comparé, pas au
 /// milieu.
-/// ═══════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class AuditTrailControle : IControle
 {
@@ -98,14 +96,14 @@ public sealed class AuditTrailControle : IControle
     /// <inheritdoc/>
     public Verdict Executer()
     {
-        // L'absence du dossier LÈVE : un contrôle qui ne peut rien regarder ne
-        // doit pas rendre « 0 anomalie ».
+        // L'absence du dossier LÈVE : un contrôle qui ne peut rien regarder ne doit
+        // pas rendre « 0 anomalie ».
         var racineServices = Depot.Dossier("services");
 
         var modules = new List<Module>();
 
-        // Les services dont une migration crée la table, et ceux dont un
-        // snapshot porte l'entité — relevés dans la même lecture.
+        // Les services dont une migration crée la table, et ceux dont un snapshot
+        // porte l'entité — relevés dans la même lecture.
         var avecTable = new HashSet<string>(StringComparer.Ordinal);
         var avecSnapshot = new HashSet<string>(StringComparer.Ordinal);
 
@@ -120,14 +118,6 @@ public sealed class AuditTrailControle : IControle
             if (service is not null)
             {
                 // ON ANCRE SUR LE TYPE, PAS SUR SON ESPACE DE NOMS.
-                //
-                // Le test etait `Contains("Audit.AuditEntry")` — le nom du
-                // DOSSIER d'alors. L'entite vit maintenant dans `Auditing/` de
-                // chaque service, et le fragment ne correspondait plus : douze
-                // instantanes qui la CONTIENNENT etaient declares sans elle.
-                // `EntiteDAudit` ne regarde que la fin du nom qualifie, que
-                // ni un deplacement de dossier ni un changement de service ne
-                // touchent.
                 if (estSnapshot && EntiteDAudit.IsMatch(texte))
                 {
                     avecSnapshot.Add(service);
@@ -246,9 +236,9 @@ public sealed class AuditTrailControle : IControle
     }
 
     /// <summary>
-    /// Le dossier de service qui contient ce fichier —
-    /// <c>services/&lt;famille&gt;/&lt;service&gt;</c>, ou <c>null</c> s'il est
-    /// posé plus haut.
+    /// Le dossier de service qui contient ce fichier — <c>
+    /// services/&lt;famille&gt;/&lt;service&gt;</c>, ou <c> null</c> s'il est posé
+    /// plus haut.
     /// </summary>
     private static string? ServiceDe(string chemin)
     {

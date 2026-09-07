@@ -4,24 +4,7 @@ using Xunit;
 
 namespace HBA.Identity.Tests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE RAFRAÎCHISSEMENT NE REJUVÉNIT PAS L'AUTHENTIFICATION.
-///
-/// C'EST LE SEUL TEST QUI GARDE LE STEP-UP D'ÊTRE DÉCORATIF.
-///
-/// Écrire `AuthenticationSnapshot.ByPassword(DateTime.UtcNow)` dans
-/// `RefreshTokenCommandHandler` compile, se lit bien, et paraît juste — le jeton
-/// EST émis maintenant. Rien ne casse : la connexion marche, le rafraîchissement
-/// marche, les virements passent. Ils passent simplement TOUJOURS, puisqu'un
-/// client qui rafraîchit toutes les quatre minutes paraîtrait indéfiniment
-/// fraîchement authentifié.
-///
-/// Le défaut serait invisible en exécution normale et invisible en revue. Il ne
-/// se manifesterait que le jour où quelqu'un vide un portefeuille depuis un poste
-/// laissé ouvert — c'est-à-dire trop tard pour l'attraper.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE RAFRAÎCHISSEMENT NE REJUVÉNIT PAS L'AUTHENTIFICATION.</summary>
 public sealed class RotationDuJetonTests
 {
     private static readonly DateTime Connexion = new(2026, 8, 19, 8, 0, 0, DateTimeKind.Utc);
@@ -41,16 +24,16 @@ public sealed class RotationDuJetonTests
         issue.Should().Be(RefreshTokenOutcome.Rotated);
         reporte.Should().NotBeNull();
 
-        // L'ASSERTION QUI COMPTE : l'instant est celui de la CONNEXION, pas
-        // celui de la rotation. S'ils étaient égaux à `maintenant`, le step-up
-        // laisserait passer un virement six heures après que le titulaire a quitté
-        // son poste.
+        // L'ASSERTION QUI COMPTE : l'instant est celui de la CONNEXION, pas celui
+        // de la rotation.
         reporte!.Value.AuthenticatedAtUtc.Should().Be(Connexion);
         reporte.Value.AuthenticatedAtUtc.Should().NotBe(maintenant);
         reporte.Value.Methods.Should().Be(session.Methods);
     }
 
-    /// <summary>Et le report survit à une chaîne de rotations, pas seulement à la première.</summary>
+    /// <summary>
+    /// Et le report survit à une chaîne de rotations, pas seulement à la première.
+    /// </summary>
     [Fact]
     public void L_instant_traverse_plusieurs_rotations_sans_bouger()
     {

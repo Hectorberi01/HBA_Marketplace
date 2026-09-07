@@ -24,31 +24,9 @@ public sealed record RestaurantWalletDto(
     string Currency);
 
 /// <summary>Ce qui attend en cuisine, en trois nombres.</summary>
-/// <remarks>
-/// DES COMPTEURS, PAS LES TICKETS.
-///
-/// Le tableau de bord dit COMBIEN ; l'écran cuisine dit QUOI. Y transporter les
-/// tickets complets — plats, options, notes client — alourdirait l'accueil d'un
-/// contenu que personne n'y lit, et le dupliquerait à deux endroits.
-/// </remarks>
 public sealed record RestaurantKitchenSummaryDto(int Pending, int Preparing, int Ready);
 
-/// <summary>
-/// Écran de cuisine — KDS (§14).
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// NI PORTEFEUILLE, NI COMMISSION, NI REVENU, NI DOCUMENT COMMERCIAL.
-///
-/// Le §14 l'écrit, et la raison est concrète : cet écran tourne sur une tablette
-/// posée en cuisine, allumée toute la journée, que voient les cuisiniers, les
-/// extras et parfois les livreurs. Le chiffre d'affaires du restaurant n'a rien à
-/// y faire.
-///
-/// Ce type ne porte donc AUCUN montant — pas même le total de la commande. Un
-/// cuisinier prépare des plats, il n'encaisse pas.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Écran de cuisine — KDS (§14).</summary>
 public sealed record RestaurantKitchenDto(
     Guid RestaurantId,
     Guid? StationId,
@@ -59,19 +37,7 @@ public sealed record RestaurantKitchenDto(
 
 public sealed record KitchenStationDto(Guid Id, string Name, bool IsActive);
 
-/// <param name="ElapsedSeconds">
-/// Temps écoulé depuis la réception.
-///
-/// CALCULÉ ICI, ET C'EST UN CHOIX DISCUTABLE.
-///
-/// Le service rend <c>ReceivedAtUtc</c>. Le client pourrait faire la
-/// soustraction, mais dépendrait alors de l'horloge de la tablette — souvent
-/// fausse sur du matériel bon marché laissé branché des mois. Le compteur du
-/// serveur est la seule mesure commune à toute la cuisine.
-///
-/// Il vieillit entre l'envoi et l'affichage : c'est SignalR (§40) qui le
-/// rafraîchit, pas un rechargement.
-/// </param>
+/// <param name="ElapsedSeconds">Temps écoulé depuis la réception.</param>
 public sealed record KitchenTicketDto(
     Guid FoodOrderId,
     Guid OrderId,

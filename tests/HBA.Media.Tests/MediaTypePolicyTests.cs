@@ -13,11 +13,6 @@ public sealed class MediaTypePolicyTests
 {
     /// <summary>
     /// LE TEST QUI EMPÊCHE UNE PIÈCE D'IDENTITÉ D'ATTERRIR DANS UN BUCKET PUBLIC.
-    ///
-    /// La visibilité est déduite de la NATURE du fichier, jamais fournie par
-    /// l'appelant. Ce test énumère les natures sensibles une par une : une
-    /// assertion générique « au moins une est privée » passerait encore le jour où
-    /// quelqu'un rendrait `DriverDocument` public.
     /// </summary>
     [Theory]
     [InlineData(MediaType.SellerDocument)]
@@ -36,21 +31,14 @@ public sealed class MediaTypePolicyTests
 
     /// <summary>
     /// Une preuve de livraison n'est ni publique ni strictement privée : le client,
-    /// le livreur et le support ont chacun une raison légitime de la voir. C'est
-    /// delivery-service qui tranche, pas media.
+    /// le livreur et le support ont chacun une raison légitime de la voir.
     /// </summary>
     [Fact]
     public void Une_preuve_de_livraison_est_restreinte()
         => MediaTypePolicy.For(MediaType.DeliveryProof).DefaultVisibility
             .Should().Be(MediaVisibility.Restricted);
 
-    /// <summary>
-    /// AUCUNE VARIANTE SUR UN DOCUMENT PRIVÉ.
-    ///
-    /// Décliner une CNI en cinq tailles, c'est cinq copies d'un document sensible
-    /// au lieu d'une — donc cinq fuites le jour où un bucket est mal configuré,
-    /// et cinq objets à retrouver le jour d'une demande d'effacement.
-    /// </summary>
+    /// <summary>AUCUNE VARIANTE SUR UN DOCUMENT PRIVÉ.</summary>
     [Theory]
     [InlineData(MediaType.SellerDocument)]
     [InlineData(MediaType.DriverDocument)]
@@ -99,12 +87,7 @@ public sealed class MediaTypePolicyTests
             .Validate("image/png", "vide.png", 0)
             .Error.Code.Should().Be("media.empty");
 
-    /// <summary>
-    /// « facture.pdf » ANNONCÉ EN image/jpeg MENT SUR L'UN DES DEUX.
-    ///
-    /// On ne sait pas lequel, et c'est précisément pourquoi on refuse : deviner
-    /// reviendrait à faire confiance à la moitié qu'on a choisie.
-    /// </summary>
+    /// <summary>« facture.pdf » ANNONCÉ EN image/jpeg MENT SUR L'UN DES DEUX.</summary>
     [Fact]
     public void Une_extension_qui_contredit_le_type_mime_est_refusee()
     {
@@ -115,13 +98,7 @@ public sealed class MediaTypePolicyTests
         resultat.Error.Code.Should().Be("media.extension_mismatch");
     }
 
-    /// <summary>
-    /// ET POURTANT « .jpg » ET « .jpeg » DOIVENT PASSER TOUS LES DEUX.
-    ///
-    /// Ils désignent la même chose. Refuser l'un des deux ferait échouer un upload
-    /// sur trois, avec un message que l'utilisateur ne peut pas corriger — son
-    /// appareil photo a choisi l'extension à sa place.
-    /// </summary>
+    /// <summary>ET POURTANT « .jpg » ET « .jpeg » DOIVENT PASSER TOUS LES DEUX.</summary>
     [Theory]
     [InlineData("photo.jpg")]
     [InlineData("photo.jpeg")]
@@ -136,10 +113,7 @@ public sealed class MediaTypePolicyTests
         => MediaTypePolicy.For(MediaType.ProductImage)
             .Validate("image/png", "capture", 1_000).IsSuccess.Should().BeTrue();
 
-    /// <summary>
-    /// L'extension vient du type MIME, jamais du nom fourni. `bin` pour l'inconnu :
-    /// on ne devine pas, on range à part.
-    /// </summary>
+    /// <summary>L'extension vient du type MIME, jamais du nom fourni.</summary>
     [Theory]
     [InlineData("image/jpeg", "jpg")]
     [InlineData("image/png", "png")]
@@ -149,11 +123,7 @@ public sealed class MediaTypePolicyTests
     public void L_extension_est_derivee_du_type_mime(string typeMime, string attendue)
         => MediaTypePolicy.ExtensionFor(typeMime).Should().Be(attendue);
 
-    /// <summary>
-    /// Une facture se garde dix ans, une photo produit trente jours. Un délai
-    /// unique aurait soit effacé des pièces comptables, soit gardé des miniatures
-    /// pour toujours.
-    /// </summary>
+    /// <summary>Une facture se garde dix ans, une photo produit trente jours.</summary>
     [Fact]
     public void La_retention_depend_de_la_nature_du_fichier()
     {
@@ -165,13 +135,7 @@ public sealed class MediaTypePolicyTests
                 "un litige se déclare des semaines après la livraison");
     }
 
-    /// <summary>
-    /// CHAQUE NATURE DOIT AVOIR UNE POLITIQUE, SANS EXCEPTION.
-    ///
-    /// `For` lève sur une valeur inconnue. Ajouter une nature à l'énumération sans
-    /// compléter la table ne casse aucune compilation : le service démarre, et
-    /// c'est le premier upload de cette nature qui explose, en production.
-    /// </summary>
+    /// <summary>CHAQUE NATURE DOIT AVOIR UNE POLITIQUE, SANS EXCEPTION.</summary>
     [Fact]
     public void Toute_nature_declaree_a_une_politique()
     {
@@ -188,8 +152,8 @@ public sealed class MediaTypePolicyTests
 
     /// <summary>
     /// Deux natures de visibilité différente ne doivent pas partager de préfixe :
-    /// c'est le préfixe qui range physiquement, et un document privé sous
-    /// « products/ » finirait servi par le CDN.
+    /// c'est le préfixe qui range physiquement, et un document privé sous «
+    /// products/ » finirait servi par le CDN.
     /// </summary>
     [Fact]
     public void Aucun_prefixe_n_est_partage_entre_le_public_et_le_prive()

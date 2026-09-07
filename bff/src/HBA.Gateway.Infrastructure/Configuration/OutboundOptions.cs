@@ -7,16 +7,7 @@ public sealed class OutboundOptions
 {
     public const string SectionName = "HttpClients";
 
-    /// <summary>
-    /// Délai TOTAL accordé à un appel sortant, réessais compris.
-    /// </summary>
-    /// <remarks>
-    /// Valeur initiale à ajuster sur des mesures réelles, pas une règle métier.
-    /// Elle doit rester inférieure au budget d'agrégation <c>Bff:Timeout</c>,
-    /// sinon le budget coupe avant le timeout et le disjoncteur ne voit jamais
-    /// d'échec : il ne s'ouvrira pas, et chaque requête repaiera l'attente
-    /// complète vers un service pourtant durablement à terre.
-    /// </remarks>
+    /// <summary>Délai TOTAL accordé à un appel sortant, réessais compris.</summary>
     [Range(typeof(TimeSpan), "00:00:00.500", "00:01:00")]
     public TimeSpan TotalTimeout { get; init; } = TimeSpan.FromSeconds(5);
 

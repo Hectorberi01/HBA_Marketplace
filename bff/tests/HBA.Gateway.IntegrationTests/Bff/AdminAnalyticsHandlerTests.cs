@@ -61,15 +61,9 @@ public sealed class AdminAnalyticsHandlerTests
     }
 
     /// <summary>
-    /// LES DEUX COURBES SONT BORNÉES SUR LA MÊME PÉRIODE, ET C'EST TOUTE LA
-    /// RAISON D'ÊTRE DE CET ÉCRAN AGRÉGÉ.
+    /// LES DEUX COURBES SONT BORNÉES SUR LA MÊME PÉRIODE, ET C'EST TOUTE LA RAISON
+    /// D'ÊTRE DE CET ÉCRAN AGRÉGÉ.
     /// </summary>
-    /// <remarks>
-    /// Un client qui appellerait les deux routes séparément devrait accorder ses
-    /// bornes lui-même. Deux écrans le feraient deux fois, et finiraient par ne
-    /// plus le faire pareil — une courbe d'inscriptions sur trente jours à côté
-    /// d'une courbe de ventes sur sept se lit comme un effondrement.
-    /// </remarks>
     [Fact]
     public async Task Les_deux_courbes_couvrent_exactement_la_meme_periode()
     {
@@ -119,10 +113,6 @@ public sealed class AdminAnalyticsHandlerTests
     /// AUCUN TOTAL « COMPTES CRÉÉS » N'EST RENDU, ET CE TEST EST LÀ POUR QUE
     /// PERSONNE NE L'AJOUTE PAR COMMODITÉ.
     /// </summary>
-    /// <remarks>
-    /// Un vendeur s'inscrit d'abord comme utilisateur : il compte dans `Buyers`
-    /// ET dans `Sellers`. Sommer les deux surcompterait exactement les vendeurs.
-    /// </remarks>
     [Fact]
     public async Task Les_inscriptions_gardent_leurs_deux_series_separees()
     {

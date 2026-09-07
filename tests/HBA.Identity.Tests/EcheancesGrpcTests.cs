@@ -4,25 +4,7 @@ using Xunit;
 
 namespace HBA.Identity.Tests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'ÉCHÉANCE APPLIQUÉE AUX APPELS gRPC SORTANTS.
-///
-/// MÊME EMPLACEMENT, MÊME RAISON QUE `DisjoncteurGrpcTests` : `HBA.Shared.Hosting`
-/// n'a pas de projet de tests propre, et on suit le précédent plutôt que d'en
-/// créer un vingt-quatrième.
-///
-/// CE QUE CES TESTS PROTÈGENT.
-///
-/// Le défaut de cinq secondes est la seule chose qui empêche un appel gRPC
-/// d'attendre indéfiniment — un canal gRPC n'a AUCUN délai par défaut. Une
-/// surcharge mal formée qui écraserait ce défaut par zéro ferait expirer chaque
-/// appel avant qu'il ne parte, et la panne ressemblerait à un service injoignable :
-/// on chercherait le défaut chez l'appelé.
-///
-/// C'est le risque que ce réglage introduit, et c'est donc lui qu'on éprouve.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>L'ÉCHÉANCE APPLIQUÉE AUX APPELS gRPC SORTANTS.</summary>
 public sealed class EcheancesGrpcTests
 {
     [Fact]

@@ -13,54 +13,6 @@ namespace HBA.Gateway.Api.Middlewares;
 /// <summary>
 /// Refuse un jeton révoqué — déconnexion, changement de mot de passe, suspension.
 /// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ISSUE-022, MISE EN ŒUVRE DE LA DÉCISION D27.
-///
-/// POURQUOI ICI, ET PAS DANS `AddHbaService`.
-///
-/// Mettre le contrôle dans le socle partagé aurait semblé plus rigoureux — chaque
-/// service se défend lui-même. Il aurait fallu `Services:Identity` dans quatorze
-/// configurations, un client gRPC dans quatorze hôtes, et surtout : identity
-/// serait devenue une dépendance dure de CHAQUE requête de la plateforme. Une
-/// latence sur identity serait devenue une latence sur tout.
-///
-/// Tout le trafic externe passe par cette passerelle. Les appels de service à
-/// service, eux, ne portent aucun jeton d'utilisateur : leur garde est
-/// l'intercepteur à clé partagée. Le seul endroit où un jeton révoqué peut entrer
-/// est donc ici — un point de contrôle, un cache, un client.
-///
-/// COROLLAIRE À TENIR : le jour où un service devient joignable hors de la
-/// passerelle, ce raisonnement tombe. C'est une contrainte de DÉPLOIEMENT, pas une
-/// opinion — la même que celle qui gouverne `OUTBOX_ENABLED`.
-///
-/// L'ÉCHEC EST OUVERT, ET IL EST BRUYANT.
-///
-/// Le dépôt refuse de démarrer plutôt que de simuler, et c'est la bonne règle au
-/// démarrage : une plateforme qui ne boote pas se répare en cinq minutes. Elle ne
-/// s'applique pas ici. Fermer signifierait qu'une panne d'identity rende 401 à
-/// tout le monde, paiements en cours compris : l'indisponibilité d'un service
-/// deviendrait l'indisponibilité de la plateforme.
-///
-/// Ouvert, un compte suspendu conserve ses droits PENDANT la panne, borné par la
-/// durée de vie du jeton — c'est-à-dire exactement le risque subi en permanence
-/// avant ce fichier, mais réduit aux minutes d'une panne. Le journal est donc
-/// `Critical`, pas `Warning` : un contrôle de sécurité désactivé en silence est
-/// pire que son absence, parce que personne ne le sait.
-///
-/// LE CACHE EST INDEXÉ PAR EMPREINTE, JAMAIS PAR LE JETON.
-///
-/// Une clé de cache se retrouve dans un vidage mémoire, dans une trace de
-/// diagnostic, parfois dans un compteur de métrique. Y mettre le jeton en clair
-/// reviendrait à recréer la fuite que le chiffrement de l'outbox vient de fermer,
-/// en plus discret.
-///
-/// CE CACHE NE PEUT PAS ÊTRE GONFLÉ PAR UN ATTAQUANT, et c'est une propriété,
-/// pas une chance : ce middleware ne s'exécute qu'APRÈS `UseAuthentication`. Un
-/// jeton mal signé n'arrive jamais jusqu'ici. Le nombre d'entrées est donc borné
-/// par les sessions réellement émises par identity.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public sealed class TokenRevocationMiddleware
 {
     private const string PrefixeDeCle = "revocation:";
@@ -94,14 +46,13 @@ public sealed class TokenRevocationMiddleware
         /// <summary>identity a répondu : le jeton est mort.</summary>
         Revoque,
 
-        /// <summary>identity n'a pas répondu. On laisse passer, et on le crie.</summary>
+        /// <summary>identity n'a pas répondu.</summary>
         Inconnu
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Une requête anonyme n'a rien à révoquer. Cela couvre les sondes de
-        // santé, la connexion, le rafraîchissement et la documentation.
+        // Une requête anonyme n'a rien à révoquer.
         if (!_options.Enabled || context.User.Identity?.IsAuthenticated != true)
         {
             await _next(context);
@@ -139,11 +90,6 @@ public sealed class TokenRevocationMiddleware
         }
 
         // RÉSOLU PAR REQUÊTE, PAS INJECTÉ AU CONSTRUCTEUR.
-        //
-        // `AddIdentityGrpcClient` enregistre `IIdentityModuleApi` en Scoped, et ce
-        // middleware est un singleton. L'injecter au constructeur lèverait au
-        // démarrage — ou, pire, capturerait la toute première portée pour la durée
-        // de vie du processus.
         var identity = context.RequestServices.GetRequiredService<IIdentityModuleApi>();
 
         using var delai = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
@@ -153,12 +99,6 @@ public sealed class TokenRevocationMiddleware
         TimeSpan duree;
 
         // LE COMPTE, POUR POUVOIR EVINCER SANS CONNAITRE LES JETONS.
-        //
-        // La cle de cache est l'empreinte du JETON ; la revocation arrive par
-        // COMPTE. Retenir l'identifiant ici permet d'attacher l'entree au compte,
-        // et donc de l'evincer sur `TokenRevoked`. Reste `null` sur le chemin
-        // degrade : sans reponse d'identity, on ne sait pas a qui appartient ce
-        // jeton, et l'entree vivra ses cinq secondes sans pouvoir etre evincee.
         Guid? compte = null;
 
         try
@@ -173,11 +113,6 @@ public sealed class TokenRevocationMiddleware
                                           || !context.RequestAborted.IsCancellationRequested)
         {
             // `Critical`, ET LA RAISON EST DANS LE MESSAGE.
-            //
-            // Pendant tout le temps où cette ligne s'écrit, un compte suspendu ou
-            // déconnecté conserve ses droits. C'est un choix assumé (D27), pas un
-            // incident mineur : il doit réveiller quelqu'un, pas se noyer dans le
-            // bruit d'un niveau `Warning`.
             _logger.LogCritical(
                 exception,
                 "CONTRÔLE DE RÉVOCATION HORS SERVICE : identity-service est injoignable. "
@@ -195,19 +130,8 @@ public sealed class TokenRevocationMiddleware
         // les comptes inactifs — c'est-à-dire jamais sur celui qu'on veut couper.
         var entree = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = duree };
 
-        // ═════════════════════════════════════════════════════════════════════
         // L'ENTREE EST ATTACHEE AU COMPTE, ET C'EST CE QUI REND LA COUPURE
-        //     IMMEDIATE POSSIBLE.
-        //
-        // Sans ce jeton d'expiration, un `TokenRevoked` ne pourrait rien evincer :
-        // `IMemoryCache` ne s'enumere pas, et l'on ne connaît pas les empreintes
-        // des jetons du compte. Voir `RegistreDeRevocation`.
-        //
-        // CE QUE ÇA NE COUVRE PAS. Le chemin degrade — identity injoignable —
-        // ne connaît pas le compte : ces entrees-la restent inevincibles pendant
-        // leurs `FailOpenCacheSeconds`. C'est deja le cas ou le controle est
-        // hors service, et ces cinq secondes sont le moindre des problemes.
-        // ═════════════════════════════════════════════════════════════════════
+        // IMMEDIATE POSSIBLE.
         if (compte is { } utilisateur && utilisateur != Guid.Empty)
         {
             entree.AddExpirationToken(_registre.JetonDExpiration(utilisateur));
@@ -227,9 +151,7 @@ public sealed class TokenRevocationMiddleware
         context.Response.Clear();
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 
-        // Dit au client que le jeton est mort et qu'il doit en redemander un. Sans
-        // cet en-tête, une application mobile ne distingue pas ce 401 d'un droit
-        // manquant, et boucle sur une requête qui ne passera plus jamais.
+        // Dit au client que le jeton est mort et qu'il doit en redemander un.
         context.Response.Headers.WWWAuthenticate =
             "Bearer error=\"invalid_token\", error_description=\"The access token has been revoked\"";
 
@@ -239,9 +161,9 @@ public sealed class TokenRevocationMiddleware
             Title = "Unauthorized",
             Status = StatusCodes.Status401Unauthorized,
 
-            // AUCUN DÉTAIL SUR LA CAUSE. Distinguer « compte suspendu » de
-            // « mot de passe changé » renseignerait quiconque détient un jeton volé
-            // sur ce que le propriétaire légitime vient de faire.
+            // AUCUN DÉTAIL SUR LA CAUSE. Distinguer « compte suspendu » de « mot de
+            // passe changé » renseignerait quiconque détient un jeton volé sur ce
+            // que le propriétaire légitime vient de faire.
             Detail = "La session n'est plus valide. Reconnectez-vous.",
             Instance = context.Request.Path
         };
@@ -275,13 +197,7 @@ public sealed class TokenRevocationMiddleware
         return jeton.Length == 0 ? null : jeton;
     }
 
-    /// <summary>
-    /// Empreinte SHA-256 du jeton, en base64url.
-    ///
-    /// CE N'EST PAS DU CHIFFREMENT, ET CE N'EST PAS CE QU'ON LUI DEMANDE. Le
-    /// besoin est qu'une clé de cache ne permette pas de reconstituer le jeton, y
-    /// compris pour qui lit un vidage mémoire. Une fonction à sens unique suffit.
-    /// </summary>
+    /// <summary>Empreinte SHA-256 du jeton, en base64url.</summary>
     private static string Empreinte(string jeton)
         => Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(jeton)))
             .TrimEnd('=')

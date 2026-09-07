@@ -3,29 +3,10 @@ using Course = HBA.Deliveries.Domain.Deliveries.Delivery;
 
 namespace HBA.Delivery.UnitTests;
 
-/// <summary>
-/// Fabrique de courses pour les tests.
-///
-/// ON PASSE PAR `Delivery.Create`, JAMAIS PAR UN CONSTRUCTEUR.
-///
-/// Les constructeurs de l'agrégat sont privés et les transitions sont les seules
-/// portes d'entrée. Un test qui fabriquerait un état à la main éprouverait un
-/// état que le code de production ne peut pas produire — c'est-à-dire rien.
-///
-/// L'ALIAS `Course` N'EST PAS UN CONFORT DE LECTURE, IL EST OBLIGATOIRE.
-///
-/// L'espace de noms de ce projet est `HBA.Delivery.UnitTests`. Écrire
-/// `Delivery.Create(...)` ici ferait résoudre `Delivery` vers l'espace de noms
-/// `HBA.Delivery` — pas vers le type. C'est la même collision que
-/// `DeliveryConfiguration` contourne avec `Domain.Deliveries.Delivery`.
-/// </summary>
+/// <summary>Fabrique de courses pour les tests.</summary>
 internal static class UneCourse
 {
-    /// <summary>
-    /// Instant de référence des tests. FIXE : une expiration de code se raisonne
-    /// à la seconde, et `DateTime.UtcNow` rendrait les tests dépendants de
-    /// l'heure à laquelle on les lance.
-    /// </summary>
+    /// <summary>Instant de référence des tests.</summary>
     public static readonly DateTime Maintenant = new(2026, 9, 4, 10, 0, 0, DateTimeKind.Utc);
 
     public static DeliveryStop Collecte() => Arret("Boutique Ganhi", "Rond-point Ganhi");
@@ -38,18 +19,6 @@ internal static class UneCourse
         position.IsSuccess.Should().BeTrue("la fabrique de test doit produire des coordonnées valides");
 
         // NUMÉRO À 10 CHIFFRES, PAS 8.
-        //
-        // Cette fabrique portait « +22997000001 » — un numéro d'AVANT la migration
-        // béninoise de 2024. `BeninGeography.NormalizePhone` exige désormais
-        // exactement `LocalPhoneLength` (10) chiffres après l'indicatif et refuse
-        // l'ancien format, délibérément : un numéro à 8 chiffres n'aboutit plus, et
-        // l'accepter en silence revient à livrer un colis que personne ne pourra
-        // annoncer. `DeliveryStop.Create` rendait donc un échec, et les QUINZE tests
-        // qui passent par cette fabrique tombaient sur l'assertion ci-dessous — pas
-        // sur ce qu'ils prétendaient éprouver.
-        //
-        // La forme retenue est celle qu'utilisent déjà `DossierLivreurTests` et
-        // `SessionLivreurTests` (« +2290197000042 ») : ancien numéro préfixé de « 01 ».
         var arret = DeliveryStop.Create(contact, "+2290197000001", "cotonou", null, repere, null, position.Value);
         arret.IsSuccess.Should().BeTrue("la fabrique de test doit produire un arrêt valide");
         return arret.Value;

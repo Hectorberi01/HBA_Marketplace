@@ -14,15 +14,6 @@ public sealed class FoodClient : ServiceHttpClient, IFoodClient
 
     public override string ServiceKey => ServiceKeys.Food;
 
-    /// <remarks>
-    /// `page` ET `pageSize` SONT DES ENTIERS, DONC SANS RISQUE D'INJECTION —
-    ///    ET C'EST LA SEULE RAISON DE NE PAS LES ÉCHAPPER.
-    ///
-    /// Toute valeur de chaîne venant du client doit passer par
-    /// <c>Uri.EscapeDataString</c> avant d'entrer dans un chemin ou une requête,
-    /// comme le fait <c>InventoryClient</c> pour le SKU. Ici le type garantit
-    /// déjà la forme.
-    /// </remarks>
     public Task<ServiceResult<IReadOnlyList<RestaurantCard>>> ListStorefrontAsync(
         int page, int pageSize, CancellationToken cancellationToken)
         => GetAsync<IReadOnlyList<RestaurantCard>>(

@@ -2,11 +2,7 @@ using HBA.Shared.Domain.Results;
 
 namespace HBA.Shared.Domain.Primitives;
 
-/// <summary>
-/// Montant monétaire (Value Object du shared kernel) : un montant et sa devise.
-/// Partagé entre Offers, Pricing, Ordering, Payments — c'est un concept ubiquitaire
-/// et stable. XOF par défaut sur le marché visé.
-/// </summary>
+/// <summary>Montant monétaire (Value Object du shared kernel) : un montant et sa devise.</summary>
 public sealed class Money : ValueObject
 {
     public const string DefaultCurrency = "XOF";

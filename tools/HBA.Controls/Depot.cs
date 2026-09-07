@@ -1,29 +1,6 @@
 namespace HBA.Controls;
 
-/// <summary>
-/// Où vit le code de ce dépôt, et comment on refuse de regarder à côté.
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// CETTE CLASSE EXISTE À CAUSE D'UN DÉFAUT QUI S'EST RÉPÉTÉ QUATRE FOIS.
-///
-/// Quatre contrôles Python balayaient <c>&lt;dépôt&gt;/src</c>, un dossier qui
-/// n'a jamais existé dans ce monorepo — le code vit sous <c>services/</c>,
-/// <c>shared/</c> et <c>apps/</c>. Parcourir un dossier absent ne lève pas : il
-/// ne produit simplement aucune itération. Les contrôles affichaient donc
-/// « 0 anomalie », et ce zéro se lisait « tout va bien » alors qu'il voulait
-/// dire « je n'ai rien regardé ». Derrière, deux clients gRPC entièrement
-/// bouchonnés en production.
-///
-/// D'où la règle tenue ici : <see cref="Dossier"/> LÈVE si le dossier manque.
-/// Un contrôle qui ne peut pas regarder doit s'arrêter, pas rendre zéro.
-///
-/// CE QUE CELA NE GARANTIT PAS : qu'un balayage présent regarde la bonne chose.
-/// Un critère trop étroit rendra toujours zéro, et ce zéro-là reste
-/// indiscernable d'un dépôt sain. On ferme le silence du chemin, pas celui du
-/// critère.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Où vit le code de ce dépôt, et comment on refuse de regarder à côté.</summary>
 public static class Depot
 {
     /// <summary>Dossiers qu'aucun contrôle ne doit parcourir.</summary>
@@ -33,15 +10,8 @@ public static class Depot
     private static string? _racine;
 
     /// <summary>
-    /// La racine du dépôt : le premier dossier ascendant qui porte
-    /// <c>HBA.sln</c>.
+    /// La racine du dépôt : le premier dossier ascendant qui porte <c> HBA.sln</c>.
     /// </summary>
-    /// <remarks>
-    /// PAS UN CHEMIN RELATIF DEPUIS L'ASSEMBLY. Sous <c>dotnet run</c>, le
-    /// binaire vit dans <c>bin/Debug/net9.0/</c> ; publié, ailleurs ; en CI,
-    /// ailleurs encore. Un <c>../../..</c> écrit en dur marche sur le poste de
-    /// celui qui l'a écrit et nulle part ailleurs.
-    /// </remarks>
     public static string Racine
     {
         get
@@ -72,9 +42,7 @@ public static class Depot
     public static string Relatif(string absolu)
         => Path.GetRelativePath(Racine, absolu).Replace(Path.DirectorySeparatorChar, '/');
 
-    /// <summary>
-    /// Un dossier du dépôt, dont l'absence est une ERREUR et non un vide.
-    /// </summary>
+    /// <summary>Un dossier du dépôt, dont l'absence est une ERREUR et non un vide.</summary>
     /// <exception cref="DirectoryNotFoundException">
     /// Si le dossier n'existe pas — voir le commentaire de la classe.
     /// </exception>

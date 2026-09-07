@@ -6,9 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace HBA.Gateway.Application.Bff;
 
-/// <summary>
-/// Compose un écran agrégé en interrogeant plusieurs services en parallèle.
-/// </summary>
+/// <summary>Compose un écran agrégé en interrogeant plusieurs services en parallèle.</summary>
 public sealed class HomeScreenAggregator
 {
     private readonly IServiceClientRegistry _clients;
@@ -28,9 +26,7 @@ public sealed class HomeScreenAggregator
         _logger = logger;
     }
 
-    /// <summary>
-    /// Construit l'écran <paramref name="screenId"/> pour la surface indiquée.
-    /// </summary>
+    /// <summary>Construit l'écran <paramref name="screenId"/> pour la surface indiquée.</summary>
     /// <param name="screenId">Identifiant de l'écran dans <c>Bff:Screens</c>.</param>
     /// <param name="surface">« express » ou « food », reporté tel quel dans la réponse.</param>
     public async Task<BffHomeResponse> BuildAsync(
@@ -39,10 +35,6 @@ public sealed class HomeScreenAggregator
         if (!_options.Screens.TryGetValue(screenId, out var definitions) || definitions.Count == 0)
         {
             // UN ÉCRAN NON CONFIGURÉ REND UNE RÉPONSE VIDE, PAS UNE ERREUR 500.
-            //
-            // Au démarrage de la plateforme, aucun service n'est déployé : c'est
-            // l'état NORMAL, pas une panne. Une 500 ici mettrait la passerelle en
-            // échec dans les tableaux de bord et masquerait les vraies pannes.
             _logger.LogInformation(
                 "Écran BFF {ScreenId} non configuré : réponse vide. [CorrelationId={CorrelationId}]",
                 screenId, _correlation.CorrelationId);
@@ -50,14 +42,7 @@ public sealed class HomeScreenAggregator
             return new BffHomeResponse(surface, _correlation.CorrelationId, []);
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // CE `CancellationTokenSource` DOIT ÊTRE LIÉ À CELUI DE LA REQUÊTE.
-        //
-        // Sans `CreateLinkedTokenSource`, un client qui raccroche laisserait la
-        // passerelle terminer ses treize appels sortants pour personne. Sous
-        // charge, ces requêtes fantômes saturent les pools de connexions et les
-        // disjoncteurs s'ouvrent sur des services qui allaient parfaitement bien.
-        // ═════════════════════════════════════════════════════════════════════
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         budget.CancelAfter(_options.Timeout);
 
@@ -102,12 +87,6 @@ public sealed class HomeScreenAggregator
         catch (OperationCanceledException)
         {
             // ON NE RELANCE PAS, MÊME SI LE CLIENT A RACCROCHÉ.
-            //
-            // `Task.WhenAll` propage la PREMIÈRE exception : une seule section
-            // annulée ferait échouer l'écran entier, y compris les sections déjà
-            // revenues avec succès. Le dépassement de budget doit dégrader, pas
-            // annuler. Si c'est le client qui est parti, la réponse construite ici
-            // ne sera de toute façon écrite nulle part.
             _logger.LogInformation(
                 "Section BFF {Key} abandonnée (budget dépassé ou client parti). [CorrelationId={CorrelationId}]",
                 definition.Key, _correlation.CorrelationId);

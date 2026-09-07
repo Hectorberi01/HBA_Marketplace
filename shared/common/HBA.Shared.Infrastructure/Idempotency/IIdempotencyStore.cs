@@ -22,21 +22,12 @@ public sealed record IdempotencyReservation(
     int StatusCode = 0,
     string? ResponseBody = null);
 
-/// <summary>
-/// Mémorisation des requêtes idempotentes (§5).
-///
-/// L'implémentation vit dans chaque service, sur sa propre base : un store partagé
-/// serait une base commune à tous les services, ce que le §9 interdit — et un point
-/// de panne unique sur le chemin de tous les paiements.
-/// </summary>
+/// <summary>Mémorisation des requêtes idempotentes (§5).</summary>
 public interface IIdempotencyStore
 {
     /// <summary>
     /// Réserve la clé pour cet utilisateur et cet endpoint, ou dit quoi faire si
-    /// elle existe déjà. L'insertion doit s'appuyer sur la contrainte d'unicité de
-    /// la base et non sur un « SELECT puis INSERT » : deux requêtes simultanées
-    /// passeraient toutes les deux le SELECT, et l'idempotence n'aurait servi à rien
-    /// précisément dans le cas qu'elle est censée couvrir.
+    /// elle existe déjà.
     /// </summary>
     Task<IdempotencyReservation> TryBeginAsync(
         string key,
@@ -56,8 +47,7 @@ public interface IIdempotencyStore
 
     /// <summary>
     /// Libère une clé dont le traitement a échoué, pour que le client puisse
-    /// réessayer. Sans cela, une panne transitoire condamnerait la clé pendant
-    /// 24 h et le client recevrait des 409 sans comprendre pourquoi.
+    /// réessayer.
     /// </summary>
     Task AbandonAsync(
         string key,

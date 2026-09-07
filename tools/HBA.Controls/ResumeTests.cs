@@ -3,30 +3,9 @@ using System.Xml.Linq;
 namespace HBA.Controls;
 
 /// <summary>
-/// Lit les fichiers <c>.trx</c> produits par <c>dotnet test</c> et rend, en
+/// Lit les fichiers <c> .trx</c> produits par <c> dotnet test</c> et rend, en
 /// clair, LE NOM ET LE MESSAGE DE CHAQUE TEST EN ÉCHEC.
 /// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// POURQUOI CE VERBE EXISTE.
-///
-/// La boucle de tests de la CI nomme désormais le PROJET en échec. Ce n'est
-/// pas assez : le 2 septembre, « HBA.Merchants.IntegrationTests » était nommé,
-/// et il fallait encore dérouler un journal de seize mille lignes pour trouver
-/// LEQUEL de ses trente-huit cas était tombé, et pourquoi. Le journal du job
-/// n'est lisible que par un administrateur du dépôt ; l'artefact `.trx` aussi.
-/// Autant dire que la cause d'un échec n'était accessible qu'à une personne.
-///
-/// Ce verbe met le nom du cas, son message d'assertion et les premières lignes
-/// de sa pile dans la SORTIE DU PAS et dans le résumé de l'exécution — deux
-/// endroits que tout le monde peut lire, y compris depuis un téléphone.
-///
-/// CE QUE ÇA NE COUVRE PAS. Un projet qui ne produit AUCUN `.trx` — parce que
-/// l'hôte de test s'est effondré avant d'écrire quoi que ce soit, un code 137
-/// par exemple — ne laisse rien à lire ici. C'est pourquoi l'absence de tout
-/// fichier est DITE au lieu d'être traitée comme « aucun échec ».
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public static class ResumeTests
 {
     /// <summary>Le verbe qui déclenche la lecture.</summary>
@@ -34,34 +13,19 @@ public static class ResumeTests
 
     private const int LignesDePileGardees = 6;
 
-    /// Au-delà, GitHub cesse d'afficher les annotations d'un pas.
+    /// <summary>Au-delà, GitHub cesse d'afficher les annotations d'un pas.</summary>
     private const int AnnotationsMaximum = 8;
 
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// SIX LIGNES NE SUFFISAIENT PAS, ET L'ON A PERDU UN CYCLE POUR ÇA.
-    ///
-    /// La coupe tombait exactement sur « An exception was thrown while attempting
-    /// to evaluate a LINQ query parameter expression. See the INNER EXCEPTION for
-    /// more information » — c'est-à-dire sur la phrase qui renvoie à ce qui
-    /// n'était pas rendu. Une annotation qui s'arrête à l'invitation à lire la
-    /// suite ne vaut pas mieux qu'une annotation vide.
-    ///
-    /// Trente lignes portent l'exception, ses exceptions internes et le haut de
-    /// la pile. Le champ accepte plusieurs milliers de caractères ; le vrai coût
-    /// est la lisibilité, pas la limite.
-    /// ═════════════════════════════════════════════════════════════════════════
+    /// <summary>SIX LIGNES NE SUFFISAIENT PAS, ET L'ON A PERDU UN CYCLE POUR ÇA.</summary>
     private const int LignesDAnnotation = 30;
 
     private static readonly XNamespace Trx =
         "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
 
-    /// <summary>
-    /// Parcourt les <c>.trx</c> du dépôt et écrit le détail des échecs.
-    /// </summary>
+    /// <summary>Parcourt les <c>.trx</c> du dépôt et écrit le détail des échecs.</summary>
     /// <returns>
-    /// Toujours 0. CE VERBE RAPPORTE, IL NE JUGE PAS : c'est
-    /// <c>dotnet test</c> qui décide du rouge. Rendre 1 ici ferait échouer une
-    /// seconde fois le même travail, et masquerait le code de sortie réel.
+    /// Toujours 0. CE VERBE RAPPORTE, IL NE JUGE PAS : c'est <c> dotnet test</c>
+    /// qui décide du rouge.
     /// </returns>
     public static int Executer(string[] args)
     {
@@ -103,8 +67,8 @@ public static class ResumeTests
             }
             catch (Exception erreur)
             {
-                // UN RAPPORT ILLISIBLE SE DIT. Le sauter en silence ferait
-                // conclure « aucun échec » sur un fichier tronqué.
+                // UN RAPPORT ILLISIBLE SE DIT. Le sauter en silence ferait conclure
+                // « aucun échec » sur un fichier tronqué.
                 Console.WriteLine($"resume-tests : {Nom(fichier)} illisible — "
                                   + $"{erreur.GetType().Name} : {erreur.Message}");
                 continue;
@@ -168,26 +132,7 @@ public static class ResumeTests
         return 0;
     }
 
-    /// <summary>
-    /// Pose quelques cas en échec en annotations `::error::` sur le travail.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// POURQUOI CE CANAL EN PLUS DU RÉSUMÉ.
-    ///
-    /// Le journal du job et l'artefact `.trx` demandent tous deux les droits
-    /// d'ADMINISTRATEUR du dépôt. Les annotations, elles, sont rendues par l'API
-    /// publique des `check-runs` : elles sont donc lisibles par quiconque voit le
-    /// dépôt, et par un outil qui n'a aucun jeton. C'est le seul canal par lequel
-    /// la cause d'un échec sort de la machine sans passer par une personne.
-    ///
-    /// PLAFONNÉ, ET DÉLIBÉRÉMENT BAS. GitHub n'affiche qu'une dizaine
-    /// d'annotations par pas ; en poser vingt-trois les rendrait toutes
-    /// invisibles. Le compte total est dit dans la dernière, pour qu'un lecteur
-    /// sache qu'il n'a pas tout vu — un extrait qui se fait passer pour un
-    /// inventaire est pire qu'un extrait.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Pose quelques cas en échec en annotations `::error::` sur le travail.</summary>
     private static void PoserLesAnnotations(IReadOnlyList<Echec> echecs)
     {
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") is not "true")
@@ -212,15 +157,7 @@ public static class ResumeTests
         }
     }
 
-    /// <summary>
-    /// Échappe ce qu'une commande de flux de travail ne supporte pas.
-    /// </summary>
-    /// <remarks>
-    /// Une nouvelle ligne brute couperait la commande en deux et la seconde
-    /// moitié s'afficherait comme une ligne de journal ordinaire ; `::` non
-    /// échappé ouvrirait une commande imbriquée. On perdrait l'annotation sans
-    /// aucun message d'erreur.
-    /// </remarks>
+    /// <summary>Échappe ce qu'une commande de flux de travail ne supporte pas.</summary>
     private static string Echapper(string texte)
         => texte
             .Replace("%", "%25", StringComparison.Ordinal)
@@ -229,14 +166,7 @@ public static class ResumeTests
             .Replace(":", "%3A", StringComparison.Ordinal)
             .Replace(",", "%2C", StringComparison.Ordinal);
 
-    /// <summary>
-    /// Recopie le détail dans le résumé de l'exécution GitHub, quand il existe.
-    /// </summary>
-    /// <remarks>
-    /// La page du run est le seul endroit lisible sans dérouler le journal.
-    /// Hors CI, <c>GITHUB_STEP_SUMMARY</c> est absent et l'on n'écrit rien —
-    /// une exécution locale ne doit pas créer de fichier au hasard.
-    /// </remarks>
+    /// <summary>Recopie le détail dans le résumé de l'exécution GitHub, quand il existe.</summary>
     private static void EcrireLeResume(IReadOnlyList<Echec> echecs)
     {
         var chemin = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
@@ -286,8 +216,8 @@ public static class ResumeTests
         }
         catch (Exception erreur)
         {
-            // Le résumé est un CONFORT. S'il ne s'écrit pas, la sortie du pas
-            // porte déjà tout le détail : on le signale et l'on continue.
+            // Le résumé est un CONFORT. S'il ne s'écrit pas, la sortie du pas porte
+            // déjà tout le détail : on le signale et l'on continue.
             Console.WriteLine($"resume-tests : résumé non écrit — "
                               + $"{erreur.GetType().Name} : {erreur.Message}");
         }

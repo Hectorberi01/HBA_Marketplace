@@ -6,7 +6,6 @@ namespace HBA.Controls.Controles;
 /// Tout RPC appelé par un client a-t-il un corps de serveur ?
 /// </summary>
 /// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
 /// UN RPC APPELÉ SANS CORPS DE SERVEUR REND `UNIMPLEMENTED` — ET RIEN NE LE DIT.
 ///
 /// DEUX FOIS EN UNE JOURNÉE, DONT UNE QUI TUAIT TOUT LE PARCOURS REPAS.
@@ -68,7 +67,6 @@ namespace HBA.Controls.Controles;
 ///     `_client.Machin(` ou `_client.MachinAsync(` : un client rangé dans un
 ///     champ nommé autrement est invisible à ce contrôle, et ses RPC
 ///     paraîtraient sans appelant.
-/// ═══════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class GrpcRpcControle : IControle
 {
@@ -84,9 +82,7 @@ public sealed class GrpcRpcControle : IControle
     private static readonly Regex Rpc = new(
         @"^\s*rpc\s+(\w+)\s*\(", RegexOptions.Compiled | RegexOptions.Multiline);
 
-    /// <summary>
-    /// `public sealed class X : Truc.MachinApiBase` — on retient « MachinApi ».
-    /// </summary>
+    /// <summary>`public sealed class X : Truc.MachinApiBase` — on retient « MachinApi ».</summary>
     private static readonly Regex Base = new(
         @"class\s+\w+\s*:\s*[\w\.]*?(\w+)\.(\w+)Base\b", RegexOptions.Compiled);
 
@@ -113,8 +109,6 @@ public sealed class GrpcRpcControle : IControle
                 var apres = service.Index + service.Length;
 
                 // Le corps du service s'arrête à l'accolade en début de ligne.
-                // Un `.proto` sans accolade fermante ne fait pas avaler le
-                // fichier suivant : on s'arrête à sa fin.
                 var accolade = source.IndexOf("\n}", apres, StringComparison.Ordinal);
                 var corps = source[apres..(accolade >= 0 ? accolade : source.Length)];
 
@@ -127,8 +121,7 @@ public sealed class GrpcRpcControle : IControle
         }
 
         // ── 2 et 3. Ce que les serveurs implémentent, ce que les clients
-        // appellent. Une seule lecture du disque pour les deux : le fichier est
-        // lu une fois, débarrassé de ses commentaires une fois.
+        // appellent.
         var servis = new HashSet<(string, string)>();
         var appeles = new HashSet<string>(StringComparer.Ordinal);
         var lus = 0;
@@ -144,8 +137,8 @@ public sealed class GrpcRpcControle : IControle
                 appeles.Add(appel.Groups[1].Value);
             }
 
-            // Filtre bon marché : sans le mot `Base`, aucune classe de service
-            // gRPC générée n'est héritée ici.
+            // Filtre bon marché : sans le mot `Base`, aucune classe de service gRPC
+            // générée n'est héritée ici.
             if (!brut.Contains("Base", StringComparison.Ordinal))
             {
                 continue;

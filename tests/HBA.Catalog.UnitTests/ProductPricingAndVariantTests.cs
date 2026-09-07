@@ -6,9 +6,7 @@ namespace HBA.Catalog.UnitTests;
 /// <summary>Prix de référence (§8, §21, §23) et variantes / SKU (§11, §28).</summary>
 public sealed class ProductPricingAndVariantTests
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // PRIX
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Theory]
     [InlineData(0)]
@@ -18,18 +16,13 @@ public sealed class ProductPricingAndVariantTests
         var resultat = ProductPricing.Create(montant);
 
         // Zéro n'est pas un produit gratuit, c'est un formulaire à moitié rempli —
-        // et une commande à 0 F traverserait paiement et livraison sans que rien
-        // ne s'en étonne.
+        // et une commande à 0 F traverserait paiement et livraison sans que rien ne
+        // s'en étonne.
         resultat.IsFailure.Should().BeTrue();
         resultat.Error.Code.Should().Be("catalog.pricing.base_price_invalid");
     }
 
-    /// <summary>
-    /// UN PRIX BARRÉ INFÉRIEUR AU PRIX COURANT AFFICHE UNE REMISE NÉGATIVE.
-    ///
-    /// Défaut de saisie fréquent — les deux champs se ressemblent — et invisible
-    /// partout sauf à l'écran de l'acheteur.
-    /// </summary>
+    /// <summary>UN PRIX BARRÉ INFÉRIEUR AU PRIX COURANT AFFICHE UNE REMISE NÉGATIVE.</summary>
     [Theory]
     [InlineData(850_000, 800_000)]
     [InlineData(850_000, 850_000)]
@@ -62,13 +55,7 @@ public sealed class ProductPricingAndVariantTests
         => ProductPricing.Create(1_000, taxRate: 180).Error.Code
             .Should().Be("catalog.pricing.tax_rate_invalid");
 
-    /// <summary>
-    /// LE COÛT D'ACHAT N'EST PAS UNE MODIFICATION CRITIQUE.
-    ///
-    /// Il n'est jamais montré à l'acheteur : le corriger ne change rien de ce que
-    /// l'administrateur avait validé. L'y inclure enverrait en file d'attente des
-    /// fiches en vente pour une correction de comptabilité interne.
-    /// </summary>
+    /// <summary>LE COÛT D'ACHAT N'EST PAS UNE MODIFICATION CRITIQUE.</summary>
     [Fact]
     public void Changer_le_cout_dachat_ne_declenche_pas_de_nouvelle_validation()
     {
@@ -80,9 +67,7 @@ public sealed class ProductPricingAndVariantTests
         produit.Revisions.Should().HaveCount(1);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // VARIANTES ET SKU
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Deux_variantes_ne_peuvent_pas_partager_un_SKU()
@@ -114,14 +99,11 @@ public sealed class ProductPricingAndVariantTests
         => UnProduit.Brouillon().AddVariant("IP16-N256", null, null, -1)
             .Error.Code.Should().Be("catalog.variant.weight_negative");
 
-    // ═════════════════════════════════════════════════════════════════════════
     // IMAGES — « exactement une image principale » (§12, §23)
-    // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Zéro image principale laisse la vitrine choisir au hasard ; deux font
-    /// diverger la vignette du panier et celle de la fiche. Aucun des deux cas ne
-    /// lève d'erreur nulle part — d'où la garde à la soumission.
+    /// diverger la vignette du panier et celle de la fiche.
     /// </summary>
     [Fact]
     public void La_premiere_image_devient_principale_doffice()
@@ -146,17 +128,9 @@ public sealed class ProductPricingAndVariantTests
         produit.Media.Single(m => m.IsPrimary).Id.Should().Be(seconde.Id);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // TRADUCTION DES VALEURS DU CAHIER
-    // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// LE CAHIER ÉCRIT « VERY_GOOD », LE C# ÉCRIT « VeryGood ».
-    ///
-    /// Sans le retrait des soulignés, l'API refuserait exactement les valeurs que
-    /// sa propre documentation donne en exemple (§9, §11) — et le message d'erreur
-    /// désignerait une valeur que le lecteur vient de recopier du cahier.
-    /// </summary>
+    /// <summary>LE CAHIER ÉCRIT « VERY_GOOD », LE C# ÉCRIT « VeryGood ».</summary>
     [Theory]
     [InlineData("VERY_GOOD")]
     [InlineData("VeryGood")]
@@ -172,13 +146,7 @@ public sealed class ProductPricingAndVariantTests
         contenu.Value.Condition.Type.Should().Be(ProductConditionType.VeryGood);
     }
 
-    /// <summary>
-    /// UNE VALEUR INCONNUE EST REFUSÉE, PAS RAMENÉE À UN DÉFAUT.
-    ///
-    /// Retomber sur « New » transformerait une faute de frappe du client en
-    /// promesse commerciale : un vendeur qui envoie « REFURBISHD » verrait sa fiche
-    /// publiée en NEUF.
-    /// </summary>
+    /// <summary>UNE VALEUR INCONNUE EST REFUSÉE, PAS RAMENÉE À UN DÉFAUT.</summary>
     [Fact]
     public void Un_etat_commercial_inconnu_est_refuse()
     {

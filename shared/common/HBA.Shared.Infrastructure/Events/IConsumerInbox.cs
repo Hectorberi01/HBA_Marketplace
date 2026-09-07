@@ -1,30 +1,14 @@
 // LE PORT RESTE, L'IMPLEMENTATION DESCEND.
-//
-// `IntegrationEventDispatcher` — partage — appelle ce port avant CHAQUE
-// gestionnaire : c'est la garde d'idempotence de toute la plateforme. Sans lui au
-// socle, elle n'existerait plus. L'implementation EF, elle, appartient au service,
-// avec sa table.
 
 namespace HBA.Shared.Infrastructure.Events;
 
-/// <summary>
-/// Garde d'idempotence côté consumer (§19.5).
-///
-/// La séquence imposée par le cahier des charges est : vérifier l'inbox, exécuter
-/// la transaction métier SI l'événement est neuf, insérer la trace, committer, puis
-/// acquitter Kafka. L'ordre compte — acquitter avant de committer perd le message
-/// au premier redémarrage, committer sans trace le rejoue.
-/// </summary>
+/// <summary>Garde d'idempotence côté consumer (§19.5).</summary>
 public interface IConsumerInbox
 {
     /// <summary>Vrai si ce couple (événement, consumer) a déjà été traité avec succès.</summary>
     Task<bool> HasProcessedAsync(Guid eventId, string consumerName, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Enregistre la trace de traitement DANS la transaction métier en cours.
-    /// L'implémentation ne doit pas ouvrir sa propre transaction ni committer :
-    /// c'est l'atomicité avec l'effet métier qui fait toute la valeur du dispositif.
-    /// </summary>
+    /// <summary>Enregistre la trace de traitement DANS la transaction métier en cours.</summary>
     Task MarkProcessedAsync(
         Guid eventId,
         string consumerName,

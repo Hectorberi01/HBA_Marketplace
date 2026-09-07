@@ -35,7 +35,6 @@ public sealed class RestaurantHandlerTests
         GivenMembership();
 
         // §30 : être restaurateur ne suffit pas — encore faut-il être CELUI-là.
-        // Un 403 confirmerait que l'établissement existe.
         var act = () => Dashboard().HandleAsync(OtherId, CancellationToken.None);
 
         await act.Should().ThrowAsync<BffResourceNotFoundException>();
@@ -81,8 +80,8 @@ public sealed class RestaurantHandlerTests
 
         var envelope = await Dashboard().HandleAsync(RestaurantId, CancellationToken.None);
 
-        // Filtrer après coup laisserait le montant transiter et apparaître
-        // dans les journaux : la seule forme qui ne fuit rien est l'absence d'appel.
+        // Filtrer après coup laisserait le montant transiter et apparaître dans les
+        // journaux : la seule forme qui ne fuit rien est l'absence d'appel.
         _financial.SellerWalletCalls.Should().Be(0);
         envelope.Data.Wallet.Should().BeNull();
     }
@@ -131,9 +130,8 @@ public sealed class RestaurantHandlerTests
     public async Task Le_tableau_de_bord_compte_les_tickets_par_etat()
     {
         GivenMembership();
-        // Ce sont des `KitchenTicketStatus` — l'avancement en cuisine — et non
-        // des `FoodOrderStatus`. « Accepted » ou « ReadyForPickup » ici ne
-        // lèveraient rien : les tickets tomberaient dans aucun seau.
+        // Ce sont des `KitchenTicketStatus` — l'avancement en cuisine — et non des
+        // `FoodOrderStatus`.
         _food.KitchenResult = ServiceResult<KitchenBoard>.Success(200, Fixtures.Kitchen(
             RestaurantId,
             ("Pending", 2),
@@ -151,9 +149,9 @@ public sealed class RestaurantHandlerTests
     [Fact]
     public async Task Un_statut_de_commande_au_lieu_d_un_statut_de_ticket_ne_remplit_aucun_seau()
     {
-        // Garde-fou contre la confusion des deux énumérations : si quelqu'un
-        // recale les seaux sur `FoodOrderStatus`, ce test le dira au lieu de
-        // laisser l'écran de cuisine se vider en silence.
+        // Garde-fou contre la confusion des deux énumérations : si quelqu'un recale
+        // les seaux sur `FoodOrderStatus`, ce test le dira au lieu de laisser
+        // l'écran de cuisine se vider en silence.
         GivenMembership();
         _food.KitchenResult = ServiceResult<KitchenBoard>.Success(200, Fixtures.Kitchen(
             RestaurantId, ("Accepted", 1), ("ReadyForPickup", 1)));
@@ -205,8 +203,8 @@ public sealed class RestaurantHandlerTests
 
         var envelope = await Kitchen().HandleAsync(RestaurantId, CancellationToken.None);
 
-        // L'horloge d'une tablette de cuisine n'est pas fiable : le compteur
-        // doit venir du serveur, pas du client.
+        // L'horloge d'une tablette de cuisine n'est pas fiable : le compteur doit
+        // venir du serveur, pas du client.
         envelope.Data.Preparing.Single().ElapsedSeconds.Should().BeInRange(280, 320);
     }
 

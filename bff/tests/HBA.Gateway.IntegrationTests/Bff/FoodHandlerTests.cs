@@ -25,9 +25,6 @@ public sealed class FoodHandlerTests
         await Home().HandleAsync(new PageRequest(page: 1, pageSize: 100_000), CancellationToken.None);
 
         // LA BORNE EST APPLIQUÉE AVANT L'APPEL SORTANT.
-        //
-        // S'en remettre au service amont supposerait que les treize services
-        // bornent tous, de la même façon, pour toujours.
         _food.LastPageSize.Should().Be(PageRequest.MaxPageSize);
     }
 
@@ -67,9 +64,6 @@ public sealed class FoodHandlerTests
         var response = await Home().HandleAsync(new PageRequest(1, 20), CancellationToken.None);
 
         // « visible » N'EST PAS « accepte des commandes ».
-        //
-        // Filtrer sur les horaires viderait l'application chaque nuit. Le client
-        // consulte la carte et reviendra demain.
         response.Data.Restaurants.Items.Should().ContainSingle()
             .Which.IsOpenNow.Should().BeFalse();
     }
@@ -111,9 +105,6 @@ public sealed class FoodHandlerTests
         var response = await Detail().HandleAsync(RestaurantId, CancellationToken.None);
 
         // §9 ET §19 : « Ne retourne pas de faux tarif Delivery ».
-        //
-        // Un montant affiché est lu comme un engagement, et l'écart se découvre
-        // au paiement.
         response.Data.Delivery.Available.Should().BeFalse();
         response.Data.Delivery.Fee.Should().BeNull();
         response.Data.Delivery.EtaMinutes.Should().BeNull();
@@ -149,11 +140,6 @@ public sealed class FoodHandlerTests
     public async Task Les_deux_accueils_partagent_la_meme_notion_de_commande_active()
     {
         // CE TEST EXISTE POUR EMPÊCHER LA DIVERGENCE.
-        //
-        // La liste des statuts actifs vivait en dur dans l'accueil Express. La
-        // recopier côté Food aurait garanti qu'un statut ajouté d'un seul côté
-        // fasse disparaître le bandeau dans l'autre — sans que personne le
-        // signale, parce que cela ressemble à « je n'ai pas de commande ».
         FoodOrderStatuses.IsActive("Shipped").Should().BeTrue();
         FoodOrderStatuses.IsActive("Delivered").Should().BeFalse();
 

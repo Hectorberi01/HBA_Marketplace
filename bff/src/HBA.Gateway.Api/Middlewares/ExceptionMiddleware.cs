@@ -6,7 +6,7 @@ using HBA.Gateway.Api.Extensions;
 namespace HBA.Gateway.Api.Middlewares;
 
 /// <summary>
-/// Convertit toute exception non gérée en réponse <c>application/problem+json</c>
+/// Convertit toute exception non gérée en réponse <c> application/problem+json</c>
 /// uniforme, sans rien divulguer de l'intérieur de la plateforme.
 /// </summary>
 public sealed class ExceptionMiddleware
@@ -29,14 +29,6 @@ public sealed class ExceptionMiddleware
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
             // UN CLIENT QUI RACCROCHE N'EST PAS UNE ERREUR SERVEUR.
-            //
-            // Sur mobile — passage en tunnel, bascule Wi-Fi/4G, application mise
-            // en arrière-plan — cela arrive en permanence. Compté en 500, ce cas
-            // noie les vraies pannes dans les tableaux de bord et déclenche des
-            // alertes sur un réseau béninois qui a simplement vacillé.
-            //
-            // 499 est la convention nginx pour « le client est parti ». Aucun
-            // corps n'est écrit : il n'y a plus personne pour le lire.
             _logger.LogDebug(
                 "Requête abandonnée par le client : {Method} {Path}",
                 context.Request.Method, context.Request.Path);
@@ -46,18 +38,10 @@ public sealed class ExceptionMiddleware
                 context.Response.StatusCode = 499;
             }
         }
-        // ═════════════════════════════════════════════════════════════════════
         // LES DEUX ÉCHECS D'AGRÉGATION SONT TRAITÉS AVANT LE CAS GÉNÉRAL.
-        //
-        // Sans ces deux clauses, une dépendance critique en panne rendrait 500 —
-        // c'est-à-dire « la passerelle a un défaut » — alors que la passerelle a
-        // parfaitement fonctionné et qu'un service amont est à terre. La
-        // distinction n'est pas cosmétique : elle décide qui est réveillé la nuit.
-        // ═════════════════════════════════════════════════════════════════════
         catch (BffResourceNotFoundException exception)
         {
-            // 404 : la ressource n'existe pas. Aucun journal d'erreur — un produit
-            // supprimé consulté depuis un favori n'est pas un incident.
+            // 404 : la ressource n'existe pas.
             await WriteProblemAsync(
                 context,
                 StatusCodes.Status404NotFound,
@@ -69,9 +53,6 @@ public sealed class ExceptionMiddleware
         catch (CriticalDependencyException exception)
         {
             // LE NOM DU SERVICE VA DANS LE JOURNAL, PAS DANS LA RÉPONSE.
-            //
-            // « catalog-service injoignable » renseignerait un attaquant sur la
-            // topologie interne et sur le composant à cibler ensuite.
             _logger.LogError(
                 exception,
                 "Dépendance critique indisponible : {Dependency} ({StatusCode}) sur {Path}",
@@ -90,10 +71,6 @@ public sealed class ExceptionMiddleware
             var correlationId = context.Items[CorrelationIdMiddleware.HeaderName]?.ToString();
 
             // L'EXCEPTION COMPLÈTE VA DANS LES JOURNAUX, JAMAIS DANS LA RÉPONSE.
-            //
-            // C'est toute la ligne de partage : le diagnostic est intégralement
-            // conservé côté serveur, corrélé, et le client ne reçoit qu'un
-            // identifiant à communiquer au support.
             _logger.LogError(
                 exception,
                 "Exception non gérée sur {Method} {Path}. [CorrelationId={CorrelationId}]",
@@ -102,9 +79,7 @@ public sealed class ExceptionMiddleware
             if (context.Response.HasStarted)
             {
                 // La réponse est déjà partie — cas courant lorsque YARP diffuse le
-                // flux d'un service qui se coupe en cours de route. On ne peut plus
-                // rien réécrire ; relancer laisse le serveur couper proprement la
-                // connexion plutôt que d'envoyer un corps tronqué mais « valide ».
+                // flux d'un service qui se coupe en cours de route.
                 throw;
             }
 
@@ -129,9 +104,6 @@ public sealed class ExceptionMiddleware
             problem.Extensions["correlationId"] = correlationId;
 
             // LE TYPE EST PASSÉ ICI : `WriteAsJsonAsync` écrase `ContentType`.
-            //
-            // Le poser sur la réponse avant l'appel ne survit pas — la surcharge
-            // sans `contentType` réécrit « application/json; charset=utf-8 ».
             await context.Response.WriteAsJsonAsync(
                 problem,
                 options: null,
@@ -141,14 +113,9 @@ public sealed class ExceptionMiddleware
     }
 
     /// <summary>
-    /// Écrit un <c>application/problem+json</c> sans jamais exposer le motif
+    /// Écrit un <c> application/problem+json</c> sans jamais exposer le motif
     /// interne de l'exception.
     /// </summary>
-    /// <remarks>
-    /// `detail` est un message FIXE choisi par l'appelant de cette méthode. Le
-    /// paramètre <paramref name="exception"/> ne sert qu'à ne pas écrire de corps
-    /// si la réponse est déjà partie — il n'est jamais sérialisé.
-    /// </remarks>
     private static async Task WriteProblemAsync(
         HttpContext context, int statusCode, string slug, string title, string detail, Exception exception)
     {

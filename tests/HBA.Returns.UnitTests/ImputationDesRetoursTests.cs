@@ -6,16 +6,7 @@ using OrderAggregate = HBA.Orders.Domain.Orders.Order;
 
 namespace HBA.Returns.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE VOLET ORDER-SERVICE D'ISSUE-014.
-///
-/// `OrderingModuleApi.GetOrderReturnContextAsync` répondait
-/// `AlreadyReturnedQuantity: 0` et `AlreadyRefundedAmount: 0m` EN DUR. Ces tests
-/// éprouvent la source qui manquait : ce que l'agrégat commande retient d'un
-/// dossier de retour, et ce qu'il en rend ensuite.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE VOLET ORDER-SERVICE D'ISSUE-014.</summary>
 public sealed class ImputationDesRetoursTests
 {
     private static readonly DateTime Maintenant = new(2026, 8, 28, 10, 0, 0, DateTimeKind.Utc);
@@ -34,14 +25,7 @@ public sealed class ImputationDesRetoursTests
         commande.ReturnedQuantityFor(ligne).Should().Be(2);
     }
 
-    /// <summary>
-    /// LA GARDE QUI TIENT SANS L'INBOX.
-    ///
-    /// Kafka livre au moins une fois. Si l'agrégat ADDITIONNAIT au lieu de POSER,
-    /// un simple rejeu doublerait la marchandise rendue — et fermerait
-    /// définitivement le plafond de remboursement d'un client qui n'a rien
-    /// demandé de plus.
-    /// </summary>
+    /// <summary>LA GARDE QUI TIENT SANS L'INBOX.</summary>
     [Fact]
     public void Un_message_rejoue_n_impute_rien_de_plus()
     {
@@ -58,11 +42,7 @@ public sealed class ImputationDesRetoursTests
         commande.ReturnedQuantityFor(ligne).Should().Be(2);
     }
 
-    /// <summary>
-    /// Deux partitions Kafka ne garantissent aucun ordre entre elles. Un message
-    /// ancien remis après un récent ne doit pas faire REBAISSER le montant
-    /// remboursé — ce qui reviendrait à rouvrir un plafond déjà consommé.
-    /// </summary>
+    /// <summary>Deux partitions Kafka ne garantissent aucun ordre entre elles.</summary>
     [Fact]
     public void Un_message_ancien_ne_fait_pas_reculer_le_compteur()
     {
@@ -90,11 +70,7 @@ public sealed class ImputationDesRetoursTests
         commande.ReturnedQuantityFor(ligne).Should().Be(2);
     }
 
-    /// <summary>
-    /// Une ligne qu'on ne sait pas rapprocher n'imputera jamais rien. Refuser le
-    /// message entier ferait perdre le MONTANT, donc laisserait le plafond de la
-    /// commande grand ouvert — l'inverse de ce qu'on cherche.
-    /// </summary>
+    /// <summary>Une ligne qu'on ne sait pas rapprocher n'imputera jamais rien.</summary>
     [Fact]
     public void Une_ligne_inconnue_est_ignoree_mais_le_montant_reste_impute()
     {
@@ -141,10 +117,7 @@ public sealed class ImputationDesRetoursTests
         resultat.Error.Code.Should().Be("order.return_settlement.identity_required");
     }
 
-    /// <summary>
-    /// L'état d'origine : rien n'est revenu, rien n'a été rendu. C'est ce que
-    /// l'API publique répondait EN DUR quel que soit l'historique de la commande.
-    /// </summary>
+    /// <summary>L'état d'origine : rien n'est revenu, rien n'a été rendu.</summary>
     [Fact]
     public void Une_commande_sans_retour_ne_declare_rien()
     {

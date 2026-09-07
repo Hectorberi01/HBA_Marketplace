@@ -3,66 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace HBA.Controls.Controles;
 
-/// <summary>
-/// Équilibre des accolades, parenthèses et crochets dans les fichiers C#.
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// POURQUOI CE CONTRÔLE EXISTE ALORS QUE LE COMPILATEUR LE FAIT MIEUX.
-///
-/// Il ne remplace pas `dotnet build` : il le PRÉCÈDE. Une accolade manquante
-/// coûte un aller-retour complet — restauration, compilation des projets en
-/// amont, échec sur `CS1513 } attendue` — pour une faute qu'une lecture de trois
-/// secondes attrape. Sur ce dépôt, où l'on édite souvent plusieurs dizaines de
-/// fichiers avant de compiler, cet aller-retour est le poste de temps perdu le
-/// plus régulier.
-///
-/// CE N'EST PAS UN COMPTAGE NAÏF, ET IL NE PEUT PAS L'ÊTRE.
-///
-/// Compter les caractères sur le texte brut donne des résultats faux dans les
-/// deux sens sur ce dépôt, pour quatre raisons :
-///
-///   · les commentaires sont en français et pleins d'apostrophes — « l'hôte »,
-///     « d'un » — que tout traitement des littéraux de caractère apparie deux à
-///     deux, avalant le code situé entre les deux ;
-///   · les commentaires contiennent des parenthèses dépareillées, parce qu'ils
-///     citent du code : « (voir `realGateways.Count == 0` plus haut) » ;
-///   · les chaînes interpolées imbriquent des chaînes :
-///     `$"… {string.Join(…, noms)} …"` ;
-///   · les migrations portent du SQL en littéral BRUT — délimité par trois
-///     guillemets — dont le contenu déborde d'accolades, de parenthèses et de
-///     `$$` PostgreSQL.
-///
-/// Le lecteur de <see cref="CodeSeul"/> est donc un vrai automate : commentaires
-/// de ligne et de bloc, chaînes normales, verbatim, interpolées avec leurs trous
-/// — dont le contenu redevient du code, y compris s'il contient une chaîne.
-///
-/// ET L'ÉQUILIBRE NE SUFFIT PAS. C'EST LA LEÇON DU 21 AOÛT 2026.
-///
-/// Ce jour-là, une accolade fermante de méthode a disparu et une accolade
-/// orpheline est apparue en fin de fichier. Le compte était donc JUSTE, et un
-/// contrôle d'équilibre seul serait resté muet. Ce que le fichier était devenu,
-/// en revanche, se voyait d'un coup d'œil : la méthode privée suivante s'était
-/// retrouvée à l'intérieur du corps de la précédente — une fonction locale, à
-/// laquelle C# refuse le modificateur `private`. D'où `CS1513 } attendue`, à
-/// quinze lignes de la vraie faute.
-///
-/// D'où le second contrôle, <see cref="MembresMalPlaces"/> : dans ce dépôt,
-/// l'indentation est de quatre espaces par niveau et une déclaration de membre
-/// commence toujours par son modificateur d'accès. Si le nombre d'espaces ne
-/// correspond pas à la profondeur d'accolades réelle, c'est qu'une accolade
-/// manque ou est en trop — même quand le compte tombe juste.
-///
-/// POURQUOI CE CONTRÔLE NE PASSE PAS PAR <see cref="SourceCsharp"/>.
-///
-/// `SansCommentaires` CONSERVE les chaînes — ce sont elles que les autres
-/// contrôles cherchent — et ne préserve pas les numéros de ligne. Ici il faut
-/// exactement l'inverse : les littéraux doivent DISPARAÎTRE, puisque c'est là
-/// que vivent les accolades dépareillées, et chaque caractère retiré doit être
-/// remplacé par une espace pour que la ligne fautive reste désignable. Deux
-/// besoins opposés ; les confondre casserait les deux.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Équilibre des accolades, parenthèses et crochets dans les fichiers C#.</summary>
 public sealed class AccoladesControle : IControle
 {
     /// <inheritdoc/>
@@ -84,10 +25,7 @@ public sealed class AccoladesControle : IControle
     private static readonly Regex Declaration = new(
         @"^(\s*)(public|private|protected|internal)\s", RegexOptions.Compiled);
 
-    // LECTURE STRICTE, ET C'EST DÉLIBÉRÉ. Par défaut .NET remplace les octets
-    // invalides par un caractère de remplacement, en silence : un fichier au
-    // mauvais encodage serait analysé comme s'il était sain. Ici il LÈVE, et le
-    // fichier est nommé dans « ce qui n'est pas couvert » plutôt qu'oublié.
+    // LECTURE STRICTE, ET C'EST DÉLIBÉRÉ.
     private static readonly UTF8Encoding Utf8Strict = new(false, true);
 
     /// <summary>L'état d'un trou d'interpolation ouvert.</summary>
@@ -159,11 +97,6 @@ public sealed class AccoladesControle : IControle
     private static List<(int Ligne, string Message)> Analyser(string source)
     {
         // COLLECTÉES PENDANT LE DÉCOUPAGE, RAPPORTÉES EN PREMIER.
-        //
-        // Une chaîne coupée par un saut de ligne n'a AUCUN effet sur l'équilibre
-        // des accolades — le contenu est retiré dans les deux cas. Elle ne peut
-        // donc pas être trouvée par le comptage : il faut la signaler au moment
-        // où on la voit.
         var coupees = new List<(int Ligne, string Extrait)>();
 
         var nu = CodeSeul(source, position =>
@@ -248,17 +181,11 @@ public sealed class AccoladesControle : IControle
         return entete;
     }
 
-    /// <summary>
-    /// Rend le source privé de ses commentaires et de ses littéraux.
-    /// </summary>
-    /// <remarks>
-    /// Les caractères retirés sont remplacés par des espaces afin que les numéros
-    /// de ligne restent EXACTS : c'est ce qui permet de désigner la ligne fautive.
-    /// </remarks>
+    /// <summary>Rend le source privé de ses commentaires et de ses littéraux.</summary>
     /// <param name="source">Le source C# entier.</param>
     /// <param name="signaler">
     /// Appelé avec la position d'un saut de ligne trouvé DANS une chaîne non
-    /// verbatim. Voir <see cref="LireChaine"/> : ce cas était vu et tu.
+    /// verbatim.
     /// </param>
     private static string CodeSeul(string source, Action<int>? signaler)
     {
@@ -347,15 +274,6 @@ public sealed class AccoladesControle : IControle
             }
 
             // ── Littéral BRUT ───────────────────────────────────────────────
-            //
-            // TRAITÉ COMME OPAQUE, TROUS D'INTERPOLATION COMPRIS.
-            //
-            // Un littéral brut interpolé peut contenir du code dans ses trous ;
-            // ne pas le lire revient à ignorer ce code. C'est un choix : manquer
-            // une anomalie coûte un aller-retour de compilation, en inventer une
-            // fait perdre confiance dans le contrôle — et un contrôle en qui on
-            // ne croit plus, personne ne le lance. Le dépôt n'utilise les
-            // littéraux bruts que pour du SQL, sans trou.
             if (j + 3 <= n && source[j] == '"' && source[j + 1] == '"' && source[j + 2] == '"')
             {
                 var longueur = 0;
@@ -456,9 +374,7 @@ public sealed class AccoladesControle : IControle
         return sortie.ToString();
     }
 
-    /// <summary>
-    /// Consomme le corps d'une chaîne. Rend l'indice APRÈS le guillemet fermant.
-    /// </summary>
+    /// <summary>Consomme le corps d'une chaîne.</summary>
     private static int LireChaine(
         string source,
         int i,
@@ -488,8 +404,8 @@ public sealed class AccoladesControle : IControle
 
             if (c == '"')
             {
-                // En verbatim, deux guillemets forment un guillemet littéral,
-                // pas la fin de la chaîne.
+                // En verbatim, deux guillemets forment un guillemet littéral, pas
+                // la fin de la chaîne.
                 if (verbatim && i + 1 < n && source[i + 1] == '"')
                 {
                     Pousser(sortie, c);
@@ -521,24 +437,7 @@ public sealed class AccoladesControle : IControle
 
             if (!verbatim && c == '\n')
             {
-                // ═════════════════════════════════════════════════════════════
                 // UN SAUT DE LIGNE DANS UNE CHAÎNE NON VERBATIM — C'EST CS1010.
-                //
-                // Ce cas était DÉTECTÉ et TU. On rendait la main pour ne pas
-                // avaler le reste du fichier, et on ne disait rien : les
-                // accolades restaient équilibrées, le contrôle rendait
-                // « 0 anomalie », et le compilateur crachait dix-neuf erreurs
-                // sur le même fichier.
-                //
-                // C'est arrivé pour de vrai (lot 4.1, `FoodCartModuleInstaller`) :
-                // un `\n` écrit comme un vrai retour à la ligne au lieu de
-                // l'échappement. Le contrôle qui existait pour attraper
-                // exactement ce genre de faute a répondu vert.
-                //
-                // ET C'EST PRÉCISÉMENT LE PIRE MODE DE DÉFAILLANCE D'UN
-                // GARDE-FOU : il ne manque pas l'anomalie par ignorance, il la
-                // VOIT et se tait.
-                // ═════════════════════════════════════════════════════════════
                 signaler?.Invoke(i);
                 return i;
             }
@@ -571,20 +470,7 @@ public sealed class AccoladesControle : IControle
         return profondeurs;
     }
 
-    /// <summary>
-    /// Déclarations de membre dont l'indentation contredit la profondeur réelle.
-    /// </summary>
-    /// <remarks>
-    /// ON NE REGARDE QUE LES LIGNES COMMENÇANT PAR UN MODIFICATEUR D'ACCÈS.
-    ///
-    /// Elles sont, dans ce dépôt, toujours des déclarations de membre — jamais
-    /// des continuations d'expression, jamais des `case`, jamais des
-    /// initialiseurs. C'est ce qui rend la comparaison indentation/profondeur
-    /// fiable ici alors qu'elle serait bruyante sur n'importe quelle ligne.
-    ///
-    /// Les lignes indentées avec autre chose que des multiples de quatre espaces
-    /// sont ignorées : mieux vaut ne rien dire que dire n'importe quoi.
-    /// </remarks>
+    /// <summary>Déclarations de membre dont l'indentation contredit la profondeur réelle.</summary>
     private static List<(int Ligne, string Message)> MembresMalPlaces(string nu)
     {
         var lignes = nu.Split('\n');

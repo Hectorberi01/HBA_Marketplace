@@ -12,27 +12,7 @@ using HBA.Gateway.Application.Contracts.Order;
 
 namespace HBA.Gateway.IntegrationTests.Bff;
 
-/// <summary>
-/// Doublures des clients Application, écrites à la main.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// PAS DE BIBLIOTHÈQUE DE SIMULACRES, ET C'EST UN CHOIX.
-///
-/// Aucune n'est déclarée dans `Directory.Packages.props` ; en ajouter une
-/// imposerait une version de plus à toute la solution pour six interfaces.
-///
-/// L'écrire à la main a un second mérite : ces doublures COMPTENT les appels et
-/// exposent une porte (`Gate`) qui permet de prouver la parallélisation du §22 —
-/// ce qu'un simulacre configuré par expression ne montre pas.
-///
-/// CES DOUBLURES NE REMPLACENT PAS LES TESTS DE CONTRAT (§42).
-///
-/// Elles vérifient la LOGIQUE d'agrégation. Elles ne peuvent rien dire de la
-/// conformité des `Contracts/` aux réponses réelles des services : c'est
-/// précisément le risque du miroir recopié, et il se couvre en intégration.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Doublures des clients Application, écrites à la main.</summary>
 public sealed class FakeCatalogClient : ICatalogClient
 {
     public string ServiceKey => "Catalog";
@@ -193,7 +173,9 @@ public sealed class FakeAnalyticsClient : IAnalyticsClient
 
     public ServiceResult<SignupSeries>? SignupsResult { get; set; }
 
-    /// <summary>Les bornes du dernier appel — c'est ce que vérifient les tests de période.</summary>
+    /// <summary>
+    /// Les bornes du dernier appel — c'est ce que vérifient les tests de période.
+    /// </summary>
     public DateOnly? LastFrom { get; private set; }
 
     public DateOnly? LastTo { get; private set; }
@@ -207,9 +189,9 @@ public sealed class FakeAnalyticsClient : IAnalyticsClient
         LastFrom = from;
         LastTo = to;
 
-        // LE DÉFAUT EST UN 503, PAS UNE SÉRIE VIDE, et c'est ce qui rend les
-        // tests honnêtes : un test qui n'arme pas analytics doit voir l'écran
-        // DÉGRADÉ, pas un écran complet rempli de zéros.
+        // LE DÉFAUT EST UN 503, PAS UNE SÉRIE VIDE, et c'est ce qui rend les tests
+        // honnêtes : un test qui n'arme pas analytics doit voir l'écran DÉGRADÉ,
+        // pas un écran complet rempli de zéros.
         return Task.FromResult(SellerSalesResult
             ?? ServiceResult<SellerSalesSeries>.Failure(503, "analytics non armé"));
     }
@@ -411,15 +393,7 @@ public static class Fixtures
                     [new KitchenTicketItem(Guid.NewGuid(), "Poulet braisé", 1, null, "Pending", null, 15, [])])),
             ]);
 
-    /// <summary>
-    /// Une série de ventes SANS TROU, comme analytics-service la rend.
-    /// </summary>
-    /// <remarks>
-    /// LE ZÉRO EST ÉCRIT, PAS OMIS. Le service remplit les journées sans vente ;
-    /// une doublure qui les omettrait ferait passer des tests que le vrai
-    /// service ferait échouer — le tableau de bord cherche le point du JOUR par
-    /// sa date, et ne le trouverait pas.
-    /// </remarks>
+    /// <summary>Une série de ventes SANS TROU, comme analytics-service la rend.</summary>
     public static SellerSalesSeries Ventes(
         DateOnly du, DateOnly au, params (DateOnly Jour, int Commandes, decimal Montant)[] jours)
     {

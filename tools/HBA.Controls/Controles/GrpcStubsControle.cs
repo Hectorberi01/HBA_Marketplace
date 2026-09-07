@@ -2,97 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace HBA.Controls.Controles;
 
-/// <summary>
-/// Clients gRPC : quelles méthodes ne contactent jamais le serveur ?
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// UN BOUCHON COMPILE, NE LÈVE PAS, ET MENT.
-///
-///     public Task&lt;OfferSummary?&gt; GetOfferAsync(Guid offerId, CancellationToken ct = default)
-///         =&gt; Task.FromResult&lt;OfferSummary?&gt;(null);
-///
-/// Cette méthode satisfait l'interface. Le conteneur la résout. L'appelant reçoit
-/// « cette offre n'existe pas » — et conclut que l'offre n'existe pas, alors
-/// qu'elle n'a jamais été demandée à personne.
-///
-/// C'est pire qu'une `NotImplementedException` : celle-là se voit au premier
-/// appel.
-///
-/// CE QUE CE CONTRÔLE A TROUVÉ LA PREMIÈRE FOIS.
-///
-/// Sept méthodes bouchonnées dans deux clients. L'une d'elles, `GetOfferAsync`,
-/// est appelée par le gestionnaire d'ajout au panier — c'est-à-dire qu'AUCUN
-/// article ne pouvait entrer dans un panier. Le premier geste du parcours client,
-/// avant même le checkout et le paiement.
-///
-/// Un audit précédent avait conclu « la couche synchrone est saine » parce que
-/// chaque client déclaré avait un serveur en face. Il vérifiait l'existence du
-/// serveur, pas le fait que le client lui parle.
-///
-/// ET ENSUITE, CE CONTRÔLE A MENTI À SON TOUR, PENDANT TOUTE SA VIE.
-///
-/// Il balayait `&lt;dépôt&gt;/src` — le chemin du monolithe. Ce dossier n'existe
-/// pas ici : le code vit sous `services/`, `shared/` et `apps/`. Un parcours de
-/// dossier absent ne lève pas, il n'itère pas. Le contrôle imprimait donc
-/// « 0 client concerné, 0 méthode bouchonnée » à chaque exécution depuis le
-/// premier jour, et ce zéro se lisait comme « tout va bien ».
-///
-/// Ce qu'il taisait : la remise en stock des retours rendait un résultat de
-/// succès sans rien appeler — la marchandise retournée n'entrait JAMAIS en stock
-/// — et la création d'une course de retour fabriquait une chaîne
-/// `RET-DELIVERY-{guid}` : aucun enlèvement n'était jamais créé, et le client
-/// recevait un numéro qui ne correspondait à rien.
-///
-/// Les racines de balayage viennent désormais de
-/// <see cref="SourceCsharp.Fichiers"/>, qui passe par <see cref="Depot.Dossier"/>
-/// et LÈVE quand un dossier déclaré manque. Un contrôle qui ne trouve pas ses
-/// fichiers s'interrompt au lieu de rendre un zéro rassurant.
-///
-/// LE PIRE BOUCHON N'A PAS DE MÉTHODE BOUCHONNÉE : IL N'A PAS DE CLIENT DU TOUT.
-///
-/// Le critère historique — « le corps ne mentionne pas le champ client » —
-/// suppose qu'un champ client existe. Les deux classes ci-dessus n'en avaient
-/// AUCUN : pas de champ, pas de constructeur, rien que des expressions-corps.
-/// C'est le bouchon le plus complet, donc le plus dangereux, et c'était
-/// précisément celui qui passait entre les mailles.
-///
-/// Une classe `*GrpcClient` sans un seul collaborateur injecté est donc signalée
-/// EN TANT QUE TELLE, avant même l'examen de ses méthodes, et TOUTES ses méthodes
-/// sont listées : sans interlocuteur, aucune ne peut contacter quoi que ce soit.
-///
-/// ON NE CHERCHE PLUS LE SEUL NOM `_client`. Un client peut appeler `_orders.` ou
-/// `_payments.` : figer le nom rendait le critère faux dès qu'un client était
-/// nommé d'après son interlocuteur, et un vrai appel passait alors pour un
-/// bouchon. Les collaborateurs sont donc TOUS les champs privés et TOUS les
-/// paramètres du constructeur primaire (C# 12) — ces derniers ne sont pas des
-/// champs déclarés mais se référencent exactement pareil.
-///
-/// POURQUOI CE CONTRÔLE NE FAIT PAS ÉCHOUER LA BARRIÈRE.
-///
-/// Un bouchon peut être délibéré tant que personne ne l'appelle depuis un autre
-/// service, et ce contrôle ne sait pas qui appelle quoi. Le faire échouer d'office
-/// rendrait la barrière rouge en permanence, ce qui est la meilleure façon de
-/// faire ignorer les autres contrôles. C'est la LISTE qui compte, et elle est
-/// rendue en CONSTATS. Le garde-fou qui, lui, refuse de démarrer, se pose dans
-/// l'installeur du module — voir `ReturnRefundModuleInstaller` et
-/// `PaymentsModuleInstaller`.
-///
-/// Ce qui N'EST PAS informatif, en revanche : une racine de code introuvable. Elle
-/// LÈVE, et le lanceur compte l'interruption comme une faute. C'est exactement le
-/// silence qui a laissé passer les deux bouchons de return-refund, et il ne doit
-/// plus jamais ressembler à un succès.
-///
-/// CE QU'IL REGARDE, ET SA LIMITE.
-///
-/// Une méthode publique d'une classe `*GrpcClient` dont le corps ne mentionne
-/// aucun collaborateur de la classe. Il ne juge pas la justesse de l'appel,
-/// seulement sa présence. Une méthode qui délègue à une autre méthode du même
-/// client est signalée à tort — c'est un faux positif assumé, préférable au
-/// silence. Il ne dit RIEN de ce qui appelle le bouchon : c'est une liste à
-/// trier, et le tri demande de savoir qui dépend de la méthode.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Clients gRPC : quelles méthodes ne contactent jamais le serveur ?</summary>
 public sealed class GrpcStubsControle : IControle
 {
     /// <inheritdoc/>
@@ -108,9 +18,8 @@ public sealed class GrpcStubsControle : IControle
     private static readonly Regex ClasseCliente = new(
         @"class\s+(\w*GrpcClient)\b", RegexOptions.Compiled);
 
-    // L'indentation à quatre espaces est le repère de « méthode de premier
-    // niveau ». Grossier, et suffisant : elle sépare les méthodes du client des
-    // fonctions locales et des lambdas de leurs corps.
+    // L'indentation à quatre espaces est le repère de « méthode de premier niveau
+    // ».
     private static readonly Regex Methode = new(
         "\n    public (?:async )?(?:override )?Task<?[^\n(]*?>?\\s+(\\w+)\\s*\\(",
         RegexOptions.Compiled);
@@ -169,8 +78,7 @@ public sealed class GrpcStubsControle : IControle
         };
         constats.AddRange(details);
 
-        // FAUTES VIDES, DÉLIBÉRÉMENT : voir l'encadré de la classe. Ce contrôle
-        // rend une liste, pas un verdict d'échec.
+        // FAUTES VIDES, DÉLIBÉRÉMENT : voir l'encadré de la classe.
         return new Verdict([], constats, NonCouvert());
     }
 
@@ -196,8 +104,8 @@ public sealed class GrpcStubsControle : IControle
             return (null, []);
         }
 
-        // On ne regarde QUE la portion à partir de la première classe cliente :
-        // le serveur, dans le même fichier, n'a évidemment pas de champ client.
+        // On ne regarde QUE la portion à partir de la première classe cliente : le
+        // serveur, dans le même fichier, n'a évidemment pas de champ client.
         var portion = source[premiere.Index..];
         var noms = Collaborateurs(portion);
         var trouvees = Methode.Matches(portion);
@@ -226,9 +134,7 @@ public sealed class GrpcStubsControle : IControle
         return (null, bouchonnees);
     }
 
-    /// <summary>
-    /// Texte jusqu'à la prochaine méthode publique — approximation suffisante.
-    /// </summary>
+    /// <summary>Texte jusqu'à la prochaine méthode publique — approximation suffisante.</summary>
     private static string CorpsDe(string portion, int depart)
     {
         var suivant = portion.IndexOf("\n    public ", depart + 1, StringComparison.Ordinal);

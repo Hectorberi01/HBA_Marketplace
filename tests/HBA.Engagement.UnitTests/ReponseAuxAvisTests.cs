@@ -8,34 +8,7 @@ using Xunit;
 
 namespace HBA.Engagement.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA RÉPONSE DU VENDEUR À UN AVIS — UNE ROUTE OUVERTE À TOUT COMPTE INSCRIT.
-///
-/// LE HANDLER NE LISAIT AUCUNE IDENTITÉ. NI AUTEUR, NI VENDEUR, NI RÔLE.
-///
-/// La réponse s'affiche sous l'avis comme émanant du commerçant. Les
-/// identifiants d'avis sont publics — la liste par produit les rend à qui la
-/// demande, et le groupe de la route était `MapAuthenticatedGroup`. Un jeton
-/// d'acheteur suffisait donc à faire dire n'importe quoi à n'importe quel
-/// vendeur, sous l'avis de son choix : un aveu, une insulte à un client, un
-/// renvoi vers un autre site.
-///
-/// CE QUE CES TESTS ÉPROUVENT VRAIMENT : QUE LA COMPARAISON PORTE SUR L'AVIS.
-///
-/// Un contrôle qui se contenterait de « l'appelant a-t-il un dossier vendeur »
-/// passerait le premier test et échouerait au second — et c'est exactement le
-/// contrôle qu'on écrit par réflexe. Le vendeur concerné est celui de L'AVIS,
-/// pas celui du jeton.
-///
-/// ET CE N'EST PLUS « LE PROPRIÉTAIRE », C'EST « QUI A LA CAPACITÉ ».
-///
-/// La première version de cette garde comparait le vendeur résolu depuis le jeton
-/// au `SellerId` de l'avis. Elle fermait le trou, et fermait aussi la route aux
-/// MEMBRES — un chargé de clientèle porte `REVIEW_REPLY` par son rôle, et
-/// répondre aux avis est précisément son métier.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA RÉPONSE DU VENDEUR À UN AVIS — UNE ROUTE OUVERTE À TOUT COMPTE INSCRIT.</summary>
 public sealed class ReponseAuxAvisTests
 {
     private static readonly Guid VendeurDeLAvis = Guid.Parse("11111111-1111-4111-8111-111111111111");
@@ -56,14 +29,7 @@ public sealed class ReponseAuxAvisTests
         avis.SellerReply.Should().Be("Merci, nous corrigeons l'emballage.");
     }
 
-    /// <summary>
-    /// LE TEST QUI DISTINGUE « EST VENDEUR » DE « EST LE VENDEUR DE CET AVIS ».
-    ///
-    /// L'appelant a un dossier vendeur parfaitement valide — le sien. Il n'a
-    /// simplement rien à voir avec le produit noté. C'est le cas qu'un contrôle
-    /// posé au niveau du groupe de routes ne peut pas voir, et c'est pour cela
-    /// que la garde vit dans le handler.
-    /// </summary>
+    /// <summary>LE TEST QUI DISTINGUE « EST VENDEUR » DE « EST LE VENDEUR DE CET AVIS ».</summary>
     [Fact]
     public async Task Un_autre_vendeur_ne_repond_pas_a_l_avis_d_un_concurrent()
     {
@@ -97,14 +63,7 @@ public sealed class ReponseAuxAvisTests
         avis.SellerReply.Should().BeNull();
     }
 
-    /// <summary>
-    /// RIEN N'EST ENREGISTRÉ QUAND LE REFUS TOMBE.
-    ///
-    /// `Review.Reply` mute l'agrégat AVANT tout enregistrement. Un handler qui
-    /// contrôlerait après l'appel laisserait la réponse en mémoire — et le
-    /// premier `SaveChanges` d'une autre commande dans le même contexte la
-    /// persisterait. Le refus doit précéder la mutation, pas la suivre.
-    /// </summary>
+    /// <summary>RIEN N'EST ENREGISTRÉ QUAND LE REFUS TOMBE.</summary>
     [Fact]
     public async Task Un_refus_n_enregistre_rien()
     {
@@ -134,9 +93,7 @@ public sealed class ReponseAuxAvisTests
         resultat.Error.Type.Should().Be(ErrorType.NotFound);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Outillage
-    // ═════════════════════════════════════════════════════════════════════════
 
     private static Review CreerAvis()
     {
@@ -166,9 +123,8 @@ public sealed class ReponseAuxAvisTests
         public Task<Review?> GetByIdAsync(ReviewId id, CancellationToken cancellationToken = default)
             => Task.FromResult(_avis);
 
-        // LE RESTE LÈVE. Ce handler ne lit ni la liste des avis d'un produit,
-        // ni une note agrégée. Une valeur neutre rendue en silence ferait passer
-        // un futur chemin de code sans qu'on l'ait éprouvé.
+        // LE RESTE LÈVE. Ce handler ne lit ni la liste des avis d'un produit, ni
+        // une note agrégée.
 
         public Task AddAsync(Review review, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Répondre à un avis n'en crée pas un.");
@@ -206,18 +162,7 @@ public sealed class ReponseAuxAvisTests
         }
     }
 
-    /// <summary>
-    /// merchant-service en mémoire — une seule correspondance, ou aucune.
-    /// </summary>
-    /// <remarks>
-    /// IL IMPLÉMENTE `IMerchantAccessApi`, PLUS `ISellerModuleApi`.
-    ///
-    /// Le handler ne demande plus « qui est le vendeur de ce compte » mais « ce
-    /// compte a-t-il CETTE capacité sur CE vendeur ». Le double suit : il ne rend
-    /// vrai que si les trois coïncident — le compte, le vendeur, et la permission.
-    /// Un double qui répondrait vrai sur le seul couple compte/vendeur laisserait
-    /// passer un test qui ne vérifierait plus rien de la capacité.
-    /// </remarks>
+    /// <summary>merchant-service en mémoire — une seule correspondance, ou aucune.</summary>
     private sealed class CapacitesDeTest : IMerchantAccessApi
     {
         private readonly Guid? _compte;
@@ -237,9 +182,8 @@ public sealed class ReponseAuxAvisTests
                 && _vendeur == sellerId
                 && permission == MerchantCapabilities.ReviewReply);
 
-        // LÈVE. Ce handler ne résout pas un contexte d'accès : il pose une
-        // question fermée. Une valeur neutre rendue en silence ferait passer un
-        // futur chemin de code sans qu'on l'ait éprouvé.
+        // LÈVE. Ce handler ne résout pas un contexte d'accès : il pose une question
+        // fermée.
         public Task<MerchantAccess?> GetAccessAsync(Guid userId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException(
                 "La garde de la réponse aux avis demande une capacité, pas un contexte.");

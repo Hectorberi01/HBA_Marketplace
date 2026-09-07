@@ -7,15 +7,7 @@ using Xunit;
 
 namespace HBA.Gateway.IntegrationTests;
 
-/// <summary>
-/// Teste <see cref="ExceptionMiddleware"/> directement.
-/// </summary>
-/// <remarks>
-/// Il n'existe volontairement aucune route qui lève : en ajouter une pour les
-/// besoins du test l'exposerait aussi en production. Le middleware est testable
-/// isolément avec un <see cref="DefaultHttpContext"/>, ce qui est à la fois plus
-/// sûr et plus rapide.
-/// </remarks>
+/// <summary>Teste <see cref="ExceptionMiddleware"/> directement.</summary>
 public sealed class ProblemDetailsTests
 {
     private static async Task<(int Status, JsonElement Body)> Invoke(RequestDelegate next)
@@ -50,20 +42,7 @@ public sealed class ProblemDetailsTests
         body.GetProperty("correlationId").GetString().Should().Be("correlation-de-test");
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE TEST QUI EMPÊCHE UNE FUITE PAR LE MESSAGE D'EXCEPTION.
-    ///
-    /// Interpoler `exception.Message` dans `Detail` est la modification la plus
-    /// tentante du monde : elle rend le débogage tellement plus commode. Elle
-    /// ferait aussi sortir, selon l'exception rencontrée, une chaîne de connexion
-    /// PostgreSQL, un nom d'hôte interne ou un fragment de requête SQL — vers
-    /// Internet, dans un corps de réponse HTTP 500.
-    ///
-    /// Le message est simulé ici avec ce qu'une vraie exception de connexion
-    /// contiendrait.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE TEST QUI EMPÊCHE UNE FUITE PAR LE MESSAGE D'EXCEPTION.</summary>
     [Fact]
     public async Task Aucun_detail_interne_ne_sort_dans_la_reponse()
     {
@@ -82,8 +61,7 @@ public sealed class ProblemDetailsTests
 
     /// <summary>
     /// Un client mobile qui bascule du Wi-Fi vers la 4G abandonne sa requête en
-    /// pleine course. Compter cela en 500 noie les vraies pannes dans les
-    /// tableaux de bord et déclenche des alertes sur un réseau qui a vacillé.
+    /// pleine course.
     /// </summary>
     [Fact]
     public async Task Un_client_qui_raccroche_ne_produit_pas_un_500()

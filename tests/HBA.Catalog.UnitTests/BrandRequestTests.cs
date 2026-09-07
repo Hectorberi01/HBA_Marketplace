@@ -2,16 +2,7 @@ using HBA.Catalog.Domain.Brands;
 
 namespace HBA.Catalog.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES DEMANDES DE MARQUE (§10, §16).
-///
-/// « Le vendeur ne crée pas directement une nouvelle marque officielle. » Sans ce
-/// mécanisme, « Samsung », « SAMSUNG », « Samsung Electronics » et « samsumg »
-/// cohabitent au bout d'un mois : le filtre par marque de la vitrine devient
-/// inutilisable, et fusionner après coup demande de retoucher chaque fiche.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES DEMANDES DE MARQUE (§10, §16).</summary>
 public sealed class BrandRequestTests
 {
     private static readonly Guid Marque = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
@@ -31,13 +22,7 @@ public sealed class BrandRequestTests
         => BrandRequest.Create(UnProduit.Vendeur, "   ")
             .Error.Code.Should().Be("catalog.brand_request.name_required");
 
-    /// <summary>
-    /// LE CAS FRÉQUENT : RATTACHER, PAS CRÉER.
-    ///
-    /// Un administrateur qui reçoit « samsumg » veut le relier au « Samsung » qui
-    /// existe. Ne permettre que la création ferait de ce mécanisme la source du
-    /// problème qu'il devait résoudre — un doublon de plus, validé cette fois.
-    /// </summary>
+    /// <summary>LE CAS FRÉQUENT : RATTACHER, PAS CRÉER.</summary>
     [Fact]
     public void Une_approbation_peut_designer_une_marque_existante()
     {
@@ -61,13 +46,7 @@ public sealed class BrandRequestTests
         resultat.Error.Code.Should().Be("catalog.brand_request.brand_required");
     }
 
-    /// <summary>
-    /// MÊME EXIGENCE QUE SUR UN REJET DE FICHE : LE MOTIF EST OBLIGATOIRE.
-    ///
-    /// Un vendeur qui apprend que sa marque est refusée sans savoir pourquoi
-    /// redemande la même chose la semaine suivante. La réponse tient le plus
-    /// souvent en une phrase — « utilisez Samsung, déjà au catalogue ».
-    /// </summary>
+    /// <summary>MÊME EXIGENCE QUE SUR UN REJET DE FICHE : LE MOTIF EST OBLIGATOIRE.</summary>
     [Fact]
     public void Un_refus_sans_motif_est_refuse()
     {

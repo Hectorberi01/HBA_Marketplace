@@ -6,23 +6,7 @@ using Livreur = HBA.Deliveries.Domain.Drivers.Driver;
 
 namespace HBA.Delivery.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES ADAPTATEURS DE TEST DU LOT 5.2.
-///
-/// ÉCRITS À LA MAIN, PARCE QUE CE DÉPÔT N'A NI Moq NI NSubstitute.
-///
-/// Les vérifier n'était pas le sujet : ces quatre-là ne simulent rien de subtil —
-/// un dictionnaire, un compteur d'appels. Ce qui est éprouvé, c'est le
-/// gestionnaire, pas eux.
-///
-/// CE QU'ILS NE REPRODUISENT PAS, ET IL FAUT LE SAVOIR : la BASE. Pas de
-/// transaction, pas de jeton `xmin`, pas d'index unique partiel. Un test qui
-/// passe ici n'établit donc rien sur la concurrence réelle — c'est la limite déjà
-/// annoncée par `AcceptationUniqueTests`, et elle vaut mot pour mot pour ce
-/// lot-ci.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES ADAPTATEURS DE TEST DU LOT 5.2.</summary>
 internal sealed class FauxDepotDeLivreurs : IDriverRepository
 {
     private readonly Dictionary<DriverId, Livreur> _parId = new();
@@ -90,11 +74,7 @@ internal sealed class FauxDepotDeCourses : IDeliveryRepository
     }
 }
 
-/// <summary>
-/// Le cache de positions, en mémoire. On y compte les écritures : c'est le seul
-/// moyen d'éprouver qu'un appelant existe enfin pour `SetAsync` — le manque exact
-/// que nomme la décision D30.
-/// </summary>
+/// <summary>Le cache de positions, en mémoire.</summary>
 internal sealed class FauxCacheDePositions : IDriverLocationCache
 {
     private readonly Dictionary<DriverId, DriverPosition> _positions = new();
@@ -132,10 +112,6 @@ internal sealed class FausseUniteDeTravail : IDeliveryUnitOfWork
     /// <summary>
     /// PILOTABLE : le prochain `TrySaveChangesAsync` échouera comme s'il avait
     /// rencontré un conflit de concurrence.
-    ///
-    /// Sans ce levier, la tolérance posée sur la recopie de position ne serait
-    /// éprouvable par aucun test — et une tolérance qu'on ne peut pas déclencher
-    /// est une branche que personne n'exécute jamais.
     /// </summary>
     public bool ProchainEnregistrementEnConflit { get; set; }
 
@@ -146,9 +122,8 @@ internal sealed class FausseUniteDeTravail : IDeliveryUnitOfWork
     }
 
     /// <summary>
-    /// N'INCRÉMENTE PAS `Enregistrements` QUAND ELLE REND `false`, parce que
-    /// rien n'a été écrit. Un compteur qui monterait quand même ferait passer un
-    /// test qui vérifie « la position a bien été recopiée ».
+    /// N'INCRÉMENTE PAS `Enregistrements` QUAND ELLE REND `false`, parce que rien
+    /// n'a été écrit.
     /// </summary>
     public Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
     {

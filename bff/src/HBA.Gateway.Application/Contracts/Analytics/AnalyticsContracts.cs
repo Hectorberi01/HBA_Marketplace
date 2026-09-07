@@ -1,24 +1,6 @@
 namespace HBA.Gateway.Application.Contracts.Analytics;
 
-// ═════════════════════════════════════════════════════════════════════════════
 // MIROIRS DES RÉPONSES D'analytics-service, ET NON UNE RÉFÉRENCE À SON PROJET.
-//
-// C'est la règle de tous les `Contracts/` de cette passerelle : elle ne référence
-// AUCUN assemblage de service. Un `ProjectReference` vers
-// `HBA.Analytics.Application` ferait entrer dans la passerelle le domaine du
-// service, ses entités EF et ses dépendances — et le jour où l'on voudrait
-// déployer les deux séparément, la frontière n'existerait plus.
-//
-// Ce que ça coûte : deux déclarations à tenir d'accord. Ce qui les tient, c'est
-// le désérialiseur — un champ renommé en face rend `default` ici, sans
-// exception. `ServiceHttpClient.GetAsync` journalise « contrat rompu » quand le
-// TYPE ne colle plus ; il ne peut rien dire d'un champ devenu nul en silence.
-//
-// LES CHAMPS OMIS LE SONT DÉLIBÉRÉMENT. Le service rend aussi `ItemsCount` par
-// jour ; aucun écran ne le trace aujourd'hui, et un miroir n'a pas à recopier ce
-// que personne ne lit. Ils restent disponibles par la route directe, relayée par
-// `ReverseProxy`.
-// ═════════════════════════════════════════════════════════════════════════════
 
 /// <summary>Un jour de ventes d'un vendeur.</summary>
 /// <param name="Day">La journée UTC.</param>
@@ -33,7 +15,9 @@ public sealed record SellerSalesPoint(DateOnly Day, int OrdersCount, decimal Rev
 /// <param name="Points">Un point par jour, zéros compris.</param>
 /// <param name="TotalOrders">Somme des commandes de la période.</param>
 /// <param name="TotalRevenue">Somme des parts vendeur de la période.</param>
-/// <param name="AverageOrderValue">Panier moyen, déjà calculé et gardé contre la division par zéro.</param>
+/// <param name="AverageOrderValue">
+/// Panier moyen, déjà calculé et gardé contre la division par zéro.
+/// </param>
 public sealed record SellerSalesSeries(
     DateOnly From,
     DateOnly To,
@@ -82,11 +66,6 @@ public sealed record SignupPoint(DateOnly Day, int Buyers, int Sellers);
 /// <param name="Points">Un point par jour, zéros compris.</param>
 /// <param name="TotalBuyers">Somme des comptes créés.</param>
 /// <param name="TotalSellers">Somme des dossiers vendeur ouverts.</param>
-/// <remarks>
-/// PAS DE TOTAL « COMPTES CRÉÉS » : les deux séries ne s'additionnent pas — un
-/// vendeur est dans les deux. Le service ne le rend pas, et le miroir ne
-/// l'invente pas.
-/// </remarks>
 public sealed record SignupSeries(
     DateOnly From,
     DateOnly To,

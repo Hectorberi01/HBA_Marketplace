@@ -7,9 +7,7 @@ namespace HBA.Gateway.Api.Extensions;
 
 public static class BffOptionsExtensions
 {
-    /// <summary>
-    /// Lie et valide la configuration des écrans agrégés.
-    /// </summary>
+    /// <summary>Lie et valide la configuration des écrans agrégés.</summary>
     public static IServiceCollection AddGatewayBffOptions(
         this IServiceCollection services, IConfiguration configuration)
     {
@@ -25,23 +23,7 @@ public static class BffOptionsExtensions
     }
 }
 
-/// <summary>
-/// Vérifie que chaque section d'écran désigne un service connu et un chemin.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// `ValidateDataAnnotations` NE DESCEND PAS DANS LES OBJETS IMBRIQUÉS.
-///
-/// Les `[Required]` posés sur `BffSectionDefinition` ne sont donc JAMAIS
-/// évalués : le validateur d'annotations s'arrête au premier niveau. Croire
-/// l'inverse est l'erreur la plus courante avec ce mécanisme — la configuration
-/// paraît validée, elle ne l'est pas.
-///
-/// Sans ce validateur, une faute de frappe sur `"service": "Catalogue"` ne se
-/// manifesterait qu'à l'exécution : la section serait rendue indisponible, et
-/// l'écran d'accueil afficherait un trou que l'on chercherait du côté du service.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Vérifie que chaque section d'écran désigne un service connu et un chemin.</summary>
 public sealed class BffSectionsValidator : IValidateOptions<BffAggregationOptions>
 {
     public ValidateOptionsResult Validate(string? name, BffAggregationOptions options)

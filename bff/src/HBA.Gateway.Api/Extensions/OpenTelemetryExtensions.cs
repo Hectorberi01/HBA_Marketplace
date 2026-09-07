@@ -30,13 +30,6 @@ public static class OpenTelemetryExtensions
                     .AddAspNetCoreInstrumentation(instrumentation =>
                     {
                         // LES SONDES DE SANTÉ SONT EXCLUES DES TRACES.
-                        //
-                        // Docker les appelle toutes les 30 s, Kubernetes plus
-                        // souvent encore. Conservées, elles représentent la
-                        // majorité des traces d'un service peu sollicité et
-                        // saturent l'échantillonnage : les vraies requêtes se
-                        // retrouvent écartées au profit de sondes qui ne
-                        // renseignent sur rien.
                         instrumentation.Filter = ShouldTraceRequest;
 
                         instrumentation.RecordException = true;
@@ -49,13 +42,6 @@ public static class OpenTelemetryExtensions
                     .AddSource("Yarp.ReverseProxy")
 
                     // SANS CETTE LIGNE, LES SPANS D'AGRÉGATION SONT ÉMIS ET JETÉS.
-                    //
-                    // `AggregationContext` ouvre déjà un span par écran et un par
-                    // dépendance. OpenTelemetry n'écoute que les sources
-                    // explicitement abonnées : non déclarée, la source produit des
-                    // `Activity` nulles, le code continue de fonctionner, et la
-                    // latence par dépendance du §34 reste invisible. Un défaut qui
-                    // ne se manifeste que par une absence.
                     .AddSource(BffTelemetry.Name);
 
                 if (hasEndpoint)

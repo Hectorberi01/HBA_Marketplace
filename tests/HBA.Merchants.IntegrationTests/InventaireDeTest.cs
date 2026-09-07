@@ -3,27 +3,14 @@ using HBA.Inventory.Contracts;
 
 namespace HBA.Merchants.IntegrationTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UN INVENTAIRE EN MÉMOIRE, PILOTABLE — MÊME ARBITRAGE QUE `MediaDeTest`.
-///
-/// La règle à éprouver est le REFUS : un lieu d'expédition qui n'appartient pas au
-/// vendeur, ou qui n'existe pas. Un faux qui dirait toujours oui rendrait vert un
-/// service ayant reperdu son contrôle — c'est exactement l'état dans lequel il
-/// était, avec le commentaire « voir la route du BFF Vendeur » pour toute garde.
-///
-/// SINGLETON : le test dépose le lieu, la requête le lit.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UN INVENTAIRE EN MÉMOIRE, PILOTABLE — MÊME ARBITRAGE QUE `MediaDeTest`.</summary>
 internal sealed class InventaireDeTest : IInventoryModuleApi
 {
     private readonly ConcurrentDictionary<Guid, FulfillmentLocationSummary> _lieux = new();
 
-    /// <summary>
-    /// Dépose un lieu d'expédition et rend son identifiant.
-    /// </summary>
+    /// <summary>Dépose un lieu d'expédition et rend son identifiant.</summary>
     /// <param name="ownerId">
-    /// Le vendeur propriétaire. <c>null</c> pour un entrepôt PLATEFORME (FBP) —
+    /// Le vendeur propriétaire. <c> null</c> pour un entrepôt PLATEFORME (FBP) —
     /// c'est ainsi que le domaine le représente, et c'est le cas qui doit être
     /// refusé : le laisser passer rendrait la garde inopérante.
     /// </param>
@@ -55,14 +42,7 @@ internal sealed class InventaireDeTest : IInventoryModuleApi
         Guid locationId, CancellationToken cancellationToken = default)
         => Task.FromResult(_lieux.TryGetValue(locationId, out var lieu) ? lieu : null);
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LE RESTE LÈVE. seller-service ne touche ni au stock ni aux réservations.
-    //
-    // Rendre des valeurs neutres ferait passer en silence un futur chemin de code
-    // qui se mettrait à réserver du stock depuis ce service — et une réservation
-    // qui échoue silencieusement, c'est une commande acceptée sur un stock qui
-    // n'existe pas.
-    // ═════════════════════════════════════════════════════════════════════════
 
     public Task<AvailabilitySummary> GetAvailabilityAsync(string sku, CancellationToken cancellationToken = default)
         => throw new NotSupportedException("seller-service ne lit pas la disponibilité d'un SKU.");

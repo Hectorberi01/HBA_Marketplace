@@ -4,22 +4,7 @@ using Dossier = HBA.Delivery.Driver.Domain.Aggregates.DriverAccount;
 
 namespace HBA.Delivery.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LOT 5.2 — LE DOSSIER DU LIVREUR (driver-service), ISSUE-029.
-///
-/// CE QUI ÉTAIT CASSÉ : `DriverStore` naissait avec UN livreur, identifiant
-/// codé en dur, déjà « ACTIVE » et « VERIFIED ». Les six routes `/me` opéraient
-/// toutes dessus — tous les livreurs étaient le même livreur — et aucun code du
-/// service ne savait ce qu'était une pièce justificative. « Vérifié » ne
-/// désignait rien.
-///
-/// L'ALIAS `Dossier` EST OBLIGATOIRE, PAS COSMÉTIQUE. L'espace de noms de ce
-/// projet est `HBA.Delivery.UnitTests` ; écrire `Driver...` ici ferait résoudre
-/// vers l'espace de noms `HBA.Delivery.Driver`, pas vers un type. C'est la même
-/// collision que `UneCourse` contourne avec l'alias `Course`.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LOT 5.2 — LE DOSSIER DU LIVREUR (driver-service), ISSUE-029.</summary>
 public sealed class DossierLivreurTests
 {
     [Fact]
@@ -33,9 +18,9 @@ public sealed class DossierLivreurTests
     }
 
     /// <summary>
-    /// ON NE PEUT PAS VÉRIFIER UN DOSSIER QUI N'A PAS ÉTÉ SOUMIS. Sans cette
-    /// garde, l'exploitation pourrait valider d'un clic un dossier sans aucune
-    /// pièce — ce que faisait la maquette, qui naissait vérifiée.
+    /// ON NE PEUT PAS VÉRIFIER UN DOSSIER QUI N'A PAS ÉTÉ SOUMIS. Sans cette garde,
+    /// l'exploitation pourrait valider d'un clic un dossier sans aucune pièce — ce
+    /// que faisait la maquette, qui naissait vérifiée.
     /// </summary>
     [Fact]
     public void Un_dossier_incomplet_ne_peut_etre_ni_soumis_ni_verifie()
@@ -84,9 +69,9 @@ public sealed class DossierLivreurTests
     }
 
     /// <summary>
-    /// REDÉPOSER UNE PIÈCE APRÈS VÉRIFICATION ROUVRE LE DOSSIER. Le laisser
-    /// « vérifié » signifierait que la plateforme a validé une pièce que personne
-    /// n'a regardée — un permis expiré remplacé par n'importe quel fichier.
+    /// REDÉPOSER UNE PIÈCE APRÈS VÉRIFICATION ROUVRE LE DOSSIER. Le laisser «
+    /// vérifié » signifierait que la plateforme a validé une pièce que personne n'a
+    /// regardée — un permis expiré remplacé par n'importe quel fichier.
     /// </summary>
     [Fact]
     public void Redeposer_une_piece_apres_verification_rouvre_le_dossier()
@@ -101,10 +86,7 @@ public sealed class DossierLivreurTests
         dossier.IsDispatchable.Should().BeFalse();
     }
 
-    /// <summary>
-    /// Une pièce redéposée REMPLACE la précédente. Empiler les versions ferait
-    /// valider par le vérificateur l'une des deux au hasard.
-    /// </summary>
+    /// <summary>Une pièce redéposée REMPLACE la précédente.</summary>
     [Fact]
     public void Une_piece_redeposee_remplace_la_precedente()
     {
@@ -119,8 +101,7 @@ public sealed class DossierLivreurTests
 
     /// <summary>
     /// LA SUSPENSION NE SE LÈVE PAS TOUTE SEULE : un livreur écarté ne redevient
-    /// pas dispatchable en redéposant une pièce. C'est l'incident que la
-    /// séparation statut / disponibilité existe pour éviter.
+    /// pas dispatchable en redéposant une pièce.
     /// </summary>
     [Fact]
     public void Un_dossier_suspendu_n_est_plus_dispatchable_et_refuse_les_depots()
@@ -138,8 +119,8 @@ public sealed class DossierLivreurTests
     }
 
     /// <summary>
-    /// L'IDENTITÉ VIENT DU COMPTE, ET LA SIGNATURE L'EXIGE EN PREMIER. Un
-    /// dossier sans compte n'est pas ouvrable : c'est ce qui rend impossible, par
+    /// L'IDENTITÉ VIENT DU COMPTE, ET LA SIGNATURE L'EXIGE EN PREMIER. Un dossier
+    /// sans compte n'est pas ouvrable : c'est ce qui rend impossible, par
     /// construction, l'inscription au nom d'un autre.
     /// </summary>
     [Fact]
@@ -152,9 +133,9 @@ public sealed class DossierLivreurTests
     }
 
     /// <summary>
-    /// Le numéro est NORMALISÉ, pas seulement accepté : c'est par lui que le
-    /// client rappelle son livreur, et deux formes du même numéro rendraient les
-    /// doublons indétectables.
+    /// Le numéro est NORMALISÉ, pas seulement accepté : c'est par lui que le client
+    /// rappelle son livreur, et deux formes du même numéro rendraient les doublons
+    /// indétectables.
     /// </summary>
     [Fact]
     public void Le_numero_est_normalise_a_l_inscription()
@@ -167,10 +148,8 @@ public sealed class DossierLivreurTests
     }
 
     /// <summary>
-    /// UN NUMÉRO À HUIT CHIFFRES EST REFUSÉ, et ce n'est pas de la rigueur
-    /// gratuite : c'est un numéro d'avant la migration béninoise de 2024, il
-    /// n'aboutit plus. L'accepter reviendrait à inscrire un livreur que ni le
-    /// client ni l'exploitation ne pourraient joindre.
+    /// UN NUMÉRO À HUIT CHIFFRES EST REFUSÉ, et ce n'est pas de la rigueur gratuite
+    /// : c'est un numéro d'avant la migration béninoise de 2024, il n'aboutit plus.
     /// </summary>
     [Fact]
     public void Un_numero_illisible_est_refuse_sans_exception()

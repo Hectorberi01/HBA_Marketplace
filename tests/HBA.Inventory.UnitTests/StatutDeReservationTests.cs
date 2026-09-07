@@ -2,20 +2,7 @@ using HBA.Inventory.Domain.Stock;
 
 namespace HBA.Inventory.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ISSUE-045 — « `StockReservation` n'a aucun statut ».
-///
-/// `ReleaseReservation` et `ConfirmReservation` SUPPRIMAIENT les lignes. Une
-/// vente confirmée devenait indiscernable d'une réservation inexistante, et rien
-/// n'empêchait de « libérer » du stock déjà vendu et déjà décrémenté — c'est le
-/// danger que l'audit nomme sur `POST /api/inventory/reservations/release` :
-/// rendre à la vente une marchandise qui n'est plus là, donc la vendre deux fois.
-///
-/// Chaque test vérifie aussi `Reserved` ET `Available` : c'est le point où une
-/// erreur ferait disparaître du stock en silence.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ISSUE-045 — « `StockReservation` n'a aucun statut ».</summary>
 public sealed class StatutDeReservationTests
 {
     [Fact]
@@ -35,11 +22,7 @@ public sealed class StatutDeReservationTests
         article.Available.Should().Be(7);
     }
 
-    /// <summary>
-    /// La confirmation décrémente `OnHand` et solde la réservation. `Available`
-    /// est INCHANGÉ : la marchandise n'était déjà plus vendable depuis qu'elle
-    /// était réservée.
-    /// </summary>
+    /// <summary>La confirmation décrémente `OnHand` et solde la réservation.</summary>
     [Fact]
     public void Une_confirmation_decremente_le_stock_physique_et_marque_la_ligne()
     {
@@ -60,12 +43,7 @@ public sealed class StatutDeReservationTests
         reservation.Quantity.Should().Be(3, "la ligne garde ce qui a été vendu : c'est l'historique");
     }
 
-    /// <summary>
-    /// LE TEST CENTRAL D'ISSUE-045. Une vente confirmée ne se relâche pas.
-    /// Si `ReleaseReservation` rendait ces 3 unités, l'article afficherait 10
-    /// disponibles alors qu'il n'en reste que 7 : la plateforme vendrait deux fois
-    /// la même marchandise.
-    /// </summary>
+    /// <summary>LE TEST CENTRAL D'ISSUE-045.</summary>
     [Fact]
     public void Une_reservation_confirmee_n_est_jamais_liberee()
     {
@@ -88,9 +66,7 @@ public sealed class StatutDeReservationTests
 
     /// <summary>
     /// Confirmer deux fois — webhook de PSP rejoué, reprise de saga — ne doit pas
-    /// décrémenter `OnHand` une seconde fois. Avant, la ligne ayant été supprimée,
-    /// le second appel rendait `NotFound` : l'appelant lisait « échec » sur une
-    /// vente parfaitement faite.
+    /// décrémenter `OnHand` une seconde fois.
     /// </summary>
     [Fact]
     public void Une_confirmation_rejouee_ne_decremente_pas_deux_fois()
@@ -142,7 +118,6 @@ public sealed class StatutDeReservationTests
     /// LA RÉGRESSION LA PLUS COÛTEUSE POSSIBLE. Puisqu'on ne supprime plus les
     /// lignes, une somme naïve sur `Reservations` compterait les libérées, les
     /// expirées et surtout les CONFIRMÉES — dont le stock a déjà quitté `OnHand`.
-    /// `Available` plongerait sous zéro et tout le stock vendable disparaîtrait.
     /// </summary>
     [Fact]
     public void Seules_les_reservations_actives_comptent_dans_Reserved()
@@ -166,11 +141,7 @@ public sealed class StatutDeReservationTests
         article.Available.Should().Be(12);
     }
 
-    /// <summary>
-    /// `AdjustOnHand` refuse de passer le stock sous le RÉSERVÉ. Ce plancher se
-    /// lit sur `Reserved`, donc sur les seules réservations actives : une
-    /// confirmation passée ne doit pas bloquer un inventaire physique.
-    /// </summary>
+    /// <summary>`AdjustOnHand` refuse de passer le stock sous le RÉSERVÉ.</summary>
     [Fact]
     public void Un_ajustement_se_compare_au_reserve_actif_seulement()
     {
@@ -180,9 +151,6 @@ public sealed class StatutDeReservationTests
         article.ConfirmReservation(vendue, UnArticleDeStock.Maintenant);
 
         // OnHand = 12, Reserved = 0 : descendre à 1 doit passer.
-        // `AdjustOnHand` prend désormais un acteur, un motif et un instant, et rend
-        // le MOUVEMENT à consigner (lot 7.3, ISSUE-044) : un ajustement ne laissait
-        // aucune trace de qui, quand, ni pourquoi.
         article.AdjustOnHand(-11, actorUserId: null, reason: "inventaire", UnArticleDeStock.Maintenant)
             .IsSuccess.Should().BeTrue();
         article.OnHand.Should().Be(1);

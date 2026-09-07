@@ -19,10 +19,7 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         => _logger = logger;
 
     // Propriétés d'identité reconnues sur les commandes/queries, mappées vers des
-    // champs de log normalisés. Elles alimentent la CORRÉLATION dans Loki : tous les
-    // logs émis pendant le traitement d'une commande portent user_id/order_id/…,
-    // requêtables en LogQL (`| json | order_id="…"`). Poussées via BeginScope (MEL)
-    // → captées par Serilog en CHAMPS JSON, jamais en labels (cardinalité maîtrisée).
+    // champs de log normalisés.
     private static readonly (string Prop, string Field)[] CorrelationKeys =
     {
         ("UserId", "user_id"),
@@ -66,8 +63,8 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
     }
 
     /// <summary>
-    /// Extrait par réflexion les identifiants de corrélation présents sur la requête.
-    /// Renvoie <c>null</c> si aucun (pas de scope inutile).
+    /// Extrait par réflexion les identifiants de corrélation présents sur la
+    /// requête.
     /// </summary>
     private static Dictionary<string, object>? BuildCorrelationScope(TRequest request)
     {
@@ -82,7 +79,8 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
                 continue;
             }
 
-            // On ignore les identifiants « vides » (Guid.Empty) : ils n'apportent rien.
+            // On ignore les identifiants « vides » (Guid.Empty) : ils n'apportent
+            // rien.
             if (value is Guid guid && guid == Guid.Empty)
             {
                 continue;

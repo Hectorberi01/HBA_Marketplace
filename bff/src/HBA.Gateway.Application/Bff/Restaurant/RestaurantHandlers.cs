@@ -4,38 +4,7 @@ using HBA.Gateway.Application.Contracts.Food;
 
 namespace HBA.Gateway.Application.Bff.Restaurant;
 
-/// <summary>
-/// Statuts de ticket, regroupés comme le KDS les affiche.
-/// </summary>
-/// <remarks>
-/// TROIS COLONNES, ET LE REGROUPEMENT EST FAIT ICI.
-///
-/// food-service rend une liste plate avec un statut par ticket. Le §14 demande
-/// trois seaux — pending / preparing / ready. Les constituer côté client
-/// obligerait chaque application à connaître la liste des statuts, et à la
-/// maintenir en même temps que le service.
-///
-/// CE SONT DES `KitchenTicketStatus`, PAS DES `FoodOrderStatus`.
-///
-/// Deux énumérations coexistent dans food-service et se ressemblent assez pour
-/// qu'on les confonde :
-///
-///   • <c>FoodOrderStatus</c> — le cycle de vie commercial de la commande :
-///     PendingRestaurantAcceptance, Accepted, Rejected, Preparing, ReadyForPickup,
-///     PickedUp, Delivered.
-///   • <c>KitchenTicketStatus</c> — l'avancement en cuisine, DÉRIVÉ des lignes :
-///     Pending, Preparing, Ready, Cancelled.
-///
-/// <c>KitchenTicketView.Status</c> porte le SECOND (<c>KitchenStatus.ToString()</c>
-/// dans <c>GetKitchenBoardQueryHandler</c>). Ranger « Accepted » ou
-/// « ReadyForPickup » ici ne lèverait aucune erreur : les tickets tomberaient
-/// simplement dans aucun seau, et l'écran de cuisine s'afficherait vide alors que
-/// le service répond correctement.
-///
-/// « Cancelled » n'a pas de seau : le service écarte déjà les commandes annulées
-/// avant de construire le tableau. Un ticket annulé qui arriverait tout de même
-/// disparaîtrait — c'est le comportement voulu, la cuisine doit s'arrêter.
-/// </remarks>
+/// <summary>Statuts de ticket, regroupés comme le KDS les affiche.</summary>
 internal static class KitchenBuckets
 {
     /// <summary>Accepté, aucun article commencé.</summary>
@@ -51,42 +20,12 @@ internal static class KitchenBuckets
         => bucket.Contains(status, StringComparer.OrdinalIgnoreCase);
 }
 
-/// <summary>
-/// Tableau de bord du restaurant (§13).
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// L'ÉTABLISSEMENT VIENT DU JETON, PAS DE L'URL — MÊME QUAND L'URL EN A UN.
-///
-/// La route expose <c>/restaurants/{id}/dashboard</c> pour rester lisible et
-/// alignée sur le §13. Mais l'identifiant utilisé pour agréger est celui rendu
-/// par <c>GET /api/food/partner/me</c>, résolu depuis le jeton. Celui de l'URL
-/// n'est qu'une VÉRIFICATION : s'il ne correspond pas, c'est 404.
-///
-/// Faire l'inverse — faire confiance à l'URL — laisserait un caissier lire le
-/// tableau de bord d'un autre restaurant en changeant un identifiant.
-///
-/// CRITICITÉ (§23)
-///   Food · établissement  CRITIQUE   — c'est le sujet de l'écran.
-///   Food · cuisine        IMPORTANTE — les compteurs manquent, l'écran vit.
-///   Financial            OPTIONNELLE — un cuisinier n'a pas à voir le solde ;
-///                                      son absence n'est pas une dégradation.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Tableau de bord du restaurant (§13).</summary>
 public sealed class GetRestaurantDashboardHandler
 {
     public const string ScreenId = "restaurant.dashboard";
 
-    /// <summary>
-    /// Permission requise pour lire le portefeuille.
-    /// </summary>
-    /// <remarks>
-    /// VALEUR À CONFIRMER CONTRE LE MODÈLE DE PERMISSIONS DE food-service.
-    ///
-    /// Les codes existent côté service (<c>FoodStaffMembership.Can</c>) mais ne
-    /// sont pas exposés en constante partagée. Si celui-ci ne correspond à rien,
-    /// le solde ne s'affichera JAMAIS — un défaut silencieux, d'où cette note.
-    /// </remarks>
+    /// <summary>Permission requise pour lire le portefeuille.</summary>
     public const string FinancePermission = "Finance.Read";
 
     private readonly IFoodClient _food;
@@ -119,10 +58,6 @@ public sealed class GetRestaurantDashboardHandler
             "Food", () => _food.GetKitchenAsync(me.RestaurantId, cancellationToken));
 
         // LE PORTEFEUILLE N'EST MÊME PAS DEMANDÉ SANS LA PERMISSION.
-        //
-        // Filtrer la réponse après l'avoir reçue laisserait le montant transiter
-        // sur le réseau et apparaître dans les journaux de la passerelle. Ne pas
-        // émettre l'appel est la seule forme qui ne fuit rien.
         var canReadFinance = me.PayoutSellerId is not null
             && me.Permissions.Contains(FinancePermission, StringComparer.Ordinal);
 
@@ -161,16 +96,7 @@ public sealed class GetRestaurantDashboardHandler
     }
 }
 
-/// <summary>
-/// Écran de cuisine (§14).
-/// </summary>
-/// <remarks>
-/// UNE SEULE DÉPENDANCE, ET C'EST LE POINT.
-///
-/// Le KDS n'interroge que food-service. Aucun appel à Financial, aucun à
-/// Merchant : ce qui n'est pas demandé ne peut pas fuiter sur une tablette de
-/// cuisine.
-/// </remarks>
+/// <summary>Écran de cuisine (§14).</summary>
 public sealed class GetRestaurantKitchenHandler
 {
     public const string ScreenId = "restaurant.kitchen";
@@ -218,9 +144,9 @@ public sealed class GetRestaurantKitchenHandler
         [
             .. tickets
                 .Where(ticket => KitchenBuckets.In(statuses, ticket.Status))
-                // Le plus ancien EN TÊTE : une cuisine sert dans l'ordre
-                // d'arrivée, et un tri décroissant ferait passer la dernière
-                // commande avant celle qui attend depuis vingt minutes.
+                // Le plus ancien EN TÊTE : une cuisine sert dans l'ordre d'arrivée,
+                // et un tri décroissant ferait passer la dernière commande avant
+                // celle qui attend depuis vingt minutes.
                 .OrderByDescending(ticket => ticket.Priority)
                 .ThenBy(ticket => ticket.ReceivedAtUtc)
                 .Select(ticket => new KitchenTicketDto(

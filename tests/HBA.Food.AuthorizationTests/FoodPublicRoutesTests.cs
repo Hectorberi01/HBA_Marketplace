@@ -7,15 +7,7 @@ using Xunit;
 
 namespace HBA.Food.AuthorizationTests;
 
-/// <summary>
-/// food-service : la vitrine reste anonyme, la modération exige un rôle.
-/// </summary>
-/// <remarks>
-/// LE GROUPE `/api/food` EST UN `MapGroup` NU : la politique de repli du socle
-/// s'y applique. Ces routes ne survivent que par leur `AllowAnonymous` explicite.
-/// Sans elles, un visiteur non connecté reçoit 401 sur la liste des restaurants —
-/// c'est-à-dire que HBA Food n'a plus de vitrine.
-/// </remarks>
+/// <summary>food-service : la vitrine reste anonyme, la modération exige un rôle.</summary>
 public sealed class FoodPublicRoutesTests : IClassFixture<AuthorizationTestFactory<Program>>
 {
     private readonly AuthorizationTestFactory<Program> _factory;
@@ -34,13 +26,7 @@ public sealed class FoodPublicRoutesTests : IClassFixture<AuthorizationTestFacto
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
     }
 
-    /// <summary>
-    /// `restaurants/pending` A VÉCU DANS LE GROUPE PARTENAIRE.
-    ///
-    /// La file des dossiers en attente et les décisions de modération n'ont de
-    /// sens signées par personne d'autre que la plateforme : un restaurateur qui
-    /// approuve sa propre candidature n'est pas une candidature.
-    /// </summary>
+    /// <summary>`restaurants/pending` A VÉCU DANS LE GROUPE PARTENAIRE.</summary>
     [Theory]
     [InlineData("GET", "/api/food/admin/restaurants/pending")]
     [InlineData("POST", "/api/food/admin/restaurants/{id}/approve")]

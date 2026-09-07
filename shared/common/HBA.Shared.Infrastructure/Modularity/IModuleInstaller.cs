@@ -4,13 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace HBA.Shared.Infrastructure.Modularity;
 
-/// <summary>
-/// Point d'entrée d'enregistrement d'un module dans le conteneur. Chaque module
-/// fournit son installer (DbContext, handlers, repositories, outbox…). Le
-/// Bootstrap découvre et exécute tous les installers — c'est le seul endroit qui
-/// « connaît » l'ensemble des modules, et il ne dépend que de leurs Contracts +
-/// Infrastructure d'enregistrement, jamais de leurs internes.
-/// </summary>
+/// <summary>Point d'entrée d'enregistrement d'un module dans le conteneur.</summary>
 public interface IModuleInstaller
 {
     string ModuleName { get; }

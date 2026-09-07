@@ -7,39 +7,14 @@ using HBA.Shared.Infrastructure.Idempotency;
 
 namespace HBA.Shared.Hosting.Http;
 
-/// <summary>
-/// Applique l'en-tête <c>Idempotency-Key</c> du §5 à un endpoint.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUE CE FILTRE GARANTIT, ET CE QU'IL NE GARANTIT PAS.
-///
-/// Il garantit qu'une même clé, pour un même utilisateur et un même endpoint, ne
-/// produit qu'UNE exécution : les tentatives suivantes rejouent la réponse
-/// mémorisée. C'est ce qui empêche un double débit quand le réseau tombe entre le
-/// traitement et l'affichage.
-///
-/// Il ne garantit PAS l'atomicité entre l'effet métier et la mémorisation de la
-/// réponse. `CompleteAsync` s'exécute APRÈS le handler, dans une écriture séparée.
-/// Si le processus meurt entre les deux, la commande existe et la réponse n'est pas
-/// mémorisée : le rejeu retrouve la clé en état « en cours » et rend 409 plutôt que
-/// de créer un doublon. Le client voit un conflit là où il attendait sa commande —
-/// c'est désagréable, mais c'est le bon compromis : mieux vaut un 409 à expliquer
-/// qu'un second paiement à rembourser.
-///
-/// La seule façon d'obtenir l'atomicité serait d'écrire la réservation dans la
-/// transaction métier elle-même, donc de faire remonter l'idempotence dans le
-/// handler. C'est un choix à faire service par service pour les endpoints de
-/// paiement ; ce filtre couvre le cas général.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Applique l'en-tête <c>Idempotency-Key</c> du §5 à un endpoint.</summary>
 public sealed class IdempotencyEndpointFilter : IEndpointFilter
 {
     private readonly bool _required;
 
     /// <param name="required">
     /// Vrai pour les POST de création, de paiement et de checkout, où le §5 rend
-    /// l'en-tête obligatoire. Faux ailleurs : la clé est alors honorée si elle est
-    /// fournie, et l'absence laisse simplement passer.
+    /// l'en-tête obligatoire.
     /// </param>
     public IdempotencyEndpointFilter(bool required) => _required = required;
 
@@ -66,10 +41,7 @@ public sealed class IdempotencyEndpointFilter : IEndpointFilter
 
         if (store is null)
         {
-            // Aucun store enregistré : le service n'a pas encore sa table. On laisse
-            // passer plutôt que d'échouer — un filtre mal câblé ne doit pas rendre
-            // l'endpoint inutilisable — mais on le dit fort, sinon l'absence de
-            // protection passerait inaperçue jusqu'au premier double paiement.
+            // Aucun store enregistré : le service n'a pas encore sa table.
             httpContext.RequestServices
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger<IdempotencyEndpointFilter>()
@@ -113,8 +85,8 @@ public sealed class IdempotencyEndpointFilter : IEndpointFilter
         }
         catch
         {
-            // Le handler a échoué : la clé doit redevenir utilisable, sinon le client
-            // resterait bloqué 24 h sur une panne passagère.
+            // Le handler a échoué : la clé doit redevenir utilisable, sinon le
+            // client resterait bloqué 24 h sur une panne passagère.
             await store.AbandonAsync(key!, scope, endpoint, CancellationToken.None);
             throw;
         }
@@ -133,10 +105,7 @@ public sealed class IdempotencyEndpointFilter : IEndpointFilter
     private static string EndpointKey(HttpContext httpContext)
         => $"{httpContext.Request.Method} {httpContext.Request.Path}";
 
-    /// <summary>
-    /// Empreinte du corps de la requête. `EnableBuffering` est indispensable : sans
-    /// lui, lire le flux ici le consommerait et le handler recevrait un corps vide.
-    /// </summary>
+    /// <summary>Empreinte du corps de la requête.</summary>
     private static async Task<string> FingerprintAsync(HttpContext httpContext)
     {
         httpContext.Request.EnableBuffering();
@@ -149,11 +118,7 @@ public sealed class IdempotencyEndpointFilter : IEndpointFilter
         return Convert.ToHexString(SHA256.HashData(memory.ToArray())).ToLowerInvariant();
     }
 
-    /// <summary>
-    /// Extrait status et corps du résultat pour mémorisation. Un résultat dont on ne
-    /// sait pas lire la valeur est mémorisé avec un corps null : la tentative suivante
-    /// rejouera alors le status seul. Mieux vaut un rejeu partiel qu'une réexécution.
-    /// </summary>
+    /// <summary>Extrait status et corps du résultat pour mémorisation.</summary>
     private static (int StatusCode, string? Body) Describe(object? result)
     {
         var statusCode = result is IStatusCodeHttpResult { StatusCode: not null } coded

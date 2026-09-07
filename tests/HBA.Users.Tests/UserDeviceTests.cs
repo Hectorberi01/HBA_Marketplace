@@ -21,14 +21,7 @@ public sealed class UserDeviceTests
         device.Value.Platform.Should().Be(attendu);
     }
 
-    /// <summary>
-    /// SANS CE REFUS, UNE FAUTE DE FRAPPE DEVIENT UN APPAREIL MUET.
-    ///
-    /// Une plateforme inconnue est acceptée en base, puis le service de notification
-    /// ne sait pas quel fournisseur appeler. L'appareil ne reçoit jamais rien, et
-    /// rien n'échoue nulle part : l'utilisateur croit simplement que la plateforme
-    /// ne lui envoie pas de notifications.
-    /// </summary>
+    /// <summary>SANS CE REFUS, UNE FAUTE DE FRAPPE DEVIENT UN APPAREIL MUET.</summary>
     [Fact]
     public void Une_plateforme_inconnue_est_refusee()
     {
@@ -59,8 +52,9 @@ public sealed class UserDeviceTests
     }
 
     /// <summary>
-    /// Le réenregistrement rafraîchit la date de dernière vue — c'est elle qui permet
-    /// de purger les jetons dormants, que les fournisseurs refusent en silence.
+    /// Le réenregistrement rafraîchit la date de dernière vue — c'est elle qui
+    /// permet de purger les jetons dormants, que les fournisseurs refusent en
+    /// silence.
     /// </summary>
     [Fact]
     public void Le_reenregistrement_rafraichit_la_date_de_derniere_vue()

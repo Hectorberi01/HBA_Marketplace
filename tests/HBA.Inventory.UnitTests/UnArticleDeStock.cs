@@ -3,19 +3,10 @@ using HBA.Inventory.Domain.Stock;
 
 namespace HBA.Inventory.UnitTests;
 
-/// <summary>
-/// Fabrique d'articles de stock pour les tests.
-///
-/// ON PASSE PAR `InventoryItem.Create`, PAS PAR UN CONSTRUCTEUR.
-///
-/// Les réservations ne sont accessibles que par les méthodes de l'agrégat
-/// (`StockReservation` n'a qu'un constructeur `internal`). C'est voulu : un test
-/// qui fabriquerait une réservation à la main éprouverait un état que le code de
-/// production ne peut pas produire.
-/// </summary>
+/// <summary>Fabrique d'articles de stock pour les tests.</summary>
 internal static class UnArticleDeStock
 {
-    /// <summary>Instant de référence des tests. Fixe : une expiration se raisonne à la seconde.</summary>
+    /// <summary>Instant de référence des tests.</summary>
     public static readonly DateTime Maintenant = new(2026, 8, 31, 10, 0, 0, DateTimeKind.Utc);
 
     public static InventoryItem Avec(int onHand, int seuil = 0)

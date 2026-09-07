@@ -3,99 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace HBA.Controls.Controles;
 
-/// <summary>
-/// Les workflows GitHub Actions se chargent, ont des jobs, et chaque étape agit.
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// UN WORKFLOW MAL FORMÉ NE SE PLAINT PAS — IL NE TOURNE PAS.
-///
-/// C'EST LA PANNE LA PLUS TRAÎTRE DE TOUTE LA CHAÎNE.
-///
-/// GitHub Actions n'exécute pas un workflow dont le YAML est invalide : aucune
-/// exécution n'apparaît dans l'onglet Actions, aucune notification ne part, aucun
-/// statut ne remonte sur la PR. On croit la CI verte alors qu'elle n'a jamais
-/// démarré — et l'on s'en aperçoit au pire moment, en cherchant pourquoi une
-/// régression est passée.
-///
-/// Le défaut rencontré en écrivant `ci.yml` : un `- name:` contenant un
-/// deux-points sans guillemets, que YAML lit comme un mapping imbriqué. Le
-/// fichier paraît parfaitement lisible.
-///
-/// Ce que le contrôle vérifie :
-///   · il y a au moins un job ;
-///   · chaque `needs` désigne un job qui existe — une faute de frappe y produit
-///     un job qui n'est JAMAIS exécuté, sans erreur ;
-///   · chaque étape a un `uses` ou un `run` ;
-///   · tout script lancé par `./` est enregistré exécutable DANS GIT.
-///
-/// ─────────────────────────────────────────────────────────────────────────
-/// CE QUE LE PORTAGE A PERDU, ET C'EST LA PREMIÈRE CHOSE À DIRE.
-///
-/// La version Python chargeait chaque fichier avec PyYAML : le premier point de
-/// sa liste était « le YAML se charge », et c'est celui qui a motivé tout le
-/// contrôle. Cet outil n'a AUCUNE dépendance de paquet, et écrire un analyseur
-/// YAML complet pour retrouver cette garantie serait pire que le mal.
-///
-/// La lecture est donc textuelle, taillée pour la forme de ces quatre fichiers.
-/// À la place de « le YAML se charge », deux soupçons SEULEMENT, qui couvrent le
-/// défaut réellement rencontré :
-///
-///   · une indentation contenant une TABULATION — YAML les interdit ;
-///   · un scalaire NON CITÉ qui porte un deux-points suivi d'une espace, ou qui
-///     se termine par un deux-points : c'est exactement le `- name:` qui a
-///     produit la panne.
-///
-/// TOUT LE RESTE DE LA VALIDITÉ YAML N'EST PLUS VÉRIFIÉ : clé dupliquée dans un
-/// même mapping, guillemet non refermé, ancre ou alias cassé, style de flux mal
-/// formé, indentation incohérente, caractère non imprimable. Un fichier atteint
-/// de l'un de ces maux passerait ce contrôle et ne s'exécuterait jamais.
-///
-/// LA VRAIE RÉPONSE EST `actionlint`, ou tout simplement un chargement YAML dans
-/// une étape de la CI elle-même. Tant qu'aucun des deux n'existe, cette liste est
-/// le trou, et elle est écrite ici pour qu'on ne l'oublie pas.
-///
-/// EN REVANCHE, LA LECTURE DE STRUCTURE NE PEUT PAS SE TAIRE. Elle ne reconnaît
-/// que la forme canonique de ces fichiers — `jobs:` en première colonne, les jobs
-/// à deux espaces, leurs clés à quatre, les étapes à six. Un workflow écrit
-/// autrement serait lu comme n'ayant AUCUN job, ce qui est déjà une faute de ce
-/// contrôle. Le silence est fermé ; c'est le motif de la faute qui pourrait
-/// tromper.
-/// ─────────────────────────────────────────────────────────────────────────
-/// LE BIT D'EXÉCUTION, ET POURQUOI CE CONTRÔLE LANCE `git`.
-///
-/// `scripts/check-all.sh` était enregistré en 100644. La CI l'appelle par
-/// `./scripts/check-all.sh`, et le runner a répondu :
-///
-///     ./scripts/check-all.sh: Permission denied
-///     Error: Process completed with exit code 126
-///
-/// Le message parle de permission, ce qui envoie regarder les droits du runner ou
-/// ceux du dépôt — alors que la cause est un bit stocké dans l'INDEX GIT,
-/// invisible dans un diff et absent de tout affichage habituel. C'est celui-là
-/// que le runner reçoit après un checkout, et il peut différer de celui du
-/// disque : lire le système de fichiers répondrait à côté de la question.
-///
-/// D'où le seul appel de processus de tout cet outillage : `git ls-files -s`. S'il
-/// échoue ou ne rend rien, c'est une FAUTE — un contrôle qui ne peut plus
-/// vérifier ne doit pas rendre vert.
-///
-/// Le mode se perd facilement : un fichier réécrit par un outil, une copie depuis
-/// un système sans bit d'exécution, un `git add` après un `cp` maladroit. Rien ne
-/// le signale avant que la CI ne tombe.
-///
-/// LE CONSEIL COMPTE AUTANT QUE LE CONSTAT, ET LE PREMIER ÉTAIT FRAGILE. Le
-/// message recommandait `git update-index --chmod=+x`. Ça corrige l'index — et le
-/// PROCHAIN `git add` de ce fichier le défait, parce que `git add` relit le mode
-/// sur le DISQUE. Le défaut revient alors sans que personne ne comprenne pourquoi.
-///
-/// CE QUE LE CONTRÔLE DU BIT NE COUVRE PAS : il ne regarde que les `run:` qui
-/// commencent par `./`. Un script appelé par `bash script.sh` n'a pas besoin du
-/// bit, et n'est donc pas vérifié — c'est d'ailleurs la façon la plus robuste
-/// d'écrire un workflow. Il ne vérifie pas non plus que le script EXISTE, ni
-/// qu'il fonctionne.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Les workflows GitHub Actions se chargent, ont des jobs, et chaque étape agit.</summary>
 public sealed class WorkflowsControle : IControle
 {
     /// <inheritdoc/>
@@ -232,14 +140,9 @@ public sealed class WorkflowsControle : IControle
     }
 
     /// <summary>
-    /// Les lignes qui portent de la structure : ni vides, ni commentaires, ni
-    /// corps de scalaire en bloc.
+    /// Les lignes qui portent de la structure : ni vides, ni commentaires, ni corps
+    /// de scalaire en bloc.
     /// </summary>
-    /// <remarks>
-    /// LE CORPS D'UN `run: |` EST DU SHELL, PAS DU YAML. Le lire comme du YAML
-    /// ferait crier les soupçons sur chaque ligne de commande contenant un
-    /// deux-points, et le bruit finit toujours par masquer le vrai manque.
-    /// </remarks>
     private static List<(int Numero, string Ligne)> LignesUtiles(string texte)
     {
         var lignes = texte.Split('\n');
@@ -460,7 +363,9 @@ public sealed class WorkflowsControle : IControle
         return jobs;
     }
 
-    /// <summary>Un `needs:` sous ses trois formes : scalaire, liste en ligne, liste en bloc.</summary>
+    /// <summary>
+    /// Un `needs:` sous ses trois formes : scalaire, liste en ligne, liste en bloc.
+    /// </summary>
     private static void LireRequis(Travail travail, string valeur)
     {
         if (valeur.Length == 0)
@@ -487,7 +392,8 @@ public sealed class WorkflowsControle : IControle
     }
 
     /// <summary>
-    /// Tout script lancé par <c>./</c> dans un workflow doit être exécutable DANS GIT.
+    /// Tout script lancé par <c> ./</c> dans un workflow doit être exécutable DANS
+    /// GIT.
     /// </summary>
     private static List<string> ScriptsExecutables(List<string> fichiers, List<string> constats)
     {
@@ -539,12 +445,6 @@ public sealed class WorkflowsControle : IControle
     /// Les modes de l'INDEX GIT, seul endroit où vit le bit d'exécution que le
     /// runner recevra.
     /// </summary>
-    /// <remarks>
-    /// LE SEUL APPEL DE PROCESSUS DE TOUT CET OUTILLAGE, et il est assumé : le
-    /// mode que le runner obtient après un checkout est celui de l'index, pas
-    /// celui du disque. Lire le système de fichiers répondrait à côté de la
-    /// question. Un échec de `git` est une FAUTE, jamais un silence.
-    /// </remarks>
     private static Dictionary<string, string> ModesGit(List<string> fautes)
     {
         var modes = new Dictionary<string, string>(StringComparer.Ordinal);

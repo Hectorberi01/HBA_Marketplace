@@ -6,20 +6,7 @@ using Xunit;
 
 namespace HBA.Wallet.Tests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES TROIS COMPENSATIONS DU LOT 3.3 — ISSUE-015, 050, 051.
-///
-/// Ces trois anomalies avaient la même forme : un geste de compensation ÉCRIT dans
-/// le domaine, et jamais appelé. `MarkPayoutFailed`, `EarningStatus.Reversed`,
-/// `WalletLedger.EnsureBalanced` — trois mécanismes prêts, trois fils sans courant.
-///
-/// Ce que ces tests protègent est précisément ce qui ne se voit pas autrement : un
-/// vendeur débité et jamais payé, un gain remboursé qui reste payable, une
-/// répartition qui cesse d'épuiser ce qui a été encaissé. Aucun des trois ne
-/// produit d'erreur au moment où il survient.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES TROIS COMPENSATIONS DU LOT 3.3 — ISSUE-015, 050, 051.</summary>
 public sealed class CompensationsFinancieresTests
 {
     // ── ISSUE-015 · un virement refusé se compense ──────────────────────────
@@ -33,13 +20,7 @@ public sealed class CompensationsFinancieresTests
         lot.Payouts.Single().Status.Should().Be(PayoutStatus.Failed);
     }
 
-    /// <summary>
-    /// SANS CETTE GARDE, LE RECRÉDIT SORTIRAIT DEUX FOIS.
-    ///
-    /// Le gestionnaire recrédite le portefeuille du vendeur à chaque passage. Une
-    /// seconde exécution — double-clic, rejeu — doit donc être refusée par le
-    /// domaine, pas par la prudence de l'appelant.
-    /// </summary>
+    /// <summary>SANS CETTE GARDE, LE RECRÉDIT SORTIRAIT DEUX FOIS.</summary>
     [Fact]
     public void Un_virement_deja_paye_ne_peut_plus_echouer()
     {
@@ -76,10 +57,7 @@ public sealed class CompensationsFinancieresTests
         gain.RemainingNetAmount.Should().Be(0m);
     }
 
-    /// <summary>
-    /// Un client renvoie un article sur trois. Sortir toute la commande du circuit
-    /// priverait le vendeur des deux qu'il a réellement vendus.
-    /// </summary>
+    /// <summary>Un client renvoie un article sur trois.</summary>
     [Fact]
     public void Une_reprise_partielle_laisse_le_reste_payable()
     {
@@ -93,9 +71,8 @@ public sealed class CompensationsFinancieresTests
     }
 
     /// <summary>
-    /// LE CAS QUI COÛTE DE L'ARGENT : deux retours successifs dont le cumul
-    /// dépasse la vente. Sans borne, le vendeur se verrait reprendre plus qu'il n'a
-    /// jamais touché.
+    /// LE CAS QUI COÛTE DE L'ARGENT : deux retours successifs dont le cumul dépasse
+    /// la vente.
     /// </summary>
     [Fact]
     public void Le_cumul_des_reprises_ne_depasse_jamais_le_gain()
@@ -127,9 +104,8 @@ public sealed class CompensationsFinancieresTests
     // ── ISSUE-051 · l'invariant comptable a enfin une contrepartie ──────────
 
     /// <summary>
-    /// La forme exacte d'une confirmation de commande : le brut encaissé au débit du
-    /// compte extérieur, sa répartition au crédit. C'est cette opération, et elle
-    /// seule, que le lot 3.3 place sous l'invariant.
+    /// La forme exacte d'une confirmation de commande : le brut encaissé au débit
+    /// du compte extérieur, sa répartition au crédit.
     /// </summary>
     [Fact]
     public void Une_confirmation_de_commande_s_equilibre()
@@ -157,13 +133,7 @@ public sealed class CompensationsFinancieresTests
         resultat.IsSuccess.Should().BeTrue();
     }
 
-    /// <summary>
-    /// LE TEST QUI JUSTIFIE TOUT LE RESTE : une composante oubliée.
-    ///
-    /// Les frais provider ne sont pas crédités. L'opération encaisse 11 200 et n'en
-    /// répartit que 11 000. Avant ce lot, ces 200 francs disparaissaient sans que
-    /// rien ne le signale, jusqu'au jour où quelqu'un additionnerait les mouvements.
-    /// </summary>
+    /// <summary>LE TEST QUI JUSTIFIE TOUT LE RESTE : une composante oubliée.</summary>
     [Fact]
     public void Une_repartition_incomplete_est_refusee()
     {
@@ -188,10 +158,7 @@ public sealed class CompensationsFinancieresTests
         resultat.Error.Code.Should().Be("wallet.ledger.unbalanced");
     }
 
-    /// <summary>
-    /// L'écriture de contrepartie ne porte aucun solde : ce compte n'en a pas.
-    /// Voir l'encadré de <see cref="WalletOwnerType.External"/>.
-    /// </summary>
+    /// <summary>L'écriture de contrepartie ne porte aucun solde : ce compte n'en a pas.</summary>
     [Fact]
     public void La_contrepartie_externe_ne_porte_aucun_solde()
     {

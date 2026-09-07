@@ -3,42 +3,10 @@ using HBA.Merchants.Domain.Sellers.Events;
 
 namespace HBA.Merchants.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE CYCLE DE VIE DU VENDEUR — CINQ STATUTS, DEUX PARCOURS QUI SE CROISENT.
-///
-/// CE FICHIER EST LE PREMIER TEST DE DOMAINE DE CE SERVICE.
-///
-/// `seller-service` compte 83 fichiers et 6 422 lignes. Jusqu'ici, sa seule
-/// couverture était `HBA.Merchants.AuthorizationTests` — cinq tests, qui vérifient
-/// QUI entre, jamais ce qui se passe ensuite.
-///
-/// Or l'agrégat porte deux machines à états imbriquées : le compte
-/// (`Pending → Active → Suspended → Closed → PendingReactivation`) et le dossier
-/// KYB (`NotStarted → InReview → Verified | Rejected`). Elles se contraignent
-/// mutuellement — l'activation exige un KYB vérifié, un refus de KYB suspend un
-/// compte actif — et personne n'avait jamais posé la question « peut-on suspendre
-/// un vendeur déjà fermé ? » à autre chose qu'au code lui-même.
-///
-/// CE QUE CES TESTS FIXENT VOLONTAIREMENT, Y COMPRIS QUAND C'EST DISCUTABLE.
-///
-/// Le lot 1 a posé cinq tests préfixés `Ecart_` : des comportements testés TELS
-/// QU'ILS ÉTAIENT, avec l'explication de ce qui clochait. Quatre ont été corrigés
-/// au lot 2 et leurs tests décrivent maintenant la règle voulue — chacun garde
-/// dans son encadré le rappel de ce qu'il y avait avant, pour qu'on ne le rouvre
-/// pas par distraction.
-///
-/// Un seul subsiste ici : `Ecart_un_compte_ferme_est_reactivable_sans_demande_
-/// prealable`. Il n'est pas nécessairement faux — un administrateur peut vouloir
-/// rouvrir un compte fermé par erreur — mais le nom de la méthode et son message
-/// d'erreur affirment le contraire. C'est au cahier de trancher, pas au test.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE CYCLE DE VIE DU VENDEUR — CINQ STATUTS, DEUX PARCOURS QUI SE CROISENT.</summary>
 public sealed class SellerLifecycleTests
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // Inscription
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Un_vendeur_neuf_est_en_attente_et_sans_dossier()
@@ -86,18 +54,9 @@ public sealed class SellerLifecycleTests
         resultat.Error.Code.Should().Be("sellers.seller.commission_invalid");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Activation
-    // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// LES DEUX PRÉCONDITIONS DE L'ACTIVATION NE SONT PAS DE MÊME NATURE.
-    ///
-    /// Le KYB protège la PLATEFORME — elle doit savoir à qui elle ouvre une
-    /// boutique. Le compte de reversement protège le VENDEUR : sans lui, il vend,
-    /// accumule des gains, et rien ne peut les lui verser. La seconde est plus
-    /// facile à oublier parce qu'elle ne bloque personne d'autre que lui.
-    /// </summary>
+    /// <summary>LES DEUX PRÉCONDITIONS DE L'ACTIVATION NE SONT PAS DE MÊME NATURE.</summary>
     [Fact]
     public void L_activation_exige_un_kyb_verifie()
     {
@@ -135,21 +94,9 @@ public sealed class SellerLifecycleTests
         vendeur.DomainEvents.Should().ContainItemsAssignableTo<SellerActivatedDomainEvent>();
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Suspension
-    // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// LA SUSPENSION DOIT ÉMETTRE SON ÉVÉNEMENT, ET C'EST TOUT L'ENJEU.
-    ///
-    /// L'encadré de `Suspend` raconte l'incident : la méthode posait le statut sans
-    /// rien émettre. L'administrateur suspendait un vendeur frauduleux, voyait
-    /// « Suspendu » dans sa console — et les acheteurs continuaient de commander et
-    /// de payer quelqu'un que la plateforme venait d'écarter.
-    ///
-    /// C'est l'événement, pas le statut, qui retire le catalogue de la vente. Ce
-    /// test porte donc sur l'événement.
-    /// </summary>
+    /// <summary>LA SUSPENSION DOIT ÉMETTRE SON ÉVÉNEMENT, ET C'EST TOUT L'ENJEU.</summary>
     [Fact]
     public void Suspendre_un_vendeur_actif_emet_l_evenement_qui_retire_son_catalogue()
     {
@@ -182,14 +129,7 @@ public sealed class SellerLifecycleTests
         vendeur.DomainEvents.Should().BeEmpty();
     }
 
-    /// <summary>
-    /// LA GARDE QUI PROTÈGE LA TRACE D'UNE DÉCISION DU VENDEUR.
-    ///
-    /// Sans elle, suspendre un compte FERMÉ écrasait `Closed` par `Suspended` : la
-    /// trace de la demande du vendeur disparaissait, et la réactivation qu'il
-    /// pouvait demander devenait inatteignable, `RequestReactivation` exigeant un
-    /// compte fermé. Un clic d'administrateur enfermait le vendeur dehors.
-    /// </summary>
+    /// <summary>LA GARDE QUI PROTÈGE LA TRACE D'UNE DÉCISION DU VENDEUR.</summary>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -238,20 +178,7 @@ public sealed class SellerLifecycleTests
         resultat.Error.Code.Should().Be("sellers.seller.not_suspended");
     }
 
-    /// <summary>
-    /// LEVER UNE SUSPENSION REND LE COMPTE LÀ D'OÙ IL VIENT.
-    ///
-    /// Cet emplacement portait un test `Ecart_` : `LiftSuspension` posait `Active`
-    /// sans regarder ce que le compte était AVANT. Un vendeur encore `Pending` —
-    /// jamais activé — suspendu puis rétabli arrivait donc en activité sans jamais
-    /// passer par `Activate()`, donc sans que `SellerActivatedDomainEvent` ne soit
-    /// émis. Tout consommateur qui attend l'activation pour agir — ouvrir un
-    /// portefeuille, autoriser la mise en vente — ne voyait jamais passer ce
-    /// vendeur.
-    ///
-    /// Il repart maintenant en `Pending` et devra passer par l'activation, qui
-    /// annoncera son entrée en activité comme pour tout le monde.
-    /// </summary>
+    /// <summary>LEVER UNE SUSPENSION REND LE COMPTE LÀ D'OÙ IL VIENT.</summary>
     [Fact]
     public void Lever_la_suspension_d_un_compte_jamais_active_le_rend_en_attente()
     {
@@ -283,9 +210,7 @@ public sealed class SellerLifecycleTests
         vendeur.SuspendedFromStatus.Should().BeNull("la valeur est effacée une fois consommée");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Fermeture et réactivation
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Fermer_son_compte_emet_l_evenement_qui_retire_les_produits()
@@ -339,19 +264,7 @@ public sealed class SellerLifecycleTests
             "c'est lui qui permet au catalogue de reprendre le vendeur en compte");
     }
 
-    /// <summary>
-    /// LA RÉACTIVATION EXIGE UN COMPTE DE REVERSEMENT, COMME LES DEUX AUTRES.
-    ///
-    /// Cet emplacement portait un test `Ecart_`. Des trois chemins qui mènent à
-    /// `Active`, `ApproveReactivation` était le seul à ne pas le vérifier — alors
-    /// que `LiftSuspension` porte la raison écrite noir sur blanc : « un vendeur qui
-    /// vend sans compte de reversement accumule des gains que rien ne peut lui
-    /// verser ».
-    ///
-    /// Un compte fermé puis rétabli revendait donc sans que personne ne puisse le
-    /// payer, et le problème ne se manifestait qu'au premier versement, des semaines
-    /// plus tard, du côté de Wallet.
-    /// </summary>
+    /// <summary>LA RÉACTIVATION EXIGE UN COMPTE DE REVERSEMENT, COMME LES DEUX AUTRES.</summary>
     [Fact]
     public void La_reactivation_exige_un_compte_de_reversement()
     {
@@ -371,20 +284,7 @@ public sealed class SellerLifecycleTests
 
     /// <summary>
     /// CE TEST S'APPELAIT `Ecart_un_compte_ferme_est_reactivable_sans_demande_
-    ///    prealable`, ET IL FIGEAIT LE CONTRAIRE DE CE QU'IL VÉRIFIE MAINTENANT.
-    ///
-    /// La garde acceptait un compte simplement `Closed`, alors que le nom de la
-    /// méthode et son code d'erreur — `no_reactivation_request` — affirmaient
-    /// qu'une demande était requise. Le test décrivait donc fidèlement le code, et
-    /// son préfixe `Ecart_` disait qu'on attendait un arbitrage plutôt qu'on ne
-    /// validait la règle.
-    ///
-    /// L'arbitrage est rendu : c'est le NOM qui avait raison. Le parcours est
-    /// `Closed → RequestReactivation → PendingReactivation → ApproveReactivation`.
-    ///
-    /// Ce qu'on perd, et qui est assumé : rouvrir un compte fermé PAR ERREUR n'a
-    /// plus de chemin direct. Si l'exploitation en a besoin, ce sera un geste
-    /// distinct, nommé pour ce qu'il fait.
+    /// prealable`, ET IL FIGEAIT LE CONTRAIRE DE CE QU'IL VÉRIFIE MAINTENANT.
     /// </summary>
     [Fact]
     public void Un_compte_ferme_n_est_pas_reactivable_sans_demande_prealable()
@@ -420,8 +320,8 @@ public sealed class SellerLifecycleTests
         var vendeur = UnVendeur.Inscrit();
         vendeur.RequestClosure().IsSuccess.Should().BeTrue();
 
-        // LA DEMANDE D'ABORD : sans elle, l'échec viendrait de la garde de
-        // statut et ce test ne dirait plus rien du KYB.
+        // LA DEMANDE D'ABORD : sans elle, l'échec viendrait de la garde de statut
+        // et ce test ne dirait plus rien du KYB.
         vendeur.RequestReactivation().IsSuccess.Should().BeTrue();
 
         var resultat = vendeur.ApproveReactivation();
@@ -430,21 +330,9 @@ public sealed class SellerLifecycleTests
         resultat.Error.Code.Should().Be("sellers.seller.kyb_not_verified");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Suppression définitive
-    // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// CHAQUE PIÈCE D'IDENTITÉ DOIT ÊTRE NOMMÉE, UNE PAR UNE.
-    ///
-    /// Le retrait de l'agrégat emporte les lignes `kyb_documents` en cascade et
-    /// LAISSE LES FICHIERS. Cartes d'identité, registres de commerce : sans un
-    /// événement par pièce, ils resteraient dans le bucket privé sans qu'aucune
-    /// ligne ne pointe vers eux — donc sans aucun moyen de les retrouver un jour
-    /// pour les effacer.
-    ///
-    /// C'est une obligation de protection des données, pas une commodité.
-    /// </summary>
+    /// <summary>CHAQUE PIÈCE D'IDENTITÉ DOIT ÊTRE NOMMÉE, UNE PAR UNE.</summary>
     [Fact]
     public void La_suppression_nomme_chaque_piece_a_effacer()
     {
@@ -463,18 +351,9 @@ public sealed class SellerLifecycleTests
         vendeur.DomainEvents.Should().ContainItemsAssignableTo<SellerDeletedDomainEvent>();
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Compteurs alimentés par d'autres modules
-    // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// POSER LE TOTAL EST IDEMPOTENT, INCRÉMENTER NE L'EST PAS.
-    ///
-    /// L'alimentation vient de Kafka, qui livre au moins une fois. `RecordSale`
-    /// double-compterait au premier rejeu ; `SetSalesCount` recalculé depuis la
-    /// source ne bouge pas. C'est le même raisonnement que l'inbox du §19.5, appliqué
-    /// à un compteur.
-    /// </summary>
+    /// <summary>POSER LE TOTAL EST IDEMPOTENT, INCRÉMENTER NE L'EST PAS.</summary>
     [Fact]
     public void Poser_le_total_des_ventes_est_rejouable_sans_dommage()
     {

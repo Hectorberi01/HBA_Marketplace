@@ -2,21 +2,10 @@ using HBA.Catalog.Domain.Products;
 
 namespace HBA.Catalog.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE CYCLE DE VIE (§4, §5, §15, §28).
-///
-/// Le premier test de ce fichier est celui qui compte : « Un vendeur ne peut
-/// jamais publier un produit qui n'a pas été approuvé par un administrateur. »
-/// Tous les autres décrivent les chemins par lesquels on pourrait l'obtenir
-/// quand même.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE CYCLE DE VIE (§4, §5, §15, §28).</summary>
 public sealed class ProductLifecycleTests
 {
-    // ═════════════════════════════════════════════════════════════════════════
     // LA RÈGLE ABSOLUE
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Publier_un_brouillon_est_refuse()
@@ -68,16 +57,7 @@ public sealed class ProductLifecycleTests
         produit.PublishedAtUtc.Should().Be(UnProduit.Maintenant);
     }
 
-    /// <summary>
-    /// LE CHEMIN LE PLUS DANGEREUX DE TOUTE LA MACHINE À ÉTATS.
-    ///
-    /// Un produit suspendu a, par définition, une révision APPROUVÉE derrière lui :
-    /// c'est bien un administrateur qui l'avait validée, avant la sanction. La
-    /// garde « la révision est-elle approuvée ? » est donc satisfaite — et à elle
-    /// seule, elle laisserait le vendeur republier ce que la plateforme vient de
-    /// retirer. C'est la SECONDE garde, celle sur le statut du produit, qui ferme
-    /// la porte, et c'est pour ce cas précis qu'elle existe.
-    /// </summary>
+    /// <summary>LE CHEMIN LE PLUS DANGEREUX DE TOUTE LA MACHINE À ÉTATS.</summary>
     [Fact]
     public void Un_produit_suspendu_ne_peut_pas_etre_republie_par_le_vendeur()
     {
@@ -90,9 +70,7 @@ public sealed class ProductLifecycleTests
         produit.Status.Should().Be(ProductStatus.Suspended);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // SOUMISSION — LES PRÉCONDITIONS QUE L'AGRÉGAT POSSÈDE (§23)
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Soumettre_sans_image_est_refuse()
@@ -116,11 +94,7 @@ public sealed class ProductLifecycleTests
         resultat.Error.Code.Should().Be("catalog.product.description_required");
     }
 
-    /// <summary>
-    /// Une fiche antérieure au multi-boutique ne peut pas avancer. Voir l'encadré
-    /// de <c>Product.StoreId</c> : c'est le seul endroit où l'absence de boutique
-    /// se manifeste, et il faut qu'elle se manifeste.
-    /// </summary>
+    /// <summary>Une fiche antérieure au multi-boutique ne peut pas avancer.</summary>
     [Fact]
     public void Soumettre_sans_boutique_est_refuse()
     {
@@ -144,9 +118,7 @@ public sealed class ProductLifecycleTests
         resultat.Error.Code.Should().Be("catalog.product.already_submitted");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // REJET ET CORRECTION (§28 : « rejet et correction »)
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Rejeter_puis_corriger_puis_resoumettre_mene_a_la_publication()
@@ -157,19 +129,11 @@ public sealed class ProductLifecycleTests
         produit.Status.Should().Be(ProductStatus.Rejected);
 
         // LA CORRECTION NE CRÉE PAS DE NOUVELLE RÉVISION.
-        //
-        // Rien n'a jamais été publié : réécrire en place est exactement ce qu'il
-        // faut. Une nouvelle version à chaque aller-retour de validation ferait
-        // grimper le compteur à « version 7 » pour une fiche jamais mise en vente.
         var version = produit.CurrentRevision.Version;
         produit.UpdateContenu(UnProduit.Contenu(name: "iPhone 16 Pro (corrigé)")).IsSuccess.Should().BeTrue();
         produit.CurrentRevision.Version.Should().Be(version);
 
         // CORRIGER EST LA TRANSITION REJECTED → DRAFT.
-        //
-        // Le §4 porte l'étiquette « correction » sur cette flèche, et le §5
-        // n'autorise PENDING_REVIEW que depuis DRAFT. Sans ce retour, la fiche
-        // corrigée n'était plus soumettable du tout.
         produit.Status.Should().Be(ProductStatus.Draft);
         produit.CurrentRevision.Status.Should().Be(RevisionStatus.Draft);
 
@@ -181,14 +145,7 @@ public sealed class ProductLifecycleTests
         produit.PublishedRevision!.Name.Should().Be("iPhone 16 Pro (corrigé)");
     }
 
-    /// <summary>
-    /// LE REJET D'UNE NOUVELLE VERSION NE RETIRE PAS LA FICHE DE LA VENTE.
-    ///
-    /// C'est le pendant du §6 côté rejet : l'acheteur continue de voir la version
-    /// approuvée pendant que le vendeur corrige la suivante. Ramener le PRODUIT à
-    /// DRAFT ici aurait dépublié une fiche en vente parce qu'un administrateur a
-    /// refusé une modification de description.
-    /// </summary>
+    /// <summary>LE REJET D'UNE NOUVELLE VERSION NE RETIRE PAS LA FICHE DE LA VENTE.</summary>
     [Fact]
     public void Corriger_une_revision_rejetee_sur_un_produit_publie_ne_le_depublie_pas()
     {
@@ -221,13 +178,8 @@ public sealed class ProductLifecycleTests
     }
 
     /// <summary>
-    /// LE MÊME VERROU SUR UN PRODUIT DÉJÀ EN VENTE — ET C'EST LE CAS QUI
-    ///    ÉCHAPPAIT À LA GARDE.
-    ///
-    /// Le produit reste PUBLISHED pendant que sa nouvelle version est relue (§6).
-    /// Une garde posée sur le statut du PRODUIT ne se déclenchait donc pas, et le
-    /// vendeur pouvait réécrire sous les yeux de l'administrateur — ou ouvrir une
-    /// v3 en laissant la v2 bloquée dans la file de validation pour toujours.
+    /// LE MÊME VERROU SUR UN PRODUIT DÉJÀ EN VENTE — ET C'EST LE CAS QUI ÉCHAPPAIT
+    /// À LA GARDE.
     /// </summary>
     [Fact]
     public void Une_revision_en_validation_est_verrouillee_meme_si_le_produit_est_publie()
@@ -245,9 +197,7 @@ public sealed class ProductLifecycleTests
         produit.CurrentRevision.Name.Should().Be("Version 2");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // SUSPENSION ET RESTAURATION (§28)
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Restaurer_rend_le_produit_a_approved_pas_a_published()
@@ -258,10 +208,6 @@ public sealed class ProductLifecycleTests
         produit.Restore().IsSuccess.Should().BeTrue();
 
         // C'EST LE VENDEUR QUI REMET EN VENTE, PAS LA PLATEFORME.
-        //
-        // Rendre la fiche directement à PUBLISHED remettrait en ligne, sans que
-        // personne ne l'ait décidé, un produit que le vendeur a peut-être entre-temps
-        // corrigé ou retiré de son offre.
         produit.Status.Should().Be(ProductStatus.Approved);
         produit.SuspensionReason.Should().BeNull();
     }
@@ -274,15 +220,14 @@ public sealed class ProductLifecycleTests
 
         var resultat = produit.Archive();
 
-        // Sinon la sanction se contournerait en archivant puis en recréant la fiche.
+        // Sinon la sanction se contournerait en archivant puis en recréant la
+        // fiche.
         resultat.IsFailure.Should().BeTrue();
         resultat.Error.Code.Should().Be("catalog.product.invalid_status_transition");
         produit.Status.Should().Be(ProductStatus.Suspended);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // DÉPUBLICATION ET REPUBLICATION
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Republier_apres_depublication_ne_demande_pas_une_nouvelle_validation()
@@ -292,8 +237,8 @@ public sealed class ProductLifecycleTests
         produit.Unpublish().IsSuccess.Should().BeTrue();
         produit.Status.Should().Be(ProductStatus.Unpublished);
 
-        // La révision reste approuvée : le contenu n'a pas changé, il n'y a rien
-        // de nouveau à relire.
+        // La révision reste approuvée : le contenu n'a pas changé, il n'y a rien de
+        // nouveau à relire.
         produit.Publish(UnProduit.Maintenant).IsSuccess.Should().BeTrue();
         produit.Status.Should().Be(ProductStatus.Published);
     }
@@ -309,9 +254,7 @@ public sealed class ProductLifecycleTests
         resultat.Error.Code.Should().Be("catalog.product.already_published");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LA LISTE BLANCHE ELLE-MÊME
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Theory]
     [InlineData(ProductStatus.Draft, ProductStatus.Published)]
@@ -340,12 +283,7 @@ public sealed class ProductLifecycleTests
     public void Les_transitions_du_cahier_sont_autorisees(ProductStatus de, ProductStatus vers)
         => ProductStatusTransitions.IsAllowed(de, vers).Should().BeTrue();
 
-    /// <summary>
-    /// UN SEUL STATUT EST PUBLIC, ET APPROVED N'EN FAIT PAS PARTIE.
-    ///
-    /// Ce test existe parce que la confusion « validé donc en ligne » est celle
-    /// qu'on écrit le plus naturellement en lisant le §5 de haut en bas.
-    /// </summary>
+    /// <summary>UN SEUL STATUT EST PUBLIC, ET APPROVED N'EN FAIT PAS PARTIE.</summary>
     [Fact]
     public void Seul_published_est_visible_publiquement()
     {

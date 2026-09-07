@@ -88,7 +88,8 @@ public sealed class MerchantHandlerTests
         envelope.Data.Activities.Should().ContainSingle()
             .Which.Type.Should().Be(GetMerchantActivitiesHandler.StoreType);
 
-        // Un 404 « je n'ai pas de restaurant » n'est pas une panne : rien à signaler.
+        // Un 404 « je n'ai pas de restaurant » n'est pas une panne : rien à
+        // signaler.
         envelope.Warnings.Should().NotContain(w => w.Source == "Food");
     }
 
@@ -129,8 +130,8 @@ public sealed class MerchantHandlerTests
     public async Task La_boutique_d_un_autre_vendeur_donne_404_et_non_403()
     {
         GivenSeller();
-        // Le chemin porte le sellerId du jeton : merchant-service ne trouve pas
-        // la boutique sous CE vendeur, donc 404.
+        // Le chemin porte le sellerId du jeton : merchant-service ne trouve pas la
+        // boutique sous CE vendeur, donc 404.
         _merchant.StoreResult = ServiceResult<MerchantStore>.Failure(404, "absente");
 
         var act = () => Dashboard().HandleAsync(StoreId, CancellationToken.None);
@@ -150,19 +151,7 @@ public sealed class MerchantHandlerTests
         _merchant.LastSellerId.Should().Be(SellerId);
     }
 
-    /// <summary>
-    /// LE ROLL-UP FAIT FOI, ET LA LISTE DE COMMANDES NE PEUT PLUS LE CONTREDIRE.
-    /// </summary>
-    /// <remarks>
-    /// La liste amont est volontairement en DÉSACCORD avec la série : trois
-    /// commandes du jour pour 520 000 F, contre deux commandes pour 20 000 F dans
-    /// le roll-up. Un test qui armerait les deux à la même valeur passerait aussi
-    /// bien avec l'ancien calcul — il ne prouverait rien.
-    ///
-    /// Le désaccord n'est pas artificiel : la liste compte les commandes PLACÉES,
-    /// le roll-up les commandes CONFIRMÉES, et la liste est bornée à cinquante
-    /// par order-service.
-    /// </remarks>
+    /// <summary>LE ROLL-UP FAIT FOI, ET LA LISTE DE COMMANDES NE PEUT PLUS LE CONTREDIRE.</summary>
     [Fact]
     public async Task Les_chiffres_du_jour_viennent_du_roll_up_et_non_de_la_liste_de_commandes()
     {
@@ -233,7 +222,8 @@ public sealed class MerchantHandlerTests
 
         var envelope = await Dashboard().HandleAsync(StoreId, CancellationToken.None);
 
-        // `0m` s'afficherait « panier moyen : 0 F », ce qui est faux : il n'existe pas.
+        // `0m` s'afficherait « panier moyen : 0 F », ce qui est faux : il n'existe
+        // pas.
         envelope.Data.Today.AverageBasket.Should().BeNull();
         envelope.Data.Today.RevenueToday.Should().Be(0m);
     }
@@ -241,11 +231,6 @@ public sealed class MerchantHandlerTests
     /// <summary>
     /// ANALYTICS À TERRE NE DOIT PAS EMPORTER CE QUE LA PASSERELLE A DÉJÀ OBTENU.
     /// </summary>
-    /// <remarks>
-    /// C'est la raison pour laquelle `Today` n'est PAS rendu `null` en bloc :
-    /// `OrdersToProcess` vient d'order-service et n'a aucune raison de disparaître
-    /// parce qu'un autre service est muet.
-    /// </remarks>
     [Fact]
     public async Task Analytics_a_terre_vide_les_chiffres_du_jour_sans_vider_l_ecran()
     {
@@ -301,14 +286,7 @@ public sealed class MerchantHandlerTests
         envelope.Warnings.Should().Contain(w => w.Source == "Financial");
     }
 
-    /// <summary>
-    /// LA DEVISE VIENT DE LA SÉRIE, ET LE PORTEFEUILLE N'EST QUE LE REPLI.
-    /// </summary>
-    /// <remarks>
-    /// Elle venait de la première commande du jour, ce qui la rendait absente les
-    /// jours sans vente. La série la porte toujours — elle est dans la clé des
-    /// roll-ups —, y compris quand tous les points valent zéro.
-    /// </remarks>
+    /// <summary>LA DEVISE VIENT DE LA SÉRIE, ET LE PORTEFEUILLE N'EST QUE LE REPLI.</summary>
     [Fact]
     public async Task La_devise_vient_de_la_serie_sinon_du_portefeuille()
     {
@@ -352,8 +330,8 @@ public sealed class MerchantHandlerTests
         await Analytics().HandleAsync(100_000, CancellationToken.None);
 
         // `days` VIENT DU CLIENT : sans la borne, il demanderait deux siècles de
-        // points, et analytics-service répondrait 400 — un refus que le vendeur
-        // ne peut pas comprendre.
+        // points, et analytics-service répondrait 400 — un refus que le vendeur ne
+        // peut pas comprendre.
         _analytics.LastFrom.Should().Be(Debut(GetMerchantAnalyticsHandler.MaxDays));
         _analytics.LastTo.Should().Be(Aujourdhui);
     }
@@ -370,14 +348,7 @@ public sealed class MerchantHandlerTests
         _analytics.LastFrom.Should().Be(Debut(GetMerchantAnalyticsHandler.DefaultDays));
     }
 
-    /// <summary>
-    /// UN REFUS DE CAPACITÉ N'EST PAS UNE PANNE D'ÉCRAN.
-    /// </summary>
-    /// <remarks>
-    /// Un membre d'équipe sans `SELLER_ANALYTICS_VIEW` reçoit 403 d'analytics.
-    /// L'écran doit dire « pas de courbe » et non tomber : c'est pourquoi la
-    /// dépendance est IMPORTANTE alors qu'elle est le sujet de l'écran.
-    /// </remarks>
+    /// <summary>UN REFUS DE CAPACITÉ N'EST PAS UNE PANNE D'ÉCRAN.</summary>
     [Fact]
     public async Task Un_membre_sans_la_capacite_voit_l_ecran_sans_la_courbe()
     {

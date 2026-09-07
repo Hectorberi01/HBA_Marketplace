@@ -2,80 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace HBA.Controls.Controles;
 
-/// <summary>
-/// Les trois endroits qui nomment les sujets Kafka doivent dire la même chose.
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// CE DÉFAUT NE CASSE RIEN — IL REND DES ÉVÉNEMENTS INERTES.
-///
-/// C'est ISSUE-001. Le producteur dérivait son sujet de `SERVICE_NAME`, le
-/// consommateur s'abonnait à une liste écrite en dur, et les manifestes
-/// Kubernetes provisionnaient un troisième schéma. Un message part, le courtier
-/// l'acquitte, et il n'arrive nulle part. Aucune exception, aucun avertissement,
-/// aucune métrique en rouge : le seul symptôme est « ce service ne reçoit rien »,
-/// des jours plus tard, et il ne désigne jamais le fichier fautif.
-///
-/// `HbaTopics` a fermé les deux premières sources en n'en laissant qu'une. Ce
-/// contrôle empêche la troisième de re-diverger, et surveille ce que le catalogue
-/// ne peut pas voir tout seul :
-///
-///   1. `HbaTopics.DomaineParService` — la table qui fait foi.
-///   2. `docker-compose.dev.yml` — un service qui PUBLIE et qui manque à la table
-///      publie sur un sujet auquel personne n'est abonné. Le repli de
-///      `HbaTopics.Domaine` fabrique un nom plausible, ce qui rend le défaut plus
-///      discret encore : le sujet existe, il est juste seul.
-///
-/// CE QUI N'EST PLUS VERIFIE, ET IL FAUT LE SAVOIR.
-///
-/// Ce controle comparait aussi les sujets aux manifestes `k8s/overlays/*` : les
-/// sujets provisionnes devaient etre EXACTEMENT ceux que la table engendre. Un
-/// sujet en trop coute du stockage et ment ; un sujet en moins est auto-cree par
-/// le courtier avec UNE partition et la retention par defaut, donc sans les
-/// garanties du §9.
-///
-/// Le chemin Kubernetes ayant ete retire du depot, cette comparaison n'a plus
-/// d'objet ICI — mais le risque, lui, demeure : le provisionnement passe
-/// desormais par `scripts/kafka-topics.sh`, que ce controle NE LIT PAS. Un sujet
-/// oublie la-bas ne sera signale par personne.
-///
-/// UN `SERVICE_NAME` N'EST PAS UNE PREUVE DE PUBLICATION.
-///
-/// Les trois BFF et la passerelle en ont un et ne publient rien. Les quatre
-/// squelettes food retirés par D30 (`menu`, `availability`, `kitchen-prep`,
-/// `food-review`) ont même un `KAFKA__PRODUCER` dans le compose, et pas une ligne
-/// de code qui publie. Les exiger dans la table ferait provisionner des sujets
-/// pour du code qui va disparaître — et un contrôle qui crie à tort finit ignoré.
-///
-/// On cherche donc une TRACE de publication dans le dossier du service :
-/// `IIntegrationEventPublisher`, l'outbox, un événement d'intégration. Sans
-/// trace, le service est listé À PART, en constat, jamais en faute. Ce qu'on ne
-/// sait pas trancher, on le montre.
-///
-/// CE CONTRÔLE NE REGARDE PAS LES DÉPLOIEMENTS KUBERNETES DE LA MÊME FAÇON.
-///
-/// Là-bas les `SERVICE_NAME` portent des noms de DOMAINE (`merchant-service`,
-/// `commerce-service`…) et la découpe est plus grossière qu'en développement.
-/// Aucun n'est une clé de la table : tous passent par le repli, qui tombe juste
-/// par construction — `merchant-service` devient `merchant`. Le sujet est donc
-/// correct, mais chaque pod journalise « producteur non inscrit » au premier
-/// événement. C'est listé en constat, pas en faute. S'il retombe AILLEURS que sur
-/// un domaine du catalogue, c'est un vrai orphelin — et là on échoue.
-///
-/// `_service/` EST UN GABARIT, PAS UN SERVICE. Son `SERVICE_NAME` vaut
-/// littéralement « service » — un remplaçant que chaque kustomization corrige par
-/// un patch. Le lire ferait un orphelin permanent, et un contrôle qui crie
-/// toujours finit ignoré.
-///
-/// CE QUE LE PORTAGE A COÛTÉ, ET IL FAUT LE SAVOIR.
-///
-/// Le contrôle Python chargeait le compose ET les manifestes de sujets avec
-/// PyYAML, et s'ignorait tout entier — « PyYAML absent, contrôle ignoré », code
-/// de sortie 0 — quand le paquet manquait. Cet outil n'a aucune dépendance : la
-/// lecture est textuelle. Voir <see cref="ComposeDev"/> pour le compose, et
-/// <see cref="SujetsOverlay"/> pour les manifestes.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Les trois endroits qui nomment les sujets Kafka doivent dire la même chose.</summary>
 public sealed class KafkaTopicsControle : IControle
 {
     /// <inheritdoc/>
@@ -97,11 +24,6 @@ public sealed class KafkaTopicsControle : IControle
     private static readonly Regex CleImbriquee = new(@"^  ([A-Za-z0-9_.\-]+):\s*(.*?)\s*$");
 
     // CES MARQUEURS DISENT « CE SERVICE PUBLIE », PAS « CE SERVICE EST COMPLET ».
-    //
-    // Ils sont volontairement larges : un faux positif ici ne coûte qu'une entrée
-    // de plus dans la table — donc un sujet provisionné pour rien. Un faux
-    // négatif, lui, rendrait un vrai producteur invisible au contrôle, ce qui est
-    // exactement le défaut qu'on traque.
     private static readonly string[] Marqueurs =
         ["IIntegrationEventPublisher", "IntegrationEvent", "OutboxMessage", "AddOutbox"];
 
@@ -206,11 +128,7 @@ public sealed class KafkaTopicsControle : IControle
 
             if (!trace)
             {
-                // CONSTAT, ET C'EST DÉLIBÉRÉ. Un `SERVICE_NAME` sans une ligne qui
-                // publie décrit un BFF, la passerelle ou un squelette. Les compter
-                // en faute obligerait à inscrire au catalogue des services qui ne
-                // publieront peut-être jamais — et à provisionner leurs sujets en
-                // production.
+                // CONSTAT, ET C'EST DÉLIBÉRÉ.
                 sansTrace.Add($"{service.Nom} — SERVICE_NAME/KAFKA__PRODUCER « {producteur} »");
                 continue;
             }

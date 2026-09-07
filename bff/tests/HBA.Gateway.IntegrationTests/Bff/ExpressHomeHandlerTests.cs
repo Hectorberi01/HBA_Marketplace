@@ -83,9 +83,6 @@ public sealed class ExpressHomeHandlerTests
         var response = await Handler().HandleAsync(CancellationToken.None);
 
         // TRENTE RECOMMANDATIONS NE DOIVENT PAS FAIRE TRENTE APPELS.
-        //
-        // Sans plafond, l'accueil paierait un aller-retour par recommandation —
-        // le N+1 du §43, sur l'écran le plus consulté de l'application.
         _catalog.ProductCallCount.Should().Be(GetExpressHomeHandler.RecommendationCardCount);
         response.Data.RecommendedProducts.Should().HaveCount(
             GetExpressHomeHandler.RecommendationCardCount);
@@ -108,7 +105,7 @@ public sealed class ExpressHomeHandlerTests
         var response = await Handler().HandleAsync(CancellationToken.None);
 
         // Les recommandations sont calculées en différé : elles citent parfois un
-        // produit retiré depuis. L'accueil ne doit pas en dépendre.
+        // produit retiré depuis.
         response.Data.RecommendedProducts.Should().ContainSingle()
             .Which.Name.Should().Be("Vivant");
         response.Warnings.Should().BeEmpty();

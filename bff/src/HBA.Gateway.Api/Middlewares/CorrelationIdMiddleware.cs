@@ -4,25 +4,14 @@ using HBA.Gateway.Application.Abstractions;
 namespace HBA.Gateway.Api.Middlewares;
 
 /// <summary>
-/// Garantit qu'une requête porte un identifiant de corrélation, le rend
-/// disponible au reste du pipeline et le renvoie au client.
+/// Garantit qu'une requête porte un identifiant de corrélation, le rend disponible
+/// au reste du pipeline et le renvoie au client.
 /// </summary>
 public sealed class CorrelationIdMiddleware
 {
     public const string HeaderName = "X-Correlation-ID";
 
-    /// <summary>
-    /// UN IDENTIFIANT FOURNI PAR LE CLIENT EST UNE DONNÉE NON FIABLE.
-    ///
-    /// Il est recopié tel quel dans les journaux, propagé à treize services et
-    /// renvoyé dans un en-tête de réponse. Sans borne ni filtre, un client peut y
-    /// glisser un saut de ligne et FABRIQUER de fausses lignes de journal —
-    /// jusqu'à simuler des entrées d'audit crédibles — ou envoyer 100 Ko à
-    /// recopier sur chaque appel sortant.
-    ///
-    /// D'où : longueur bornée, et jeu de caractères restreint à ce qu'un
-    /// identifiant a besoin d'être.
-    /// </summary>
+    /// <summary>UN IDENTIFIANT FOURNI PAR LE CLIENT EST UNE DONNÉE NON FIABLE.</summary>
     private const int MaxLength = 128;
 
     private readonly RequestDelegate _next;
@@ -44,12 +33,6 @@ public sealed class CorrelationIdMiddleware
         context.Request.Headers[HeaderName] = correlationId;
 
         // `OnStarting` ET NON UNE ÉCRITURE DIRECTE.
-        //
-        // Les en-têtes de réponse deviennent immuables dès le premier octet
-        // écrit. YARP diffuse la réponse du service au fil de l'eau : au retour du
-        // pipeline, l'écriture aurait déjà commencé et l'affectation aurait levé
-        // une exception — sur la route proxy uniquement, donc invisible en test
-        // sur les seules routes BFF.
         context.Response.OnStarting(state =>
         {
             var response = ((HttpContext)state).Response;
@@ -86,15 +69,7 @@ public sealed class CorrelationIdMiddleware
     }
 }
 
-/// <summary>
-/// Support de portée requête de l'identifiant de corrélation.
-/// </summary>
-/// <remarks>
-/// Il existe parce que <see cref="ICorrelationContext"/> est consommé par des
-/// services de portée requête construits AVANT que le middleware ne s'exécute.
-/// Un simple <c>IHttpContextAccessor</c> ferait l'affaire, mais exposerait tout
-/// le contexte HTTP à la couche Application — ce que l'interface évite justement.
-/// </remarks>
+/// <summary>Support de portée requête de l'identifiant de corrélation.</summary>
 public sealed class CorrelationContextHolder : ICorrelationContext
 {
     /// <summary>

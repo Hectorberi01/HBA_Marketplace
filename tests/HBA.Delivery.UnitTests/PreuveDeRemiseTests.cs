@@ -2,50 +2,10 @@ using HBA.Deliveries.Domain.Deliveries;
 
 namespace HBA.Delivery.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA PREUVE DE REMISE — RÉÉCRIT LE 28 AOÛT CONTRE L'AGRÉGAT QUI LA PORTE.
-///
-/// CE FICHIER ÉPROUVAIT `ProofStore`, ET CE MAGASIN N'EXISTE PLUS (D43).
-///
-/// `proof-of-delivery-service` tenait la preuve dans un `ConcurrentDictionary` de
-/// processus : sans base, sans migration, perdu au redémarrage, non partagé entre
-/// réplicas — et sans aucun appelant dans tout le dépôt. Il a été retiré parce que
-/// `delivery-service` porte la MÊME capacité, persistée.
-///
-/// CE FICHIER EST DONC LA VÉRIFICATION DE CETTE AFFIRMATION. Chacun des tests
-/// ci-dessous reprend une règle que les anciens éprouvaient sur la maquette, et
-/// l'éprouve sur `Delivery` / `ProofOfDelivery`. Si l'une d'elles manquait ici, le
-/// retrait aurait emporté une garantie — c'est exactement ce qu'un retrait de
-/// service doit prouver, et ce qu'aucun contrôle statique ne peut dire.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUI A CHANGÉ DE FORME EN CHANGEANT DE PORTEUR, ET IL FAUT LE SAVOIR.
-///
-///   • LE CODE N'EXPIRE PLUS TOUT SEUL. `ProofStore` posait une échéance de
-///     quinze minutes sur l'OTP, et deux tests l'éprouvaient. `Delivery.IssuedPin`
-///     n'a AUCUNE échéance : le code émis à la prise en charge reste valable
-///     jusqu'à la remise. Ce n'est pas un oubli de ce fichier, c'est une
-///     différence RÉELLE entre les deux implémentations — et le retrait l'a
-///     rendue effective sans que personne ne la décide. Les deux tests
-///     correspondants ne sont donc pas portés : ils échoueraient, et à juste
-///     titre.
-///
-///   • LA SIMULTANÉITÉ N'EST PLUS TESTABLE ICI. « Deux soumissions simultanées du
-///     bon code, une seule vérifie » s'éprouvait sur un `ConcurrentDictionary`.
-///     Sur un agrégat persisté, ce qui arbitre est le jeton `xmin` et une seconde
-///     transaction — donc une base. Non porté, et non couvert ailleurs.
-///
-///   • LE VERROU EST À CINQ TENTATIVES, PAS TROIS. `MaxFailedProofAttempts = 5`.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA PREUVE DE REMISE — RÉÉCRIT LE 28 AOÛT CONTRE L'AGRÉGAT QUI LA PORTE.</summary>
 public sealed class PreuveDeRemiseTests
 {
-    /// <summary>
-    /// Amène une course jusqu'au seuil de la remise, avec un livreur engagé.
-    /// On passe par toutes les transitions : un état fabriqué à la main serait un
-    /// état que la production ne peut pas produire.
-    /// </summary>
+    /// <summary>Amène une course jusqu'au seuil de la remise, avec un livreur engagé.</summary>
     private static HBA.Deliveries.Domain.Deliveries.Delivery ADeuxDoigtsDeLaRemise(
         decimal? valeurDeclaree = null, bool paiementALaLivraison = false)
     {
@@ -63,12 +23,7 @@ public sealed class PreuveDeRemiseTests
         return course;
     }
 
-    /// <summary>
-    /// ISSUE-057 : aucune course ne naît plus sans exigence de preuve.
-    ///
-    /// C'était le défaut d'origine — `RequiredProof` valait `None` sur TOUTE la
-    /// plateforme, donc `MarkDelivered` ne demandait jamais rien.
-    /// </summary>
+    /// <summary>ISSUE-057 : aucune course ne naît plus sans exigence de preuve.</summary>
     [Fact]
     public void Une_course_ordinaire_exige_au_moins_une_photo()
     {
@@ -97,12 +52,7 @@ public sealed class PreuveDeRemiseTests
         course.RequiredProof.Should().Be(ProofOfDeliveryKind.Pin);
     }
 
-    /// <summary>
-    /// LE CODE EST ALÉATOIRE ET PROPRE À CHAQUE COURSE.
-    ///
-    /// L'ancien défaut était un OTP constant « 123456 ». Vingt tirages suffisent :
-    /// une constante donnerait vingt fois la même valeur.
-    /// </summary>
+    /// <summary>LE CODE EST ALÉATOIRE ET PROPRE À CHAQUE COURSE.</summary>
     [Fact]
     public void Le_code_emis_est_aleatoire_et_propre_a_chaque_course()
     {
@@ -127,12 +77,7 @@ public sealed class PreuveDeRemiseTests
         course.Proof!.Kind.Should().Be(ProofOfDeliveryKind.Pin);
     }
 
-    /// <summary>
-    /// UN CODE FAUX EST REFUSÉ, ET LA COURSE N'AVANCE PAS.
-    ///
-    /// C'est la règle que l'ancien code violait le plus grossièrement : toute
-    /// chaîne non vide satisfaisait n'importe quel genre de preuve.
-    /// </summary>
+    /// <summary>UN CODE FAUX EST REFUSÉ, ET LA COURSE N'AVANCE PAS.</summary>
     [Fact]
     public void Un_code_faux_est_refuse_et_la_course_reste_ouverte()
     {
@@ -146,12 +91,7 @@ public sealed class PreuveDeRemiseTests
         course.Proof.Should().BeNull();
     }
 
-    /// <summary>
-    /// LE COMPTEUR NE COMPTE QUE LES MAUVAISES RÉPONSES, PAS LES ABSENCES.
-    ///
-    /// Sans cette distinction, cinq appels sans corps verrouilleraient la course
-    /// d'un livreur — un déni de service à un appel près.
-    /// </summary>
+    /// <summary>LE COMPTEUR NE COMPTE QUE LES MAUVAISES RÉPONSES, PAS LES ABSENCES.</summary>
     [Fact]
     public void Une_preuve_absente_ne_consomme_pas_de_tentative()
     {
@@ -207,12 +147,7 @@ public sealed class PreuveDeRemiseTests
         rejeu.IsFailure.Should().BeTrue();
     }
 
-    /// <summary>
-    /// UNE PHOTO DOIT AVOIR LA FORME D'UNE RÉFÉRENCE DE STOCKAGE.
-    ///
-    /// C'est ce qui écarte le cas qui a motivé la correction : le livreur qui tape
-    /// « ok » et clôt la course.
-    /// </summary>
+    /// <summary>UNE PHOTO DOIT AVOIR LA FORME D'UNE RÉFÉRENCE DE STOCKAGE.</summary>
     [Fact]
     public void Une_photo_doit_ressembler_a_une_reference_de_stockage()
     {

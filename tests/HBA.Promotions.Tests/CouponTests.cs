@@ -6,8 +6,7 @@ namespace HBA.Promotions.Tests;
 
 /// <summary>
 /// Les coupons et leur réservation en deux temps (§10.16 : `ReserveCoupon` puis
-/// `CommitCoupon`). C'est ici que se joue la différence entre « un coupon utilisé
-/// une fois » et « un coupon utilisé cent fois par le même compte ».
+/// `CommitCoupon`).
 /// </summary>
 public sealed class CouponTests
 {
@@ -34,12 +33,7 @@ public sealed class CouponTests
         reservation.Value.ExpiresAtUtc.Should().Be(Maintenant.Add(Coupon.HoldLifetime));
     }
 
-    /// <summary>
-    /// UN DOUBLE CLIC SUR « APPLIQUER » NE CONSOMME PAS DEUX USAGES.
-    ///
-    /// Sans cette règle, un client impatient épuise son propre plafond, et le budget
-    /// se consomme deux fois pour un seul panier.
-    /// </summary>
+    /// <summary>UN DOUBLE CLIC SUR « APPLIQUER » NE CONSOMME PAS DEUX USAGES.</summary>
     [Fact]
     public void Reserver_deux_fois_pour_le_meme_panier_rend_la_meme_retenue()
     {
@@ -71,10 +65,6 @@ public sealed class CouponTests
     /// <summary>
     /// LE PLAFOND PAR COMPTE COMPTE AUSSI LES RETENUES, PAS SEULEMENT LES USAGES
     /// PAYÉS.
-    ///
-    /// Ne compter que les usages engagés laisserait un même compte ouvrir cent
-    /// paniers et retenir cent fois le coupon avant d'en payer un seul : le budget
-    /// global s'épuise sans qu'aucune limite individuelle ne soit dépassée.
     /// </summary>
     [Fact]
     public void Le_plafond_par_compte_compte_les_retenues_non_encore_payees()
@@ -89,12 +79,7 @@ public sealed class CouponTests
         seconde.Error.Code.Should().Be("promotions.coupon.per_user_limit_reached");
     }
 
-    /// <summary>
-    /// ET L'EXPIRATION RÉPARE LE CAS INVERSE.
-    ///
-    /// Sans elle, un client qui abandonne un panier se verrouillerait lui-même :
-    /// sa retenue compterait pour toujours contre son propre plafond.
-    /// </summary>
+    /// <summary>ET L'EXPIRATION RÉPARE LE CAS INVERSE.</summary>
     [Fact]
     public void Une_retenue_expiree_cesse_de_compter_contre_le_plafond()
     {
@@ -140,12 +125,7 @@ public sealed class CouponTests
         coupon.CountUses(Maintenant).Should().Be(1);
     }
 
-    /// <summary>
-    /// ON REFUSE D'ENGAGER UNE RETENUE EXPIRÉE PLUTÔT QUE DE LA PROLONGER.
-    ///
-    /// Le budget a pu être rendu et réattribué entre-temps : engager ici dépenserait
-    /// deux fois la même enveloppe.
-    /// </summary>
+    /// <summary>ON REFUSE D'ENGAGER UNE RETENUE EXPIRÉE PLUTÔT QUE DE LA PROLONGER.</summary>
     [Fact]
     public void Une_retenue_expiree_ne_peut_plus_etre_engagee()
     {

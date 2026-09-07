@@ -2,11 +2,7 @@ using HBA.Shared.Domain.Events;
 
 namespace HBA.Shared.Domain.Primitives;
 
-/// <summary>
-/// Aggregate Root : point d'entrée transactionnel et garant des invariants.
-/// Seul un agrégat accumule des domain events, collectés puis dispatchés
-/// après persistance par l'Unit of Work.
-/// </summary>
+/// <summary>Aggregate Root : point d'entrée transactionnel et garant des invariants.</summary>
 public abstract class AggregateRoot<TId> : Entity<TId>, IHasDomainEvents where TId : notnull
 {
     private readonly List<IDomainEvent> _domainEvents = new();

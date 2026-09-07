@@ -1,35 +1,6 @@
 namespace HBA.Controls.Controles;
 
-/// <summary>
-/// Toute <c>ProjectReference</c> doit désigner un projet qui existe.
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// CE QUI A PRODUIT CE CONTRÔLE, LE 28 AOÛT 2026.
-///
-/// `dispatch-service`, `tracking-service` et `proof-of-delivery-service` ont été
-/// retirés du dépôt. L'inventaire de retrait couvrait neuf points — la solution,
-/// le compose, les autorisations gRPC, les topics Kafka, les scripts, les
-/// manifestes — TOUS côté production. Aucun ne regardait `tests/`, précisément
-/// parce qu'un projet de test « n'est déployé nulle part ». C'est ce
-/// raisonnement qui a laissé trois `ProjectReference` mortes dans
-/// `HBA.Delivery.UnitTests`.
-///
-/// ET LE SYMPTÔME DÉSIGNE LA MAUVAISE CAUSE. MSBuild rend un AVERTISSEMENT
-/// MSB9008 — « le projet référencé n'existe pas » — puis compile quand même, et
-/// échoue ensuite sur les `using` en CS0234 : « le nom d'espace de noms n'existe
-/// pas ». On lit cinq erreurs qui parlent d'espaces de noms, et la ligne qui dit
-/// la vraie cause est un warning au milieu.
-///
-/// POURQUOI LE CONTRÔLE DE SOLUTION NE L'A PAS VU. Il vérifie la cohérence de
-/// `HBA.sln`. Or ce projet de test N'EST PAS dans la solution : il n'y avait
-/// donc rien à vérifier de son côté. Les deux contrôles sont complémentaires, et
-/// c'est l'espace entre eux qui a laissé passer le défaut.
-///
-/// CE CONTRÔLE NE REGARDE PAS LA SOLUTION. Il part des `.csproj` du disque —
-/// tous, y compris ceux qu'aucune solution ne référence.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Toute <c>ProjectReference</c> doit désigner un projet qui existe.</summary>
 public sealed class ReferencesControle : IControle
 {
     /// <inheritdoc/>

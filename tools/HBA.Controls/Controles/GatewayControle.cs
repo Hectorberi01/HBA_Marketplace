@@ -6,61 +6,6 @@ namespace HBA.Controls.Controles;
 /// <summary>
 /// Les cinq endroits qui rendent un service joignable portent-ils les mêmes clés ?
 /// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// CINQ ENDROITS À TENIR D'ACCORD POUR QU'UN SERVICE SOIT JOIGNABLE.
-///
-/// CE DÉFAUT S'EST PRODUIT QUATRE FOIS, ET IL NE SE VOIT JAMAIS À LA LECTURE.
-///
-/// Pour qu'une requête publique atteigne un service, il faut :
-///
-///   1. une ADRESSE dans `appsettings.json` → `Services:&lt;Clé&gt;` ;
-///   2. une PROPRIÉTÉ dans `ServicesOptions` — sans elle, la variable
-///      `SERVICES__&lt;CLÉ&gt;` du compose est ingérée et JETÉE EN SILENCE ;
-///   3. une branche dans `ServicesOptions.Resolve` ;
-///   4. une entrée dans `ServiceKeys.All` ;
-///   5. un CLUSTER dans `appsettings.json` → `ReverseProxy:Clusters`, et une
-///      ROUTE qui le désigne.
-///
-/// Manquer (2), (3) ou (4) donne un cluster SANS destination :
-/// `ServiceAddressConfigFilter` journalise une erreur et la requête tombe en
-/// 503, avec une configuration qui a l'air complète — l'adresse est bien
-/// écrite, au bon endroit, sous le bon nom. Manquer (5) donne un 404 de
-/// passerelle, qui ne ressemble pas non plus à une panne d'amont.
-///
-/// L'HISTORIQUE
-///   • « Promotion » : adresse écrite, propriété absente → 503 sur tout le
-///     parcours promotions ;
-///   • « FoodCart » et « FoodOrder » : mêmes symptômes sur tout le parcours
-///     restaurant ;
-///   • « ReturnRefund », « Drivers », « DeliveryPricing » (lot 7.5) : le compose
-///     fournissait leurs adresses depuis longtemps, vers du vide. Vingt et une
-///     routes de return-refund-service, les cinq routes de validation des
-///     livreurs et l'édition de la grille tarifaire étaient injoignables depuis
-///     Internet.
-///
-/// CE QU'IL VÉRIFIE
-///   a. tout cluster a une adresse dans `Services:` ;
-///   b. toute route désigne un cluster déclaré ;
-///   c. tout cluster est atteint par au moins une route — un cluster sans route
-///      est une destination que rien n'emprunte ;
-///   d. les cinq endroits portent EXACTEMENT le même jeu de clés ;
-///
-/// CE QU'IL NE VÉRIFIE PAS : que le service RÉPONDE, ni que le gabarit d'une
-/// route corresponde à un `MapGroup` réel. Un préfixe mal orthographié —
-/// `/api/v1/admin/` là où le service sert `/api/admin/` — passe ce contrôle et
-/// rend 404. C'est `check-config-and-guards.py` et les tests de routage qui
-/// portent cette moitié.
-///
-/// UNE SEULE DIFFÉRENCE ASSUMÉE AVEC LE SCRIPT PYTHON D'ORIGINE. Celui-ci
-/// imprimait « Passerelle introuvable — contrôle sauté » et rendait 0 quand
-/// `appsettings.json` ou `ServicesOptions.cs` manquait. C'est exactement le
-/// silence que <see cref="Depot.Dossier"/> existe pour fermer : un zéro qui veut
-/// dire « je n'ai rien regardé » se lit « tout va bien ». Ici l'absence des
-/// dossiers de la passerelle LÈVE, et l'absence d'un des deux fichiers est une
-/// FAUTE.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public sealed class GatewayControle : IControle
 {
     /// <inheritdoc/>
@@ -84,8 +29,8 @@ public sealed class GatewayControle : IControle
     /// <inheritdoc/>
     public Verdict Executer()
     {
-        // Les dossiers de la passerelle : leur absence LÈVE, elle ne se solde
-        // pas par un « contrôle sauté » qui rend zéro.
+        // Les dossiers de la passerelle : leur absence LÈVE, elle ne se solde pas
+        // par un « contrôle sauté » qui rend zéro.
         var api = Depot.Dossier("bff", "src", "HBA.Gateway.Api");
         var infrastructure = Depot.Dossier(
             "bff", "src", "HBA.Gateway.Infrastructure");
@@ -114,9 +59,8 @@ public sealed class GatewayControle : IControle
         }
 
         // LE JSON EST LU EN TOLÉRANT COMMENTAIRES ET VIRGULES TRAÎNANTES.
-        // `json.load` du script Python refusait les deux et mourait sur une
-        // trace ; un fichier que la passerelle lit sans broncher doit se lire
-        // ici aussi.
+        // `json.load` du script Python refusait les deux et mourait sur une trace ;
+        // un fichier que la passerelle lit sans broncher doit se lire ici aussi.
         using var document = JsonDocument.Parse(
             File.ReadAllText(appsettings),
             new JsonDocumentOptions
@@ -258,14 +202,7 @@ public sealed class GatewayControle : IControle
             ? fils
             : default;
 
-    /// <summary>
-    /// Les routes : leur nom, et le cluster qu'elles désignent.
-    /// </summary>
-    /// <remarks>
-    /// UNE ROUTE SANS `ClusterId` N'EST PAS SAUTÉE. Elle porte la chaîne vide,
-    /// qui n'est le nom d'aucun cluster : elle sera donc signalée, comme dans le
-    /// script d'origine où l'absence donnait `None`.
-    /// </remarks>
+    /// <summary>Les routes : leur nom, et le cluster qu'elles désignent.</summary>
     private static IReadOnlyList<(string Nom, string Cible)> Routes(JsonElement proxy)
     {
         var trouvees = new List<(string, string)>();
@@ -293,14 +230,9 @@ public sealed class GatewayControle : IControle
     /// <param name="debut">Le repère d'ouverture.</param>
     /// <param name="fin">Le repère de fermeture, cherché APRÈS le premier.</param>
     /// <param name="apres">
-    /// Repère intermédiaire facultatif : la lecture commence après lui, pas
-    /// après <paramref name="debut"/>. Sert à sauter jusqu'au `[` de `All`.
+    /// Repère intermédiaire facultatif : la lecture commence après lui, pas après
+    /// <paramref name="debut"/> .
     /// </param>
-    /// <remarks>
-    /// LE SCRIPT PYTHON EMPLOYAIT `str.index`, QUI LÈVE. Une `ValueError` au
-    /// milieu de la barrière ne dit pas ce qui manque ; ici l'absence d'un
-    /// repère devient une faute nommée.
-    /// </remarks>
     private static string? Entre(string source, string debut, string fin, string? apres = null)
     {
         var i = source.IndexOf(debut, StringComparison.Ordinal);

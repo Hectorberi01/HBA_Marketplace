@@ -6,14 +6,12 @@ namespace HBA.Controls.Controles;
 /// Trois défauts qui paraissent corrects et ne font pas ce qu'ils disent.
 /// </summary>
 /// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
 /// TROIS CONTRÔLES NÉS DE LA MÊME SÉANCE, ET DE LA MÊME CAUSE : DU CODE QUI
 /// PARAÎT CORRECT ET NE FAIT PAS CE QU'IL DIT.
 ///
 /// Aucun des trois n'est visible du compilateur. Aucun ne fait échouer un
 /// démarrage. Les trois ont coûté des heures de recherche au mauvais endroit.
 ///
-/// ───────────────────────────────────────────────────────────────────────────
 /// 1. LES CLÉS D'ENVIRONNEMENT QUI NE LIENT RIEN
 ///
 ///     # docker-compose.dev.yml
@@ -39,7 +37,6 @@ namespace HBA.Controls.Controles;
 /// d'options et leur hiérarchie ; la racine suffit à attraper le cas réel, et ne
 /// produit aucun faux positif.
 ///
-/// ───────────────────────────────────────────────────────────────────────────
 /// 2. LES GARDES CITÉES DANS UN COMMENTAIRE ET ABSENTES DU CODE
 ///
 ///     "_lire": "Les trois routes existaient sous MapAuthenticatedGroup, AVEC
@@ -55,7 +52,6 @@ namespace HBA.Controls.Controles;
 /// écran était « conservé hors routeur » alors que sa route était déclarée
 /// trente lignes plus bas.
 ///
-/// ───────────────────────────────────────────────────────────────────────────
 /// 3. LE CORPS INFÉRÉ SUR UNE MÉTHODE QUI N'EN ACCEPTE PAS
 ///
 ///     seller.MapDelete("/me", DeleteAccountAsync);
@@ -75,7 +71,6 @@ namespace HBA.Controls.Controles;
 /// raisonnement sur le protocole est juste, et l'implémentation ne suit pas.
 /// `[FromBody]` le lève.
 ///
-/// ───────────────────────────────────────────────────────────────────────────
 /// ET LE CONTRÔLE LUI-MÊME LISAIT ZÉRO FICHIER.
 ///
 /// Ce script venait du monolithe, où tout le C# tenait sous `src/`. Après la
@@ -93,7 +88,6 @@ namespace HBA.Controls.Controles;
 /// <see cref="Depot.Dossier"/>, qui LÈVE. Un contrôle qui ne peut pas regarder
 /// doit s'arrêter, pas rendre zéro.
 ///
-/// ───────────────────────────────────────────────────────────────────────────
 /// LE COMPOSE EST LU EN TEXTE, SANS ANALYSEUR YAML — ET C'EST UN RECUL ASSUMÉ.
 ///
 /// Le script Python passait par PyYAML, et se SAUTAIT lui-même quand la
@@ -114,7 +108,6 @@ namespace HBA.Controls.Controles;
 /// `environment:` écrit en LISTE (`- CLE=valeur`). Le compose de ce dépôt
 /// n'utilise aucune de ces formes ; le jour où il en gagne une, ce texte est
 /// l'endroit où le dire — et ces clés-là deviendraient invisibles, pas fausses.
-/// ═══════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class ConfigEtGardesControle : IControle
 {
@@ -125,10 +118,8 @@ public sealed class ConfigEtGardesControle : IControle
     public string Resume =>
         "clés d'environnement liées, gardes citées existantes, aucun corps inféré sur GET/DELETE";
 
-    // Racines fournies par le cadre applicatif ou l'hôte, jamais déclarées dans
-    // le code. Les omettre produirait cinq fautes à chaque exécution — et un
-    // contrôle qui crie pour rien finit ignoré, ce qui est le seul échec qui
-    // compte.
+    // Racines fournies par le cadre applicatif ou l'hôte, jamais déclarées dans le
+    // code.
     private static readonly string[] RacinesConnues =
     [
         "ASPNETCORE", "DOTNET", "LOGGING", "CONNECTIONSTRINGS",
@@ -211,10 +202,10 @@ public sealed class ConfigEtGardesControle : IControle
                 continue;
             }
 
-            // LA FUSION EST LA RAISON D'ÊTRE DE CETTE LECTURE. Vingt-deux
-            // services héritent leurs clés d'authentification d'une seule ancre :
-            // les ignorer ferait disparaître ces clés du contrôle sans que rien
-            // ne le signale.
+            // LA FUSION EST LA RAISON D'ÊTRE DE CETTE LECTURE. Vingt-deux services
+            // héritent leurs clés d'authentification d'une seule ancre : les
+            // ignorer ferait disparaître ces clés du contrôle sans que rien ne le
+            // signale.
             var valeur = ValeurDeLigne(lignes[i].Texte);
             if (valeur.StartsWith('*')
                 && ancres.TryGetValue(valeur[1..].Trim(), out var heritees))
@@ -313,7 +304,7 @@ public sealed class ConfigEtGardesControle : IControle
         return resultat;
     }
 
-    // ═══════════════════════════════════════════════════ 1. clés d'environnement
+    // ═══════════════════════════════════════════════════ 1.
     /// <summary>Toutes les racines de section que le code lit, sous les trois formes.</summary>
     private static HashSet<string> RacinesDeclarees(
         IReadOnlyList<(string Chemin, string Texte)> sources)
@@ -365,7 +356,7 @@ public sealed class ConfigEtGardesControle : IControle
         return fautes;
     }
 
-    // ═══════════════════════════════════════════════════════════ 2. gardes citées
+    // ═══════════════════════════════════════════════════════════ 2.
     /// <summary>Une garde nommée dans un commentaire ou une métadonnée doit exister.</summary>
     private static List<string> ControleGardes(
         IReadOnlyList<(string Chemin, string Texte)> sources, string? metadonnees)
@@ -381,8 +372,8 @@ public sealed class ConfigEtGardesControle : IControle
         }
 
         // ON NE CHERCHE QUE DANS LES COMMENTAIRES ET LES CHAÎNES DE MÉTADONNÉES.
-        // Une mention dans du code exécutable est déjà vérifiée par le
-        // compilateur ; c'est l'affirmation NON COMPILÉE qui peut mentir.
+        // Une mention dans du code exécutable est déjà vérifiée par le compilateur
+        // ; c'est l'affirmation NON COMPILÉE qui peut mentir.
         var aScruter = sources.ToList();
         if (metadonnees is not null)
         {
@@ -431,7 +422,7 @@ public sealed class ConfigEtGardesControle : IControle
             .ToList();
     }
 
-    // ═══════════════════════════════════════════════════════════ 3. corps inféré
+    // ═══════════════════════════════════════════════════════════ 3.
     private static List<string> ControleCorpsInfere(
         IReadOnlyList<(string Chemin, string Texte)> sources)
     {
@@ -462,8 +453,7 @@ public sealed class ConfigEtGardesControle : IControle
 
                     // ON CHERCHE UN TYPE « …Request », pas n'importe quel type
                     // complexe : `ISender`, `ClaimsPrincipal` et les autres
-                    // services sont résolus par injection, jamais depuis le
-                    // corps. Élargir produirait un faux positif sur chaque route.
+                    // services sont résolus par injection, jamais depuis le corps.
                     var premier = ParametreDeRequete.Match(parametres);
                     if (!premier.Success
                         || parametres.Contains("[FromBody]", StringComparison.Ordinal))

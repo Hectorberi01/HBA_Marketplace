@@ -3,22 +3,12 @@ using Microsoft.OpenApi.Models;
 
 namespace HBA.Gateway.Api.Extensions;
 
-/// <summary>
-/// Documentation OpenAPI de la passerelle. Section de configuration : « OpenApi ».
-/// </summary>
+/// <summary>Documentation OpenAPI de la passerelle.</summary>
 public sealed class OpenApiOptions
 {
     public const string SectionName = "OpenApi";
 
-    /// <summary>
-    /// La documentation est-elle servie ?
-    /// </summary>
-    /// <remarks>
-    /// Booléen NULLABLE : `null` signifie « non renseigné », et le défaut dépend
-    /// alors de l'environnement — vrai en Development, faux ailleurs. Un `bool`
-    /// ordinaire ne permettrait pas de distinguer « faux parce qu'on l'a
-    /// demandé » de « faux parce qu'absent ».
-    /// </remarks>
+    /// <summary>La documentation est-elle servie ?</summary>
     public bool? Enabled { get; set; }
 }
 
@@ -28,31 +18,7 @@ public static class OpenApiExtensions
     private const string RoutePrefix = "docs";
     private const string BearerScheme = "Bearer";
 
-    /// <summary>
-    /// Enregistre le générateur OpenAPI.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// SEULS LES BFF APPARAÎTRONT. LES ROUTES PROXIFIÉES, NON.
-    ///
-    /// C'est la première question que posera quiconque ouvre cette page : où sont
-    /// `/api/auth/*`, `/api/food/*`, `/api/orders/*` ?
-    ///
-    /// Elles sont servies par YARP, qui inscrit ses points de terminaison SANS
-    /// métadonnées d'exploration d'API — il ne sait rien de leurs paramètres ni
-    /// de leurs réponses, il transporte des octets. `ApiExplorer` ne les voit
-    /// donc pas, et aucune configuration de Swashbuckle n'y changera quoi que ce
-    /// soit.
-    ///
-    /// Ce document décrit ce que la passerelle CALCULE — les agrégations BFF —
-    /// et non ce qu'elle RELAIE. Pour les routes relayées, la référence est la
-    /// documentation du service amont.
-    ///
-    /// Le jour où l'on voudra un document unifié, il faudra agréger les documents
-    /// OpenAPI des treize services au moment de la construction, pas espérer que
-    /// le proxy les devine.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Enregistre le générateur OpenAPI.</summary>
     public static IServiceCollection AddGatewayOpenApi(this IServiceCollection services)
     {
         services.AddEndpointsApiExplorer();
@@ -76,9 +42,6 @@ public static class OpenApiExtensions
             });
 
             // ── Jeton porteur, pour pouvoir essayer depuis la page ──────────
-            //
-            // Sans cette déclaration, le bouton « Authorize » n'apparaît pas et
-            // toutes les routes répondent 401 : la page devient une liste morte.
             options.AddSecurityDefinition(BearerScheme, new OpenApiSecurityScheme
             {
                 Name = "Authorization",
@@ -104,13 +67,6 @@ public static class OpenApiExtensions
             });
 
             // ── Commentaires XML des deux assemblies ────────────────────────
-            //
-            // DEUX FICHIERS, ET LE SECOND EST LE PLUS UTILE.
-            //
-            // Les contrôleurs sont dans Api ; les DTO — donc les descriptions de
-            // champs, les unités, les avertissements sur ce qui est nul et
-            // pourquoi — sont dans Application. Ne charger que celui de Api
-            // documenterait les routes et laisserait chaque schéma nu.
             foreach (var assembly in new[] { typeof(Program).Assembly, ApplicationAssembly() })
             {
                 var xml = Path.Combine(AppContext.BaseDirectory, $"{assembly.GetName().Name}.xml");
@@ -122,52 +78,12 @@ public static class OpenApiExtensions
             }
 
             // PAS DE `CustomSchemaIds` ICI, ET C'EST UN CHOIX.
-            //
-            // Le réflexe est d'écrire `CustomSchemaIds(t => t.FullName)` pour
-            // parer aux homonymes entre BFF. Ce serait faux ici : toutes les
-            // réponses sont des `BffEnvelope<T>`, et le `FullName` d'un type
-            // générique est une chaîne du genre
-            // `…BffEnvelope`1[[…MerchantDashboardDto, HBA.Gateway.Application,
-            // Version=1.0.0.0, Culture=neutral…]]` — illisible dans la page, et
-            // porteuse de caractères que la spécification n'admet pas.
-            //
-            // Le nom court par défaut suffit tant qu'il n'y a pas d'homonyme, et
-            // il n'y en a aucun : vérifié sur les DTO des cinq BFF. Le jour où
-            // deux types se disputeront un nom, Swashbuckle lèvera au démarrage
-            // en les nommant tous les deux — un échec net, au bon moment.
         });
 
         return services;
     }
 
-    /// <summary>
-    /// Sert la documentation, si la configuration l'autorise.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// FERMÉE HORS DEVELOPMENT, PAR DÉFAUT.
-    ///
-    /// La passerelle est le point d'entrée PUBLIC de la plateforme. Y publier la
-    /// liste de ses routes, de ses paramètres et de ses schémas donne à un
-    /// attaquant la carte qu'il devrait passer des heures à reconstituer — et
-    /// signale au passage les routes d'administration.
-    ///
-    /// `OpenApi:Enabled=true` permet de l'ouvrir sciemment, par exemple sur un
-    /// environnement de recette fermé au réseau.
-    ///
-    /// `AllowAnonymous` N'EST PAS UNE FACILITÉ : SANS LUI, LA PAGE EST
-    ///    INATTEIGNABLE.
-    ///
-    /// `AddGatewayAuthorization` pose une politique de repli qui exige un compte
-    /// authentifié sur tout point de terminaison ne déclarant rien. La page de
-    /// documentation en fait partie : elle répondrait 401 avant même d'avoir pu
-    /// servir le bouton « Authorize » qui permet de s'authentifier. On tourne en
-    /// rond, et rien dans le message ne l'explique.
-    ///
-    /// Ce que la page expose reste la SURFACE, jamais les données : chaque route
-    /// documentée continue d'appliquer sa propre politique.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Sert la documentation, si la configuration l'autorise.</summary>
     public static WebApplication UseGatewayOpenApi(this WebApplication app)
     {
         var options = app.Configuration
@@ -201,14 +117,7 @@ public static class OpenApiExtensions
         return app;
     }
 
-    /// <summary>
-    /// Assembly de la couche Application, atteinte par un type qu'elle publie.
-    /// </summary>
-    /// <remarks>
-    /// `typeof(BffEnvelope&lt;&gt;)` plutôt qu'un chargement par nom : une chaîne
-    /// de caractères survivrait à un renommage d'assembly sans rien dire, et les
-    /// schémas se retrouveraient nus sans qu'on sache pourquoi.
-    /// </remarks>
+    /// <summary>Assembly de la couche Application, atteinte par un type qu'elle publie.</summary>
     private static Assembly ApplicationAssembly()
         => typeof(Application.Bff.Shared.BffEnvelope<>).Assembly;
 }

@@ -7,12 +7,8 @@ using Xunit;
 namespace HBA.Promotions.Tests;
 
 /// <summary>
-/// Les trois événements du §10.16 : <c>promotion.created</c>,
-/// <c>promotion.exhausted</c>, <c>coupon.used</c>.
-///
-/// Ce qui se teste ici n'est pas qu'ils partent — c'est qu'ils ne partent PAS
-/// deux fois. Un événement dupliqué ne casse rien visiblement : il fausse un
-/// compteur, et personne ne remonte à sa source.
+/// Les trois événements du §10.16 : <c> promotion.created</c>, <c>
+/// promotion.exhausted</c>, <c> coupon.used</c>.
 /// </summary>
 public sealed class PromotionEventTests
 {
@@ -71,14 +67,7 @@ public sealed class PromotionEventTests
         Compte<PromotionExhaustedDomainEvent>(campagne).Should().Be(1);
     }
 
-    /// <summary>
-    /// LE TEST QUI EMPÊCHE L'ALERTE DE DEVENIR DU BRUIT.
-    ///
-    /// Ce n'est pas un cas limite, c'est le cas courant : une fois le budget
-    /// épuisé, TOUTE tentative de réservation suivante retombe sur « budget
-    /// insuffisant ». Une campagne populaire qui vient de s'épuiser reçoit des
-    /// dizaines d'appels par minute — et publierait autant d'événements.
-    /// </summary>
+    /// <summary>LE TEST QUI EMPÊCHE L'ALERTE DE DEVENIR DU BRUIT.</summary>
     [Fact]
     public void Les_tentatives_qui_suivent_l_epuisement_ne_reannoncent_pas()
     {
@@ -93,14 +82,7 @@ public sealed class PromotionEventTests
         Compte<PromotionExhaustedDomainEvent>(campagne).Should().Be(1);
     }
 
-    /// <summary>
-    /// EN REVANCHE, UNE RÉOUVERTURE SUIVIE D'UN NOUVEL ÉPUISEMENT RÉ-ANNONCE.
-    ///
-    /// `ReleaseBudget` rend la campagne active — panier abandonné, commande
-    /// annulée. Si elle s'épuise de nouveau, c'est un FAIT NOUVEAU : le budget
-    /// rendu a été reconsommé. Le taire laisserait le marketing sur une
-    /// information périmée. La garde vise les refus répétés, pas les transitions.
-    /// </summary>
+    /// <summary>EN REVANCHE, UNE RÉOUVERTURE SUIVIE D'UN NOUVEL ÉPUISEMENT RÉ-ANNONCE.</summary>
     [Fact]
     public void Une_campagne_reouverte_puis_reepuisee_annonce_de_nouveau()
     {
@@ -153,14 +135,7 @@ public sealed class PromotionEventTests
         evenement.Code.Should().Be("RENTREE10");
     }
 
-    /// <summary>
-    /// KAFKA LIVRE AU MOINS UNE FOIS : LE REJEU EST LA NORME.
-    ///
-    /// `Commit` rend déjà `Success` sur un rejeu — c'est ce qui rend l'opération
-    /// sûre. Mais publier depuis cette branche compterait un second usage pour une
-    /// seule commande, et la remise annoncée au marketing ne correspondrait plus à
-    /// aucune ligne comptable.
-    /// </summary>
+    /// <summary>KAFKA LIVRE AU MOINS UNE FOIS : LE REJEU EST LA NORME.</summary>
     [Fact]
     public void Un_rejeu_d_engagement_ne_leve_pas_un_second_coupon_used()
     {
@@ -188,14 +163,7 @@ public sealed class PromotionEventTests
 
     // ──────────────────────────────────────────── Annulation de commande
 
-    /// <summary>
-    /// DEUX CHOSES À RENDRE, ET L'OUBLI DE L'UNE NE SE VOIT PAS.
-    ///
-    /// Le droit d'usage du client — sinon un acheteur dont la commande a été
-    /// annulée reste bloqué sur son plafond pour une commande qu'il n'a jamais
-    /// reçue. Et le montant à rendre au budget — sinon l'enveloppe se vide sur des
-    /// commandes qui n'ont jamais existé.
-    /// </summary>
+    /// <summary>DEUX CHOSES À RENDRE, ET L'OUBLI DE L'UNE NE SE VOIT PAS.</summary>
     [Fact]
     public void Annuler_une_commande_rend_le_droit_d_usage_et_le_montant()
     {
@@ -234,13 +202,7 @@ public sealed class PromotionEventTests
     public void Annuler_une_commande_sans_coupon_ne_rend_rien()
         => UnCoupon().RevokeForCancelledOrder(Guid.NewGuid()).Should().Be(0);
 
-    /// <summary>
-    /// UNE RETENUE NON ENGAGÉE N'EST PAS UN USAGE À RÉVOQUER.
-    ///
-    /// Elle n'appartient à aucune commande — son `OrderId` est nul. La confondre
-    /// avec un usage engagé ferait rendre du budget deux fois : une fois par
-    /// l'expiration de la retenue, une fois par l'annulation.
-    /// </summary>
+    /// <summary>UNE RETENUE NON ENGAGÉE N'EST PAS UN USAGE À RÉVOQUER.</summary>
     [Fact]
     public void Une_retenue_jamais_engagee_n_est_pas_revoquee_par_une_annulation()
     {

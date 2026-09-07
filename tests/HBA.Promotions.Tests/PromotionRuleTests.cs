@@ -4,13 +4,7 @@ using Xunit;
 
 namespace HBA.Promotions.Tests;
 
-/// <summary>
-/// Les conditions d'éligibilité du §10.16 (<c>promotion_rules</c>).
-///
-/// Le couple <c>rule_type</c> + <c>rule_json</c> permet d'ajouter une condition
-/// sans migration. C'est commode, et c'est ce qui rend le comportement en cas de
-/// type inconnu déterminant.
-/// </summary>
+/// <summary>Les conditions d'éligibilité du §10.16 (<c>promotion_rules</c>).</summary>
 public sealed class PromotionRuleTests
 {
     private static readonly DateTime Maintenant = new(2026, 8, 18, 12, 0, 0, DateTimeKind.Utc);
@@ -55,13 +49,6 @@ public sealed class PromotionRuleTests
 
     /// <summary>
     /// LE TEST LE PLUS IMPORTANT DU FICHIER, ET L'INTUITION VA DANS L'AUTRE SENS.
-    ///
-    /// « On ne sait pas évaluer, donc on laisse passer » paraît tolérant. Il ne
-    /// l'est pas : une règle existe pour RESTREINDRE, et l'ignorer accorde
-    /// exactement la remise que quelqu'un avait écrit une règle pour empêcher.
-    ///
-    /// Échouer fermé coûte une campagne inactive — visible en une heure. Échouer
-    /// ouvert coûte un budget, et ne se voit qu'à la clôture du mois.
     /// </summary>
     [Fact]
     public void Une_regle_de_type_inconnu_refuse_la_promotion_au_lieu_de_l_ignorer()
@@ -116,12 +103,7 @@ public sealed class PromotionRuleTests
 
     // ──────────────────────────────────────────────────── Moment de l'ajout
 
-    /// <summary>
-    /// RESTREINDRE UNE CAMPAGNE ACTIVE CHANGE LA RÈGLE SOUS LES PIEDS DU CLIENT.
-    ///
-    /// Celui qui a rempli son panier pour atteindre un minimum qui n'existait pas
-    /// hier ne comprendra pas le refus, et le support non plus.
-    /// </summary>
+    /// <summary>RESTREINDRE UNE CAMPAGNE ACTIVE CHANGE LA RÈGLE SOUS LES PIEDS DU CLIENT.</summary>
     [Fact]
     public void Une_campagne_deja_demarree_refuse_une_nouvelle_condition()
     {
@@ -149,8 +131,8 @@ public sealed class PromotionRuleTests
     }
 
     /// <summary>
-    /// Une règle telle qu'EF la matérialise depuis la base, sans passer par
-    /// <c>Create</c> — c'est exactement le cas qu'on veut couvrir : une campagne
+    /// Une règle telle qu'EF la matérialise depuis la base, sans passer par <c>
+    /// Create</c> — c'est exactement le cas qu'on veut couvrir : une campagne
     /// écrite par une version plus récente du service.
     /// </summary>
     private static PromotionRule ReglePersistee(string type, string json)

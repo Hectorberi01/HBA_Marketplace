@@ -11,7 +11,6 @@ namespace HBA.Food.AuthorizationTests;
 /// Les routes de la carte et de la cuisine (VEN5-b, VEN5-c, tâche #227).
 /// </summary>
 /// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// QUINZE ROUTES PARTENAIRE, AUCUN TEST DE FRONTIÈRE (tâche #215).
 ///
 /// Douze pour la carte — cartes, sections, plats, options, disponibilité — plus
@@ -27,7 +26,6 @@ namespace HBA.Food.AuthorizationTests;
 /// bien par la garde. Deux routes sur quatre, dans le même bloc de code.
 /// C'est exactement ce qu'un test de frontière attrape et qu'une relecture manque.
 ///
-/// ═════════════════════════════════════════════════════════════════════════════
 /// CE QUE CES TESTS N'ÉPROUVENT PAS, ET IL FAUT LE DIRE.
 ///
 /// La fabrique ne monte ni base ni food-service complet : on ne peut pas
@@ -39,7 +37,6 @@ namespace HBA.Food.AuthorizationTests;
 /// `OrderAccept` et `KitchenManage` — un caissier accepte, un cuisinier prépare —
 /// demandent un personnel peuplé en base. C'est un test d'intégration, et il reste
 /// à écrire.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class PartnerMenuGuardTests : IClassFixture<AuthorizationTestFactory<Program>>
 {
@@ -90,20 +87,7 @@ public sealed class PartnerMenuGuardTests : IClassFixture<AuthorizationTestFacto
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
-    /// <summary>
-    /// Les LECTURES partenaire non plus — et c'est le piège de ce service.
-    /// </summary>
-    /// <remarks>
-    /// `food-read` EST ANONYME SUR LA PASSERELLE, ordre 10, tous les GET de
-    /// `/api/food`. C'est ce qui fait vivre la vitrine sans compte — et cela
-    /// signifie que la protection de ces trois lectures repose ENTIÈREMENT sur le
-    /// service, pas sur la passerelle.
-    ///
-    /// La carte d'un restaurateur porte ses coûts, ses plats masqués et ses
-    /// créneaux ; la file d'acceptation porte les notes de ses clients. Si le
-    /// groupe partenaire perdait son exigence de jeton, la passerelle ne
-    /// rattraperait rien.
-    /// </remarks>
+    /// <summary>Les LECTURES partenaire non plus — et c'est le piège de ce service.</summary>
     [Theory]
     [InlineData("/api/food/partner/me")]
     [InlineData("/api/food/partner/restaurants/{id}/menu")]
@@ -117,15 +101,6 @@ public sealed class PartnerMenuGuardTests : IClassFixture<AuthorizationTestFacto
     }
 
     /// <summary>Un compte valide n'est pas refoulé en 401 sur l'espace partenaire.</summary>
-    /// <remarks>
-    /// LE GROUPE N'EXIGE AUCUN RÔLE, et c'est voulu : l'accès se décide par
-    /// PERMISSION de personnel (§8), pas par rôle global. Un `[Authorize]` de rôle
-    /// posé ici enfermerait dehors le caissier qui n'est pas le propriétaire.
-    ///
-    /// Le test verrouille donc l'inverse d'une fuite : qu'un employé légitime
-    /// puisse entrer. C'est ce qui a cassé une fois, quand deux attributs
-    /// d'autorisation ont ADDITIONNÉ leurs exigences au lieu de se remplacer.
-    /// </remarks>
     [Theory]
     [InlineData("/api/food/partner/me")]
     [InlineData("/api/food/partner/restaurants/{id}/kitchen")]

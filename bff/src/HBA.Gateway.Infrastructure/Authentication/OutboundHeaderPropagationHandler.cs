@@ -21,7 +21,6 @@ public sealed class OutboundHeaderPropagationHandler : DelegatingHandler
         if (incoming is null)
         {
             // Appel hors requête HTTP : tâche de fond, sonde de démarrage, test.
-            // Rien à propager, et surtout rien à inventer.
             return base.SendAsync(request, cancellationToken);
         }
 
@@ -33,10 +32,7 @@ public sealed class OutboundHeaderPropagationHandler : DelegatingHandler
             }
 
             // `Remove` AVANT `TryAddWithoutValidation`, sans quoi la valeur
-            // s'AJOUTE à celle déjà posée. Deux en-têtes `Authorization` sur une
-            // même requête : certains serveurs prennent le premier, d'autres le
-            // dernier, d'autres rejettent. Le comportement dépendrait alors du
-            // service appelé.
+            // s'AJOUTE à celle déjà posée.
             request.Headers.Remove(name);
             request.Headers.TryAddWithoutValidation(name, (IEnumerable<string>)values!);
         }

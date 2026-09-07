@@ -11,24 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using ProtoUser = HBA.Identity.Grpc.V1.UserSummary;
 
 
-// ═════════════════════════════════════════════════════════════════════════════
-// COPIE DEPUIS `HBA.Identity.Contracts.Grpc` (lot D — dissolution des assemblages de contrats).
-//
-// `shared/` ne contient plus que les `.proto`. Ce service compile lui-meme le
-// contrat dont il a besoin, et porte donc sa propre traduction.
-//
-// LES TYPES GENERES SONT `internal` A CET ASSEMBLAGE. Deux services qui
-// compilent le meme proto obtiennent deux types CLR distincts ; les rendre
-// publics ferait, dans un hote compose, deux types publics du meme nom complet —
-// CS0433, a l'usage, loin de la cause. Les adaptateurs et mappings sont donc
-// `internal` eux aussi : un type public dont la signature expose un type interne
-// ne compile pas.
-//
-// CE QUE ÇA COUTE : cette traduction existe en 4 exemplaires dans le depot,
-// un par service qui appelle ce domaine. Elles sont identiques aujourd'hui et
-// rien n'empeche qu'elles divergent. C'est le prix de l'autonomie par service,
-// paye ici en connaissance de cause.
-// ═════════════════════════════════════════════════════════════════════════════
+// COPIE DEPUIS `HBA.Identity.Contracts.Grpc` (lot D — dissolution des assemblages
+// de contrats).
 
 namespace HBA.Gateway.Infrastructure.Grpc.Mappers;
 
@@ -52,7 +36,7 @@ internal static class IdentityGrpcMapping
 
         // N'affecter que si présent : `""` marquerait le champ comme renseigné et
         // vide, ce qui ferait croire à une version de CGU acceptée alors qu'aucune
-        // ne l'a été. C'est le client qui compare cette valeur à la sienne.
+        // ne l'a été.
         if (user.AcceptedTermsVersion is not null)
         {
             message.AcceptedTermsVersion = user.AcceptedTermsVersion;

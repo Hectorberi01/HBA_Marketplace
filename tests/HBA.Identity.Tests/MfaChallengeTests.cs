@@ -4,10 +4,7 @@ using Xunit;
 
 namespace HBA.Identity.Tests;
 
-/// <summary>
-/// Les défis à usage unique du §10.1. Ce sont des tests de SÉCURITÉ : chacun garde
-/// une protection dont l'absence ne se voit pas en exécution normale.
-/// </summary>
+/// <summary>Les défis à usage unique du §10.1.</summary>
 public sealed class MfaChallengeTests
 {
     private const string Hash = "hash-du-code";
@@ -24,12 +21,7 @@ public sealed class MfaChallengeTests
         challenge.ConsumedAtUtc.Should().NotBeNull();
     }
 
-    /// <summary>
-    /// SANS CETTE RÈGLE, UN CODE LU SUR UN ÉCRAN VERROUILLÉ SERT DEUX FOIS.
-    ///
-    /// Un code valide et non expiré resterait rejouable jusqu'à sa date limite :
-    /// une fois par le titulaire, une fois par qui a vu la notification.
-    /// </summary>
+    /// <summary>SANS CETTE RÈGLE, UN CODE LU SUR UN ÉCRAN VERROUILLÉ SERT DEUX FOIS.</summary>
     [Fact]
     public void Un_code_deja_consomme_ne_sert_pas_une_seconde_fois()
     {
@@ -39,13 +31,7 @@ public sealed class MfaChallengeTests
         challenge.Verify(h => h == Hash).Should().Be(MfaVerificationOutcome.AlreadyUsed);
     }
 
-    /// <summary>
-    /// LE PLAFOND DE TENTATIVES EST LA SEULE VRAIE PROTECTION.
-    ///
-    /// Six chiffres, c'est un million de combinaisons : un script les épuise en
-    /// quelques minutes. Ni le hachage ni l'expiration n'y changent quoi que ce
-    /// soit — seul le compteur arrête le balayage.
-    /// </summary>
+    /// <summary>LE PLAFOND DE TENTATIVES EST LA SEULE VRAIE PROTECTION.</summary>
     [Fact]
     public void Au_dela_du_plafond_le_defi_est_mort()
     {
@@ -59,12 +45,7 @@ public sealed class MfaChallengeTests
         challenge.Verify(h => h == Hash).Should().Be(MfaVerificationOutcome.TooManyAttempts);
     }
 
-    /// <summary>
-    /// LA TENTATIVE COMPTE MÊME SUR UN DÉFI EXPIRÉ.
-    ///
-    /// Ne compter que sur défi vivant rendrait le plafond contournable : il
-    /// suffirait d'attendre l'expiration pour repartir de zéro.
-    /// </summary>
+    /// <summary>LA TENTATIVE COMPTE MÊME SUR UN DÉFI EXPIRÉ.</summary>
     [Fact]
     public void Une_tentative_sur_defi_expire_est_quand_meme_comptee()
     {

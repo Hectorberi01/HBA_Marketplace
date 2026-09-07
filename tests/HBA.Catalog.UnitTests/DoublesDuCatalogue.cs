@@ -4,31 +4,14 @@ using HBA.Catalog.Domain.Products;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Catalog.UnitTests;
 
-/// <summary>
-/// Doublures des dépendances des gestionnaires de suspension.
-/// </summary>
-/// <remarks>
-/// TOUT CE QUI N'EST PAS SOLLICITÉ LÈVE, PLUTÔT QUE DE RENDRE UNE VALEUR NEUTRE.
-///
-/// Rendre une liste vide ou `null` ferait passer en silence un test qui
-/// emprunterait un chemin imprévu : on croirait avoir éprouvé le retrait des
-/// offres alors qu'on aurait éprouvé une lecture qui ne rend rien. L'exception dit
-/// exactement quelle méthode a été appelée sans qu'on l'ait voulu.
-/// </remarks>
+/// <summary>Doublures des dépendances des gestionnaires de suspension.</summary>
 internal sealed class DepotDOffres : IProductOfferRepository
 {
     private readonly List<ProductOffer> _offres;
 
     public DepotDOffres(params ProductOffer[] offres) => _offres = [.. offres];
 
-    /// <summary>
-    /// REND LA MÊME LISTE POUR LE VENDEUR ET POUR LA BOUTIQUE, ET C'EST FIDÈLE.
-    ///
-    /// `StoreId` est aujourd'hui peuplé avec l'identifiant du vendeur — c'est écrit
-    /// dans l'encadré de `ListAllBySellerForUpdateAsync`. Filtrer ici sur l'un ou
-    /// l'autre ferait diverger la doublure du dépôt réel, et un test passerait sur
-    /// une distinction qui n'existe pas encore en base.
-    /// </summary>
+    /// <summary>REND LA MÊME LISTE POUR LE VENDEUR ET POUR LA BOUTIQUE, ET C'EST FIDÈLE.</summary>
     public Task<IReadOnlyList<ProductOffer>> ListAllBySellerForUpdateAsync(
         Guid sellerId, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<ProductOffer>>(_offres);
@@ -125,18 +108,14 @@ internal sealed class DepotDeProduits : IProductRepository
 
     /// <summary>
     /// LE SEUL MEMBRE SYNCHRONE DE L'INTERFACE, ET C'EST CE QUI L'A FAIT OUBLIER.
-    ///
-    /// Recenser les membres d'un dépôt en cherchant `Task` en rate exactement
-    /// celui-ci. Le compilateur l'a dit tout de suite (`CS0535`) ; sans lui, la
-    /// doublure aurait eu l'air complète.
     /// </summary>
     public void Remove(Product product)
         => throw new NotSupportedException("Non sollicité par les tests de suspension.");
 }
 
 /// <summary>
-/// L'unité de travail. Elle COMPTE ses appels : c'est la seule façon, sans base,
-/// de distinguer « rien à faire » de « rien n'a été committé ».
+/// L'unité de travail. Elle COMPTE ses appels : c'est la seule façon, sans base, de
+/// distinguer « rien à faire » de « rien n'a été committé ».
 /// </summary>
 internal sealed class UniteDeTravail : ICatalogUnitOfWork
 {
@@ -150,17 +129,7 @@ internal sealed class UniteDeTravail : ICatalogUnitOfWork
     }
 }
 
-/// <summary>
-/// La boîte de réception. `DejaTraite` simule un rejeu.
-/// </summary>
-/// <remarks>
-/// `MarkProcessedAsync` NE COMMITTE RIEN, exactement comme la vraie.
-///
-/// C'est le `SaveChangesAsync` du gestionnaire qui valide la trace ET l'effet dans
-/// la même transaction. Une doublure qui persisterait de son côté masquerait une
-/// régression où la marque serait committée séparément — précisément la fenêtre
-/// que l'inbox existe pour fermer.
-/// </remarks>
+/// <summary>La boîte de réception. `DejaTraite` simule un rejeu.</summary>
 internal sealed class BoiteDeReception : IConsumerInbox
 {
     public bool DejaTraite { get; init; }

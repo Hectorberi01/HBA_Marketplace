@@ -7,16 +7,7 @@ using Xunit;
 
 namespace HBA.Promotions.Tests;
 
-/// <summary>
-/// Les trois événements du §10.16.
-///
-/// UN CONTRAT PUBLIC NE PRÉVIENT PAS QUAND IL CASSE.
-///
-/// Renommer un champ compile ; le consommateur d'en face ne lève rien non plus, il
-/// désérialise un champ absent en valeur par défaut et continue. Un montant de
-/// remise qui devient 0 en silence est exactement le genre de panne qu'on découvre
-/// à la clôture du mois.
-/// </summary>
+/// <summary>Les trois événements du §10.16.</summary>
 public sealed class PromotionEventContractTests
 {
     public static TheoryData<Type, string> EvenementsAttendus => new()
@@ -41,14 +32,7 @@ public sealed class PromotionEventContractTests
     public void Chaque_evenement_est_versionne(Type type, string _)
         => type.GetCustomAttribute<HbaEventAttribute>()!.Version.Should().BePositive();
 
-    /// <summary>
-    /// LES MONTANTS SONT DES ENTIERS (§2), JAMAIS DES DÉCIMAUX.
-    ///
-    /// Le franc CFA n'a pas de sous-unité et le cahier impose des BIGINT. Un
-    /// `decimal` dans un contrat public rouvrirait la porte aux arrondis que ce
-    /// choix ferme — et un arrondi sur une remise, répété un million de fois,
-    /// n'est plus une erreur d'arrondi.
-    /// </summary>
+    /// <summary>LES MONTANTS SONT DES ENTIERS (§2), JAMAIS DES DÉCIMAUX.</summary>
     [Theory]
     [MemberData(nameof(EvenementsAttendus))]
     public void Aucun_montant_n_est_decimal(Type type, string _)
@@ -62,9 +46,7 @@ public sealed class PromotionEventContractTests
 
     /// <summary>
     /// `coupon.used` doit permettre de rapprocher un usage d'une commande ET d'un
-    /// compte. Sans `OrderId`, le marketing compte des usages qu'il ne peut relier
-    /// à aucune vente ; sans `UserId`, on ne peut pas répondre à « pourquoi mon
-    /// coupon est-il consommé ».
+    /// compte.
     /// </summary>
     [Fact]
     public void L_usage_d_un_coupon_relie_la_commande_le_compte_et_le_montant()
@@ -77,15 +59,7 @@ public sealed class PromotionEventContractTests
         champs.Should().Contain("Code", "une réclamation arrive sous la forme « WELCOME10 », jamais sous celle d'un UUID");
     }
 
-    /// <summary>
-    /// `promotion.created` NE TRANSPORTE PAS LES RÈGLES D'ÉLIGIBILITÉ.
-    ///
-    /// Les recopier inviterait un consommateur à décider lui-même si un panier est
-    /// éligible — et sa copie divergerait au premier ajout de condition. Pire : ce
-    /// service refuse une règle qu'il ne sait pas évaluer, alors qu'un consommateur
-    /// naïf ignorerait celle qu'il ne comprend pas, accordant la remise que la
-    /// règle interdisait. L'éligibilité se demande à `EvaluatePromotion`.
-    /// </summary>
+    /// <summary>`promotion.created` NE TRANSPORTE PAS LES RÈGLES D'ÉLIGIBILITÉ.</summary>
     [Fact]
     public void La_creation_d_une_campagne_ne_transporte_pas_ses_regles()
     {
@@ -96,8 +70,7 @@ public sealed class PromotionEventContractTests
 
     /// <summary>
     /// Le scope et le type voyagent sous la forme du cahier — `FOOD`,
-    /// `FREE_DELIVERY` — et non sous celle de l'énumération C#. Le test vérifie le
-    /// convertisseur, parce que c'est lui qui décide, pas la déclaration.
+    /// `FREE_DELIVERY` — et non sous celle de l'énumération C#.
     /// </summary>
     [Theory]
     [InlineData("Global", "GLOBAL")]

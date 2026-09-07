@@ -2,31 +2,13 @@ using HBA.Catalog.Domain.Reviews;
 
 namespace HBA.Catalog.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES DÉCISIONS D'ADMINISTRATION (§16, §20).
-///
-/// CETTE TABLE ÉTAIT CITÉE PAR TROIS COMMENTAIRES DU CODE ET N'EXISTAIT PAS.
-///
-/// `ProductLifecycleIntegrationEvents`, `Product.Reject` et `ProductStatus`
-/// renvoyaient tous vers « ProductReview, où vivent les motifs ». Un rejet ne
-/// conservait donc aucun motif : le vendeur apprenait que sa fiche était refusée,
-/// jamais pourquoi.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES DÉCISIONS D'ADMINISTRATION (§16, §20).</summary>
 public sealed class ProductReviewTests
 {
     private static readonly Guid Produit = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static readonly Guid Revision = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
-    /// <summary>
-    /// L'INVARIANT CENTRAL DE LA CLASSE.
-    ///
-    /// Le §16 montre un rejet avec un tableau `reasons` sans dire qu'il est
-    /// obligatoire. Le rendre facultatif reproduirait le défaut d'origine : un
-    /// vendeur qui ne sait pas quoi corriger resoumet à l'identique, et occupe la
-    /// file une seconde fois pour la même raison.
-    /// </summary>
+    /// <summary>L'INVARIANT CENTRAL DE LA CLASSE.</summary>
     [Fact]
     public void Un_rejet_sans_motif_est_refuse()
     {
@@ -61,15 +43,7 @@ public sealed class ProductReviewTests
             "chaque motif doit être rattaché à sa décision, sinon la clé étrangère est refusée à l'insertion");
     }
 
-    /// <summary>
-    /// LE CODE EST NORMALISÉ, PAS REFUSÉ.
-    ///
-    /// La liste de `MotifsDeRejet` est un vocabulaire, pas une énumération fermée :
-    /// un administrateur rencontrera des cas qu'aucune liste n'aura prévus, et lui
-    /// imposer un code existant le ferait choisir le moins faux — l'information
-    /// serait perdue. En revanche le client mobile compare des codes, pas de la
-    /// casse.
-    /// </summary>
+    /// <summary>LE CODE EST NORMALISÉ, PAS REFUSÉ.</summary>
     [Theory]
     [InlineData("invalid_images", "INVALID_IMAGES")]
     [InlineData("  Contenu Interdit  ", "CONTENU_INTERDIT")]
@@ -95,10 +69,7 @@ public sealed class ProductReviewTests
         resultat.Error.Code.Should().Be("catalog.review.reason_message_required");
     }
 
-    /// <summary>
-    /// Une approbation n'a pas de motif — et n'en exige pas. Le commentaire reste
-    /// facultatif : rien à corriger, rien à expliquer.
-    /// </summary>
+    /// <summary>Une approbation n'a pas de motif — et n'en exige pas.</summary>
     [Fact]
     public void Une_approbation_na_pas_besoin_de_motif()
     {
@@ -110,13 +81,7 @@ public sealed class ProductReviewTests
         resultat.Value.Reasons.Should().BeEmpty();
     }
 
-    /// <summary>
-    /// SANS RELECTEUR, LE JOURNAL NE VAUT RIEN.
-    ///
-    /// C'est sa seule raison d'exister : savoir QUI a approuvé, et sur quel
-    /// contenu. Une décision anonyme occuperait une ligne sans répondre à la
-    /// question qu'on lui posera.
-    /// </summary>
+    /// <summary>SANS RELECTEUR, LE JOURNAL NE VAUT RIEN.</summary>
     [Fact]
     public void Une_decision_sans_relecteur_est_refusee()
     {
@@ -127,11 +92,7 @@ public sealed class ProductReviewTests
         resultat.Error.Code.Should().Be("catalog.review.reviewer_required");
     }
 
-    /// <summary>
-    /// La décision retient la RÉVISION jugée, pas seulement le produit. Sans ce
-    /// champ, une fiche modifiée trois fois après approbation rendrait la décision
-    /// illisible.
-    /// </summary>
+    /// <summary>La décision retient la RÉVISION jugée, pas seulement le produit.</summary>
     [Fact]
     public void Une_decision_designe_la_revision_jugee()
     {

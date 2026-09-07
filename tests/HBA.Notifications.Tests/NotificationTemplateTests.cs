@@ -31,17 +31,7 @@ public sealed class NotificationTemplateTests
         rendu.Value.Subject.Should().Be("Commande acceptée");
     }
 
-    /// <summary>
-    /// LE TEST QUI COMPTE LE PLUS DE CE FICHIER.
-    ///
-    /// Trois comportements étaient possibles sur valeur absente : laisser
-    /// `{firstName}` visible, mettre une chaîne vide, ou refuser. Les deux premiers
-    /// produisent un message PARTI et illisible — « Bonjour {firstName} » ou
-    /// « Bonjour , votre commande… ». Le troisième produit un échec qu'on répare.
-    ///
-    /// Si quelqu'un « assouplit » un jour ce comportement pour éviter des échecs,
-    /// ce test tombera — et c'est exactement ce qu'on veut.
-    /// </summary>
+    /// <summary>LE TEST QUI COMPTE LE PLUS DE CE FICHIER.</summary>
     [Fact]
     public void Une_valeur_absente_refuse_le_rendu_au_lieu_d_envoyer_un_texte_troue()
     {
@@ -52,7 +42,9 @@ public sealed class NotificationTemplateTests
         rendu.Error.Message.Should().Contain("restaurant");
     }
 
-    /// <summary>Une valeur vide n'est pas une valeur : « Bonjour , » n'est pas un message.</summary>
+    /// <summary>
+    /// Une valeur vide n'est pas une valeur : « Bonjour , » n'est pas un message.
+    /// </summary>
     [Fact]
     public void Une_valeur_vide_est_traitee_comme_absente()
     {
@@ -74,11 +66,7 @@ public sealed class NotificationTemplateTests
         rendu.Value.Subject.Should().BeNull();
     }
 
-    /// <summary>
-    /// Le rendu reporte le code ET la version. Sans la version, on ne peut pas
-    /// savoir quel texte a réellement été envoyé à quelqu'un qui réclame six mois
-    /// plus tard — le gabarit a changé depuis.
-    /// </summary>
+    /// <summary>Le rendu reporte le code ET la version.</summary>
     [Fact]
     public void Le_rendu_reporte_le_gabarit_et_sa_version()
     {

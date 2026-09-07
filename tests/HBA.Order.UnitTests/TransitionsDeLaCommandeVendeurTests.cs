@@ -2,21 +2,7 @@ using HBA.Orders.Domain.Orders.SellerOrders;
 
 namespace HBA.Order.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ISSUE-026 — les cinq permissions gardent enfin quelque chose.
-///
-/// `ORDER_CONFIRM`, `ORDER_REJECT`, `ORDER_MARK_PREPARING`, `ORDER_MARK_READY` et
-/// `ORDER_CANCEL` étaient distribuées au rôle `ORDER_MANAGER` sans garder aucune
-/// route, faute d'objet à faire changer d'état. Ces tests éprouvent les
-/// transitions que ces permissions autorisent désormais — et surtout celles
-/// qu'elles n'autorisent PAS.
-///
-/// CE QU'ILS NE COUVRENT PAS : les permissions elles-mêmes et les gardes
-/// d'appartenance, qui vivent au bord HTTP et relèvent de
-/// `HBA.Order.AuthorizationTests`.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ISSUE-026 — les cinq permissions gardent enfin quelque chose.</summary>
 public sealed class TransitionsDeLaCommandeVendeurTests
 {
     private static SellerOrder UnePartVendeur(Guid? sellerId = null)
@@ -48,14 +34,7 @@ public sealed class TransitionsDeLaCommandeVendeurTests
         part.IsOpen.Should().BeFalse();
     }
 
-    /// <summary>
-    /// UN HORODATAGE PAR ÉTAPE, ET IL EST POSÉ À L'ENTRÉE DANS L'ÉTAT.
-    ///
-    /// C'est ce qui permet de trier « ce vendeur a accepté il y a trois jours et
-    /// n'a rien emballé ». Un champ unique « dernière transition » ne répondrait
-    /// pas à cette question — c'est le même raisonnement que
-    /// `Order.UnderReviewSinceUtc`.
-    /// </summary>
+    /// <summary>UN HORODATAGE PAR ÉTAPE, ET IL EST POSÉ À L'ENTRÉE DANS L'ÉTAT.</summary>
     [Fact]
     public void Chaque_etape_pose_son_propre_horodatage()
     {
@@ -87,15 +66,7 @@ public sealed class TransitionsDeLaCommandeVendeurTests
         part.Status.Should().Be(SellerOrderStatus.AwaitingConfirmation, "un refus ne mute rien");
     }
 
-    /// <summary>
-    /// LE SAUT « CONFIRMÉE → PRÊTE » EST REFUSÉ, ET C'EST DISCUTÉ.
-    ///
-    /// L'autoriser rendrait `Preparing` facultatif, donc absent de la moitié des
-    /// commandes — et un état qu'on peut sauter ne dit plus rien à celui qui le
-    /// lit. Or c'est exactement ce que l'exploitation regarde pour distinguer
-    /// « accepté et en cours » de « accepté et oublié ». Voir
-    /// `SellerOrder.MarkReadyForPickup` pour le coût assumé : un clic de plus.
-    /// </summary>
+    /// <summary>LE SAUT « CONFIRMÉE → PRÊTE » EST REFUSÉ, ET C'EST DISCUTÉ.</summary>
     [Fact]
     public void Une_part_confirmee_ne_saute_pas_directement_a_prete()
     {
@@ -131,8 +102,8 @@ public sealed class TransitionsDeLaCommandeVendeurTests
         seconde.IsFailure.Should().BeTrue();
         seconde.Error.Code.Should().Be("ordering.seller_order.invalid_transition");
 
-        // L'HORODATAGE D'ORIGINE N'EST PAS ÉCRASÉ : un refus ne mute rien, et
-        // « depuis quand ce vendeur s'est-il engagé » doit rester vrai.
+        // L'HORODATAGE D'ORIGINE N'EST PAS ÉCRASÉ : un refus ne mute rien, et «
+        // depuis quand ce vendeur s'est-il engagé » doit rester vrai.
         part.ConfirmedAtUtc.Should().Be(UneCommande.Maintenant);
     }
 

@@ -35,20 +35,7 @@ public static class KafkaEventNaming
         return NormalizeServiceName(producer);
     }
 
-    /// <summary>
-    /// Le sujet d'un producteur. Délègue à <see cref="HbaTopics"/>.
-    /// </summary>
-    /// <remarks>
-    ///
-    /// Elle retirait « -service » du nom du conteneur : `seller-service` donnait
-    /// `service.seller.v1`, quand tous les consommateurs écoutaient
-    /// `service.merchant.v1`. Six domaines étaient dans ce cas, et rien ne pouvait
-    /// le signaler — un message part, il est acquitté, il n'arrive nulle part.
-    ///
-    /// Elle est conservée plutôt que supprimée parce qu'elle est citée dans des
-    /// encadrés et des tests ; mais elle ne décide plus. Une seule table décide,
-    /// et c'est celle que lit aussi la liste d'abonnement du consommateur.
-    /// </remarks>
+    /// <summary>Le sujet d'un producteur.</summary>
     public static string Topic(KafkaEventBusOptions options, string producer)
         => HbaTopics.Pour(options, producer);
 

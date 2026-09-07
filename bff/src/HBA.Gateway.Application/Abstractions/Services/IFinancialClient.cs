@@ -9,15 +9,7 @@ public interface IFinancialClient : IServiceClient
     Task<ServiceResult<DriverWallet>> GetDriverWalletAsync(
         Guid driverId, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// <c>GET /api/financial/wallets/drivers/{driverId}/transactions?take=</c>
-    /// </summary>
-    /// <remarks>
-    /// `take` EST OBLIGATOIRE CÔTÉ SERVICE — la route le déclare non nullable.
-    ///
-    /// L'omettre ferait échouer la liaison de paramètre avec un 400 qui ne dit
-    /// pas ce qui manque.
-    /// </remarks>
+    /// <summary><c>GET /api/financial/wallets/drivers/{driverId}/transactions?take=</c></summary>
     Task<ServiceResult<IReadOnlyList<WalletTransaction>>> ListDriverTransactionsAsync(
         Guid driverId, int take, CancellationToken cancellationToken);
 

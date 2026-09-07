@@ -5,42 +5,12 @@ using HBA.Gateway.Application.Contracts.Catalog;
 
 namespace HBA.Gateway.Application.Bff.Client.Express;
 
-/// <summary>
-/// Accueil HBAExpress.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CRITICITÉ (§23)
-///
-///   Catalog     CRITIQUE   — sans catégories, l'accueil n'a aucun contenu.
-///   Engagement  OPTIONNELLE— recommandations : absentes hors session (401).
-///   Order       OPTIONNELLE— bandeau « commande en cours ».
-///
-/// L'ACCUEIL RESTE ANONYME, ET LES SECTIONS PERSONNELLES SE TAISENT.
-///
-/// Engagement et Order sont tous deux authentifiés côté service. Un visiteur sans
-/// session reçoit deux 401 — traités comme des absences, pas comme des pannes.
-/// L'écran s'affiche, amputé de ce qui n'existe pas pour lui.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Accueil HBAExpress.</summary>
 public sealed class GetExpressHomeHandler
 {
     public const string ScreenId = "client.express.home";
 
-    /// <summary>
-    /// Nombre de produits recommandés hydratés.
-    /// </summary>
-    /// <remarks>
-    /// HYDRATATION N+1 ASSUMÉE ET PLAFONNÉE.
-    ///
-    /// Engagement rend des IDENTIFIANTS ; il faut un appel catalogue par produit
-    /// pour obtenir un nom et une image. Sans plafond, un jeu de cent
-    /// recommandations produirait cent appels sortants pour un seul écran.
-    ///
-    /// Huit correspond à ce qu'un carrousel mobile affiche avant défilement. À
-    /// remplacer par un appel de lot dès que catalog-service en expose un :
-    /// <c>POST /api/catalog/products/by-ids</c>.
-    /// </remarks>
+    /// <summary>Nombre de produits recommandés hydratés.</summary>
     public const int RecommendationCardCount = 8;
 
     private readonly ICatalogClient _catalog;
@@ -99,10 +69,6 @@ public sealed class GetExpressHomeHandler
             var result = await task;
 
             // UN PRODUIT RECOMMANDÉ INTROUVABLE EST SILENCIEUSEMENT OMIS.
-            //
-            // Les recommandations sont calculées en différé : elles peuvent citer
-            // un produit retiré depuis. Faire échouer l'accueil pour cela le
-            // rendrait tributaire de la fraîcheur d'un cache de recommandation.
             if (result is { IsSuccess: true, Value: CatalogProduct product })
             {
                 cards.Add(ToCard(product));
@@ -110,11 +76,7 @@ public sealed class GetExpressHomeHandler
         }
 
         var activeOrder = orders?
-            // LISTE PARTAGÉE AVEC L'ACCUEIL FOOD — cf. `FoodOrderStatuses`.
-            //
-            // Elle vivait ici en dur. La recopier dans l'autre univers aurait
-            // garanti la divergence : un statut ajouté d'un seul côté ferait
-            // disparaître le bandeau dans l'autre, sans que personne le signale.
+            // LISTE PARTAGÉE AVEC L'ACCUEIL FOOD — cf.
             .Where(order => FoodOrderStatuses.IsActive(order.Status))
             .OrderByDescending(order => order.CreatedAtUtc)
             .Select(order => new ExpressActiveOrder(

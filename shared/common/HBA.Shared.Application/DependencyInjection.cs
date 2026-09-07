@@ -8,8 +8,7 @@ public static class DependencyInjection
 {
     /// <summary>
     /// Enregistre les behaviors transverses du pipeline MediatR (ordre voulu :
-    /// logging englobe la validation). MediatR lui-même (scan des handlers) est
-    /// configuré dans le Bootstrap avec l'ensemble des assemblies de modules.
+    /// logging englobe la validation).
     /// </summary>
     public static IServiceCollection AddBuildingBlocksPipeline(this IServiceCollection services)
     {

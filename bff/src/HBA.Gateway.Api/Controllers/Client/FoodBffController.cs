@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace HBA.Gateway.Api.Controllers.Client;
 
 /// <summary>Façade BFF de l'application cliente — univers HBA Food.</summary>
-/// <remarks>Symétrique d'<see cref="ExpressBffController"/> : voir sa remarque.</remarks>
 [ApiController]
 [Obsolete("Route héritée. La version typée viendra avec BFF-0 (food-service incomplet).")]
 [Route("api/bff/client/food")]

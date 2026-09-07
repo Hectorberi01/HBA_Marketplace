@@ -2,10 +2,8 @@ namespace HBA.Shared.Application.Observability;
 
 /// <summary>
 /// Conversion d'un montant décimal vers la plus petite unité monétaire (entier),
-/// pour les métriques financières (<c>payment_amount_total</c>,
-/// <c>marketplace_revenue_total</c>…). Les devises « zéro décimale » (XOF, XAF,
-/// JPY…) ne sont pas multipliées — crucial pour XOF (FedaPay) : 1000 XOF = 1000,
-/// pas 100000.
+/// pour les métriques financières (<c>payment_amount_total</c>, <c>
+/// marketplace_revenue_total</c>…).
 /// </summary>
 public static class MoneyUnits
 {

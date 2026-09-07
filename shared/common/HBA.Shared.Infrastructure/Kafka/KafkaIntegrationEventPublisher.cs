@@ -22,7 +22,10 @@ public sealed class KafkaIntegrationEventPublisher : IKafkaIntegrationEventPubli
     private readonly IProducer<string, string>? _producer;
     private readonly KafkaEventBusOptions _options;
 
-    /// <summary>Producteurs hors catalogue déjà signalés — un avertissement, pas un par message.</summary>
+    /// <summary>
+    /// Producteurs hors catalogue déjà signalés — un avertissement, pas un par
+    /// message.
+    /// </summary>
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _catalogueIncomplet = new();
     private readonly IConfiguration _configuration;
     private readonly ILogger<KafkaIntegrationEventPublisher> _logger;
@@ -48,8 +51,7 @@ public sealed class KafkaIntegrationEventPublisher : IKafkaIntegrationEventPubli
         else
         {
             // Critical dès la construction : ce service ne publiera RIEN de toute
-            // sa vie. Le découvrir au démarrage vaut mieux que le déduire d'une
-            // table de rôles vide trois jours plus tard.
+            // sa vie.
             _logger.LogCritical(
                 "Producteur Kafka NON CONSTRUIT ({Cause}). Ce service ne publiera aucun "
                 + "événement d'intégration tant qu'il vivra.",
@@ -57,44 +59,7 @@ public sealed class KafkaIntegrationEventPublisher : IKafkaIntegrationEventPubli
         }
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// ON LÈVE QUAND LE PRODUCTEUR MANQUE. ON NE REND PLUS LA MAIN EN SUCCÈS.
-    ///
-    /// Cette méthode faisait ceci quand `_producer` était nul :
-    ///
-    ///     _logger.LogDebug("Kafka désactivé …, event non publié.");
-    ///     return;                                  // ← retour EN SUCCÈS
-    ///
-    /// Son SEUL appelant est `OutboxProcessor`, qui enchaîne aussitôt :
-    ///
-    ///     await publisher.PublishAsync(…);
-    ///     message.ProcessedOnUtc = DateTime.UtcNow;   // la ligne est consommée
-    ///
-    /// L'événement n'était donc pas retardé : il était SUPPRIMÉ. Ligne d'outbox
-    /// marquée traitée, `AttemptCount` à zéro, aucune lettre morte, aucune
-    /// métrique, et pour toute trace un `LogDebug` — invisible au niveau
-    /// `Information` par défaut. Rien à rejouer, rien à voir.
-    ///
-    /// C'est ce maillon qui explique la panne à l'origine de ce correctif : un
-    /// vendeur s'inscrit, `SellerRegisteredIntegrationEvent` part à l'outbox,
-    /// l'outbox le « traite », identity-service ne reçoit jamais rien, et le
-    /// compte reste `Buyer`. L'application vendeur rend 403 sans qu'une seule
-    /// ligne de journal relie le refus à l'inscription.
-    ///
-    /// En levant, on rend la main à la politique de reprise de l'outbox : trois
-    /// warnings, un backoff, puis une LETTRE MORTE journalisée en Critical avec
-    /// sa métrique — et le message reste en base, donc rejouable une fois la
-    /// configuration corrigée. REJOUABLE À LA MAIN : ce paragraphe citait
-    /// `/admin/outbox/dead-letters`, une route qui n'existe nulle part. Voir
-    /// `OutboxMessage.DeadLetteredOnUtc` pour le geste réel.
-    ///
-    /// Cause STRUCTURELLE, pas passagère : lever la fait tourner en boucle
-    /// jusqu'au plafond. C'est assumé, et c'est pourquoi
-    /// `AddBuildingBlocksInfrastructure` refuse désormais de démarrer un hôte
-    /// qui draine l'outbox sans producteur. Ce garde-fou-ci est le second filet.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>ON LÈVE QUAND LE PRODUCTEUR MANQUE. ON NE REND PLUS LA MAIN EN SUCCÈS.</summary>
     public async Task PublishAsync(IntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
     {
         if (_producer is null)
@@ -114,24 +79,10 @@ public sealed class KafkaIntegrationEventPublisher : IKafkaIntegrationEventPubli
         var aggregateId = KafkaEventNaming.AggregateId(integrationEvent);
         var eventId = KafkaEventNaming.UlidFrom(integrationEvent.Id, integrationEvent.OccurredOnUtc);
         var publishedAt = DateTimeOffset.UtcNow;
-        // ═════════════════════════════════════════════════════════════════════
         // LE SUJET VIENT DU CATALOGUE, PLUS D'UNE DÉRIVATION DU NOM DU CONTENEUR.
-        //
-        // `KafkaEventNaming.Topic` retirait « -service » du `SERVICE_NAME` :
-        // seller-service publiait donc sur `service.seller.v1`, quand tous les
-        // consommateurs écoutaient `service.merchant.v1`. Six domaines étaient dans
-        // ce cas (ISSUE-001). `HbaTopics` porte la traduction, et c'est la MÊME
-        // table qui alimente la liste d'abonnement du consommateur.
-        // ═════════════════════════════════════════════════════════════════════
         var topic = HbaTopics.Pour(_options, producer);
 
         // UN SERVICE HORS CATALOGUE PUBLIE DANS LE VIDE, ET DOIT LE DIRE.
-        //
-        // Le repli de `HbaTopics.Domaine` reproduit l'ancienne dérivation, donc rien
-        // n'échoue : le message part sur un sujet auquel personne n'est abonné, il
-        // est acquitté, et il n'arrive nulle part. C'est précisément le mode de
-        // défaillance qu'on vient de fermer — il ne doit pas se rouvrir en silence
-        // au prochain service ajouté.
         if (!HbaTopics.EstConnu(producer) && _catalogueIncomplet.TryAdd(producer, 0))
         {
             _logger.LogWarning(
@@ -144,25 +95,12 @@ public sealed class KafkaIntegrationEventPublisher : IKafkaIntegrationEventPubli
         var envelope = new KafkaEventEnvelope(
             EventId: eventId,
             EventType: eventType,
-            // ═════════════════════════════════════════════════════════════════
             // CE CHAMP VALAIT `1` EN DUR, DONC IL MENTAIT PAR CONSTRUCTION.
-            //
-            // Il était posé dans l'enveloppe ET dans l'en-tête `event-version`, et
-            // le consommateur ne le lisait jamais. Le jour où quelqu'un aurait
-            // changé la forme d'un événement, chaque ancien consommateur aurait
-            // désérialisé la nouvelle charge EN SILENCE, champs manquants à `null`,
-            // sans qu'aucune trace ne relie l'effet absent à la cause.
-            //
-            // La version vient désormais de `[HbaEvent].Version`, c'est-à-dire du
-            // contrat lui-même. Les événements pas encore annotés valent 1 — ce qui
-            // est exact : aucun n'a jamais changé de forme.
-            // ═════════════════════════════════════════════════════════════════
             EventVersion: HbaEventNaming.Describe(integrationEvent.GetType())?.Version ?? 1,
             OccurredAt: new DateTimeOffset(DateTime.SpecifyKind(integrationEvent.OccurredOnUtc, DateTimeKind.Utc)),
             PublishedAt: publishedAt,
             Producer: producer,
             ProducerVersion: _options.ProducerVersion ?? _configuration["SERVICE_VERSION"] ?? "dev",
-            // ═════════════════════════════════════════════════════════════════
             // CETTE LIGNE LISAIT `_configuration["CorrelationId"]`, ET C'ÉTAIT
             //    UNE ERREUR DE CATÉGORIE.
             //
@@ -181,18 +119,12 @@ public sealed class KafkaIntegrationEventPublisher : IKafkaIntegrationEventPubli
             // Le repli sur la trace reste : un message écrit hors requête — travail
             // planifié, reprise de données — n'a légitimement pas de corrélation, et
             // une valeur cohérente vaut mieux que rien.
-            // ═════════════════════════════════════════════════════════════════
             CorrelationId: PremierNonVide(
                 HbaRequestContext.Current.CorrelationId,
                 Activity.Current?.TraceId.ToString(),
                 eventId),
 
             // LA CAUSALITÉ ÉTAIT CODÉE À `null` (§19.1 `causationId`).
-            //
-            // Elle répond à « qu'est-ce qui a provoqué cet événement ». Sans elle, on
-            // sait qu'une commande et un paiement partagent une corrélation, mais pas
-            // lequel a causé l'autre — et sur une chaîne de six sauts, l'ordre est
-            // précisément la question qu'on se pose.
             CausationId: string.IsNullOrWhiteSpace(HbaRequestContext.Current.CausationId)
                 ? null
                 : HbaRequestContext.Current.CausationId,
@@ -251,7 +183,7 @@ public sealed class KafkaIntegrationEventPublisher : IKafkaIntegrationEventPubli
         _producer?.Flush(TimeSpan.FromSeconds(5));
         _producer?.Dispose();
     }
-    /// <summary>La première valeur non vide. Rend le repli lisible d'un coup d'œil.</summary>
+    /// <summary>La première valeur non vide.</summary>
     private static string PremierNonVide(params string?[] valeurs)
     {
         foreach (var valeur in valeurs)

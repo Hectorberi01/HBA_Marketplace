@@ -3,25 +3,7 @@ using HBA.Gateway.Application.Bff.Shared;
 
 namespace HBA.Gateway.Application.Bff.Driver;
 
-/// <summary>
-/// Tableau de bord du livreur (§15).
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CRITICITÉ (§23)
-///
-///   Delivery · compte    CRITIQUE   — sans compte livreur, il n'y a pas d'écran.
-///   Delivery · missions  IMPORTANTE — l'accueil s'affiche sans mission en cours.
-///   Financial            IMPORTANTE — les gains manquent, l'écran reste utile.
-///
-/// TROIS VAGUES, ET LES DEUX PREMIÈRES SONT IMPOSÉES PAR LES DONNÉES.
-///
-/// Le portefeuille exige un <c>driverId</c> que seul le compte peut donner :
-/// impossible de le lancer avant. Les missions, elles, ne dépendent que du jeton
-/// et partent DÈS LA PREMIÈRE VAGUE, en parallèle du compte — c'est ce qui évite
-/// de payer trois allers-retours en série.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Tableau de bord du livreur (§15).</summary>
 public sealed class GetDriverDashboardHandler
 {
     public const string ScreenId = "driver.dashboard";
@@ -73,7 +55,7 @@ public sealed class GetDriverDashboardHandler
             Status: account.Availability,
             CurrentMission: current,
             Today: new DriverTodayDto(
-                // Cumul de vie, et le nom du champ le dit — cf. `DriverTodayDto`.
+                // Cumul de vie, et le nom du champ le dit — cf.
                 LifetimeDeliveries: account.CompletedDeliveries,
                 AvailableBalance: wallet?.AvailableBalance,
                 LifetimeEarned: wallet?.LifetimeEarned,

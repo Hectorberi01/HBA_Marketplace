@@ -7,7 +7,7 @@ namespace HBA.Gateway.Api.Extensions;
 public static class ForwardedHeadersExtensions
 {
     /// <summary>
-    /// Configure la prise en compte des en-têtes <c>X-Forwarded-*</c> posés par
+    /// Configure la prise en compte des en-têtes <c> X-Forwarded-*</c> posés par
     /// Traefik.
     /// </summary>
     public static IServiceCollection AddGatewayForwardedHeaders(
@@ -45,12 +45,6 @@ public static class ForwardedHeadersExtensions
                 }
 
                 // ON NE LÈVE PAS, MAIS ON NE SE TAIT PAS NON PLUS.
-                //
-                // Une adresse mal saisie ne doit pas empêcher le démarrage — les
-                // autres restent valides. Mais ignorée en silence, elle produirait
-                // une passerelle qui semble configurée et qui, en réalité, ne fait
-                // confiance à rien : toutes les IP clientes deviendraient celle de
-                // Traefik, sans qu'aucun symptôme ne le signale.
                 logger.LogError(
                     "ProxyTrust:KnownProxies contient une adresse IP invalide, ignorée : {Value}",
                     candidate);

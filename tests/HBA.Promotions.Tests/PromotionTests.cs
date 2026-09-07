@@ -37,13 +37,7 @@ public sealed class PromotionTests
         remise.AmountOffDelivery.Should().Be(0);
     }
 
-    /// <summary>
-    /// LE TEST QUI EMPÊCHE DE RENDRE DE L'ARGENT À QUELQU'UN QUI N'A RIEN PAYÉ.
-    ///
-    /// Une remise fixe de 5 000 sur un panier de 3 000 donnerait un total de −2 000.
-    /// Selon ce qu'en fait le service de paiement, c'est soit un échec, soit un
-    /// remboursement. Les deux sont graves.
-    /// </summary>
+    /// <summary>LE TEST QUI EMPÊCHE DE RENDRE DE L'ARGENT À QUELQU'UN QUI N'A RIEN PAYÉ.</summary>
     [Fact]
     public void Une_remise_fixe_ne_depasse_jamais_le_sous_total()
     {
@@ -75,12 +69,7 @@ public sealed class PromotionTests
 
     // ──────────────────────────────────────────────────────────── Applicabilité
 
-    /// <summary>
-    /// UNE FUITE DE BUDGET QUE PERSONNE NE REMARQUE AVANT LA CLÔTURE DU MOIS.
-    ///
-    /// Un coupon « −15 % sur les restaurants » appliqué à un panier Marketplace
-    /// n'échoue nulle part : il remise simplement le mauvais univers.
-    /// </summary>
+    /// <summary>UNE FUITE DE BUDGET QUE PERSONNE NE REMARQUE AVANT LA CLÔTURE DU MOIS.</summary>
     [Fact]
     public void Une_promotion_Food_ne_s_applique_pas_a_un_panier_Marketplace()
     {
@@ -115,12 +104,7 @@ public sealed class PromotionTests
 
     // ──────────────────────────────────────────────────────────────────── Budget
 
-    /// <summary>
-    /// ON NE SERT PAS UNE REMISE PARTIELLE.
-    ///
-    /// Accorder 300 quand il reste 300 sur une remise de 1 000 donnerait au client un
-    /// montant qu'il n'a pas demandé, sans qu'aucun écran ne l'explique.
-    /// </summary>
+    /// <summary>ON NE SERT PAS UNE REMISE PARTIELLE.</summary>
     [Fact]
     public void Un_budget_insuffisant_refuse_la_remise_entiere_et_epuise_la_campagne()
     {
@@ -144,13 +128,7 @@ public sealed class PromotionTests
         campagne.BudgetRemaining.Should().Be(0);
     }
 
-    /// <summary>
-    /// SANS CE COMPORTEMENT, UN PANIER ABANDONNÉ ÉTEINT UNE CAMPAGNE INTACTE.
-    ///
-    /// Le budget se consomme à la RÉSERVATION pour fermer la fenêtre de concurrence.
-    /// La contrepartie est qu'un abandon immobilise du budget — et il faut donc que
-    /// sa libération rouvre la campagne.
-    /// </summary>
+    /// <summary>SANS CE COMPORTEMENT, UN PANIER ABANDONNÉ ÉTEINT UNE CAMPAGNE INTACTE.</summary>
     [Fact]
     public void Rendre_du_budget_reouvre_une_campagne_epuisee()
     {

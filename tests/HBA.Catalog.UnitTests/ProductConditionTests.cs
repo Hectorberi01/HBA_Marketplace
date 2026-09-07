@@ -2,15 +2,7 @@ using HBA.Catalog.Domain.Products;
 
 namespace HBA.Catalog.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LA CONDITION COMMERCIALE (§9, §28).
-///
-/// Ce que ces tests protègent n'est pas une contrainte technique : c'est
-/// l'acheteur. Chacune des incohérences refusées ici correspond à une annonce
-/// parfaitement valide au sens du schéma, et parfaitement trompeuse à l'écran.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LA CONDITION COMMERCIALE (§9, §28).</summary>
 public sealed class ProductConditionTests
 {
     [Fact]
@@ -41,13 +33,7 @@ public sealed class ProductConditionTests
         resultat.IsFailure.Should().BeTrue();
     }
 
-    /// <summary>
-    /// « PARTIELLEMENT FONCTIONNEL » SANS DÉFAUT N'INFORME PERSONNE.
-    ///
-    /// C'est la mention qui fait hésiter sans permettre de décider. Exiger au moins
-    /// un défaut transforme un avertissement vague en information utilisable — et
-    /// c'est aussi ce qui rend un litige arbitrable.
-    /// </summary>
+    /// <summary>« PARTIELLEMENT FONCTIONNEL » SANS DÉFAUT N'INFORME PERSONNE.</summary>
     [Fact]
     public void Un_produit_partiellement_fonctionnel_doit_dire_ce_qui_ne_marche_pas()
     {
@@ -88,14 +74,7 @@ public sealed class ProductConditionTests
         resultat.Value.RefurbishmentOperations.Should().Contain("BATTERY_REPLACED");
     }
 
-    /// <summary>
-    /// `isUsed` EST DÉDUIT DU TYPE, JAMAIS REÇU DU CLIENT.
-    ///
-    /// Le §9 montre les deux champs dans le même JSON, ce qui invite à les accepter
-    /// tels quels — et autoriserait { "type": "NEW", "isUsed": true }, deux
-    /// affirmations contradictoires dont on ne saurait plus laquelle croire à
-    /// l'affichage.
-    /// </summary>
+    /// <summary>`isUsed` EST DÉDUIT DU TYPE, JAMAIS REÇU DU CLIENT.</summary>
     [Theory]
     [InlineData(ProductConditionType.New, false)]
     [InlineData(ProductConditionType.OpenBox, false)]
@@ -138,17 +117,7 @@ public sealed class ProductConditionTests
         resultat.Error.Code.Should().Be("catalog.condition.battery_health_invalid");
     }
 
-    /// <summary>
-    /// LE RATTACHEMENT DES CLÉS ÉTRANGÈRES, VÉRIFIÉ SANS BASE DE DONNÉES.
-    ///
-    /// La condition arrive du formulaire AVANT d'avoir une révision, et ses défauts
-    /// avant d'avoir une condition. Si `ProductRevision` oublie de les rattacher,
-    /// rien ne se voit ici : c'est PostgreSQL qui refuse l'insertion, en parlant
-    /// d'une violation de contrainte sans dire quel champ n'a pas été rempli.
-    ///
-    /// Ce test attrape l'oubli au moment où il est écrit, pas au premier
-    /// `dev-up.sh`.
-    /// </summary>
+    /// <summary>LE RATTACHEMENT DES CLÉS ÉTRANGÈRES, VÉRIFIÉ SANS BASE DE DONNÉES.</summary>
     [Fact]
     public void Les_defauts_declares_sont_rattaches_a_leur_condition_et_a_leur_revision()
     {

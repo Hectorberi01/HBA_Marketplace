@@ -6,8 +6,7 @@ namespace HBA.Shared.Application.Behaviors;
 
 /// <summary>
 /// Behavior de validation : exécute les FluentValidation enregistrés pour la
-/// requête. En cas d'échec, court-circuite le handler et renvoie un Result
-/// d'échec typé — pas d'exception qui traverse les couches.
+/// requête.
 /// </summary>
 public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull

@@ -8,16 +8,7 @@ using HBA.Shared.Infrastructure.Serialization;
 using HBA.Shared.Infrastructure.Events;
 namespace HBA.Shared.Infrastructure.Persistence;
 
-/// <summary>
-/// Base de tous les DbContext de module. Apporte :
-///  - l'Unit of Work (SaveChanges qui dispatche les domain events) ;
-///  - le drainage de la file d'events d'intégration vers l'outbox local ;
-///  - la table outbox locale au schéma du module ;
-///  - l'isolation par schéma (chaque module passe son nom de schéma).
-///
-/// Règle d'or : un module ne lit/écrit que dans son propre schéma. Pas de JOIN
-/// ni de foreign key cross-schéma — c'est ce qui rend l'extraction mécanique.
-/// </summary>
+/// <summary>Base de tous les DbContext de module.</summary>
 public abstract class ModuleDbContext : DbContext, IUnitOfWork
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
@@ -38,51 +29,15 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
     /// <summary>Nom du schéma PostgreSQL propre au module (ex : « catalog »).</summary>
     protected abstract string Schema { get; }
 
-    /// <summary>
-    /// Ce module tient-il un journal d'audit (§37) ?
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// FAUX PAR DÉFAUT, ET CE N'EST PAS UNE TIÉDEUR.
-    ///
-    /// Une entité ajoutée au modèle sans migration correspondante fait échouer tout
-    /// démarrage à froid — c'est exactement ce que le contrôle `migrations`
-    /// attrape, et il le ferait pour les dix-neuf contextes d'un coup si ce
-    /// booléen valait vrai ici. L'activation se fait donc module par module, DANS
-    /// LE MÊME COMMIT que sa migration.
-    ///
-    /// Ce n'est pas non plus un réglage d'exécution : c'est une propriété du
-    /// MODÈLE. La rendre configurable ferait diverger le schéma attendu du schéma
-    /// réel selon une variable d'environnement, ce qui est la manière la plus sûre
-    /// de rendre une migration inapplicable en production et nulle part ailleurs.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Ce module tient-il un journal d'audit (§37) ?</summary>
     protected virtual bool KeepsAuditTrail => false;
 
-    /// <summary>
-    /// Declare la table d'audit DU SERVICE. Vide par defaut.
-    /// </summary>
-    /// <remarks>
-    /// Appele uniquement quand <see cref="KeepsAuditTrail"/> vaut vrai. Un contexte
-    /// qui tient un journal sans surcharger ceci declare une table qu'il ne remplira
-    /// pas : c'est visible au premier `dotnet ef migrations add`, dont le diff serait
-    /// vide.
-    /// </remarks>
+    /// <summary>Declare la table d'audit DU SERVICE. Vide par defaut.</summary>
     protected virtual void ConfigurerLeJournalDAudit(ModelBuilder modelBuilder)
     {
     }
 
-    /// <summary>
-    /// Ecrit UNE ligne de journal, avec l'entite du service. Vide par defaut.
-    /// </summary>
-    /// <remarks>
-    /// LES PARAMETRES SONT DES PRIMITIFS, ET C'EST DELIBERE. Passer une entite
-    /// partagee remettrait dans le socle le type qu'on vient d'en sortir ; passer un
-    /// enregistrement partage en creerait un nouveau pour la meme raison. Seul
-    /// <see cref="AuditOperation"/> reste commun : il fait partie de cette signature,
-    /// et treize enums distincts pour une meme colonne rendraient deux journaux
-    /// incomparables.
-    /// </remarks>
+    /// <summary>Ecrit UNE ligne de journal, avec l'entite du service.</summary>
     protected virtual void AjouterUneEntreeDAudit(
         string typeDEntite,
         string identifiant,
@@ -94,28 +49,12 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
     {
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LA TABLE D'OUTBOX A QUITTE CETTE CLASSE.
-    //
-    // Elle est declaree par le contexte de chaque service, avec SON entite : c'est
-    // lui qui la cree dans ses migrations. Ce qui reste ici, c'est le DRAIN — la
-    // regle qui veut que tout evenement mis en file par le metier parte dans la
-    // MEME transaction que le fait qui l'a produit. Cette regle-la ne se duplique
-    // pas : elle est ce qui garantit qu'aucun evenement n'est perdu.
-    // ═════════════════════════════════════════════════════════════════════════
     protected virtual void ConfigurerLesTablesTechniques(ModelBuilder modelBuilder)
     {
     }
 
-    /// <summary>
-    /// Ajoute une ligne a l'outbox DU SERVICE. Vide par defaut.
-    /// </summary>
-    /// <remarks>
-    /// LES PARAMETRES SONT DES PRIMITIFS, comme pour le journal d'audit : passer
-    /// une entite partagee remettrait dans le socle le type qu'on vient d'en sortir.
-    /// Un service qui ne surcharge pas ceci enfile des evenements qui ne partiront
-    /// jamais — c'est visible au premier evenement publie, et invisible avant.
-    /// </remarks>
+    /// <summary>Ajoute une ligne a l'outbox DU SERVICE. Vide par defaut.</summary>
     protected virtual void AjouterAuOutbox(
         string type, string contenu, DateTime survenuLeUtc, string? traceParent, string? correlation)
     {
@@ -129,11 +68,6 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
         if (KeepsAuditTrail)
         {
             // LE SOCLE NE CONNAIT PLUS AUCUNE TABLE D'AUDIT.
-            //
-            // L'entite et sa configuration appartiennent au service : sa table
-            // `audit_entries` est creee par SES migrations. Ce point d'extension
-            // est vide par defaut, et les treize contextes qui tiennent un journal
-            // y repondent avec leur propre `AuditConfiguration`.
             ConfigurerLeJournalDAudit(modelBuilder);
         }
 
@@ -143,37 +77,17 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         // 1. Dispatch des domain events : les handlers peuvent mettre des
-        //    integration events en file.
+        // integration events en file.
         await DispatchDomainEventsAsync(cancellationToken);
 
-        // 2. Draine la file vers l'outbox LOCAL (ce DbContext, ce schéma), de
-        //    sorte que l'event et le changement d'état soient persistés ensemble.
+        // 2. Draine la file vers l'outbox LOCAL (ce DbContext, ce schéma), de sorte
+        // que l'event et le changement d'état soient persistés ensemble.
         DrainIntegrationEventsToOutbox();
 
         // 3. Journalise QUI a muté QUOI, dans la même transaction.
-        //
-        //    APRÈS les deux étapes précédentes, et ce n'est pas indifférent : un
-        //    gestionnaire d'événement de domaine peut lui-même muter une entité, et
-        //    journaliser avant lui manquerait ces lignes-là. Or ce sont précisément
-        //    les mutations en cascade — celles qu'on ne voit pas dans le handler
-        //    d'origine — qu'un journal sert à retrouver.
         RecordAuditTrail();
 
         // 4. Estampille `UpdatedAtUtc` sur les entités qui la déclarent.
-        //
-        //    L'ordre vis-à-vis de `RecordAuditTrail` est INDIFFÉRENT, et il faut
-        //    savoir pourquoi pour ne pas s'en inquiéter : l'estampille n'écrit
-        //    que sur des entrées DÉJÀ `Added` ou `Modified`, donc elle ne change
-        //    l'état d'aucune entrée, donc elle ne peut ni créer ni requalifier
-        //    une ligne de journal. Le journal, lui, ne retient que l'entité, sa
-        //    clé et l'opération — jamais la liste des colonnes touchées.
-        //
-        //    CE FILTRE D'ÉTAT N'EST PAS UNE OPTIMISATION, C'EST LA GARDE.
-        //
-        //    Estampiller une entrée `Unchanged` la ferait passer en `Modified` :
-        //    un UPDATE sur une ligne que personne n'a demandé à changer, et — si
-        //    l'ordre venait à être inversé un jour — une ligne de journal
-        //    « modifiée par » sur un geste qui n'a pas eu lieu.
         HorodaterLesModifications();
 
         return await base.SaveChangesAsync(cancellationToken);
@@ -181,23 +95,9 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
 
     /// <summary>
     /// Pose l'instant courant sur `UpdatedAtUtc`, pour les entités qui l'ont
-    /// déclarée via <see cref="HorodatageExtensions.HorodateLesModifications{T}"/>.
+    /// déclarée via <see cref="HorodatageExtensions.HorodateLesModifications{T}"/>
+    /// .
     /// </summary>
-    /// <remarks>
-    /// UN SEUL INSTANT POUR TOUTE LA TRANSACTION.
-    ///
-    /// `DateTime.UtcNow` lu dans la boucle donnerait des horodatages qui
-    /// diffèrent de quelques microsecondes entre deux lignes écrites par la même
-    /// commande — et un lecteur qui trie par `UpdatedAtUtc` en conclurait un
-    /// ordre de causalité qui n'existe pas. C'est le même raisonnement que
-    /// l'instant unique de `RecordAuditTrail`.
-    ///
-    /// `Added` AUTANT QUE `Modified`.
-    ///
-    /// Sans l'INSERT, `NULL` voudrait dire à la fois « ligne antérieure à la
-    /// colonne » et « jamais modifiée depuis sa création » — deux situations que
-    /// l'on cherche justement à distinguer en incident.
-    /// </remarks>
     private void HorodaterLesModifications()
     {
         var maintenant = DateTime.UtcNow;
@@ -245,11 +145,6 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
                 integrationEvent.OccurredOnUtc,
 
                 // LES DEUX CHEMINS D'ENFILEMENT DOIVENT LE FAIRE.
-                //
-                // `OutboxIntegrationEventPublisher` et ce drain ecrivent tous deux
-                // dans `outbox_messages`. N'instrumenter que l'un rendrait la moitie
-                // des evenements tracable et l'autre non, selon un detail
-                // d'implementation invisible depuis le metier.
                 System.Diagnostics.Activity.Current?.Id,
 
                 // CAPTUREE ICI, PARCE QU'APRES IL EST TROP TARD. L'outbox est une
@@ -262,10 +157,7 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
         }
     }
 
-    /// <summary>
-    /// Écrit une ligne de journal par entité mutée. Voir <see cref="IEntreeDeJournal"/>
-    /// pour le raisonnement d'ensemble.
-    /// </summary>
+    /// <summary>Écrit une ligne de journal par entité mutée.</summary>
     private void RecordAuditTrail()
     {
         if (!KeepsAuditTrail)
@@ -274,44 +166,9 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
         }
 
         // MATÉRIALISÉ AVANT LA BOUCLE, PAS ÉNUMÉRÉ PENDANT.
-        //
-        // Chaque `Add` ci-dessous inscrit une entrée de plus dans le ChangeTracker.
-        // Énumérer paresseusement ferait journaliser les lignes de journal, qui en
-        // produiraient d'autres : une boucle infinie, découverte au premier
-        // `SaveChanges` d'un service en production.
         var mutations = ChangeTracker.Entries()
             .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
-            // ═════════════════════════════════════════════════════════════════
             // LE JOURNAL NE JOURNALISE PAS LA PLOMBERIE.
-            //
-            // Cette liste ne portait que `AuditEntry` et `OutboxMessage` — les deux
-            // sans lesquels la boucle serait infinie. `ConsumerInboxEntry` et
-            // `IdempotencyRecord` sont pourtant mappés dans les MÊMES contextes, et
-            // écrits à chaque message Kafka consommé, à chaque requête idempotente.
-            //
-            // Chacun produisait donc une ligne de journal à acteur NUL, type
-            // `SYSTEM`, sans le moindre rapport avec un geste humain. Sur
-            // seller-service, food-order-service et return-refund-service — les
-            // trois seuls contextes qui journalisaient — ce bruit était déjà
-            // majoritaire. Le rendre visible avant d'allumer le journal ailleurs
-            // n'est pas de l'hygiène : c'est ce qui décide si la table reste
-            // lisible ou devient un flux de messages Kafka déguisé.
-            //
-            // CE QU'ON PERD, ET POURQUOI C'EST LE BON CHOIX.
-            //
-            // On perd la trace d'« un message a été consommé ». Elle n'a jamais
-            // appartenu à ce journal : `AuditEntry` répond à « qui a touché à quoi »,
-            // et la réponse serait toujours « personne ». Le suivi d'un message se
-            // fait par `CorrelationId` et `TraceParent`, qui traversent l'outbox
-            // exactement pour cela.
-            //
-            // L'EFFET MÉTIER, LUI, RESTE TRACÉ. Un consommateur qui marque son
-            // inbox ET confirme une commande écrit toujours la ligne de la commande.
-            // Seule la ligne d'infrastructure disparaît.
-            // ═════════════════════════════════════════════════════════════════
-            // `IEntreeDeJournal` ET NON `AuditEntry` : L'ENTITE A QUITTE LE SOCLE.
-            // Filtrer sur un nom de classe laisserait un service qui renomme la
-            // sienne retrouver la boucle infinie, en silence. Voir le marqueur.
             .Where(entry => entry.Entity
                 is not IEntreeDeJournal
                 and not IMessageDOutbox
@@ -319,14 +176,6 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
                 and not IEnregistrementDIdempotence)
 
             // LES TYPES POSSÉDÉS SONT REPORTÉS SUR LEUR PROPRIÉTAIRE, PAS FILTRÉS.
-            //
-            // Quand SEULE l'adresse d'un lieu change, EF marque `Address` comme
-            // modifiée et laisse `FulfillmentLocation` intacte. Les filtrer perdrait
-            // donc complètement le changement d'adresse d'un entrepôt — le geste
-            // même que `STOCK_LOCATION_MANAGE` protège. Voir `Decrire`.
-            //
-            // `Distinct` évite la ligne en double quand le propriétaire ET une
-            // valeur qu'il possède changent dans le même geste.
             .Select(Decrire)
             .Distinct()
             .ToList();
@@ -339,21 +188,10 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
         var contexte = HbaRequestContext.Current;
 
         // L'ACTEUR N'EST PAS INVENTÉ QUAND IL N'Y EN A PAS.
-        //
-        // Un consommateur Kafka ou un appel gRPC interne mute sans personne
-        // derrière. `Guid.Empty` ou l'identifiant du service dans la colonne
-        // utilisateur ferait passer un traitement automatique pour un compte — et
-        // le jour où l'on chercherait qui a annulé mille commandes, on trouverait
-        // un utilisateur qui n'existe pas.
         var acteur = Guid.TryParse(contexte.Actor?.Id, out var utilisateur) ? utilisateur : (Guid?)null;
         var typeActeur = contexte.Actor?.Type ?? "SYSTEM";
 
         // UN SEUL INSTANT POUR TOUTE LA TRANSACTION.
-        //
-        // Appeler `DateTime.UtcNow` par ligne donnerait des horodatages qui
-        // diffèrent de quelques microsecondes à l'intérieur d'un même geste, et
-        // l'ordre de lecture du journal dépendrait alors de l'ordre d'énumération
-        // du ChangeTracker — c'est-à-dire de rien de stable.
         var instant = DateTime.UtcNow;
 
         var correlation = string.IsNullOrWhiteSpace(contexte.CorrelationId) ? null : contexte.CorrelationId;
@@ -361,12 +199,6 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
         foreach (var mutation in mutations)
         {
             // CE QUI RESTE ICI : LA COLLECTE. CE QUI PART : L'ECRITURE.
-            //
-            // Lire le ChangeTracker, decider ce qui compte comme une mutation,
-            // resoudre l'acteur et fixer un instant unique pour toute la
-            // transaction sont des regles identiques partout. Les dupliquer
-            // treize fois donnerait treize journaux qui ne se comparent plus.
-            // L'ENTITE, elle, appartient au service, comme sa table.
             AjouterUneEntreeDAudit(
                 mutation.Type, mutation.Id, mutation.Operation,
                 acteur, typeActeur, correlation, instant);
@@ -377,20 +209,6 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
     /// La clé primaire d'une entrée, sous forme textuelle — les parties jointes par
     /// « | » pour une clé composite.
     /// </summary>
-    /// <remarks>
-    /// POUR UNE ENTITÉ AJOUTÉE, LA CLÉ PEUT ENCORE ÊTRE VIDE.
-    ///
-    /// Les clés générées par la base (`UseIdentityByDefaultColumn`) ne sont
-    /// connues qu'APRÈS `base.SaveChangesAsync`. On écrit alors une chaîne vide
-    /// plutôt que d'attendre : la ligne de journal garde le TYPE, l'acteur et
-    /// l'instant, ce qui suffit à répondre « qui a créé quelque chose ici, et
-    /// quand ». Différer l'écriture pour gagner l'identifiant obligerait à un
-    /// second `SaveChanges`, donc à sortir de la transaction — on perdrait
-    /// l'atomicité, qui vaut plus que l'identifiant.
-    ///
-    /// Les agrégats de ce dépôt portent des identités fortes assignées en mémoire
-    /// (`ProductId.New()`), donc le cas est rare ; il n'est pas impossible.
-    /// </remarks>
     /// <summary>Ce qu'une entrée du ChangeTracker devient dans le journal.</summary>
     private readonly record struct Mutation(string Type, string Id, AuditOperation Operation);
 
@@ -413,24 +231,7 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
                 });
         }
 
-        // ═════════════════════════════════════════════════════════════════════
         // TOUJOURS `Updated` POUR UN TYPE POSSÉDÉ, MÊME AJOUTÉ OU SUPPRIMÉ.
-        //
-        // Ajouter une plage horaire à une boutique produit une entrée `Added` sur
-        // le type possédé. Recopier cet état donnerait « Store CRÉÉE » dans le
-        // journal — un événement qui n'a pas eu lieu, et le plus trompeur possible
-        // le jour où l'on cherche quand une boutique a été ouverte. Du point de vue
-        // de l'entité qui en répond, c'est une MODIFICATION, quelle que soit
-        // l'opération faite sur la valeur possédée.
-        //
-        // ET L'IDENTIFIANT VIENT DE LA POSSESSION, PAS DE LA CLÉ COMPLÈTE.
-        //
-        // La clé primaire d'un élément de collection possédée est composite :
-        // (identifiant du propriétaire, ordinal). La prendre entière produirait un
-        // `EntityId` du genre « a1b2…|3 », qui ne correspond à aucune ligne
-        // citable — et l'index par entité, qui sert précisément à retrouver
-        // l'histoire d'UNE fiche, ne rendrait rien.
-        // ═════════════════════════════════════════════════════════════════════
         var possession = entry.Metadata.FindOwnership();
 
         if (possession is null)

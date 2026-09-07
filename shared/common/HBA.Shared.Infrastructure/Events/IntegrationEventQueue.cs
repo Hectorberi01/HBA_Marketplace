@@ -1,23 +1,10 @@
 using HBA.Shared.IntegrationEvents;
 
 // LA FILE N'EST PAS L'OUTBOX : ELLE EST CE QUE L'OUTBOX DRAINE.
-//
-// Elle vit en memoire, le temps d'une unite de travail. `ModuleDbContext` la vide
-// dans la table du service au moment du `SaveChanges`. Elle reste donc au socle
-// quand l'outbox descend — c'est un port de la couche Application, pas une table.
 
 namespace HBA.Shared.Infrastructure.Events;
 
-/// <summary>
-/// File scopée d'events d'intégration. « Publier » revient à mettre l'event en
-/// file ; c'est le DbContext du module (qui sait dans quel schéma écrire) qui
-/// draine la file et écrit les lignes d'outbox dans la MÊME transaction que le
-/// changement d'état.
-///
-/// Ce découplage évite que le publisher dépende d'un IOutboxDbContext partagé :
-/// en monolithe multi-modules, plusieurs DbContext coexistent et une seule file
-/// scopée par requête route les events vers le bon module.
-/// </summary>
+/// <summary>File scopée d'events d'intégration.</summary>
 public sealed class IntegrationEventQueue : IIntegrationEventPublisher
 {
     private readonly List<IntegrationEvent> _events = new();

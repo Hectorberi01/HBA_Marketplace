@@ -4,35 +4,7 @@ using Xunit;
 
 namespace HBA.Promotions.Tests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES TROIS ANOMALIES DU LOT D28, ÉPROUVÉES SUR LE DOMAINE SEUL.
-///
-/// ISSUE-052 (qui paie la remise), ISSUE-053 (le budget d'une retenue expirée ne
-/// revient jamais) et la moitié domaine d'ISSUE-033 (la décomposition que le
-/// fournisseur de tarification consomme). Toutes sont des règles d'agrégat : elles
-/// n'ont besoin ni de base, ni de serveur, ni de Kafka pour être fausses.
-///
-/// CE QUI N'EST PAS COUVERT ICI, ET IL FAUT LE SAVOIR.
-///
-///   • `PromotionPricingModuleApi` — la quote-part par ligne, l'imputation à la
-///     PLATEFORME quand le vendeur de la ligne n'est pas le financeur, le repli
-///     « promotion-service injoignable ». Il vit dans l'Infrastructure de
-///     cart-service, que ce projet ne référence pas — et le référencer y ferait
-///     entrer EF, MediatR et gRPC pour trois assertions.
-///
-///   • LA MIGRATION `20260901000100_FinanceurDePromotion`, et notamment le défaut
-///     posé aux lignes existantes.
-///
-///   • LE CÂBLAGE du balayeur : qu'`ExpireCouponHoldsWorker` soit enregistré, que
-///     sa période soit lue, que `ListWithExpiredHoldsAsync` se traduise en SQL.
-///     Cela demande le service entier.
-///
-///   • LA GARDE D'APPARTENANCE de `/api/v1/merchant/promotions` : elle est dans
-///     l'Api et demande un hôte. Les projets `*.AuthorizationTests` du dépôt sont
-///     l'endroit pour cela, et promotion n'en a pas.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES TROIS ANOMALIES DU LOT D28, ÉPROUVÉES SUR LE DOMAINE SEUL.</summary>
 public sealed class FinanceurEtBalayageTests
 {
     private static readonly DateTime Maintenant = new(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
@@ -49,22 +21,16 @@ public sealed class FinanceurEtBalayageTests
             partVendeurBps, proprietaire).Value;
 
     /// <summary>
-    /// Le calcul de wallet, recopié à l'identique : `AccrueEarningsOnOrderConfirmedHandler`
-    /// fait `(UnitBasePrice - SellerDiscount) * Quantity`. C'est LUI qui prélève, et
-    /// c'est donc lui qu'il faut simuler pour vérifier qu'on ne prélève pas à tort.
+    /// Le calcul de wallet, recopié à l'identique :
+    /// `AccrueEarningsOnOrderConfirmedHandler` fait `(UnitBasePrice -
+    /// SellerDiscount) * Quantity`.
     /// </summary>
     private static long RevenuVendeur(long prixDeBase, long remiseVendeur)
         => Math.Max(0, prixDeBase - remiseVendeur);
 
     // ═════════════════════════════════════════════════════ ISSUE-052 · financeur
 
-    /// <summary>
-    /// LE DÉFAUT QUE D28 CORRIGE, DANS SA FORME LA PLUS DIRECTE.
-    ///
-    /// Brancher promotion-service sans financeur aurait fait supporter aux vendeurs
-    /// les coupons de la plateforme — silencieusement, par le calcul des gains, et
-    /// découvert au premier relevé contesté.
-    /// </summary>
+    /// <summary>LE DÉFAUT QUE D28 CORRIGE, DANS SA FORME LA PLUS DIRECTE.</summary>
     [Fact]
     public void Une_remise_financee_par_la_plateforme_n_entame_pas_le_revenu_vendeur()
     {
@@ -101,10 +67,6 @@ public sealed class FinanceurEtBalayageTests
     /// <summary>
     /// C'EST L'EXIGENCE EXPLICITE DE D28 : « le champ doit permettre d'exprimer
     /// plus tard une remise COFINANCÉE sans migration supplémentaire ».
-    ///
-    /// Ce test est la preuve que la forme retenue — une part en points de base —
-    /// le permet DÉJÀ. Un `funded_by` à deux valeurs aurait échoué ici, et la
-    /// correction aurait été une seconde migration.
     /// </summary>
     [Fact]
     public void Une_remise_cofinancee_s_exprime_sans_colonne_supplementaire()
@@ -122,11 +84,6 @@ public sealed class FinanceurEtBalayageTests
     /// <summary>
     /// LA SOMME DES DEUX PARTS VAUT TOUJOURS EXACTEMENT LA REMISE, ET LE RESTE
     /// D'ARRONDI VA À LA PLATEFORME.
-    ///
-    /// 1 001 × 50 % vaut 500,5. En arithmétique entière il faut choisir qui absorbe
-    /// le franc, et le choix n'est pas neutre : le faire porter au vendeur
-    /// produirait, sur un relevé mensuel, des écarts d'un franc qu'aucune ligne
-    /// n'explique. Un seul franc suffit à faire douter d'un relevé entier.
     /// </summary>
     [Fact]
     public void Le_reste_d_arrondi_est_supporte_par_la_plateforme()
@@ -138,12 +95,7 @@ public sealed class FinanceurEtBalayageTests
         imputation.Total.Should().Be(1_001);
     }
 
-    /// <summary>
-    /// UN PAYEUR SANS NOM EST REFUSÉ À LA CRÉATION.
-    ///
-    /// « Le vendeur paie » sans dire lequel obligerait le fournisseur de
-    /// tarification à imputer à n'importe quel vendeur du panier — donc au mauvais.
-    /// </summary>
+    /// <summary>UN PAYEUR SANS NOM EST REFUSÉ À LA CRÉATION.</summary>
     [Fact]
     public void Une_part_vendeur_sans_proprietaire_est_refusee()
     {
@@ -169,8 +121,8 @@ public sealed class FinanceurEtBalayageTests
 
     /// <summary>
     /// Sans financeur désigné, la campagne est celle de la PLATEFORME — le même
-    /// défaut que celui posé aux lignes existantes par la migration, et pour la même
-    /// raison : on ne facture pas un marchand qui n'a rien signé.
+    /// défaut que celui posé aux lignes existantes par la migration, et pour la
+    /// même raison : on ne facture pas un marchand qui n'a rien signé.
     /// </summary>
     [Fact]
     public void Une_campagne_sans_financeur_designe_est_celle_de_la_plateforme()
@@ -218,9 +170,7 @@ public sealed class FinanceurEtBalayageTests
 
     /// <summary>
     /// IDEMPOTENT, ET CE N'EST PAS UN LUXE : le balayeur repasse toutes les cinq
-    /// minutes. Un second crédit à chaque tour ferait une campagne qui ne s'épuise
-    /// jamais — c'est-à-dire l'inverse exact du défaut qu'on corrige, et tout aussi
-    /// invisible.
+    /// minutes.
     /// </summary>
     [Fact]
     public void Rejouer_le_balayage_ne_rend_pas_le_budget_deux_fois()
@@ -240,13 +190,7 @@ public sealed class FinanceurEtBalayageTests
         campagne.BudgetRemaining.Should().Be(2_000);
     }
 
-    /// <summary>
-    /// UN USAGE ENGAGÉ EST UNE VENTE PAYÉE : SON BUDGET EST DÛ.
-    ///
-    /// Le confondre avec une retenue abandonnée ferait de l'expiration un moyen
-    /// d'effacer un usage payé — et rendrait à la campagne un budget qu'elle a
-    /// réellement dépensé.
-    /// </summary>
+    /// <summary>UN USAGE ENGAGÉ EST UNE VENTE PAYÉE : SON BUDGET EST DÛ.</summary>
     [Fact]
     public void Un_usage_engage_n_est_jamais_balaye_meme_largement_expire()
     {
@@ -280,13 +224,7 @@ public sealed class FinanceurEtBalayageTests
 
     // ═══════════════════════════════════════════════════ Plafond par acheteur
 
-    /// <summary>
-    /// LE PLAFOND PAR COMPTE SE COMPTE SUR LES USAGES ENGAGÉS **ET** RETENUS.
-    ///
-    /// Ne compter que les engagés laisserait un même compte ouvrir cent paniers et
-    /// retenir cent fois le coupon avant d'en payer un seul : le budget global
-    /// s'épuiserait sans qu'aucune limite individuelle ne soit dépassée.
-    /// </summary>
+    /// <summary>LE PLAFOND PAR COMPTE SE COMPTE SUR LES USAGES ENGAGÉS **ET** RETENUS.</summary>
     [Fact]
     public void Un_coupon_au_dela_du_plafond_par_acheteur_est_refuse()
     {
@@ -301,13 +239,7 @@ public sealed class FinanceurEtBalayageTests
         seconde.Error.Code.Should().Be("promotions.coupon.per_user_limit_reached");
     }
 
-    /// <summary>
-    /// ET IL SE ROUVRE QUAND LA RETENUE EXPIRE.
-    ///
-    /// Sinon un client qui abandonne un panier se verrouillerait lui-même sur un
-    /// coupon qu'il n'a jamais utilisé — l'autre moitié d'ISSUE-053, celle qui, à
-    /// l'inverse du budget, se répare toute seule à la lecture.
-    /// </summary>
+    /// <summary>ET IL SE ROUVRE QUAND LA RETENUE EXPIRE.</summary>
     [Fact]
     public void Le_plafond_par_acheteur_se_rouvre_a_l_expiration_de_la_retenue()
     {

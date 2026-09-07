@@ -9,18 +9,7 @@ namespace HBA.Gateway.Infrastructure.HttpClients.Analytics;
 /// <inheritdoc cref="IAnalyticsClient" />
 public sealed class AnalyticsClient : ServiceHttpClient, IAnalyticsClient
 {
-    /// <summary>
-    /// Le format de date attendu par le service.
-    /// </summary>
-    /// <remarks>
-    /// `InvariantCulture` EXPLICITE, MÊME AVEC `InvariantGlobalization`.
-    ///
-    /// Le dépôt pose `InvariantGlobalization=true`, donc la culture courante EST
-    /// l'invariante aujourd'hui. S'appuyer là-dessus ferait dépendre le format
-    /// d'une ligne de `Directory.Build.props` que personne ne relierait jamais à
-    /// une date mal comprise en face : un `yyyy-MM-dd` rendu autrement produirait
-    /// un 400, ou pire, une période décalée.
-    /// </remarks>
+    /// <summary>Le format de date attendu par le service.</summary>
     private static string Borne(DateOnly jour) => jour.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     public AnalyticsClient(HttpClient http, ILogger<AnalyticsClient> logger) : base(http, logger)

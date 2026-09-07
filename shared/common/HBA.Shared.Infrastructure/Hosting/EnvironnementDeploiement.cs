@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 namespace HBA.Shared.Infrastructure.Hosting;
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// SOMMES-NOUS EN PRODUCTION — UNE SEULE RÉPONSE, ET ELLE EST FERMÉE PAR DÉFAUT.
 ///
 /// CE QUI ÉTAIT CASSÉ (audit du 27 août, constats 1.4 et 2.1).
@@ -41,7 +40,6 @@ namespace HBA.Shared.Infrastructure.Hosting;
 /// donnait un démarrage NORMAL, sans erreur, avec des effets métier fictifs et
 /// une cryptographie décorative.
 ///
-/// ═════════════════════════════════════════════════════════════════════════════
 /// LA RÈGLE, ET CE QU'ELLE RETOURNE.
 ///
 ///   1. VARIABLE ABSENTE OU VIDE → PRODUCTION. C'est le défaut d'ASP.NET Core,
@@ -66,7 +64,6 @@ namespace HBA.Shared.Infrastructure.Hosting;
 /// remboursements fictifs, invisibles jusqu'à ce que quelqu'un compare des
 /// données. On accepte le premier coût pour supprimer le second.
 ///
-/// ═════════════════════════════════════════════════════════════════════════════
 /// CE QUE CETTE CLASSE NE COUVRE PAS, ET IL FAUT LE SAVOIR.
 ///
 ///   • « Staging » EST TRAITÉ COMME HORS PRODUCTION. C'est le comportement
@@ -85,31 +82,21 @@ namespace HBA.Shared.Infrastructure.Hosting;
 ///     configuration : une porte de sortie configurable est exactement le
 ///     mécanisme par lequel ce genre de garde finit désactivé en production, par
 ///     une variable posée « le temps d'un test ».
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </summary>
 public static class EnvironnementDeploiement
 {
-    /// <summary>
-    /// Les seuls noms qui dispensent des gardes de production. Volontairement
-    /// courte, volontairement en dur.
-    /// </summary>
+    /// <summary>Les seuls noms qui dispensent des gardes de production.</summary>
     public static readonly FrozenSet<string> NomsHorsProduction =
         new[] { "Development", "Local", "Test", "Testing", "CI", "Staging" }
         .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Le nom brut lu dans la configuration, ou la chaîne vide s'il est absent.
-    /// Rendu séparément pour que les messages d'erreur des appelants puissent
-    /// dire CE QU'ILS ONT LU, et pas seulement leur conclusion.
-    /// </summary>
+    /// <summary>Le nom brut lu dans la configuration, ou la chaîne vide s'il est absent.</summary>
     public static string Nom(IConfiguration configuration)
         => configuration["ASPNETCORE_ENVIRONMENT"]
            ?? configuration["DOTNET_ENVIRONMENT"]
            ?? string.Empty;
 
-    /// <summary>
-    /// Vrai si les gardes de production doivent mordre. Voir l'encadré de classe.
-    /// </summary>
+    /// <summary>Vrai si les gardes de production doivent mordre.</summary>
     public static bool EstProduction(IConfiguration configuration)
     {
         var nom = Nom(configuration);
@@ -126,8 +113,8 @@ public static class EnvironnementDeploiement
 
         // UN NOM INCONNU N'EST PAS UNE ERREUR SILENCIEUSE. On rend « production »,
         // ce qui fait mordre les gardes de l'appelant avec SON message métier ;
-        // cette ligne dit pourquoi, sans quoi le refus paraîtrait sans rapport
-        // avec la coquille qui l'a causé.
+        // cette ligne dit pourquoi, sans quoi le refus paraîtrait sans rapport avec
+        // la coquille qui l'a causé.
         Console.WriteLine(
             $"[Environnement]  « {nom} » n'est pas un nom d'environnement connu. "
             + "Les gardes de production s'appliquent donc, par sécurité. "

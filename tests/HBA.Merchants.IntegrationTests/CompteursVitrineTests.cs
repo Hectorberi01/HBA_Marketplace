@@ -6,40 +6,14 @@ using Xunit;
 
 namespace HBA.Merchants.IntegrationTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES DEUX COMPTEURS DE LA VITRINE, QUI VALAIENT ZÉRO POUR TOUT LE MONDE.
-///
-/// `Seller.UpdateRating` N'AVAIT AUCUN APPELANT. RIEN N'INCRÉMENTAIT
-///    `SalesCount`.
-///
-/// Les deux colonnes existaient, étaient persistées, figuraient dans la projection
-/// de vitrine — et restaient à `0`. Un vendeur ayant écoulé trois cents commandes
-/// était présenté comme n'ayant jamais rien vendu ni satisfait personne. Sur une
-/// place de marché, la preuve sociale sur laquelle repose l'achat était donc
-/// constamment fausse, et fausse dans le sens qui décourage.
-///
-/// CE QUE CES TESTS ÉPROUVENT VRAIMENT : QU'ON POSE, ET QU'ON N'ACCUMULE PAS.
-///
-/// Les deux gestionnaires reçoivent une valeur RECALCULÉE depuis la source et la
-/// posent telle quelle. C'est ce qui les rend idempotents face à un rejeu — Kafka
-/// livre au moins une fois. Un compteur incrémental passerait le premier test et
-/// échouerait au second : c'est pour cela qu'ils vont par paires, et que la
-/// seconde valeur est toujours PLUS PETITE que la première.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES DEUX COMPTEURS DE LA VITRINE, QUI VALAIENT ZÉRO POUR TOUT LE MONDE.</summary>
 [Collection(MerchantsIntegrationCollection.Nom)]
-// SANS CE TRAIT, LA CLASSE TOURNE DANS `make test` ET ÉCHOUE SUR UN POSTE
-// SANS DOCKER. C'est le filtre de la cible `test` — voir le Makefile.
+// SANS CE TRAIT, LA CLASSE TOURNE DANS `make test` ET ÉCHOUE SUR UN POSTE SANS
+// DOCKER. C'est le filtre de la cible `test` — voir le Makefile.
 [Trait("Docker", "true")]
 public sealed class CompteursVitrineTests
 {
-    /// <summary>
-    /// Noms de contrat, écrits en dur. Voir `PurgeRgpdTests` : les calculer avec
-    /// `KafkaEventNaming` ferait passer le test quoi qu'il arrive, y compris le
-    /// jour où la convention change et où les services déployés cessent de se
-    /// comprendre.
-    /// </summary>
+    /// <summary>Noms de contrat, écrits en dur.</summary>
     private const string TypeNoteRecalculee = "seller.rating.recomputed";
 
     private const string TypeCommandeConfirmee = "order.confirmed";
@@ -48,9 +22,7 @@ public sealed class CompteursVitrineTests
 
     public CompteursVitrineTests(MerchantsIntegrationFixture fixture) => _fixture = fixture;
 
-    /// <summary>
-    /// La note publiée par review-service se retrouve sur le vendeur.
-    /// </summary>
+    /// <summary>La note publiée par review-service se retrouve sur le vendeur.</summary>
     [Fact]
     public async Task La_note_recalculee_est_posee_sur_le_vendeur()
     {
@@ -62,13 +34,7 @@ public sealed class CompteursVitrineTests
             "la colonne existait depuis toujours et n'avait aucun alimenteur");
     }
 
-    /// <summary>
-    /// LE TEST QUI DISTINGUE « POSER » DE « ACCUMULER ».
-    ///
-    /// La seconde moyenne est plus BASSE que la première — un avis vient d'être
-    /// modéré. Un gestionnaire qui accumulerait ne saurait pas redescendre ; il
-    /// passerait le test précédent et échouerait ici.
-    /// </summary>
+    /// <summary>LE TEST QUI DISTINGUE « POSER » DE « ACCUMULER ».</summary>
     [Fact]
     public async Task Une_note_qui_baisse_remplace_l_ancienne()
     {
@@ -84,19 +50,13 @@ public sealed class CompteursVitrineTests
             + "qu'ajouter laisserait le vendeur porter la note d'un avis modéré");
     }
 
-    /// <summary>
-    /// Une commande confirmée fait recalculer le compteur de ventes.
-    /// </summary>
+    /// <summary>Une commande confirmée fait recalculer le compteur de ventes.</summary>
     [Fact]
     public async Task Une_commande_confirmee_met_a_jour_le_compteur_de_ventes()
     {
         var vendeur = await Parcours.InscrireAsync(_fixture, $"Ventes {Guid.NewGuid():N}");
 
         // C'EST order-service QUI RÉPOND, PAS L'ÉVÉNEMENT QUI PORTE LE COMPTE.
-        //
-        // L'événement porte pourtant `ItemCount` par vendeur — et l'utiliser aurait
-        // été le piège : il faudrait alors additionner, donc double-compter au
-        // premier rejeu.
         _fixture.Commandes.FixerVentes(vendeur.SellerId, 12);
 
         await PublierCommandeConfirmeeAsync(vendeur.SellerId);
@@ -104,12 +64,7 @@ public sealed class CompteursVitrineTests
         (await AttendreVentesAsync(vendeur.SellerId, 12)).Should().Be(12);
     }
 
-    /// <summary>
-    /// LE MÊME TEST QUE CI-DESSUS, DANS L'AUTRE SENS.
-    ///
-    /// order-service répond moins la seconde fois — une commande a été annulée
-    /// entre-temps. Poser le total le suit ; incrémenter ne le pourrait pas.
-    /// </summary>
+    /// <summary>LE MÊME TEST QUE CI-DESSUS, DANS L'AUTRE SENS.</summary>
     [Fact]
     public async Task Un_compteur_de_ventes_qui_baisse_est_suivi()
     {
@@ -150,9 +105,7 @@ public sealed class CompteursVitrineTests
         data.GetProperty("salesCount").GetInt32().Should().Be(5);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Outillage
-    // ═════════════════════════════════════════════════════════════════════════
 
     private Task PublierNoteAsync(Guid sellerId, double moyenne, int compte)
         => BusDeTest.PublierAsync(
@@ -201,14 +154,7 @@ public sealed class CompteursVitrineTests
     private Task<int> AttendreVentesAsync(Guid sellerId, int attendues)
         => AttendreAsync<int>(sellerId, "\"SalesCount\"", v => v == attendues);
 
-    /// <summary>
-    /// UNE ATTENTE ACTIVE, ET LA LECTURE SE FAIT EN SQL.
-    ///
-    /// En SQL parce que passer par le `DbContext` du service ferait vérifier
-    /// l'écriture avec le mécanisme qui l'a produite. Active parce que le temps de
-    /// consommation dépend du rééquilibrage initial du groupe Kafka, qui peut
-    /// prendre plusieurs secondes — un délai fixe serait instable ou lent.
-    /// </summary>
+    /// <summary>UNE ATTENTE ACTIVE, ET LA LECTURE SE FAIT EN SQL.</summary>
     private async Task<T> AttendreAsync<T>(Guid sellerId, string colonne, Func<T, bool> satisfait)
     {
         var echeance = DateTime.UtcNow.AddSeconds(60);

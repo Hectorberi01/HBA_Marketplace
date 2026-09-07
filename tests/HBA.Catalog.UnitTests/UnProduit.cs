@@ -2,25 +2,7 @@ using HBA.Catalog.Domain.Products;
 
 namespace HBA.Catalog.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE MONTEUR DE PRODUITS DES TESTS.
-///
-/// IL S'APPELLE « UnProduit » ET NON « Product », DÉLIBÉRÉMENT.
-///
-/// Une classe d'aide nommée comme le type qu'elle construit MASQUE ce type dans
-/// tout le fichier de test. Les appels statiques — `Product.Create(...)` — se
-/// mettent alors à désigner l'aide, et il faut qualifier le vrai type partout.
-/// Le piège a déjà coûté une passe de correction dans les tests de promotion ;
-/// il est refermé ici par le nom.
-///
-/// Ce que ce monteur apporte : un produit SOUMETTABLE. Les préconditions du §23
-/// — boutique, description, au moins une image, exactement une image principale —
-/// sont satisfaites par défaut, et chaque test n'a plus qu'à retirer CELLE qu'il
-/// veut voir refusée. Écrites à la main dans chaque test, elles seraient recopiées
-/// vingt fois, et l'oubli de l'une ferait échouer un test pour la mauvaise raison.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE MONTEUR DE PRODUITS DES TESTS.</summary>
 internal static class UnProduit
 {
     public static readonly Guid Vendeur = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -58,16 +40,7 @@ internal static class UnProduit
             Slug: null,
             Specifications: specifications);
 
-    /// <summary>
-    /// Une fiche technique d'exemple (§12), reprise de celle du cahier.
-    ///
-    /// ELLE EST REDONNÉE À CHAQUE APPEL, PAS PARTAGÉE.
-    ///
-    /// Les tests de modification comparent une saisie à une révision existante.
-    /// Réutiliser une même instance ferait passer une comparaison de CONTENU pour
-    /// une comparaison de RÉFÉRENCE, et le test de « modification à l'identique »
-    /// réussirait pour la mauvaise raison.
-    /// </summary>
+    /// <summary>Une fiche technique d'exemple (§12), reprise de celle du cahier.</summary>
     public static IReadOnlyList<GroupeDeSpecifications> FicheTechnique(string batterie = "4400 mAh")
         => new List<GroupeDeSpecifications>
         {

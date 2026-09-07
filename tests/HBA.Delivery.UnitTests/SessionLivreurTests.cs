@@ -8,39 +8,13 @@ using Livreur = HBA.Deliveries.Domain.Drivers.Driver;
 
 namespace HBA.Delivery.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LOT 5.2 — ISSUE-029 / ISSUE-030 : LE DOMAINE LIVRAISON ÉTAIT INERTE.
-///
-/// Ce que ces tests gardent, dans l'ordre d'importance :
-///
-///   1. UNE POSITION PUBLIÉE ALIMENTE LE CACHE. `IDriverLocationCache.SetAsync`
-///      n'avait AUCUN appelant : `DispatchDeliveryCommandHandler` lisait un cache
-///      que rien ne remplissait, donc aucune course n'était jamais proposée à
-///      personne. C'est le test qui garde le chaînon.
-///
-///   2. L'IDENTITÉ VIENT DU JETON. `ResolveDriverQuery` traduit le compte en
-///      livreur ; aucune route livreur ne prend d'identifiant. Un compte sans
-///      livreur obtient « introuvable », pas la course de quelqu'un d'autre.
-///
-///   3. UN LIVREUR NE FAIT PROGRESSER QUE SA COURSE. La garde est
-///      `RequiredDriverId`, et elle rend « introuvable » — jamais « interdit ».
-///
-/// CE QUE CES TESTS N'ÉPROUVENT PAS : les ROUTES. Qu'elles passent bien
-/// `RequiredDriverId` et qu'elles ne lisent aucun identifiant dans le corps ne
-/// s'éprouve qu'avec l'hôte entier, et le domaine livraison n'a pas de projet
-/// `*.AuthorizationTests`. C'est la faille ISSUE-017/018 qui se rouvre par là,
-/// et rien ici ne la surveille.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LOT 5.2 — ISSUE-029 / ISSUE-030 : LE DOMAINE LIVRAISON ÉTAIT INERTE.</summary>
 public sealed class SessionLivreurTests
 {
     private const double LatitudeCotonou = 6.3654;
     private const double LongitudeCotonou = 2.4183;
 
-    // ─────────────────────────────────────────────────────────────────────────
     // 1. LA POSITION ALIMENTE LE CACHE
-    // ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public async Task Une_position_publiee_alimente_le_cache_de_dispatch()
@@ -61,14 +35,7 @@ public sealed class SessionLivreurTests
         enCache.Value.Position.Longitude.Should().Be(LongitudeCotonou);
     }
 
-    /// <summary>
-    /// LE BATTEMENT N'ÉCRIT PAS EN BASE À CHAQUE FOIS.
-    ///
-    /// C'est l'invariant que l'encadré de `IDriverLocationCache` exige : cent
-    /// livreurs qui émettent toutes les cinq à quinze secondes feraient sept à
-    /// vingt écritures PostgreSQL par seconde sur une donnée sans historique. La
-    /// recopie en base est ÉPISODIQUE ; Redis reçoit tout.
-    /// </summary>
+    /// <summary>LE BATTEMENT N'ÉCRIT PAS EN BASE À CHAQUE FOIS.</summary>
     [Fact]
     public async Task Deux_battements_rapproches_n_ecrivent_qu_une_fois_en_base()
     {
@@ -86,22 +53,7 @@ public sealed class SessionLivreurTests
     }
 
     /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
     /// UN CONFLIT DE CONCURRENCE SUR LA RECOPIE NE FAIT PAS ÉCHOUER LE BATTEMENT.
-    ///
-    /// `drivers` porte un jeton de concurrence depuis le lot 8.3, posé pour la
-    /// DISPONIBILITÉ — écrite par le dispatch, par le livreur et par la course, qui
-    /// ne s'attendent pas. Mais un jeton s'applique à TOUT `UPDATE` de la ligne, y
-    /// compris la recopie épisodique de position.
-    ///
-    /// Sans tolérance, un battement GPS qui croiserait un changement de statut
-    /// rendrait un 409 à l'application du livreur — pour une écriture de confort,
-    /// alors que Redis a déjà reçu la donnée que le dispatch lit réellement.
-    ///
-    /// Ce test est le seul endroit où cette branche s'exécute. Sans lui, la
-    /// tolérance serait du code que personne ne parcourt jamais — et l'on ne
-    /// saurait pas si elle avale le conflit ou le laisse remonter.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     [Fact]
     public async Task Un_conflit_sur_la_recopie_laisse_le_battement_reussir()
@@ -124,9 +76,9 @@ public sealed class SessionLivreurTests
     }
 
     /// <summary>
-    /// La position d'un livreur hors service n'est pas conservée : c'est une
-    /// donnée personnelle de géolocalisation, et la collecter hors service serait
-    /// sans finalité.
+    /// La position d'un livreur hors service n'est pas conservée : c'est une donnée
+    /// personnelle de géolocalisation, et la collecter hors service serait sans
+    /// finalité.
     /// </summary>
     [Fact]
     public async Task Un_livreur_hors_service_ne_peut_pas_publier_sa_position()
@@ -142,11 +94,7 @@ public sealed class SessionLivreurTests
         cache.Ecritures.Should().Be(0);
     }
 
-    /// <summary>
-    /// Passer hors service RETIRE du cache. Sans cela, le livreur resterait
-    /// proposable jusqu'à l'expiration de sa clé horodatée — deux minutes pendant
-    /// lesquelles on lui propose des courses qu'il ne prendra pas.
-    /// </summary>
+    /// <summary>Passer hors service RETIRE du cache.</summary>
     [Fact]
     public async Task Quitter_le_service_retire_le_livreur_du_cache()
     {
@@ -164,17 +112,11 @@ public sealed class SessionLivreurTests
         (await cache.GetAsync(livreur.Id)).Should().BeNull();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // 2. UN LIVREUR NON VÉRIFIÉ N'EST PAS DISPATCHABLE
-    // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// LA GARDE EST DANS L'AGRÉGAT, ET C'EST CE QUI EMPÊCHE UN LIVREUR SUSPENDU
-    /// DE SE REMETTRE EN LIGNE DEPUIS SON TÉLÉPHONE.
-    ///
-    /// `DriverStore` naissait avec un livreur déjà « VERIFIED » et aucune route ne
-    /// pouvait changer cet état : « vérifié » ne voulait rien dire, et cette garde
-    /// était donc toujours satisfaite.
+    /// LA GARDE EST DANS L'AGRÉGAT, ET C'EST CE QUI EMPÊCHE UN LIVREUR SUSPENDU DE
+    /// SE REMETTRE EN LIGNE DEPUIS SON TÉLÉPHONE.
     /// </summary>
     [Fact]
     public async Task Un_livreur_non_verifie_ne_peut_pas_prendre_son_service()
@@ -199,9 +141,7 @@ public sealed class SessionLivreurTests
         livreur.CanReceiveOffers.Should().BeTrue();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // 3. L'IDENTITÉ VIENT DU JETON
-    // ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public async Task Le_livreur_est_resolu_depuis_le_compte_du_jeton()
@@ -216,8 +156,8 @@ public sealed class SessionLivreurTests
     }
 
     /// <summary>
-    /// « INTROUVABLE » ET NON « INTERDIT » : distinguer les deux dirait à
-    /// n'importe quel compte authentifié quels autres comptes sont des livreurs.
+    /// « INTROUVABLE » ET NON « INTERDIT » : distinguer les deux dirait à n'importe
+    /// quel compte authentifié quels autres comptes sont des livreurs.
     /// </summary>
     [Fact]
     public async Task Un_compte_sans_dossier_livreur_n_obtient_aucun_identifiant()
@@ -243,9 +183,7 @@ public sealed class SessionLivreurTests
         resolu.Error.Code.Should().Be("driver.unauthenticated");
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // 4. UN LIVREUR NE FAIT PROGRESSER QUE SA COURSE
-    // ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public async Task Un_livreur_ne_peut_pas_faire_progresser_la_course_d_un_autre()
@@ -282,9 +220,8 @@ public sealed class SessionLivreurTests
     }
 
     /// <summary>
-    /// C'EST SUR LA REMISE QUE LA GARDE COMPTE LE PLUS : c'est cette transition
-    /// qui déclenche le GAIN du livreur. Sans elle, tout livreur authentifié
-    /// clôturait la course d'un autre et en encaissait la part.
+    /// C'EST SUR LA REMISE QUE LA GARDE COMPTE LE PLUS : c'est cette transition qui
+    /// déclenche le GAIN du livreur.
     /// </summary>
     [Fact]
     public async Task Un_intrus_ne_peut_pas_cloturer_la_course_d_un_autre_ni_en_toucher_le_gain()
@@ -313,11 +250,7 @@ public sealed class SessionLivreurTests
         course.DriverEarning.Should().BeNull("aucun gain ne doit avoir été figé");
     }
 
-    /// <summary>
-    /// L'acceptation touche DEUX agrégats : la course et le livreur. Oublier de
-    /// marquer le livreur occupé le laisserait recevoir une seconde proposition
-    /// pendant qu'il roule.
-    /// </summary>
+    /// <summary>L'acceptation touche DEUX agrégats : la course et le livreur.</summary>
     [Fact]
     public async Task Accepter_une_proposition_engage_la_course_ET_le_livreur()
     {
@@ -366,9 +299,7 @@ public sealed class SessionLivreurTests
         intrus.Availability.Should().Be(DriverAvailability.Available, "l'intrus ne doit pas être engagé");
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // FABRIQUES
-    // ─────────────────────────────────────────────────────────────────────────
 
     private static (DriverSessionCommandHandler Handler, FauxCacheDePositions Cache, FausseUniteDeTravail Unite)
         Atelier(Livreur livreur)

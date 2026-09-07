@@ -3,17 +3,7 @@ using OrderAggregate = HBA.Orders.Domain.Orders.Order;
 
 namespace HBA.Order.UnitTests;
 
-/// <summary>
-/// Fabrique de commandes pour les tests.
-///
-/// ON PASSE PAR `Order.Create` PUIS PAR LA SAGA, PAS PAR UN CONSTRUCTEUR.
-///
-/// `SellerOrder.SplitFrom` exige une commande CONFIRMÉE, et « confirmée » n'est
-/// atteignable que par `MarkAwaitingPayment` → `MarkPaid` → `Confirm`. Un test
-/// qui fabriquerait l'état à la main éprouverait une commande que le code de
-/// production ne peut pas produire — et manquerait précisément l'invariant de
-/// naissance des parts vendeur.
-/// </summary>
+/// <summary>Fabrique de commandes pour les tests.</summary>
 internal static class UneCommande
 {
     /// <summary>Instant de référence. Fixe : les horodatages de transition se comparent.</summary>
@@ -35,7 +25,7 @@ internal static class UneCommande
             FinalUnitPrice: prixUnitaire);
 
     /// <summary>
-    /// Une ligne de repas. Son <c>SellerId</c> est VIDE — c'est tout l'objet du
+    /// Une ligne de repas. Son <c> SellerId</c> est VIDE — c'est tout l'objet du
     /// filtre que le découpage doit respecter.
     /// </summary>
     public static OrderLineDraft Repas(Guid restaurantId, int quantite = 1, decimal prixUnitaire = 2500m)

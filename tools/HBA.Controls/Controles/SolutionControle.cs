@@ -2,48 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace HBA.Controls.Controles;
 
-/// <summary>
-/// La solution référence-t-elle encore ce qui existe ?
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// ÉCRIT PARCE QUE `HBA.sln` A CASSÉ LE BUILD ET QU'AUCUN CONTRÔLE NE LE VOYAIT.
-///
-/// Le retrait de quatre squelettes avait supprimé vingt blocs `Project` et leurs
-/// lignes de configuration — mais PAS leurs lignes d'imbrication, restées dans
-/// `GlobalSection(NestedProjects)`. MSBuild s'arrête net :
-///
-///     HBA.sln(2849): error MSB5023: Un projet avec le GUID « {FBE95272-…} »
-///     est répertorié comme étant imbriqué sous le projet « {0A6FC087-…} »,
-///     mais il n'existe pas dans la solution.
-///
-/// Zéro fichier C# en cause, zéro erreur de compilation : les quinze contrôles
-/// passaient tous, et rien ne se construisait.
-///
-/// CE QUI REND CE DÉFAUT PARTICULIER : LA VÉRIFICATION S'EST TROMPÉE COMME LE
-/// RETRAIT. Le retrait cherchait les lignes d'imbrication avec `^\t\{` — UNE
-/// tabulation. Elles en portent DEUX. La vérification écrite dans la foulée
-/// utilisait le MÊME motif, a donc trouvé « zéro orphelin », et a confirmé une
-/// suppression qui n'avait pas eu lieu. Un contrôle qui partage l'hypothèse
-/// fausse du code qu'il contrôle ne contrôle rien.
-///
-/// D'OÙ LA RÈGLE TENUE ICI : aucune contrainte d'indentation nulle part
-/// (`\s*` partout). Rien ne se décide à partir d'un motif de mise en forme.
-///
-/// CE QU'IL VÉRIFIE
-///   1. tout GUID cité en tête de ligne — configuration ou imbrication — est
-///      déclaré par un bloc `Project` ;
-///   2. tout GUID PARENT d'une imbrication l'est aussi ;
-///   3. `Project`/`EndProject` et `GlobalSection`/`EndGlobalSection`
-///      s'équilibrent ;
-///   4. chaque `.csproj` référencé existe sur le disque ;
-///   5. aucun `.csproj` du dépôt n'est absent de la solution — l'oubli inverse,
-///      qui ne casse pas le build mais laisse un projet jamais compilé.
-///
-/// CE QU'IL NE VÉRIFIE PAS : que la solution se construise. Il lit un fichier
-/// texte ; il ne remplace pas `dotnet build`.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>La solution référence-t-elle encore ce qui existe ?</summary>
 public sealed class SolutionControle : IControle
 {
     /// <inheritdoc/>
@@ -136,21 +95,7 @@ public sealed class SolutionControle : IControle
             }
         }
 
-        // ═════════════════════════════════════════════════════════════════
         // UN PROJET ABSENT DE LA SOLUTION N'EST PAS FORCÉMENT UN PROJET PERDU.
-        //
-        // Le contrôle Python listait les orphelins pour information, sans jamais
-        // faire échouer, alors que sa documentation annonçait qu'il vérifiait
-        // « l'oubli inverse ». Porté tel quel en faute, il rendait SIX faux
-        // positifs : les contrats gRPC de `shared/contracts` ne sont pas dans le
-        // `.sln`, mais six projets de services les référencent — ils sont donc
-        // compilés, transitivement, à chaque build.
-        //
-        // La distinction qui compte n'est pas « déclaré dans le .sln » mais
-        // « atteignable par la compilation ». Un projet que PERSONNE ne
-        // référence et que le .sln ignore n'est compilé par rien : son code
-        // pourrit sans qu'aucune erreur ne le dise.
-        // ═════════════════════════════════════════════════════════════════
         var reference = ProjetsReferences();
         var orphelins = surDisque.Except(references)
             .OrderBy(x => x, StringComparer.Ordinal)
@@ -185,7 +130,7 @@ public sealed class SolutionControle : IControle
     }
 
     /// <summary>
-    /// Tout projet cité par un <c>ProjectReference</c>, en chemin relatif à la
+    /// Tout projet cité par un <c> ProjectReference</c>, en chemin relatif à la
     /// racine du dépôt.
     /// </summary>
     private static HashSet<string> ProjetsReferences()
@@ -203,12 +148,6 @@ public sealed class SolutionControle : IControle
     }
 
     /// <summary>Occurrences d'une sous-chaîne littérale.</summary>
-    /// <remarks>
-    /// Une expression rationnelle ferait l'affaire, mais `GlobalSection(`
-    /// contient une parenthèse : il faudrait l'échapper, et un échappement
-    /// oublié transformerait le compte en groupe de capture vide qui compte
-    /// tout autre chose sans rien signaler.
-    /// </remarks>
     private static int Compter(string texte, string aiguille)
     {
         var total = 0;

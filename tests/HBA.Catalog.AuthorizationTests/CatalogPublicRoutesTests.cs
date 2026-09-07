@@ -7,23 +7,7 @@ using Xunit;
 
 namespace HBA.Catalog.AuthorizationTests;
 
-/// <summary>
-/// catalog-service : la vitrine doit s'afficher sans compte.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CE QUE LA `FallbackPolicy` PEUT CASSER SANS QUE PERSONNE NE LE VOIE.
-///
-/// Le socle installe désormais une politique de repli qui ferme tout point de
-/// terminaison sans métadonnée d'autorisation (voir ServiceHostExtensions). Les
-/// routes de vitrine ne survivent que par leur `AllowAnonymous` EXPLICITE : le
-/// groupe `/api/v1/catalog` est un `MapGroup` nu, donc soumis au repli.
-///
-/// Retirer un seul de ces `AllowAnonymous`, et la page d'accueil de l'application
-/// cliente rend 401 pour un visiteur non connecté — c'est-à-dire pour la totalité
-/// des nouveaux venus.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>catalog-service : la vitrine doit s'afficher sans compte.</summary>
 public sealed class CatalogPublicRoutesTests : IClassFixture<AuthorizationTestFactory<Program>>
 {
     private readonly AuthorizationTestFactory<Program> _factory;
@@ -32,8 +16,7 @@ public sealed class CatalogPublicRoutesTests : IClassFixture<AuthorizationTestFa
 
     /// <summary>
     /// L'assertion porte sur 401 et non sur 200 : sans base, la requête franchit
-    /// l'autorisation puis échoue dans le handler. C'est le franchissement qui
-    /// est éprouvé — voir AuthorizationTestFactory.
+    /// l'autorisation puis échoue dans le handler.
     /// </summary>
     [Theory]
     [InlineData("/api/v1/catalog/products")]
@@ -47,20 +30,7 @@ public sealed class CatalogPublicRoutesTests : IClassFixture<AuthorizationTestFa
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LA VUE DE GOUVERNANCE A ÉTÉ EXPOSÉE EN ANONYME, ET CE TEST L'INTERDIT.
-    ///
-    /// `GET /api/v1/catalog/products` était branchée sur `ListAllProductsQuery` —
-    /// documentée « console admin » — dont le filtre de statut est FACULTATIF.
-    /// Sans paramètre, la vitrine rendait les brouillons, les fiches en attente de
-    /// validation, les rejetées et les suspendues, plus la répartition du
-    /// catalogue par statut.
-    ///
-    /// La requête a déménagé sous `/admin`. Ce test échoue si elle en ressort :
-    /// c'est la seule barrière qui ne dépend pas de la lecture d'un commentaire.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LA VUE DE GOUVERNANCE A ÉTÉ EXPOSÉE EN ANONYME, ET CE TEST L'INTERDIT.</summary>
     [Theory]
     [InlineData("/api/v1/catalog/admin/products")]
     public async Task La_vue_de_gouvernance_exige_un_role(string route)
@@ -72,20 +42,7 @@ public sealed class CatalogPublicRoutesTests : IClassFixture<AuthorizationTestFa
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LA VALIDATION EST LA BARRIÈRE DU §4. ELLE NE PEUT PAS S'OUVRIR À UN
-    ///    COMPTE ORDINAIRE.
-    ///
-    /// « Un vendeur ne peut jamais publier un produit qui n'a pas été approuvé par
-    /// un administrateur. » Cette règle ne tient que si l'approbation elle-même est
-    /// hors de portée du vendeur. Un jeton d'acheteur — celui que délivre n'importe
-    /// quelle inscription — doit se heurter à un 403 sur les six routes.
-    ///
-    /// Le domaine refuserait déjà l'enchaînement dans la plupart des cas ; ce test
-    /// ne dépend pas de cette chance-là.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LA VALIDATION EST LA BARRIÈRE DU §4.</summary>
     [Theory]
     [InlineData("GET", "/api/v1/catalog/admin/products/reviews")]
     [InlineData("GET", "/api/v1/catalog/admin/products/{id}/review")]
@@ -112,11 +69,7 @@ public sealed class CatalogPublicRoutesTests : IClassFixture<AuthorizationTestFa
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
-    /// <summary>
-    /// Le vendeur relit ses propres fiches par son groupe, pas par la vitrine.
-    /// Ces deux routes remplacent l'accès qu'il avait aux brouillons via la route
-    /// publique — voir l'encadré de `MapCatalogEndpoints`.
-    /// </summary>
+    /// <summary>Le vendeur relit ses propres fiches par son groupe, pas par la vitrine.</summary>
     [Theory]
     [InlineData("/api/v1/catalog/seller/products")]
     [InlineData("/api/v1/catalog/seller/products/11111111-1111-1111-1111-111111111111")]
@@ -127,25 +80,7 @@ public sealed class CatalogPublicRoutesTests : IClassFixture<AuthorizationTestFa
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// UN JETON NE SUFFIT PLUS : LA SURFACE VENDEUR EXIGE LE RÔLE (§22).
-    ///
-    /// Ce groupe n'exigeait qu'un compte authentifié. N'importe quel ACHETEUR y
-    /// entrait, et seule la garde d'appartenance — route par route — l'arrêtait,
-    /// en rendant 404. Cela tenait tant que CHAQUE route portait sa garde,
-    /// c'est-à-dire tant que personne n'en ajoutait une en l'oubliant.
-    ///
-    /// Le défaut serait invisible : une route vendeur ajoutée sans garde répondrait
-    /// 200 à un acheteur, exactement comme elle répond 200 à son propriétaire. Rien
-    /// dans la réponse ne dirait laquelle des deux protections a joué — puisque
-    /// aucune n'aurait joué.
-    ///
-    /// 403 et non 404 : ici c'est le RÔLE qui manque, pas la ressource. Le 404 des
-    /// gardes d'appartenance dit « pas à vous » sans confirmer l'existence ; le 403
-    /// du groupe dit « pas cette surface », ce qui n'apprend rien à personne.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>UN JETON NE SUFFIT PLUS : LA SURFACE VENDEUR EXIGE LE RÔLE (§22).</summary>
     [Theory]
     [InlineData("GET", "/api/v1/catalog/seller/products")]
     [InlineData("POST", "/api/v1/catalog/seller/products")]
@@ -160,13 +95,7 @@ public sealed class CatalogPublicRoutesTests : IClassFixture<AuthorizationTestFa
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// LECTURE PUBLIQUE N'EST PAS ÉCRITURE PUBLIQUE.
-    ///
-    /// Le référentiel — marques et catégories — était ouvert en écriture à tout
-    /// compte inscrit. Or supprimer une catégorie emporte le rattachement de tous
-    /// les produits qui la référencent, chez tous les vendeurs, d'un seul appel.
-    /// </summary>
+    /// <summary>LECTURE PUBLIQUE N'EST PAS ÉCRITURE PUBLIQUE.</summary>
     [Theory]
     [InlineData("POST", "/api/v1/catalog/admin/brands")]
     [InlineData("POST", "/api/v1/catalog/admin/categories")]

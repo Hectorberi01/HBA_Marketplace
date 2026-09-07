@@ -94,22 +94,9 @@ public sealed class ProductDetailHandlerTests
         var response = await Handler().HandleAsync(ProductId, CancellationToken.None);
 
         // LE TEST LE PLUS IMPORTANT DU FICHIER.
-        //
-        // `Available = 0` ferait afficher « rupture » sur tout le catalogue
-        // pendant une panne d'inventaire, et perdre les ventes correspondantes.
         response.Data.Variants.Should().OnlyContain(variant => variant.Available == null);
 
         // `ContainSingle` ÉTAIT FAUX, ET LE CODE AVAIT RAISON.
-        //
-        // La fiche produit émet TOUJOURS un second avertissement : merchant-service
-        // n'expose aucune vitrine publique de boutique, donc `NOT_CONFIGURED` est
-        // permanent tant que la route n'existe pas.
-        //
-        // Mon assertion supposait un écran sans autre dégradation — une hypothèse
-        // que le fichier de test lui-même contredit deux tests plus bas. Vérifier
-        // la PRÉSENCE de l'avertissement d'inventaire est ce qui était voulu ;
-        // verrouiller leur NOMBRE ne prouvait rien et cassait au premier manque
-        // supplémentaire.
         response.Warnings.Should().Contain(
             new BffWarning("Inventory", BffWarning.ServiceUnavailable));
     }
@@ -143,8 +130,6 @@ public sealed class ProductDetailHandlerTests
         response.Data.Rating.Should().BeNull();
 
         // Un service qui refuse LÉGITIMEMENT n'est pas un service en panne.
-        // Émettre un avertissement ici remplirait le tableau à chaque visite
-        // non connectée, et les vrais n'y seraient plus lus.
         response.Warnings.Should().NotContain(warning => warning.Source == "Engagement");
     }
 
@@ -161,7 +146,7 @@ public sealed class ProductDetailHandlerTests
         var pending = Handler().HandleAsync(ProductId, CancellationToken.None);
 
         // Les deux appels de stock doivent être PARTIS avant qu'aucun ne soit
-        // résolu. En séquentiel, le compteur serait bloqué à 1.
+        // résolu.
         await WaitUntilAsync(() => Volatile.Read(ref _inventory.CallCount) == 2);
 
         gate.SetResult();
@@ -184,14 +169,7 @@ public sealed class ProductDetailHandlerTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
     }
 
-    /// <summary>
-    /// Attend une condition sans <c>Task.Delay</c> fixe.
-    /// </summary>
-    /// <remarks>
-    /// Un délai fixe rend le test soit lent, soit instable sur une machine
-    /// d'intégration chargée. Le plafond n'existe que pour ne pas bloquer la suite
-    /// si la condition ne survient jamais.
-    /// </remarks>
+    /// <summary>Attend une condition sans <c>Task.Delay</c> fixe.</summary>
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
         var deadline = DateTime.UtcNow.AddSeconds(5);

@@ -6,7 +6,6 @@ namespace HBA.Controls.Controles;
 /// Une permission que personne n'interroge est un droit sans effet.
 /// </summary>
 /// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
 /// IL Y EN AVAIT SEPT, ET RIEN NE PERMETTAIT DE LE SAVOIR.
 ///
 /// Le catalogue déclare cinquante-sept permissions. Chacune est attribuée à des
@@ -74,7 +73,6 @@ namespace HBA.Controls.Controles;
 /// CE QU'IL NE VÉRIFIE PAS : que la garde soit au BON endroit, ni qu'elle couvre
 /// toutes les routes qu'elle devrait. Une permission exigée par une seule route
 /// sur cinq passe ce contrôle.
-/// ═══════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class PermissionsControle : IControle
 {
@@ -102,7 +100,6 @@ public sealed class PermissionsControle : IControle
     /// LA DÉCLARATION de <c>SansGardeAssumee</c>, et non sa première MENTION.
     /// </summary>
     /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
     /// CE MOTIF EXISTE PARCE QUE LE CONTRÔLE A ACCUSÉ CINQUANTE-TROIS
     ///    PERMISSIONS D'UN COUP.
     ///
@@ -126,7 +123,6 @@ public sealed class PermissionsControle : IControle
     /// SI LA FORME DE LA DÉCLARATION CHANGE, ce motif ne trouve plus rien et le
     /// contrôle le DIT — voir l'appelant. Il ne rend pas un ensemble vide en
     /// silence, ce qui transformerait cinq constats en cinq fautes au motif faux.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </remarks>
     private static readonly Regex DeclarationAssumees = new(
         @"SansGardeAssumee\s*\{\s*get;\s*\}\s*=\s*new\s+HashSet<MerchantPermission>",
@@ -138,9 +134,7 @@ public sealed class PermissionsControle : IControle
         var nonCouvert = NonCouvert();
 
         // Le catalogue est un FICHIER, pas un dossier : `Depot.Dossier` ne peut
-        // rien pour lui. Son absence reste une FAUTE et non un contrôle « sauté »
-        // — la version Python se taisait ici, et un contrôle qui se tait rend le
-        // même vert qu'un contrôle qui a tout vu.
+        // rien pour lui.
         var chemin = Depot.Chemin(
             "services", "marketplace", "seller-service", "src",
             "HBA.Merchants.Domain", "Members", "MerchantPermission.cs");
@@ -173,9 +167,7 @@ public sealed class PermissionsControle : IControle
         }
 
         // `null` VEUT DIRE « JE N'AI PAS TROUVÉ LA DÉCLARATION », ET C'EST
-        // DIFFÉRENT DE « LA LISTE EST VIDE ». Confondre les deux ferait rendre
-        // cinq fautes au motif « n'est pas inscrite dans SansGardeAssumee »
-        // alors que le vrai défaut serait la lecture de ce contrôle.
+        // DIFFÉRENT DE « LA LISTE EST VIDE ».
         var assumees = Assumees(source);
 
         if (assumees is null)
@@ -310,21 +302,10 @@ public sealed class PermissionsControle : IControle
         return new Verdict(fautes, constats, nonCouvert);
     }
 
-    /// <summary>
-    /// Les permissions inscrites entre les accolades de <c>SansGardeAssumee</c>.
-    /// </summary>
-    /// <remarks>
-    /// L'ANCRE EST LA DÉCLARATION, PAS UNE MENTION — voir l'encadré de
-    /// <see cref="DeclarationAssumees"/>, qui raconte ce que coûtait l'inverse.
-    ///
-    /// LA LECTURE RESTE TEXTUELLE ET S'ARRÊTE AU PREMIER <c>};</c>. Un ensemble
-    /// refermé autrement serait tronqué, et les permissions tombées hors du bloc
-    /// deviendraient des fautes. C'est un défaut BRUYANT, pas silencieux : on le
-    /// préfère à une analyse qui devine.
-    /// </remarks>
+    /// <summary>Les permissions inscrites entre les accolades de <c>SansGardeAssumee</c>.</summary>
     /// <returns>
-    /// Les permissions inscrites, ou <c>null</c> si la DÉCLARATION est
-    /// introuvable — deux situations que l'appelant ne doit pas confondre.
+    /// Les permissions inscrites, ou <c> null</c> si la DÉCLARATION est introuvable
+    /// — deux situations que l'appelant ne doit pas confondre.
     /// </returns>
     private static HashSet<string>? Assumees(string source)
     {

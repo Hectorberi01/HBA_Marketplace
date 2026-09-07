@@ -5,45 +5,12 @@ using HBA.Gateway.Application.Contracts.Inventory;
 
 namespace HBA.Gateway.Application.Bff.Client.Express;
 
-/// <summary>
-/// Fiche produit HBAExpress — le GABARIT que les autres agrégations reprennent.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CRITICITÉ DÉCLARÉE (§23)
-///
-///   Catalog     CRITIQUE   — sans produit, il n'y a pas d'écran.
-///   Inventory   IMPORTANTE — la fiche s'affiche sans stock, avec avertissement.
-///   Engagement  OPTIONNELLE— note absente pour un visiteur anonyme : normal.
-///   Merchant    IMPORTANTE— aucune route publique ⇒ NOT_CONFIGURED, pas panne.
-///   Delivery    NON APPELÉE— cf. `ProductDetailDelivery`.
-///
-/// DEUX VAGUES, ET LA SECONDE EST INÉVITABLE.
-///
-/// Les SKU ne sont connus qu'APRÈS la réponse du catalogue : le stock ne peut pas
-/// partir en même temps. C'est la seule séquence du fichier, et elle est imposée
-/// par les données, pas par le style. Tout le reste — note et boutique — part en
-/// parallèle de la seconde vague.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Fiche produit HBAExpress — le GABARIT que les autres agrégations reprennent.</summary>
 public sealed class GetProductDetailHandler
 {
     public const string ScreenId = "client.express.product_detail";
 
-    /// <summary>
-    /// Nombre maximal de SKU interrogés pour une fiche.
-    /// </summary>
-    /// <remarks>
-    /// PLAFOND NÉCESSAIRE TANT QU'INVENTORY N'A PAS DE ROUTE DE LOT.
-    ///
-    /// Un appel par SKU : un produit à cinquante déclinaisons déclencherait
-    /// cinquante appels sortants pour un seul affichage — le N+1 que le §43
-    /// interdit. Au-delà du plafond, les déclinaisons restantes sont rendues avec
-    /// `Available = null`, c'est-à-dire « inconnu », ce qui est exact.
-    ///
-    /// À supprimer le jour où <c>POST /api/inventory/availability/by-skus</c>
-    /// existe.
-    /// </remarks>
+    /// <summary>Nombre maximal de SKU interrogés pour une fiche.</summary>
     public const int MaxStockLookups = 12;
 
     private readonly ICatalogClient _catalog;
@@ -68,7 +35,7 @@ public sealed class GetProductDetailHandler
     {
         using var context = AggregationContext.Start(ScreenId);
 
-        // ── Vague 1 : le produit, seul. Tout dépend de lui. ──────────────────
+        // ── Vague 1 : le produit, seul.
         var product = context.Resolve(
             DependencyCriticality.Critical,
             "Catalog",
@@ -86,11 +53,6 @@ public sealed class GetProductDetailHandler
             "Engagement", () => _engagement.GetProductRatingAsync(productId, cancellationToken));
 
         // `SellerId` EST L'IDENTIFIANT DU VENDEUR, PAS DE LA BOUTIQUE.
-        //
-        // La passerelle n'a aujourd'hui aucun moyen de passer de l'un à l'autre :
-        // le produit ne porte pas de `StoreId`. L'appel part quand même parce que
-        // l'implémentation rend `NotImplemented` sans toucher au réseau — mais le
-        // jour où la route existera, ce paramètre sera à corriger.
         var storeTask = context.CallAsync(
             "Merchant", () => _merchant.GetStoreShowcaseAsync(product.SellerId, cancellationToken));
 
@@ -112,8 +74,8 @@ public sealed class GetProductDetailHandler
             }
 
             // Un seul avertissement pour N échecs de stock : le client n'a pas
-            // besoin de douze lignes identiques, il a besoin de savoir que le
-            // stock n'est pas fiable sur cette fiche.
+            // besoin de douze lignes identiques, il a besoin de savoir que le stock
+            // n'est pas fiable sur cette fiche.
             stockDegraded = true;
         }
 

@@ -6,7 +6,6 @@ namespace HBA.Shared.Hosting.Grpc;
 /// Qui a le droit d'appeler quoi, entre services.
 /// </summary>
 /// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
 /// SAVOIR QUI APPELLE NE SERT À RIEN SI TOUT LE MONDE A LE DROIT D'APPELER TOUT.
 ///
 /// <see cref="IdentiteInterne"/> répond à « qui » ; cette table répond à « a-t-il
@@ -71,29 +70,20 @@ namespace HBA.Shared.Hosting.Grpc;
 /// avec zéro droit sortant et zéro appelant, comme les deux précédents. Il n'est
 /// pas retiré parce que le calcul d'itinéraire, lui, a un remplaçant dégradé qui
 /// tourne (`FALLBACK_HAVERSINE`) et une décision distincte à trancher.
-/// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public static class AutorisationsGrpc
 {
     /// <summary>
-    /// Vrai si <paramref name="appelant"/> peut invoquer <paramref name="methode"/>.
+    /// Vrai si <paramref name="appelant"/> peut invoquer <paramref name="methode"/>
+    /// .
     /// </summary>
-    /// <remarks>
-    /// UN APPELANT ABSENT DE LA TABLE N'A AUCUN DROIT — IL N'EN A PAS TOUS.
-    ///
-    /// C'est le sens de `TryGetValue` suivi d'un refus : le défaut est fermé.
-    /// L'inverse — « inconnu donc autorisé » — rendrait la table décorative, un
-    /// nom d'hôte mal orthographié suffisant à tout rouvrir sans le moindre
-    /// symptôme.
-    /// </remarks>
     public static bool EstAutorise(string appelant, string methode)
         => _table.TryGetValue(appelant, out var methodes) && methodes.Contains(methode);
 
     /// <summary>Les hôtes connus de la table, pour les contrôles de démarrage.</summary>
     public static IReadOnlyCollection<string> Appelants => _table.Keys;
 
-    // ENGENDRÉ — voir le contrôle `autorisations-grpc`. Ne pas éditer à la
-    // main : le contrôle recalcule cette table et échoue à la moindre divergence.
+    // ENGENDRÉ — voir le contrôle `autorisations-grpc`.
     private static readonly FrozenDictionary<string, FrozenSet<string>> _table =
         new Dictionary<string, FrozenSet<string>>(StringComparer.Ordinal)
         {
@@ -200,7 +190,8 @@ public static class AutorisationsGrpc
             // HBA.Delivery.Driver.Api : aucun appel gRPC sortant.
             ["HBA.Delivery.Driver.Api"] = FrozenSet<string>.Empty,
 
-            // HBA.Delivery.Pricing.Api : aucun appel gRPC sortant — il REPOND aux devis, il n'en demande a personne.
+            // HBA.Delivery.Pricing.Api : aucun appel gRPC sortant — il REPOND aux
+            // devis, il n'en demande a personne.
             ["HBA.Delivery.Pricing.Api"] = FrozenSet<string>.Empty,
 
             // HBA.Delivery.Route.Api : aucun appel gRPC sortant.
@@ -334,7 +325,8 @@ public static class AutorisationsGrpc
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
-            // HBA.Identity.Api : aucun appel gRPC sortant — il est appele, il n'appelle pas — sa seule autorisation etait sur lui-meme.
+            // HBA.Identity.Api : aucun appel gRPC sortant — il est appele, il
+            // n'appelle pas — sa seule autorisation etait sur lui-meme.
             ["HBA.Identity.Api"] = FrozenSet<string>.Empty,
 
             ["HBA.Inventory.Api"] =
@@ -374,7 +366,8 @@ public static class AutorisationsGrpc
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
-            // HBA.Media.Api : aucun appel gRPC sortant — il sert les medias, il n'interroge aucun voisin.
+            // HBA.Media.Api : aucun appel gRPC sortant — il sert les medias, il
+            // n'interroge aucun voisin.
             ["HBA.Media.Api"] = FrozenSet<string>.Empty,
 
             ["HBA.Merchants.Api"] =
@@ -453,7 +446,8 @@ public static class AutorisationsGrpc
             }
             .ToFrozenSet(StringComparer.Ordinal),
 
-            // HBA.Users.Api : aucun appel gRPC sortant — aucun appel sortant, et son serveur n'a aucun appelant (voir §3 de l'inventaire shared).
+            // HBA.Users.Api : aucun appel gRPC sortant — aucun appel sortant, et
+            // son serveur n'a aucun appelant (voir §3 de l'inventaire shared).
             ["HBA.Users.Api"] = FrozenSet<string>.Empty,
         }
         .ToFrozenDictionary(StringComparer.Ordinal);

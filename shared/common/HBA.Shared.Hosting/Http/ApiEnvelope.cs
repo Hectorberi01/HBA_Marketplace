@@ -3,33 +3,13 @@ using HBA.Shared.Application.Context;
 
 namespace HBA.Shared.Hosting.Http;
 
-/// <summary>
-/// Enveloppe de réponse externe du §5 du cahier des charges.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// POURQUOI UNE ENVELOPPE PLUTÔT QUE LA RESSOURCE NUE, ET POURQUOI PAS RFC 7807.
-///
-/// Le bord HTTP rendait jusqu'ici la ressource directement en succès et un
-/// `ProblemDetails` (RFC 7807) en erreur. Deux formes différentes selon l'issue :
-/// le client doit tester le status code avant de savoir comment lire le corps, et
-/// il n'a aucun endroit stable où trouver le `requestId` à citer dans un ticket.
-///
-/// Le §5 impose une forme unique — `success`, puis `data` OU `error`, plus `meta`.
-/// Le client lit toujours la même structure, et le `requestId` est toujours au même
-/// endroit, en succès comme en échec. C'est ce qui rend un incident racontable :
-/// l'utilisateur envoie une capture, le `requestId` mène directement à la trace.
-///
-/// CHANGEMENT DE CONTRAT. Tout endpoint passant par <see cref="ApiResults"/>
-/// change de forme de réponse. C'est l'objet même de la mise en conformité, mais
-/// les clients web et mobile doivent être livrés avec — pas après.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Enveloppe de réponse externe du §5 du cahier des charges.</summary>
 public sealed record ApiEnvelope<T>
 {
     [JsonPropertyName("success")]
     public bool Success { get; init; }
 
-    /// <summary>Charge utile en cas de succès. Absente en cas d'erreur.</summary>
+    /// <summary>Charge utile en cas de succès.</summary>
     [JsonPropertyName("data")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public T? Data { get; init; }
@@ -46,7 +26,7 @@ public sealed record ApiEnvelope<T>
 /// <summary>Bloc `error` du §5.</summary>
 public sealed record ApiError
 {
-    /// <summary>Code stable, pris dans <c>ErrorCodes</c>. C'est lui que le client branche.</summary>
+    /// <summary>Code stable, pris dans <c>ErrorCodes</c>.</summary>
     [JsonPropertyName("code")]
     public string Code { get; init; } = string.Empty;
 
@@ -54,11 +34,7 @@ public sealed record ApiError
     [JsonPropertyName("message")]
     public string Message { get; init; } = string.Empty;
 
-    /// <summary>
-    /// Détails champ par champ pour les erreurs de validation. Toujours présent,
-    /// éventuellement vide : un client qui itère dessus ne doit pas avoir à tester
-    /// la nullité à chaque appel.
-    /// </summary>
+    /// <summary>Détails champ par champ pour les erreurs de validation.</summary>
     [JsonPropertyName("details")]
     public IReadOnlyList<ApiErrorDetail> Details { get; init; } = Array.Empty<ApiErrorDetail>();
 }
@@ -74,7 +50,8 @@ public sealed record ApiErrorDetail
 }
 
 /// <summary>
-/// Bloc `meta` du §5, enrichi de la pagination du §10.4 quand la réponse est une liste.
+/// Bloc `meta` du §5, enrichi de la pagination du §10.4 quand la réponse est une
+/// liste.
 /// </summary>
 public sealed record ApiMeta
 {
@@ -100,21 +77,7 @@ public sealed record ApiMeta
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? HasNext { get; init; }
 
-    /// <summary>
-    /// Répartition calculée sur l'ENSEMBLE filtré, pas sur la page servie.
-    ///
-    /// AJOUTÉ POUR NE PAS PERDRE UNE DONNÉE EN PASSANT À L'ENVELOPPE.
-    ///
-    /// `PagedResult` porte des facettes depuis toujours — la répartition du
-    /// catalogue par statut, qu'affiche la console d'administration. La première
-    /// version de `ApiResults.Page` ne prenait que (items, page, pageSize, total) :
-    /// enveloppée par elle, la réponse aurait perdu les facettes SANS RIEN CASSER
-    /// à la compilation. Le graphe de la console serait simplement devenu vide, et
-    /// l'on aurait cherché la cause dans la requête.
-    ///
-    /// Nullable et omis à la sérialisation : les listes sans facettes rendent
-    /// exactement ce qu'elles rendaient.
-    /// </summary>
+    /// <summary>Répartition calculée sur l'ENSEMBLE filtré, pas sur la page servie.</summary>
     [JsonPropertyName("facets")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string, int>? Facets { get; init; }

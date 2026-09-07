@@ -23,14 +23,7 @@ public sealed class OrderAuthorizationTests : IClassFixture<OrderFactory>
 
     public OrderAuthorizationTests(OrderFactory factory) => _factory = factory;
 
-    /// <summary>
-    /// LE PRÉFIXE `/admin` N'A JAMAIS PROTÉGÉ QUOI QUE CE SOIT.
-    ///
-    /// Ce groupe s'appelait « Admin · Orders » et rendait, à tout compte inscrit,
-    /// la liste paginée de TOUTES les commandes de la plateforme — acheteurs,
-    /// adresses, montants. Le nom disait admin, la politique disait authentifié.
-    /// Ce test échoue si `MapAdminGroup` redevient `MapAuthenticatedGroup`.
-    /// </summary>
+    /// <summary>LE PRÉFIXE `/admin` N'A JAMAIS PROTÉGÉ QUOI QUE CE SOIT.</summary>
     [Fact]
     public async Task Un_compte_sans_role_ne_lit_pas_la_liste_admin_des_commandes()
     {
@@ -41,14 +34,7 @@ public sealed class OrderAuthorizationTests : IClassFixture<OrderFactory>
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// LE CARNET DE COMMANDES D'UN CONCURRENT.
-    ///
-    /// `GET /api/sellers/{sellerId}/orders` recopiait le `sellerId` de l'URL sans
-    /// jamais lire le jeton : un GUID glané dans une fiche produit suffisait. Le
-    /// faux `ISellerModuleApi` ne connaît aucun vendeur pour ce compte —
-    /// `ListBySellerAsync` doit donc refuser AVANT d'interroger sa base.
-    /// </summary>
+    /// <summary>LE CARNET DE COMMANDES D'UN CONCURRENT.</summary>
     [Fact]
     public async Task Un_compte_qui_n_est_pas_ce_vendeur_ne_lit_pas_ses_commandes()
     {
@@ -60,7 +46,6 @@ public sealed class OrderAuthorizationTests : IClassFixture<OrderFactory>
     }
 
     /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
     /// ISSUE-026 — LES CINQ ROUTES VENDEUR SONT GARDÉES, PAS SEULEMENT ÉCRITES.
     ///
     /// CE QUI ÉTAIT CASSÉ : `ORDER_CONFIRM`, `ORDER_REJECT`,
@@ -77,7 +62,6 @@ public sealed class OrderAuthorizationTests : IClassFixture<OrderFactory>
     ///
     /// Autrement dit : ce test échoue le jour où quelqu'un ajoute une sixième
     /// route de transition dans ce groupe en oubliant sa garde.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     [Theory]
     [InlineData("confirm")]
@@ -95,13 +79,7 @@ public sealed class OrderAuthorizationTests : IClassFixture<OrderFactory>
         response.StatusCode.Should().BeOneOf(Requetes.RefusOuIntrouvable);
     }
 
-    /// <summary>
-    /// CE QUI A ÉTÉ RETIRÉ NE DOIT PAS REVENIR PAR MÉGARDE.
-    ///
-    /// Trois routes exposaient des transitions de saga — confirmer un paiement,
-    /// déclarer une livraison, refuser une commande « au nom du restaurant » — à
-    /// qui présentait un jeton. Un 404 prouve qu'aucune n'est routée.
-    /// </summary>
+    /// <summary>CE QUI A ÉTÉ RETIRÉ NE DOIT PAS REVENIR PAR MÉGARDE.</summary>
     [Theory]
     [InlineData("/payment/confirm")]
     [InlineData("/delivered")]
@@ -119,9 +97,6 @@ public sealed class OrderAuthorizationTests : IClassFixture<OrderFactory>
     /// <summary>
     /// LA `FallbackPolicy` FERME TOUT CE QUI NE DÉCLARE RIEN — Y COMPRIS LES
     /// SONDES, SI L'ON RETIRE LEUR `AllowAnonymous`.
-    ///
-    /// Un `/health/live` en 401, et Docker déclare le conteneur malsain puis le
-    /// redémarre en boucle, sans une seule erreur applicative dans les journaux.
     /// </summary>
     [Fact]
     public async Task La_sonde_de_vie_repond_en_anonyme()
@@ -149,19 +124,12 @@ public sealed class OrderFactory : AuthorizationTestFactory<Program>
     protected override void ConfigureTestDoubles(IServiceCollection services)
     {
         // Le vrai client est un client gRPC vers merchant-service : sans
-        // substitution, `ListBySellerAsync` lèverait au lieu de refuser, et le
-        // test ne distinguerait plus un refus d'une panne.
+        // substitution, `ListBySellerAsync` lèverait au lieu de refuser, et le test
+        // ne distinguerait plus un refus d'une panne.
         services.RemoveAll<ISellerModuleApi>();
         services.AddScoped<ISellerModuleApi, VendeurInconnu>();
 
         // `IMerchantAccessApi` AUSSI, ET PAS SEULEMENT `ISellerModuleApi`.
-        //
-        // Depuis le lot D1, la garde ne demande plus « quel est le vendeur de ce
-        // compte » mais « ce compte a-t-il cette capacité ». Les deux contrats sont
-        // servis par le MÊME client gRPC, et l'enregistrement de `IMerchantAccessApi`
-        // le résout par un cast depuis `ISellerModuleApi` : substituer l'un sans
-        // l'autre fait lever un `InvalidCastException` à la première requête, et le
-        // test rendrait 500 là où il doit distinguer un refus.
         services.RemoveAll<IMerchantAccessApi>();
         services.AddScoped<IMerchantAccessApi, AucuneCapacite>();
     }
@@ -186,28 +154,12 @@ internal sealed class VendeurInconnu : ISellerModuleApi
         Guid sellerId, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<StoreSummary>>([]);
 
-    /// <summary>
-    /// Vendeur inconnu — et c'est `Unknown`, pas `NotConfigured`.
-    ///
-    /// La distinction est tout l'objet de <see cref="SellerPayout"/> : servir
-    /// « aucun compte configuré » à un identifiant qui ne désigne personne est ce
-    /// qui rendait le défaut du retrait vendeur illisible pour le support.
-    /// </summary>
+    /// <summary>Vendeur inconnu — et c'est `Unknown`, pas `NotConfigured`.</summary>
     public Task<SellerPayout> GetSellerPayoutAsync(Guid sellerId, CancellationToken cancellationToken = default)
         => Task.FromResult(SellerPayout.Unknown);
 }
 
-/// <summary>
-/// merchant-service qui ne reconnaît aucune appartenance — donc aucune capacité.
-/// </summary>
-/// <remarks>
-/// IL REND `null` ET NON UN ACCÈS VIDE.
-///
-/// Un `MerchantAccess` sans permission passerait la résolution et échouerait à la
-/// capacité : le test verrait un 403 « rôle insuffisant » là où le cas éprouvé est
-/// « ce compte n'est rattaché à personne ». Les deux refus se ressemblent en HTTP
-/// et ne disent pas la même chose.
-/// </remarks>
+/// <summary>merchant-service qui ne reconnaît aucune appartenance — donc aucune capacité.</summary>
 internal sealed class AucuneCapacite : IMerchantAccessApi
 {
     public Task<MerchantAccess?> GetAccessAsync(Guid userId, CancellationToken cancellationToken = default)

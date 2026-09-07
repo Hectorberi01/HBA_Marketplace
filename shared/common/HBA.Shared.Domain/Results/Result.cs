@@ -2,7 +2,7 @@ namespace HBA.Shared.Domain.Results;
 
 /// <summary>
 /// Pattern Result : on modélise l'échec attendu comme une valeur, pas comme une
-/// exception. Constant à toutes les phases de l'architecture (cf. dossier).
+/// exception.
 /// </summary>
 public class Result
 {

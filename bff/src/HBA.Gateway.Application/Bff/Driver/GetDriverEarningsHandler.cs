@@ -4,33 +4,11 @@ using HBA.Gateway.Application.Bff.Shared;
 namespace HBA.Gateway.Application.Bff.Driver;
 
 /// <summary>Écran « Revenus » du livreur (§15).</summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// CRITICITÉ (§23)
-///
-///   Delivery · compte  CRITIQUE   — sans driverId, aucun portefeuille à lire.
-///   Financial · solde  CRITIQUE   — un écran « revenus » sans solde n'est rien.
-///   Financial · lignes IMPORTANTE — le solde s'affiche sans le détail.
-///
-/// LE SOLDE EST CRITIQUE ICI, IMPORTANT SUR L'ACCUEIL.
-///
-/// Le même service, deux niveaux. C'est la démonstration du §23 : la criticité
-/// est une décision d'ÉCRAN, pas une propriété du service. L'accueil reste utile
-/// sans les gains ; l'écran « revenus », lui, n'a plus de raison d'exister.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public sealed class GetDriverEarningsHandler
 {
     public const string ScreenId = "driver.earnings";
 
-    /// <summary>
-    /// Mouvements demandés au service.
-    /// </summary>
-    /// <remarks>
-    /// La route exige un <c>take</c> et n'offre pas de page. On demande donc un
-    /// lot fixe et l'on pagine en mémoire — le service ne sait pas faire mieux
-    /// aujourd'hui.
-    /// </remarks>
+    /// <summary>Mouvements demandés au service.</summary>
     private const int TransactionsToFetch = 100;
 
     private readonly IDeliveryClient _delivery;

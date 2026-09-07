@@ -7,43 +7,13 @@ using Xunit;
 
 namespace HBA.Merchants.IntegrationTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE VERROU VENDEUR SÉRIALISE VRAIMENT — CONTRE UNE VRAIE BASE.
-///
-/// CES TESTS EXISTENT PARCE QUE LE VERROU N'A JAMAIS RIEN VERROUILLÉ.
-///
-/// `LockSellerAsync` prenait `pg_advisory_xact_lock` au milieu d'un handler, hors
-/// de toute transaction. PostgreSQL traitait l'instruction comme la sienne : verrou
-/// pris, validé, RELÂCHÉ — avant même la première lecture. Le commentaire invoquait
-/// « l'intercepteur de transaction du module », qui n'existe pas.
-///
-/// Trois appelants s'appuyaient dessus, dont le transfert de propriété vendeur.
-/// Rien ne l'a signalé pendant des mois, parce qu'un verrou qui ne tient pas ne
-/// produit AUCUN symptôme tant que la course ne se produit pas — et qu'aucun test
-/// ne faisait tourner deux transactions à la fois.
-///
-/// POURQUOI CE NIVEAU-LÀ, ET NON UN PARCOURS MÉTIER.
-///
-/// La règle métier — « un vendeur garde au moins un propriétaire actif » — se
-/// prouverait mieux par deux révocations concurrentes. Mais elle ferait dépendre
-/// la démonstration de tout le flux d'invitation, et son échec serait ambigu : le
-/// verrou ? le décompte ? la garde du domaine ? Ici, la question posée est la
-/// seule qui manquait : <b>ce verrou bloque-t-il un second appelant ?</b> La
-/// réponse est observable directement, sans rien d'autre en jeu.
-///
-/// IL FAUT UNE VRAIE BASE. `ExecuteUnderSellerLockAsync` ne pose ni verrou ni
-/// transaction hors PostgreSQL — les tests en mémoire n'auraient rien éprouvé du
-/// tout, et auraient été verts.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE VERROU VENDEUR SÉRIALISE VRAIMENT — CONTRE UNE VRAIE BASE.</summary>
 [Collection(MerchantsIntegrationCollection.Nom)]
 public sealed class VerrouVendeurTests
 {
     /// <summary>
     /// Au-delà, on considère que le second appelant n'est pas bloqué mais bel et
-    /// bien perdu. Assez long pour absorber la latence d'un conteneur qui démarre,
-    /// assez court pour qu'un test cassé ne fasse pas attendre la suite.
+    /// bien perdu.
     /// </summary>
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
 
@@ -51,14 +21,7 @@ public sealed class VerrouVendeurTests
 
     public VerrouVendeurTests(MerchantsIntegrationFixture fixture) => _fixture = fixture;
 
-    /// <summary>
-    /// LE TEST QUI AURAIT ATTRAPÉ LE DÉFAUT.
-    ///
-    /// Deux opérations sur LE MÊME vendeur, lancées ensemble. La première entre et
-    /// s'arrête ; la seconde doit rester dehors tant que la première n'a pas rendu
-    /// la main. Avec l'ancienne écriture, la seconde entrait immédiatement — le
-    /// verrou étant déjà relâché — et ce test aurait échoué sur `BeFalse`.
-    /// </summary>
+    /// <summary>LE TEST QUI AURAIT ATTRAPÉ LE DÉFAUT.</summary>
     [Fact]
     public async Task Deux_operations_sur_le_meme_vendeur_sont_serialisees()
     {
@@ -84,11 +47,6 @@ public sealed class VerrouVendeurTests
         });
 
         // L'ATTENTE EST LE CŒUR DU TEST, PAS UNE PRÉCAUTION.
-        //
-        // On laisse à la seconde tout le temps d'entrer si rien ne la retient. Une
-        // demi-seconde est très au-delà de ce qu'il faut pour ouvrir une
-        // transaction et poser un verrou consultatif sur une base locale — si elle
-        // n'est pas entrée, c'est qu'elle est bloquée, et non qu'elle est lente.
         var entreeTrop_tot = await Task.WhenAny(
             secondeEstEntree.Task, Task.Delay(TimeSpan.FromMilliseconds(500)));
 
@@ -105,20 +63,7 @@ public sealed class VerrouVendeurTests
         await secondeEstEntree.Task.WaitAsync(Patience);
     }
 
-    /// <summary>
-    /// LA CONTRE-ÉPREUVE, ET ELLE COMPTE AUTANT QUE LA PREMIÈRE.
-    ///
-    /// Un verrou qui sérialiserait TOUS les vendeurs passerait le test précédent et
-    /// mettrait la plateforme à genoux : chaque mutation d'équipe attendrait celles
-    /// de tous les autres commerçants. La clé est dérivée des huit premiers octets
-    /// du GUID ; ce test vérifie que deux vendeurs distincts ne s'attendent pas.
-    ///
-    /// CE QU'IL NE PROUVE PAS : l'absence de collision. Deux GUID peuvent
-    /// partager leurs huit premiers octets et donc leur clé de verrou. C'est admis
-    /// et sans conséquence de correction — au pire deux commerçants sérialisent
-    /// leurs mutations pendant quelques millisecondes. Ce test emploie des GUID
-    /// tirés au hasard : la collision ne s'y produira pas.
-    /// </summary>
+    /// <summary>LA CONTRE-ÉPREUVE, ET ELLE COMPTE AUTANT QUE LA PREMIÈRE.</summary>
     [Fact]
     public async Task Deux_vendeurs_differents_ne_s_attendent_pas()
     {
@@ -155,15 +100,7 @@ public sealed class VerrouVendeurTests
         (await seconde).IsSuccess.Should().BeTrue();
     }
 
-    /// <summary>
-    /// UN ÉCHEC RELÂCHE LE VERROU, IL NE LE LAISSE PAS POSÉ.
-    ///
-    /// C'est la raison d'être de la variante `_xact_` : PostgreSQL la relâche au
-    /// `ROLLBACK` comme au `COMMIT`. Avec la variante de SESSION, un chemin d'échec
-    /// laisserait le verrou en place et bloquerait toute l'équipe de ce vendeur
-    /// jusqu'au redémarrage du service — panne dont on ne soupçonnerait pas la
-    /// cause.
-    /// </summary>
+    /// <summary>UN ÉCHEC RELÂCHE LE VERROU, IL NE LE LAISSE PAS POSÉ.</summary>
     [Fact]
     public async Task Un_echec_relache_le_verrou()
     {
@@ -188,9 +125,7 @@ public sealed class VerrouVendeurTests
 
     /// <summary>
     /// Chaque appel dans SA PROPRE portée — donc son propre `DbContext` et sa
-    /// propre connexion. Deux opérations qui partageraient un contexte
-    /// partageraient sa transaction, et il n'y aurait aucune course à observer :
-    /// le test passerait en ne prouvant rien.
+    /// propre connexion.
     /// </summary>
     private async Task<Result> ExecuterAsync(
         Guid vendeurId, Func<CancellationToken, Task<Result>> operation)

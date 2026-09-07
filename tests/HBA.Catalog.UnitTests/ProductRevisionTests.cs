@@ -2,15 +2,7 @@ using HBA.Catalog.Domain.Products;
 
 namespace HBA.Catalog.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES RÉVISIONS (§6, §28 : « création nouvelle révision »).
-///
-/// Le §31 en fait un critère d'acceptation : « si les révisions publiées restent
-/// stables pendant une nouvelle validation ». Ce fichier vérifie exactement cela,
-/// dans les deux sens — la nouvelle version avance, l'ancienne ne bouge pas.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES RÉVISIONS (§6, §28 : « création nouvelle révision »).</summary>
 public sealed class ProductRevisionTests
 {
     [Fact]
@@ -24,14 +16,7 @@ public sealed class ProductRevisionTests
         produit.PublishedRevisionId.Should().BeNull();
     }
 
-    /// <summary>
-    /// LE TEST QUI PORTE TOUT LE §6.
-    ///
-    /// Renommer un produit publié ouvre une version 2 — et l'acheteur continue de
-    /// voir la version 1 pendant toute la validation. Si ce test tombe, la
-    /// marketplace sert du contenu non relu, et personne ne s'en aperçoit avant un
-    /// signalement.
-    /// </summary>
+    /// <summary>LE TEST QUI PORTE TOUT LE §6.</summary>
     [Fact]
     public void Modifier_un_produit_publie_ouvre_une_revision_sans_toucher_a_la_publiee()
     {
@@ -77,23 +62,12 @@ public sealed class ProductRevisionTests
         produit.PublishedRevision!.Name.Should().Be("Nouveau nom");
 
         // L'ANCIENNE SURVIT, MARQUÉE « REMPLACÉE ».
-        //
-        // La supprimer ferait disparaître la seule trace de ce qu'un acheteur a
-        // vu au moment de sa commande — et un litige sur la description d'un
-        // produit deviendrait inarbitrable.
         var ancienne = produit.Revisions.Single(r => r.Id == premiere);
         ancienne.Status.Should().Be(RevisionStatus.Superseded);
         ancienne.Name.Should().Be("iPhone 16 Pro");
     }
 
-    /// <summary>
-    /// REPUBLIER LA MÊME RÉVISION NE LA REMPLACE PAS PAR ELLE-MÊME.
-    ///
-    /// Après une dépublication, `PublishedRevision` et `CurrentRevision` sont le
-    /// MÊME objet. Marquer « remplacée » sans vérifier le faisait passer par
-    /// Superseded avant Published — sans effet visible tant que l'ordre des deux
-    /// lignes le rattrapait, et faux le jour où quelqu'un les inverse.
-    /// </summary>
+    /// <summary>REPUBLIER LA MÊME RÉVISION NE LA REMPLACE PAS PAR ELLE-MÊME.</summary>
     [Fact]
     public void Republier_la_meme_revision_ne_la_marque_pas_remplacee()
     {
@@ -109,15 +83,7 @@ public sealed class ProductRevisionTests
         produit.PublishedRevisionId.Should().Be(revision);
     }
 
-    /// <summary>
-    /// LA FRONTIÈRE DU §6, DU CÔTÉ « NON CRITIQUE ».
-    ///
-    /// Poser une étiquette éditoriale ne doit pas mettre la fiche en file
-    /// d'attente. Si ce test tombe dans l'autre sens, la file de validation se
-    /// remplit de corrections de mots-clés, les administrateurs approuvent en
-    /// série sans lire, et la validation ne vaut plus rien — un échec bien plus
-    /// grave que celui qu'on croyait éviter.
-    /// </summary>
+    /// <summary>LA FRONTIÈRE DU §6, DU CÔTÉ « NON CRITIQUE ».</summary>
     [Fact]
     public void Changer_les_mots_cles_ne_cree_pas_de_revision()
     {
@@ -177,9 +143,9 @@ public sealed class ProductRevisionTests
     }
 
     /// <summary>
-    /// Le slug est porté par la révision, et les deux versions d'un même produit
-    /// le partagent — c'est ce qui interdit un index unique simple, et ce qui
-    /// justifie l'index PARTIEL sur les seules révisions publiées.
+    /// Le slug est porté par la révision, et les deux versions d'un même produit le
+    /// partagent — c'est ce qui interdit un index unique simple, et ce qui justifie
+    /// l'index PARTIEL sur les seules révisions publiées.
     /// </summary>
     [Fact]
     public void Les_revisions_dun_meme_produit_partagent_le_slug()

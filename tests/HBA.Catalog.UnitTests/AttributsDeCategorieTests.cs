@@ -2,18 +2,7 @@ using HBA.Catalog.Domain.Attributes;
 
 namespace HBA.Catalog.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE RÉFÉRENTIEL D'ATTRIBUTS (§10) ET LA VALIDATION QU'IL PERMET (§23).
-///
-/// SANS LA VALIDATION, CES DEUX TABLES NE SERAIENT QU'UNE DÉCORATION.
-///
-/// Un formulaire dynamique et rien qui vérifie ce qui a été saisi : un
-/// `screen_size` déclaré DECIMAL accepterait « grand », un `color` à choix
-/// accepterait une valeur absente de la liste, et la vitrine filtrerait sur des
-/// valeurs qu'aucun filtre ne propose.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE RÉFÉRENTIEL D'ATTRIBUTS (§10) ET LA VALIDATION QU'IL PERMET (§23).</summary>
 public sealed class AttributsDeCategorieTests
 {
     private static readonly Guid Categorie = UnProduit.Categorie;
@@ -26,17 +15,9 @@ public sealed class AttributsDeCategorieTests
         string code, AttributeValueType type, params string[] options)
         => AttributeDefinition.Create(code, code, type, null, options).Value;
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LES DÉFINITIONS
-    // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// UN CHAMP À CHOIX SANS CHOIX EST IMPOSSIBLE À REMPLIR.
-    ///
-    /// Le formulaire vendeur en fait une liste déroulante ; vide et obligatoire,
-    /// elle rend la fiche insoumettable. Le vendeur ne voit qu'un champ requis et
-    /// vide — rien ne lui dit que c'est la définition qui est incomplète.
-    /// </summary>
+    /// <summary>UN CHAMP À CHOIX SANS CHOIX EST IMPOSSIBLE À REMPLIR.</summary>
     [Theory]
     [InlineData(AttributeValueType.Select)]
     [InlineData(AttributeValueType.MultiSelect)]
@@ -53,13 +34,7 @@ public sealed class AttributsDeCategorieTests
         => AttributeDefinition.Create("poids", "Poids", AttributeValueType.Decimal, "KG", new[] { "lourd" })
             .Error.Code.Should().Be("catalog.attribute.options_unexpected");
 
-    /// <summary>
-    /// LE CODE EST NORMALISÉ, PARCE QUE C'EST LUI QUI VOYAGE.
-    ///
-    /// Il est la clé sous laquelle la valeur est rangée dans
-    /// `product_revisions.attributes` et sur laquelle la vitrine filtre. Sans
-    /// normalisation, `color`, `Color` et `COLOR` deviennent trois filtres.
-    /// </summary>
+    /// <summary>LE CODE EST NORMALISÉ, PARCE QUE C'EST LUI QUI VOYAGE.</summary>
     [Theory]
     [InlineData("Screen Size", "screen_size")]
     [InlineData("COLOR", "color")]
@@ -75,9 +50,7 @@ public sealed class AttributsDeCategorieTests
         => AttributeDefinition.Create(code, "Libellé", AttributeValueType.Text)
             .Error.Code.Should().Be("catalog.attribute.code_invalid");
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LA VALIDATION D'UNE FICHE CONTRE LE SCHÉMA
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Une_categorie_sans_schema_nimpose_rien()
@@ -104,13 +77,7 @@ public sealed class AttributsDeCategorieTests
             .IsSuccess.Should().BeTrue();
     }
 
-    /// <summary>
-    /// LES ATTRIBUTS INCONNUS SONT IGNORÉS, PAS REFUSÉS.
-    ///
-    /// Les fiches saisies avant l'existence de ces définitions portent des clés qui
-    /// ne correspondent à rien. Les refuser rendrait chacune impossible à
-    /// resoumettre — donc à corriger — alors que rien dans leur contenu n'est faux.
-    /// </summary>
+    /// <summary>LES ATTRIBUTS INCONNUS SONT IGNORÉS, PAS REFUSÉS.</summary>
     [Fact]
     public void Un_attribut_inconnu_du_schema_est_ignore()
     {
@@ -133,13 +100,7 @@ public sealed class AttributsDeCategorieTests
         resultat.Error.Message.Should().Contain("128GB", "le message doit rappeler les valeurs possibles");
     }
 
-    /// <summary>
-    /// LA BARRE VERTICALE, PAS LA VIRGULE.
-    ///
-    /// Les options sont des libellés saisis par un administrateur : « Noir, mat »
-    /// est plausible. Découper sur la virgule en ferait deux valeurs dont aucune
-    /// n'existe, et le vendeur verrait sa fiche refusée pour un choix correct.
-    /// </summary>
+    /// <summary>LA BARRE VERTICALE, PAS LA VIRGULE.</summary>
     [Fact]
     public void Un_choix_multiple_se_separe_par_une_barre_verticale()
     {
@@ -149,13 +110,7 @@ public sealed class AttributsDeCategorieTests
             .IsSuccess.Should().BeTrue();
     }
 
-    /// <summary>
-    /// CULTURE INVARIANTE : LE POINT, JAMAIS LA VIRGULE.
-    ///
-    /// La valeur voyage en JSON et se compare en SQL. Accepter « 6,3 » ferait
-    /// entrer en base une chaîne sur laquelle un filtre « écran > 6 pouces »
-    /// cesserait de fonctionner, sans erreur.
-    /// </summary>
+    /// <summary>CULTURE INVARIANTE : LE POINT, JAMAIS LA VIRGULE.</summary>
     [Theory]
     [InlineData("6.3", true)]
     [InlineData("6,3", false)]

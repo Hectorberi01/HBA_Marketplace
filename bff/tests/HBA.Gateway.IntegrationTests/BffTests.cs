@@ -13,9 +13,7 @@ public sealed class BffTests : IClassFixture<GatewayFactory>
 
     /// <summary>
     /// Aucune section n'est configurée : l'écran doit rendre une réponse vide et
-    /// valide, PAS une erreur. C'est l'état normal tant qu'aucun service n'est
-    /// déployé, et une 500 ici mettrait la passerelle en échec dans les tableaux
-    /// de bord tout en masquant les vraies pannes.
+    /// valide, PAS une erreur.
     /// </summary>
     [Theory]
     [InlineData("/api/bff/client/express/home", "express")]
@@ -33,13 +31,7 @@ public sealed class BffTests : IClassFixture<GatewayFactory>
         document.RootElement.GetProperty("correlationId").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
-    /// <summary>
-    /// LES DEUX UNIVERS NE DOIVENT PAS PARTAGER DE POINT DE TERMINAISON.
-    ///
-    /// Le champ `surface` permet au client de constater immédiatement une
-    /// confusion, plutôt que de la découvrir quand un produit s'affiche dans un
-    /// menu de restaurant.
-    /// </summary>
+    /// <summary>LES DEUX UNIVERS NE DOIVENT PAS PARTAGER DE POINT DE TERMINAISON.</summary>
     [Fact]
     public async Task Les_deux_univers_rendent_des_surfaces_distinctes()
     {

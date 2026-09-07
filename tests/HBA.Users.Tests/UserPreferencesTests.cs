@@ -4,11 +4,7 @@ using Xunit;
 
 namespace HBA.Users.Tests;
 
-/// <summary>
-/// Les préférences : invariants du §10.2. Tests de domaine purs — aucune base,
-/// aucun hôte, aucune configuration. Ils tournent en millisecondes et échouent
-/// pour une seule raison à la fois.
-/// </summary>
+/// <summary>Les préférences : invariants du §10.2.</summary>
 public sealed class UserPreferencesTests
 {
     private static UserPreferences Create()
@@ -23,14 +19,7 @@ public sealed class UserPreferencesTests
         preferences.Language.Should().Be("fr-BJ");
     }
 
-    /// <summary>
-    /// CE TEST PROTÈGE UNE OBLIGATION LÉGALE, PAS UNE PRÉFÉRENCE D'ÉQUIPE.
-    ///
-    /// Un consentement marketing se donne ; il ne se suppose pas. Si quelqu'un
-    /// inverse un jour la valeur par défaut « pour améliorer l'engagement », chaque
-    /// inscription deviendra un consentement implicite — et ce test tombera avant
-    /// que la première campagne ne parte.
-    /// </summary>
+    /// <summary>CE TEST PROTÈGE UNE OBLIGATION LÉGALE, PAS UNE PRÉFÉRENCE D'ÉQUIPE.</summary>
     [Fact]
     public void Le_consentement_marketing_est_refuse_par_defaut()
     {
@@ -59,12 +48,7 @@ public sealed class UserPreferencesTests
         preferences.PushEnabled.Should().BeTrue();
     }
 
-    /// <summary>
-    /// UNE DEVISE INCONNUE DOIT ÊTRE REFUSÉE ICI, PAS PLUS LOIN.
-    ///
-    /// Acceptée, elle ressortirait au calcul d'un panier — à un endroit où plus rien
-    /// ne rattache l'anomalie au moment où elle a été introduite.
-    /// </summary>
+    /// <summary>UNE DEVISE INCONNUE DOIT ÊTRE REFUSÉE ICI, PAS PLUS LOIN.</summary>
     [Fact]
     public void Une_devise_non_prise_en_charge_est_refusee()
     {

@@ -3,32 +3,7 @@ using HBA.Gateway.Application.Abstractions.Services;
 
 namespace HBA.Gateway.Application.Bff.Shared;
 
-/// <summary>
-/// Accompagne une agrégation : trace, mesure, et applique la criticité.
-/// </summary>
-/// <remarks>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE GABARIT QUE TOUS LES BFF REPRENNENT.
-///
-///     var ctx = AggregationContext.Start("client.express.home");
-///
-///     var categoriesTask = ctx.CallAsync("Catalog", () => catalog.ListCategoriesAsync(ct));
-///     var recoTask       = ctx.CallAsync("Engagement", () => engagement.GetMyRecommendedProductIdsAsync(ct));
-///     await Task.WhenAll(categoriesTask, recoTask);          // §22
-///
-///     var categories = ctx.Resolve(DependencyCriticality.Critical, "Catalog", await categoriesTask);
-///     var reco       = ctx.Resolve(DependencyCriticality.Optional, "Engagement", await recoTask);
-///
-///     return ctx.Complete(dto);
-///
-/// `CallAsync` ET `Resolve` SONT SÉPARÉS, ET C'EST TOUTE L'ASTUCE.
-///
-/// Fondre les deux — une méthode qui appelle ET classe — forcerait un `await` par
-/// dépendance, donc une exécution SÉQUENTIELLE. C'est exactement l'anti-modèle du
-/// §22. En les séparant, le lancement est non bloquant et la classification n'a
-/// lieu qu'après `Task.WhenAll`.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>Accompagne une agrégation : trace, mesure, et applique la criticité.</summary>
 public sealed class AggregationContext : IDisposable
 {
     private readonly List<BffWarning> _warnings = [];
@@ -47,10 +22,7 @@ public sealed class AggregationContext : IDisposable
 
     public static AggregationContext Start(string screen) => new(screen);
 
-    /// <summary>
-    /// Lance un appel de dépendance en le traçant et en le mesurant.
-    /// N'attend PAS : le résultat se récupère plus tard, après <c>Task.WhenAll</c>.
-    /// </summary>
+    /// <summary>Lance un appel de dépendance en le traçant et en le mesurant.</summary>
     public async Task<ServiceResult<T>> CallAsync<T>(
         string source, Func<Task<ServiceResult<T>>> call)
     {
@@ -79,26 +51,13 @@ public sealed class AggregationContext : IDisposable
                 new KeyValuePair<string, object?>("bff.dependency", source));
 
             // LE MOTIF VA DANS LA TRACE, PAS DANS LA RÉPONSE.
-            //
-            // Il peut nommer un hôte interne. La trace est un canal d'exploitation ;
-            // la réponse est publique.
             span?.SetStatus(ActivityStatusCode.Error, result.FailureReason);
         }
 
         return result;
     }
 
-    /// <summary>
-    /// Applique la criticité à un résultat déjà obtenu.
-    /// </summary>
-    /// <remarks>
-    /// UN 401 SUR UNE DÉPENDANCE OPTIONNELLE N'EST PAS UNE DÉGRADATION.
-    ///
-    /// engagement-service est entièrement authentifié : un visiteur anonyme
-    /// reçoit 401 sur la note d'un produit. Compter cela comme un incident
-    /// remplirait le compteur d'échecs à chaque visite non connectée, et le
-    /// signal utile — le service est vraiment tombé — serait noyé.
-    /// </remarks>
+    /// <summary>Applique la criticité à un résultat déjà obtenu.</summary>
     public T? Resolve<T>(DependencyCriticality criticality, string source, ServiceResult<T> result)
     {
         if (result.IsSuccess)

@@ -5,43 +5,18 @@ using HBA.Tests.Authorization;
 
 namespace HBA.Merchants.IntegrationTests;
 
-/// <summary>Un vendeur inscrit par le parcours réel, avec de quoi continuer à agir en son nom.</summary>
+/// <summary>
+/// Un vendeur inscrit par le parcours réel, avec de quoi continuer à agir en son
+/// nom.
+/// </summary>
 internal sealed record VendeurInscrit(Guid UserId, Guid SellerId, HttpClient Client);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LES GESTES DU PARCOURS, PASSÉS PAR LA VRAIE SURFACE HTTP.
-///
-/// AUCUN RACCOURCI PAR LE `DbContext` OU PAR L'AGRÉGAT.
-///
-/// Il serait plus rapide d'insérer un vendeur en base et de partir de là. Ce
-/// serait aussi renoncer à la moitié de ce que ce niveau existe pour éprouver :
-/// le préfixe `/api/v1/`, l'enveloppe du §25, les gardes de propriété, la
-/// sérialisation des value objects en jsonb, et le fait que chaque écriture
-/// alimente réellement l'outbox. Un vendeur posé directement en base n'aurait
-/// jamais rien publié.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LES GESTES DU PARCOURS, PASSÉS PAR LA VRAIE SURFACE HTTP.</summary>
 internal static class Parcours
 {
     
     
-    /// <summary>
-    /// Inscrit un vendeur et rend de quoi agir en son nom.
-    /// </summary>
-    /// <remarks>
-    /// LE JETON PORTE DÉJÀ LE RÔLE `Seller`, ET C'EST UN RACCOURCI ASSUMÉ.
-    ///
-    /// En vrai, le rôle est greffé APRÈS l'inscription :
-    /// `SellerRegisteredIntegrationEvent` part sur le courtier, identity-service le
-    /// consomme et l'ajoute au compte — donc le vendeur ne l'obtient qu'à son jeton
-    /// suivant. Le reproduire ici demanderait de faire tourner identity-service.
-    ///
-    /// Ce que cela ne masque pas : `MerchantsAuthorizationTests` vérifie que
-    /// l'inscription et `GET /me` restent ouvertes à un compte SANS le rôle — c'est
-    /// exactement l'exception qui rend le parcours possible, et elle est tenue
-    /// ailleurs.
-    /// </remarks>
+    /// <summary>Inscrit un vendeur et rend de quoi agir en son nom.</summary>
     public static async Task<VendeurInscrit> InscrireAsync(
         MerchantsIntegrationFixture fixture, string nomBoutique)
     {
@@ -62,15 +37,6 @@ internal static class Parcours
     /// Téléverse un fichier au nom du vendeur, puis le rattache à son dossier KYB.
     /// Bascule le dossier en revue (comportement déprécié).
     /// </summary>
-    /// <remarks>
-    /// LE MÉDIA EST DÉPOSÉ AVANT, ET IL N'EST PLUS UN GUID AU HASARD.
-    ///
-    /// Cette méthode envoyait `Guid.NewGuid()`. Elle passait, parce que le service
-    /// ne vérifiait rien : n'importe quel identifiant devenait une pièce
-    /// d'identité. Le contrôle de propriété ajouté au §2 de l'audit rend ce
-    /// raccourci impossible, et c'est le signe qu'il fonctionne — un test qui
-    /// aurait continué de passer aurait signalé un contrôle inopérant.
-    /// </remarks>
     public static async Task<Guid> DeposerPieceAsync(
         MerchantsIntegrationFixture fixture, VendeurInscrit vendeur, string type = "IdCard")
     {
@@ -84,9 +50,7 @@ internal static class Parcours
         return await LireIdAsync(reponse);
     }
 
-    /// <summary>
-    /// Rattache un média BRUT, sans exiger le succès — pour éprouver les refus.
-    /// </summary>
+    /// <summary>Rattache un média BRUT, sans exiger le succès — pour éprouver les refus.</summary>
     public static Task<HttpResponseMessage> RattacherPieceAsync(
         VendeurInscrit vendeur, Guid mediaId, string type = "IdCard")
         => vendeur.Client.PostAsJsonAsync(
@@ -103,20 +67,7 @@ internal static class Parcours
         await ReussirAsync(reponse);
     }
 
-    /// <summary>
-    /// Le MÊME vendeur, mais avec un jeton dont l'authentification a vieilli.
-    /// </summary>
-    /// <remarks>
-    /// SERT À PROUVER QUE LE STEP-UP DU §37 MORD ENCORE.
-    ///
-    /// `TestTokens.Create` pose un `auth_time` frais, sans quoi tout le parcours se
-    /// verrait refuser `PUT /payout-account` en 403. Le risque de ce claim est
-    /// qu'en le posant partout, plus aucun test ne prouve que le contrôle existe :
-    /// on aurait désactivé une garde de sécurité pour faire passer une suite.
-    ///
-    /// Ce client-ci est la contre-épreuve. Même compte, mêmes rôles, même
-    /// appartenance — seule l'ancienneté de l'authentification change.
-    /// </remarks>
+    /// <summary>Le MÊME vendeur, mais avec un jeton dont l'authentification a vieilli.</summary>
     public static VendeurInscrit AvecAuthentificationAncienne(
         MerchantsIntegrationFixture fixture, VendeurInscrit vendeur)
         => vendeur with
@@ -147,33 +98,7 @@ internal static class Parcours
         return await LireIdAsync(reponse);
     }
 
-    /// <summary>
-    /// Exige le succès, et DIT POURQUOI quand il n'est pas au rendez-vous.
-    /// </summary>
-    /// <remarks>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// CE QUI ÉTAIT CASSÉ : `EnsureSuccessStatusCode` NE DIT QUE LE CODE.
-    ///
-    /// Trente-deux tests de cette suite sont tombés sur
-    /// « Response status code does not indicate success: 401 (Unauthorized) ».
-    /// Trente-deux fois la même phrase, et pas une once de cause : un 401 de
-    /// jeton peut venir d'une signature qui ne correspond pas, d'un émetteur
-    /// refusé, d'une audience refusée, d'une durée de vie expirée, ou d'aucun
-    /// jeton du tout. Ces cinq pannes ont cinq corrections différentes.
-    ///
-    /// Or la réponse PORTE la réponse. Le gestionnaire JWT écrit l'en-tête
-    /// `WWW-Authenticate: Bearer error="invalid_token",
-    /// error_description="The signature key was not found"` — et l'exception
-    /// standard la jette avec le reste de la réponse.
-    ///
-    /// CE QUE CELA NE COUVRE PAS.
-    ///
-    /// Ce n'est pas un contrôle : rien ici ne rend un test plus tolérant, le
-    /// succès reste exigé à l'identique. Cela ne remplace pas non plus les
-    /// journaux du gestionnaire — l'en-tête reste volontairement vague sur
-    /// certains refus, et seul le journal du service porte le code `IDXxxxxx`.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </remarks>
+    /// <summary>Exige le succès, et DIT POURQUOI quand il n'est pas au rendez-vous.</summary>
     private static async Task ReussirAsync(HttpResponseMessage reponse)
     {
         if (reponse.IsSuccessStatusCode)
@@ -187,8 +112,8 @@ internal static class Parcours
 
         var corps = await reponse.Content.ReadAsStringAsync();
 
-        // LU AVANT LA TRONCATURE : sur un corps long, l'identifiant tomberait
-        // dans les caractères jetés et l'on ne saurait plus relier la réponse à
+        // LU AVANT LA TRONCATURE : sur un corps long, l'identifiant tomberait dans
+        // les caractères jetés et l'on ne saurait plus relier la réponse à
         // l'exception qui l'a produite.
         var correlation = LireCorrelation(corps);
 
@@ -205,17 +130,7 @@ internal static class Parcours
             + JournalHote.Pour(correlation));
     }
 
-    /// <summary>
-    /// L'identifiant de corrélation d'une réponse d'erreur, s'il s'y trouve.
-    /// </summary>
-    /// <remarks>
-    /// Deux formes coexistent et c'est voulu : le gestionnaire global rend
-    /// `correlationId` à la racine, l'enveloppe du §25 le porte dans
-    /// `meta.requestId`. On lit les deux plutôt que d'en supposer une.
-    ///
-    /// Un corps illisible rend `null` : cette méthode sert à ENRICHIR un message
-    /// d'échec, elle ne doit jamais en produire un second.
-    /// </remarks>
+    /// <summary>L'identifiant de corrélation d'une réponse d'erreur, s'il s'y trouve.</summary>
     private static string? LireCorrelation(string corps)
     {
         try
@@ -256,10 +171,6 @@ internal static class Parcours
 
     /// <summary>
     /// LA RÉPONSE EST ENVELOPPÉE : L'IDENTIFIANT EST DANS `data`, PAS À LA RACINE.
-    ///
-    /// C'est le mode de panne exact trouvé dans `CatalogClient` au lot 6 : lire la
-    /// racine ne lève pas, cela rend simplement un GUID vide, et le test échoue
-    /// bien plus loin — sur un vendeur introuvable — sans dire pourquoi.
     /// </summary>
     private static async Task<Guid> LireIdAsync(HttpResponseMessage reponse)
     {

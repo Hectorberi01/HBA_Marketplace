@@ -6,8 +6,8 @@ using Xunit;
 namespace HBA.Media.Tests;
 
 /// <summary>
-/// L'agrégat média. Il ne contient aucun octet : ce qu'il garantit, c'est OÙ est
-/// le fichier, QUI peut le voir, et QUAND il peut disparaître.
+/// L'agrégat média. Il ne contient aucun octet : ce qu'il garantit, c'est OÙ est le
+/// fichier, QUI peut le voir, et QUAND il peut disparaître.
 /// </summary>
 public sealed class MediaAssetTests
 {
@@ -26,13 +26,7 @@ public sealed class MediaAssetTests
 
     // ────────────────────────────────────────────────────────── Enregistrement
 
-    /// <summary>
-    /// LA VISIBILITÉ VIENT DE LA POLITIQUE, JAMAIS DE L'APPELANT.
-    ///
-    /// `Register` n'a même pas de paramètre de visibilité, et c'est la garantie
-    /// elle-même : une pièce d'identité est privée parce qu'elle est une pièce
-    /// d'identité, pas parce qu'un développeur y a pensé ce jour-là.
-    /// </summary>
+    /// <summary>LA VISIBILITÉ VIENT DE LA POLITIQUE, JAMAIS DE L'APPELANT.</summary>
     [Fact]
     public void La_visibilite_est_imposee_par_la_nature_du_fichier()
     {
@@ -84,13 +78,7 @@ public sealed class MediaAssetTests
 
     // ─────────────────────────────────────────────────── Nom et clé de stockage
 
-    /// <summary>
-    /// LE NOM D'ORIGINE EST CONSERVÉ, DONC IL DOIT ÊTRE ASSAINI.
-    ///
-    /// Il ne sert jamais de clé — mais il est réaffiché et proposé au
-    /// téléchargement, donc il finit dans un en-tête HTTP. Un séparateur ou un
-    /// caractère de contrôle qui y survivrait sortirait du fichier.
-    /// </summary>
+    /// <summary>LE NOM D'ORIGINE EST CONSERVÉ, DONC IL DOIT ÊTRE ASSAINI.</summary>
     [Theory]
     [InlineData("../../etc/passwd", "passwd")]
     [InlineData("dossier/photo.jpg", "photo.jpg")]
@@ -102,14 +90,7 @@ public sealed class MediaAssetTests
     public void Un_nom_vide_recoit_un_nom_de_repli()
         => Media(nom: "   ").OriginalFileName.Should().Be("fichier");
 
-    /// <summary>
-    /// LA CLÉ EST CONSTRUITE SUR LES IDENTIFIANTS, PAS SUR LE NOM UTILISATEUR.
-    ///
-    /// Un nom utilisateur comme clé, ce sont des collisions, des « ../ », et un
-    /// jour un fichier écrit là où personne ne l'attendait. Elle est aussi
-    /// DÉTERMINISTE : elle se recalcule sans charger l'agrégat, ce qui permet de
-    /// déposer les octets avant de créer la ligne.
-    /// </summary>
+    /// <summary>LA CLÉ EST CONSTRUITE SUR LES IDENTIFIANTS, PAS SUR LE NOM UTILISATEUR.</summary>
     [Fact]
     public void La_cle_de_stockage_ne_contient_jamais_le_nom_fourni()
     {
@@ -145,12 +126,7 @@ public sealed class MediaAssetTests
         media.BeginProcessing().Error.Code.Should().Be("media.not_uploaded");
     }
 
-    /// <summary>
-    /// UN RETRAITEMENT REMPLACE LES VARIANTES, IL NE LES EMPILE PAS.
-    ///
-    /// Empiler produirait deux miniatures pour une même image, et l'affichage
-    /// prendrait la première venue — donc, la moitié du temps, l'ancienne.
-    /// </summary>
+    /// <summary>UN RETRAITEMENT REMPLACE LES VARIANTES, IL NE LES EMPILE PAS.</summary>
     [Fact]
     public void Un_retraitement_remplace_les_variantes()
     {
@@ -174,13 +150,7 @@ public sealed class MediaAssetTests
         media.DomainEvents.Should().ContainSingle(e => e is MediaReadyDomainEvent);
     }
 
-    /// <summary>
-    /// « FAILED » RESTE SERVABLE, ET C'EST TOUT L'ENJEU.
-    ///
-    /// Seules les VARIANTES ont échoué ; l'original est intact dans le stockage.
-    /// Le refuser perdrait une photo parfaitement valable parce qu'une miniature
-    /// n'a pas pu être calculée.
-    /// </summary>
+    /// <summary>« FAILED » RESTE SERVABLE, ET C'EST TOUT L'ENJEU.</summary>
     [Fact]
     public void Un_traitement_echoue_laisse_l_original_servable()
     {
@@ -206,13 +176,7 @@ public sealed class MediaAssetTests
 
     // ────────────────────────────────────────────────── Suppression et purge
 
-    /// <summary>
-    /// SUPPRESSION LOGIQUE : LES OCTETS NE PARTENT PAS TOUT DE SUITE.
-    ///
-    /// Un vendeur qui retire sa pièce d'identité par erreur, ou un litige qui
-    /// remonte trois mois plus tard, ne doivent pas se heurter à un octet effacé
-    /// la veille.
-    /// </summary>
+    /// <summary>SUPPRESSION LOGIQUE : LES OCTETS NE PARTENT PAS TOUT DE SUITE.</summary>
     [Fact]
     public void Une_suppression_est_logique_et_leve_l_evenement()
     {
@@ -228,8 +192,7 @@ public sealed class MediaAssetTests
 
     /// <summary>
     /// Kafka livre au moins une fois : le consommateur qui supprime sur retrait
-    /// d'une pièce KYB rejouera. Une seconde suppression doit être un succès
-    /// silencieux, sans second événement.
+    /// d'une pièce KYB rejouera.
     /// </summary>
     [Fact]
     public void Supprimer_deux_fois_est_sans_effet()
@@ -243,12 +206,7 @@ public sealed class MediaAssetTests
         media.DomainEvents.OfType<MediaDeletedDomainEvent>().Should().HaveCount(1);
     }
 
-    /// <summary>
-    /// LA RÉTENTION DÉPEND DE LA NATURE, ET UNE FACTURE SE GARDE DIX ANS.
-    ///
-    /// Purger sur un délai unique effacerait des pièces comptables encore
-    /// exigibles.
-    /// </summary>
+    /// <summary>LA RÉTENTION DÉPEND DE LA NATURE, ET UNE FACTURE SE GARDE DIX ANS.</summary>
     [Fact]
     public void Une_facture_n_est_pas_purgeable_apres_le_delai_d_une_photo()
     {
@@ -276,12 +234,7 @@ public sealed class MediaAssetTests
     public void Un_media_vivant_n_est_jamais_purgeable()
         => Media().IsPurgeable(Maintenant.AddYears(50)).Should().BeFalse();
 
-    /// <summary>
-    /// LA PURGE DOIT EFFACER L'ORIGINAL **ET** SES DÉRIVÉES.
-    ///
-    /// N'effacer que l'original laisserait les miniatures d'une pièce retirée dans
-    /// le stockage — c'est-à-dire le document lui-même, en plus petit.
-    /// </summary>
+    /// <summary>LA PURGE DOIT EFFACER L'ORIGINAL **ET** SES DÉRIVÉES.</summary>
     [Fact]
     public void Toutes_les_cles_a_effacer_incluent_les_variantes()
     {

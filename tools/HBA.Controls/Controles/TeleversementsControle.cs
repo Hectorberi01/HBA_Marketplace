@@ -6,7 +6,6 @@ namespace HBA.Controls.Controles;
 /// Toute route qui reçoit un fichier décide-t-elle de son type par les OCTETS ?
 /// </summary>
 /// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
 /// LE `Content-Type` D'UN TÉLÉVERSEMENT EST UNE DÉCLARATION DU CLIENT.
 ///
 /// `IFormFile.ContentType` vient de l'en-tête multipart, écrit par l'appelant.
@@ -44,7 +43,6 @@ namespace HBA.Controls.Controles;
 ///   • que la signature détectée corresponde au contenu entier. `FileSignature`
 ///     lit un en-tête ; un polyglotte reste un polyglotte. Ce n'est pas un
 ///     antivirus, et le contrôle n'en fait pas un.
-/// ═══════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class TeleversementsControle : IControle
 {
@@ -54,10 +52,7 @@ public sealed class TeleversementsControle : IControle
     /// <inheritdoc/>
     public string Resume => "toute route qui reçoit un IFormFile déduit le type des octets, pas de l'en-tête";
 
-    /// <summary>
-    /// Une méthode dont un paramètre est un `IFormFile`. Le `?` est optionnel :
-    /// une route qui accepte le fichier absent en reçoit un quand même.
-    /// </summary>
+    /// <summary>Une méthode dont un paramètre est un `IFormFile`.</summary>
     private static readonly Regex Methode = new(
         @"(?<nom>\w+)\s*\(\s*(?<params>[^)]*\bIFormFile\??\s+\w+[^)]*)\)",
         RegexOptions.Compiled);
@@ -70,7 +65,7 @@ public sealed class TeleversementsControle : IControle
     public Verdict Executer()
     {
         // L'absence d'un dossier LÈVE : un contrôle qui ne peut rien regarder ne
-        // doit pas rendre « 0 anomalie ». Voir l'encadré de `Depot`.
+        // doit pas rendre « 0 anomalie ».
         var racines = new[] { Depot.Dossier("services"), Depot.Dossier("bff") };
 
         var fautes = new List<string>();
@@ -91,7 +86,7 @@ public sealed class TeleversementsControle : IControle
                 // SOIT VRAI. Ce dépôt commente abondamment `IFormFile` et
                 // `UploadValidation` : les garder ferait passer pour une route un
                 // encadré qui en parle, et pour un contrôle une phrase qui le
-                // mentionne. Le contrôle rendrait alors vert par bavardage.
+                // mentionne.
                 var texte = SourceCsharp.SansCommentaires(brut);
 
                 foreach (Match methode in Methode.Matches(texte))
@@ -149,7 +144,7 @@ public sealed class TeleversementsControle : IControle
 
     /// <summary>
     /// Le corps de la méthode dont la signature se termine à
-    /// <paramref name="depuis"/>, ou <c>null</c> si les accolades ne se ferment
+    /// <paramref name="depuis"/> , ou <c> null</c> si les accolades ne se ferment
     /// pas — un corps mal délimité doit se dire, pas se deviner.
     /// </summary>
     private static string? CorpsApres(string texte, int depuis)

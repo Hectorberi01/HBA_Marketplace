@@ -7,7 +7,6 @@ namespace HBA.Shared.Infrastructure.Events;
 /// <summary>
 /// Dispatch des domain events après persistance : pour chaque event, résout les
 /// <see cref="IDomainEventHandler{TDomainEvent}"/> du module et les exécute.
-/// Reste in-process et synchrone — un domain event ne quitte jamais son module.
 /// </summary>
 public sealed class DomainEventDispatcher : IDomainEventDispatcher
 {

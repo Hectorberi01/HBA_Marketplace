@@ -9,29 +9,10 @@ using Xunit;
 
 namespace HBA.Merchants.IntegrationTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE PARCOURS KYB DU §10.3, DE BOUT EN BOUT, CONTRE UNE VRAIE BASE.
-///
-/// CE QUE LES 63 CAS UNITAIRES NE PEUVENT PAS DIRE.
-///
-/// `SellerKybTests` éprouve les règles de l'agrégat, et il les éprouve bien —
-/// c'est lui qui a montré que la bascule dépréciée devance le geste explicite.
-/// Mais il travaille en mémoire. Il ne dit rien de :
-///
-///   • les neuf migrations appliquées à froid, dans l'ordre, sur une base vide ;
-///   • la sérialisation jsonb de `PayoutAccount` — un value object nullable avec
-///     son propre converter, invisible de tout test en mémoire ;
-///   • le préfixe `/api/v1/` du lot 3 — une route mal montée rend 404, et aucun
-///     test unitaire ne monte de routes ;
-///   • l'enveloppe du §25 — la forme réelle du corps HTTP ;
-///   • le trajet outbox → Kafka, où quatre étapes peuvent rompre sans casser la
-///     compilation.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE PARCOURS KYB DU §10.3, DE BOUT EN BOUT, CONTRE UNE VRAIE BASE.</summary>
 [Collection(MerchantsIntegrationCollection.Nom)]
-// SANS CE TRAIT, LA CLASSE TOURNE DANS `make test` ET ÉCHOUE SUR UN POSTE
-// SANS DOCKER. C'est le filtre de la cible `test` — voir le Makefile.
+// SANS CE TRAIT, LA CLASSE TOURNE DANS `make test` ET ÉCHOUE SUR UN POSTE SANS
+// DOCKER. C'est le filtre de la cible `test` — voir le Makefile.
 [Trait("Docker", "true")]
 public sealed class ParcoursKybTests
 {
@@ -39,18 +20,7 @@ public sealed class ParcoursKybTests
 
     public ParcoursKybTests(MerchantsIntegrationFixture fixture) => _fixture = fixture;
 
-    /// <summary>
-    /// LE TEST QUI PROUVE QUE LE SCHÉMA SE CONSTRUIT À FROID.
-    ///
-    /// Il n'assère presque rien — mais pour qu'il réponde 200, le service a dû
-    /// appliquer TOUTES ses migrations sur une base vide, PUIS interroger le
-    /// `SellersDbContext` par la sonde de disponibilité. Le plan le notait :
-    /// « rien de ce service n'a jamais tourné contre une vraie base ».
-    ///
-    /// `/health/ready` plutôt qu'une route métier : c'est la seule qui touche la
-    /// base sans passer par une règle qui pourrait masquer l'échec derrière un 404
-    /// parfaitement légitime.
-    /// </summary>
+    /// <summary>LE TEST QUI PROUVE QUE LE SCHÉMA SE CONSTRUIT À FROID.</summary>
     [Fact]
     public async Task Le_service_demarre_et_sa_base_repond_sur_un_schema_neuf()
     {
@@ -61,14 +31,7 @@ public sealed class ParcoursKybTests
             + "les neuf migrations se sont appliquées dans l'ordre sur une base vide");
     }
 
-    /// <summary>
-    /// L'ANCIEN PRÉFIXE DOIT RENDRE 404 SUR LE SERVICE, ET C'EST VOULU.
-    ///
-    /// La coquille de dépréciation vit à la PASSERELLE, pas ici (décision D15). Ce
-    /// test fixe la frontière : si quelqu'un « corrigeait » ce 404 en remontant
-    /// l'ancien préfixe dans le service, on aurait deux endroits qui servent la
-    /// même surface, et le retrait de la coquille ne retirerait plus rien.
-    /// </summary>
+    /// <summary>L'ANCIEN PRÉFIXE DOIT RENDRE 404 SUR LE SERVICE, ET C'EST VOULU.</summary>
     [Fact]
     public async Task L_ancien_prefixe_n_est_plus_servi_par_le_service()
     {
@@ -79,14 +42,7 @@ public sealed class ParcoursKybTests
         reponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    /// <summary>
-    /// LA DOCUMENTATION DOIT ÊTRE ATTEIGNABLE SANS JETON (lot 7).
-    ///
-    /// C'est le piège décrit dans `UseHbaOpenApi` : placée après
-    /// `UseAuthorization`, la page répondrait 401 avant d'avoir pu servir le bouton
-    /// « Authorize » qui permet de s'authentifier. On tourne en rond, et rien dans
-    /// le message ne l'explique. Ce test fige l'ordre du pipeline.
-    /// </summary>
+    /// <summary>LA DOCUMENTATION DOIT ÊTRE ATTEIGNABLE SANS JETON (lot 7).</summary>
     [Fact]
     public async Task La_documentation_openapi_est_servie_sans_jeton()
     {
@@ -102,14 +58,7 @@ public sealed class ParcoursKybTests
                 "le document doit décrire les routes réelles du service");
     }
 
-    /// <summary>
-    /// LA SURFACE VENDEUR EXIGE LE RÔLE — VÉRIFIÉ ICI CONTRE UN HÔTE COMPLET.
-    ///
-    /// `MerchantsAuthorizationTests` le vérifie déjà sans base. La redite n'est pas
-    /// gratuite : elle éprouve la même règle une fois que TOUT est monté — base,
-    /// outbox, consommateur, télémétrie, documentation. Un filtre ajouté plus tard
-    /// pourrait changer l'ordre du pipeline sans que la suite sans base ne le voie.
-    /// </summary>
+    /// <summary>LA SURFACE VENDEUR EXIGE LE RÔLE — VÉRIFIÉ ICI CONTRE UN HÔTE COMPLET.</summary>
     [Fact]
     public async Task Un_acheteur_n_entre_pas_dans_la_surface_vendeur()
     {
@@ -120,15 +69,7 @@ public sealed class ParcoursKybTests
         reponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    /// <summary>
-    /// L'ENVELOPPE DU §25, QUI NE S'ÉPROUVE QU'ICI.
-    ///
-    /// Le lot 3 a migré la surface vers `ApiResults`. Rien, dans le code, ne
-    /// garantit qu'aucune réponse n'a été oubliée : un `Results.Ok` restant compile
-    /// et rend une réponse d'apparence correcte, simplement pas enveloppée. Le
-    /// client la lit avec son parseur d'enveloppe et obtient des champs nuls —
-    /// c'est exactement le mode de panne silencieux trouvé dans `CatalogClient`.
-    /// </summary>
+    /// <summary>L'ENVELOPPE DU §25, QUI NE S'ÉPROUVE QU'ICI.</summary>
     [Fact]
     public async Task La_fiche_vendeur_repond_dans_l_enveloppe_du_paragraphe_25()
     {
@@ -153,22 +94,7 @@ public sealed class ParcoursKybTests
     }
 
     /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
     /// LA FICHE VENDEUR PORTE SES BOUTIQUES (§10.3), À PLAT ET SANS RIEN DÉPLACER.
-    ///
-    /// CE TEST GARDE DEUX CHOSES, PAS UNE.
-    ///
-    /// La première est l'ajout : `stores` est là, avec les bonnes boutiques. Le
-    /// client faisait jusqu'ici un second appel — deux allers-retours pour ouvrir
-    /// un écran, sur une connexion mobile béninoise.
-    ///
-    /// La seconde est ce qui n'a PAS bougé, et c'est elle qui compte le plus.
-    /// `SellerDetail` hérite de `SellerSummary` précisément pour que les champs
-    /// déjà servis restent à leur place dans le JSON. Un record enveloppant
-    /// (`{ seller: {…}, stores: […] }`) aurait été plus simple à écrire et aurait
-    /// cassé, en silence, tout client lisant `data.shopName` — la passerelle
-    /// comprise. Ce test échouerait si quelqu'un refaisait ce choix.
-    /// ═════════════════════════════════════════════════════════════════════════
     /// </summary>
     [Fact]
     public async Task La_fiche_vendeur_porte_ses_boutiques_sans_deplacer_ses_champs()
@@ -198,33 +124,7 @@ public sealed class ParcoursKybTests
             .Should().BeEquivalentTo(new[] { premiere, seconde });
     }
 
-    /// <summary>
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// LE PARCOURS COMPLET — INSCRIPTION, DOSSIER, VALIDATION, ACTIVATION.
-    ///
-    /// ET SURTOUT : LES TROIS ÉVÉNEMENTS SORTENT VRAIMENT.
-    ///
-    /// C'est la moitié du parcours qu'aucun autre niveau ne voit. Entre le
-    /// `Raise()` que les tests unitaires observent et le message qu'un service
-    /// voisin reçoit, il y a une sérialisation, une table d'outbox, un processeur
-    /// d'arrière-plan et un nom de sujet dérivé de `SERVICE_NAME`. Aucune de ces
-    /// quatre étapes ne casse la compilation en se rompant.
-    ///
-    /// Le dépôt a déjà payé ce silence deux fois : un consommateur perdu à
-    /// l'extraction de user-service, et `SellerKybVerifiedDomainEvent` levé depuis
-    /// l'origine SANS AUCUN GESTIONNAIRE — donc évaporé à chaque fin d'unité de
-    /// travail, sans une ligne de journal.
-    ///
-    /// `seller.kyb.submitted` N'EST PAS ATTENDU ICI, ET C'EST NORMAL.
-    ///
-    /// Le dépôt de la première pièce bascule DÉJÀ le dossier en revue — c'est la
-    /// transition dépréciée que le lot 2 a laissée en place le temps que
-    /// l'application envoie `POST /kyb/submit`. Le geste explicite est donc
-    /// correctement idempotent et n'émet rien de plus. C'est ce que
-    /// `Soumettre_ne_reannonce_pas_un_dossier_deja_en_revue` fixe côté unitaire ;
-    /// l'attendre ici ferait échouer un test sur un comportement voulu.
-    /// ═════════════════════════════════════════════════════════════════════════
-    /// </summary>
+    /// <summary>LE PARCOURS COMPLET — INSCRIPTION, DOSSIER, VALIDATION, ACTIVATION.</summary>
     [Fact]
     public async Task Le_parcours_kyb_active_le_vendeur_et_ses_evenements_atteignent_le_courtier()
     {
@@ -234,8 +134,7 @@ public sealed class ParcoursKybTests
         await Parcours.DeposerPieceAsync(_fixture, vendeur, "BusinessRegistry");
         await Parcours.FixerReversementAsync(vendeur);
 
-        // Le geste explicite du lot 2. Il ne change rien ici — voir l'encadré — mais
-        // il doit répondre 204, pas échouer.
+        // Le geste explicite du lot 2.
         var soumission = await vendeur.Client.PostAsync(
             $"/api/v1/merchants/{vendeur.SellerId}/kyb/submit", content: null);
         soumission.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -251,10 +150,6 @@ public sealed class ParcoursKybTests
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // ─── L'état persisté, lu en SQL et non par le DbContext du service ───
-        //
-        // Passer par `SellersDbContext` ferait vérifier l'écriture avec le même
-        // mécanisme que celui qui l'a produite : un mauvais mapping de colonne
-        // serait invisible des deux côtés à la fois.
         var (statut, kyb, reversement) = await LireVendeurAsync(vendeur.SellerId);
 
         statut.Should().Be("Active");

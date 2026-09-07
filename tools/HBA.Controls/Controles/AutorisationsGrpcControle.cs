@@ -6,7 +6,6 @@ namespace HBA.Controls.Controles;
 /// La table d'autorisations gRPC est EXACTEMENT le graphe d'appel du dépôt.
 /// </summary>
 /// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
 /// UNE TABLE D'AUTORISATIONS QUI NE SUIT PAS LE CODE REDEVIENT « TOUT LE MONDE
 /// PEUT TOUT » — SANS QUE PERSONNE NE S'EN APERÇOIVE.
 ///
@@ -64,7 +63,6 @@ namespace HBA.Controls.Controles;
 /// n'a pas son propre verbe dans le lanceur, elle reste du côté de
 /// `le contrôle `autorisations-grpc` --ecrire`, et le message de faute le
 /// rappelle à qui le lit.
-/// ═══════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class AutorisationsGrpcControle : IControle
 {
@@ -74,23 +72,8 @@ public sealed class AutorisationsGrpcControle : IControle
     /// <inheritdoc/>
     public string Resume => "la table d'autorisations gRPC est exactement le graphe d'appel";
 
-    // ═══════════════════════════════════════════════════════════════════════
     // `clients/` ET `tools/` SONT ÉCARTÉS, EN PLUS DES DOSSIERS IGNORÉS PAR
     // `Depot`.
-    //
-    // Le portail d'administration est un client lourd : il ne porte aucun hôte
-    // gRPC, mais il porte un `.csproj` et un `Program`. L'inclure ajouterait un
-    // « hôte » qui n'en est pas un, et donc une divergence permanente que
-    // personne ne saurait corriger.
-    //
-    // `tools/` A ÉTÉ AJOUTÉ LE 2 SEPTEMBRE 2026, ET LE DÉFAUT ÉTAIT RÉEL : cet
-    // outil de contrôles porte lui-même un `Program.cs`. Dès son arrivée dans
-    // le dépôt, le contrôle a exigé une entrée dans la table d'autorisations
-    // pour un projet qui n'appelle aucun service et ne se déploie nulle part —
-    // « HBA.Controls : hôte absent de la table. Aucun de ses 0 appels ne
-    // passerait. » La barrière est passée au rouge sur une divergence qui n'en
-    // était pas une.
-    // ═══════════════════════════════════════════════════════════════════════
     private static readonly string[] DossiersHorsGraphe = ["clients", "tools"];
 
     private static readonly Regex Paquet = new(
@@ -172,7 +155,9 @@ public sealed class AutorisationsGrpcControle : IControle
         return connus;
     }
 
-    /// <summary>Le projet auquel appartient un fichier : le premier `.csproj` en remontant.</summary>
+    /// <summary>
+    /// Le projet auquel appartient un fichier : le premier `.csproj` en remontant.
+    /// </summary>
     private static string? ProjetDe(string fichier)
     {
         var racine = Depot.Racine;
@@ -370,9 +355,9 @@ public sealed class AutorisationsGrpcControle : IControle
 
         if (!File.Exists(cheminTable))
         {
-            // SANS LA TABLE, IL N'Y A RIEN À COMPARER — et rendre « 0
-            // divergence » ferait passer une absence totale d'autorisations pour
-            // un dépôt cohérent.
+            // SANS LA TABLE, IL N'Y A RIEN À COMPARER — et rendre « 0 divergence »
+            // ferait passer une absence totale d'autorisations pour un dépôt
+            // cohérent.
             return new Verdict(
                 [$"{Depot.Relatif(cheminTable)} est introuvable : la table d'autorisations "
                  + "gRPC n'existe pas, aucune comparaison n'a pu avoir lieu."],

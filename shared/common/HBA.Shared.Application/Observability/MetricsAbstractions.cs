@@ -2,13 +2,9 @@ namespace HBA.Shared.Application.Observability;
 
 /// <summary>
 /// Abstractions de métriques métier, exposées ici (BuildingBlocks) pour que les
-/// modules puissent les émettre sans dépendre de l'hôte de composition
-/// (le projet <c>*.Api</c> de chaque service), où vivent les implémentations
-/// concrètes basées sur
-/// <see cref="System.Diagnostics.Metrics.Meter"/>.
-///
-/// Règle : jamais de donnée personnelle en paramètre destiné à devenir un label
-/// (email, id, IP, token…). Seuls des libellés à faible cardinalité et bornés.
+/// modules puissent les émettre sans dépendre de l'hôte de composition (le projet
+/// <c> *.Api</c> de chaque service), où vivent les implémentations concrètes basées
+/// sur <see cref="System.Diagnostics.Metrics.Meter"/> .
 /// </summary>
 public interface IPaymentMetrics
 {
@@ -49,31 +45,12 @@ public interface ISecurityMetrics
     void RateLimited(string route);
 }
 
-/// <summary>
-/// Santé de l'outbox.
-///
-/// ═════════════════════════════════════════════════════════════════════════════
-/// SANS CETTE MÉTRIQUE, LA LETTRE MORTE SERAIT UNE PERTE SILENCIEUSE.
-///
-/// Avant, un message empoisonné était rejoué toutes les 5 secondes, pour toujours :
-/// intenable, mais BRUYANT — ça finissait par se voir. En posant un plafond de
-/// tentatives, on a supprimé le bruit. Si l'on ne remplace pas ce bruit par un SIGNAL,
-/// on a simplement échangé une boucle visible contre un échec invisible — et c'est pire.
-///
-/// Une lettre morte n'est pas un incident technique : c'est un fait métier qui ne se
-/// produira jamais. Un e-mail de réinitialisation jamais envoyé, un gain vendeur jamais
-/// crédité. Cela doit réveiller quelqu'un.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>Santé de l'outbox.</summary>
 public interface IOutboxMetrics
 {
     /// <summary>Une tentative de publication a échoué (sera réessayée).</summary>
     void PublishFailed(string module, string eventType);
 
-    /// <summary>
-    /// Un message a épuisé ses tentatives et ne sera PLUS JAMAIS traité.
-    /// C'est cette métrique qui doit déclencher une alerte : voir OutboxDeadLetter
-    /// dans prometheus-rules.yml.
-    /// </summary>
+    /// <summary>Un message a épuisé ses tentatives et ne sera PLUS JAMAIS traité.</summary>
     void DeadLettered(string module, string eventType);
 }

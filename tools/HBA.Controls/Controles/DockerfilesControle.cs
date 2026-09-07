@@ -3,65 +3,8 @@ using System.Text.RegularExpressions;
 namespace HBA.Controls.Controles;
 
 /// <summary>
-/// Fermeture transitive des <c>COPY</c> : ce que chaque image oublie
-/// d'embarquer.
+/// Fermeture transitive des <c> COPY</c> : ce que chaque image oublie d'embarquer.
 /// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// LA RESTAURATION RÉUSSIT, LA COMPILATION TOMBE, ET LE MESSAGE MENT.
-///
-/// Chaque Dockerfile copie `shared` puis les quelques `*.Contracts` d'autres
-/// services dont il a besoin. Le piège : un projet de `shared` peut lui-même
-/// référencer un projet qui vit DANS un service — c'est le cas de tous les
-/// clients gRPC, qui référencent les contrats du service qu'ils appellent.
-///
-/// Personne n'écrit cette dépendance : elle est transitive. Et son absence ne
-/// produit pas d'erreur franche :
-///
-///     warning MSB9008: the referenced project does not exist
-///     error CS0234: le namespace 'Contracts' n'existe pas dans 'HBA.Orders'
-///
-/// Le premier n'est qu'un AVERTISSEMENT, noyé dans la sortie. Le second envoie
-/// chercher un problème d'espace de noms dans du code qui compile parfaitement en
-/// local. On a perdu deux constructions là-dessus — commerce-service, puis
-/// communication-service, la seconde causée par l'ajout d'un simple client gRPC.
-///
-/// CE CONTRÔLE COÛTE UNE SECONDE, UNE CONSTRUCTION D'IMAGE EN COÛTE CENT.
-///
-/// Il part du projet nommé par `dotnet restore`, suit toutes les
-/// `ProjectReference` de proche en proche, et vérifie que chaque projet atteint
-/// tombe bien dans l'un des chemins `COPY` du Dockerfile.
-///
-/// `apps/` A ÉTÉ AJOUTÉ APRÈS COUP, ET SON ABSENCE A LAISSÉ PASSER UNE PANNE.
-///
-/// Le script d'origine ne parcourait que `services/`. La passerelle n'ayant
-/// longtemps dépendu d'aucun projet partagé, cela ne se voyait pas — jusqu'à ce
-/// que le contrôle de révocation (ISSUE-022) lui donne sa première référence vers
-/// `shared/`, que son Dockerfile ne copiait pas. `dotnet build` local ne pouvait
-/// rien en dire : il voit tout le dépôt. Seul un `docker build` l'aurait montré.
-///
-/// Depuis, `apps/` est parcouru comme `services/`, et par
-/// <see cref="Depot.Dossier"/> : sa disparition LÈVE au lieu de rendre « 21
-/// Dockerfile(s) vérifié(s) » sur vingt.
-///
-/// LE MÊME DÉFAUT, UN CRAN PLUS TÔT : `src/services` n'existe plus depuis la
-/// réorganisation, et les services sont rangés par univers. Le script levait un
-/// `FileNotFoundError` que `check-all.sh` affichait comme un échec de contrôle
-/// ordinaire.
-///
-/// LES `ARG` SONT SUBSTITUÉS AVANT LECTURE, ET C'EST INDISPENSABLE.
-///
-/// `bff/Dockerfile` écrit `COPY ${BFF}/src/...` et
-/// `dotnet restore ${BFF}/src/...`. Comparer ces chaînes telles quelles à des
-/// chemins du dépôt ne rend jamais vrai : le contrôle passerait en annonçant zéro
-/// problème sur un fichier qu'il n'a pas compris. Un contrôle qui se tait à tort
-/// est pire que pas de contrôle.
-///
-/// CE QU'IL NE VÉRIFIE PAS : il ne construit aucune image. Un `COPY` présent mais
-/// annulé par `.dockerignore` reste invisible ici, et le contexte de construction
-/// n'est pas évalué.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
 public sealed class DockerfilesControle : IControle
 {
     /// <inheritdoc/>
@@ -134,11 +77,6 @@ public sealed class DockerfilesControle : IControle
     /// Les projets atteints depuis le `dotnet restore` qui ne tombent dans aucun
     /// `COPY`, ou qui n'existent pas.
     /// </summary>
-    /// <remarks>
-    /// LE PARCOURS S'ARRÊTE AU PREMIER PROJET NON COPIÉ. Ses propres références
-    /// ne sont pas suivies : elles manqueraient toutes, et la liste noierait la
-    /// seule ligne `COPY` qu'il faut ajouter sous vingt conséquences.
-    /// </remarks>
     private static SortedDictionary<string, string> Manquants(
         string restaure, IReadOnlyList<string> copies)
     {
@@ -192,8 +130,8 @@ public sealed class DockerfilesControle : IControle
     }
 
     /// <summary>
-    /// Tout ce qui porte un Dockerfile : « univers/nom-du-service », puis
-    /// « apps/nom ».
+    /// Tout ce qui porte un Dockerfile : « univers/nom-du-service », puis «
+    /// apps/nom ».
     /// </summary>
     private static IEnumerable<(string Etiquette, string Dossier)> Images()
     {
@@ -209,17 +147,11 @@ public sealed class DockerfilesControle : IControle
         }
 
         // `bff/` EST LE PROJET, PAS UN DOSSIER QUI EN CONTIENT.
-        //
-        // Tant que la passerelle vivait sous `apps/`, ce bloc enumerait les
-        // sous-dossiers de ce parent. `bff/` porte son Dockerfile a sa racine :
-        // enumerer ses sous-dossiers rendrait `bff/src` et `bff/tests`, deux
-        // images qui n'existent pas — et le controle chercherait un Dockerfile
-        // dans chacune avant de conclure a leur absence.
         yield return ("bff", Depot.Dossier("bff"));
     }
 
     /// <summary>
-    /// Remplace les <c>ARG NOM=valeur</c> par leur valeur dans le reste du
+    /// Remplace les <c> ARG NOM=valeur</c> par leur valeur dans le reste du
     /// fichier.
     /// </summary>
     private static string SansArguments(string texte)

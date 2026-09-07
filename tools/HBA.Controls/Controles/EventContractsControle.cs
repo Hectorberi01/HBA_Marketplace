@@ -3,61 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace HBA.Controls.Controles;
 
-/// <summary>
-/// La règle ADDITIVE des contrats d'événements (décision D32).
-/// </summary>
-/// <remarks>
-/// ═══════════════════════════════════════════════════════════════════════════
-/// CE QUE CE CONTRÔLE EMPÊCHE, ET POURQUOI RIEN D'AUTRE NE LE VOIT.
-///
-/// Un événement d'intégration n'est pas un objet interne : il est sérialisé,
-/// écrit en base dans l'outbox, publié sur Kafka, et relu par d'autres services —
-/// parfois plusieurs minutes plus tard, parfois par une version déployée la
-/// semaine passée.
-///
-/// Renommer un de ses champs compile. Le supprimer compile. Ajouter un champ
-/// `required` compile. Et rien ne casse à l'exécution non plus : le sérialiseur
-/// JSON lit ce qu'il reconnaît, ignore le reste, et rend un objet aux champs
-/// manquants à `null`. Le gestionnaire s'exécute sur une charge amputée, écrit un
-/// effet faux, et la seule trace est un span vert.
-///
-/// D'où la convention : ON N'AJOUTE QUE DES CHAMPS OPTIONNELS. Une rupture crée
-/// un NOUVEAU type d'événement — un `V2` portant son propre nom — jamais une
-/// version 2 du même.
-///
-/// POURQUOI UN INSTANTANÉ VERSIONNÉ PLUTÔT QU'UNE ANALYSE.
-///
-/// La question n'est pas « à quoi ressemble ce contrat aujourd'hui » — un
-/// compilateur le sait. Elle est « en quoi a-t-il changé depuis la dernière
-/// fois ». Cela demande une mémoire, et cette mémoire doit être relue en revue :
-/// c'est le fichier `docs/contrats-evenements.json`, versionné avec le code qu'il
-/// décrit.
-///
-/// Une modification légitime met à jour l'instantané dans le MÊME commit, et le
-/// relecteur voit exactement ce qui a bougé. C'est le point : rendre la rupture
-/// visible, pas l'interdire.
-///
-/// CE CONTRÔLE NE RÉÉCRIT PAS L'INSTANTANÉ, ET C'EST UNE DIFFÉRENCE ASSUMÉE AVEC
-/// LE SCRIPT D'ORIGINE. Celui-ci créait le fichier quand il manquait, et le
-/// mettait à jour sur `--accepter`. Un contrôle rend un verdict ; il ne modifie
-/// pas le dépôt qu'il examine, et <see cref="IControle"/> n'a pas d'options. Un
-/// instantané absent est donc une FAUTE qui nomme le geste à faire.
-///
-/// L'ACCEPTATION D'UN CHANGEMENT VOULU N'EST PLUS AUTOMATISÉE.
-///
-/// `check-event-contracts.py --accepter` réécrivait l'instantané. Ce port ne le
-/// fait pas : un contrôle rend un verdict, il ne réécrit pas le dépôt — et le
-/// script qui le faisait a été supprimé le 2 septembre 2026. Accepter un
-/// changement voulu se fait désormais À LA MAIN, en éditant
-/// `docs/contrats-evenements.json` dans le MÊME commit que le changement, pour
-/// que le relecteur voie exactement ce qui a bougé.
-///
-/// CE QU'IL NE VOIT PAS : le SENS d'un contrat. Un champ conservé, de même nom et
-/// de même type, mais dont la signification change — une énumération à laquelle on
-/// ajoute une valeur, une unité qui passe du centime à l'euro — traverse ce
-/// contrôle sans un mot.
-/// ═══════════════════════════════════════════════════════════════════════════
-/// </remarks>
+/// <summary>La règle ADDITIVE des contrats d'événements (décision D32).</summary>
 public sealed class EventContractsControle : IControle
 {
     /// <inheritdoc/>
@@ -218,20 +164,8 @@ public sealed class EventContractsControle : IControle
 
     /// <summary>
     /// Les contrats tels que le code les écrit AUJOURD'HUI : par événement, ses
-    /// champs et leurs types, plus la liste de ceux qui sont <c>required</c>.
+    /// champs et leurs types, plus la liste de ceux qui sont <c> required</c>.
     /// </summary>
-    /// <remarks>
-    /// LE CORPS EST DÉLIMITÉ EN COMPTANT LES ACCOLADES, à partir de la première
-    /// rencontrée après le nom du type. Un événement déclaré avec un constructeur
-    /// primaire et refermé par un point-virgule n'a PAS de corps : la première
-    /// accolade trouvée est alors celle du type SUIVANT, et ses champs sont
-    /// attribués au mauvais événement. Aucun événement de ce dépôt ne s'écrit
-    /// ainsi, et la convention est justement d'exposer des propriétés
-    /// `{ get; init; }`.
-    ///
-    /// DEUX ÉVÉNEMENTS DE MÊME NOM dans deux fichiers : le dernier lu écrase le
-    /// premier, en silence. C'est un défaut connu, hérité du script d'origine.
-    /// </remarks>
     private sealed record Contrats(
         Dictionary<string, Dictionary<string, string>> Champs,
         Dictionary<string, List<string>> Requis);
@@ -243,8 +177,8 @@ public sealed class EventContractsControle : IControle
 
         foreach (var fichier in Depot.Fichiers(Depot.Racine, ".cs"))
         {
-            // Les tests déclarent des événements de fixture : les suivre ferait
-            // du bruit dans un instantané qui décrit des contrats publiés.
+            // Les tests déclarent des événements de fixture : les suivre ferait du
+            // bruit dans un instantané qui décrit des contrats publiés.
             if (Depot.Relatif(fichier).Split('/').Contains("tests"))
             {
                 continue;

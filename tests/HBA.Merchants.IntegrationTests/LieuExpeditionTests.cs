@@ -6,30 +6,10 @@ using Xunit;
 
 namespace HBA.Merchants.IntegrationTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// LE LIEU D'OÙ PARTENT LES COLIS — À QUI EST-IL ?
-///
-/// LE JUMEAU EXACT DE LA PIÈCE KYB, ET LA MÊME DÉLÉGATION DANS LE VIDE.
-///
-/// `AttachStoreLocationCommand` portait : « L'appartenance du lieu au vendeur
-/// n'est pas vérifiée ici. […] Le contrôle est fait par l'appelant, qui voit les
-/// deux modules — voir la route du BFF Vendeur. » Le BFF Vendeur annonce lui-même
-/// n'exposer aucun cas d'usage.
-///
-/// N'importe quel GUID passait. `Store.Open()` acceptait ensuite la boutique, et
-/// l'identifiant partait vers delivery, qui bâtissait un enlèvement coursier sur
-/// une adresse que le vendeur ne contrôle pas.
-///
-/// ET LE GUID INEXISTANT ÉTAIT LE PIRE DES TROIS.
-///
-/// Il ne se manifestait qu'APRÈS le paiement de l'acheteur, sur la jambe coursier
-/// — au moment le plus cher du parcours, et le plus difficile à rattraper.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>LE LIEU D'OÙ PARTENT LES COLIS — À QUI EST-IL ?</summary>
 [Collection(MerchantsIntegrationCollection.Nom)]
-// SANS CE TRAIT, LA CLASSE TOURNE DANS `make test` ET ÉCHOUE SUR UN POSTE
-// SANS DOCKER. C'est le filtre de la cible `test` — voir le Makefile.
+// SANS CE TRAIT, LA CLASSE TOURNE DANS `make test` ET ÉCHOUE SUR UN POSTE SANS
+// DOCKER. C'est le filtre de la cible `test` — voir le Makefile.
 [Trait("Docker", "true")]
 public sealed class LieuExpeditionTests
 {
@@ -49,9 +29,7 @@ public sealed class LieuExpeditionTests
         reponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
-    /// <summary>
-    /// LE TEST QUI EMPÊCHE D'EXPÉDIER DEPUIS CHEZ UN CONCURRENT.
-    /// </summary>
+    /// <summary>LE TEST QUI EMPÊCHE D'EXPÉDIER DEPUIS CHEZ UN CONCURRENT.</summary>
     [Fact]
     public async Task Le_lieu_d_un_autre_vendeur_est_refuse()
     {
@@ -70,12 +48,7 @@ public sealed class LieuExpeditionTests
         (await LireRaisonAsync(reponse)).Should().Be("sellers.store.location_not_owned");
     }
 
-    /// <summary>
-    /// CELUI QUI COÛTAIT LE PLUS CHER : UN GUID QUI NE DÉSIGNE RIEN.
-    ///
-    /// La boutique s'ouvrait, l'offre partait en vente, l'acheteur payait — et
-    /// c'est le coursier qui découvrait qu'il n'y avait pas d'adresse.
-    /// </summary>
+    /// <summary>CELUI QUI COÛTAIT LE PLUS CHER : UN GUID QUI NE DÉSIGNE RIEN.</summary>
     [Fact]
     public async Task Un_lieu_inexistant_est_refuse()
     {
@@ -88,15 +61,7 @@ public sealed class LieuExpeditionTests
         (await LireRaisonAsync(reponse)).Should().Be("sellers.store.location_not_found");
     }
 
-    /// <summary>
-    /// UN ENTREPÔT PLATEFORME EST REFUSÉ, ET C'EST UN CHOIX.
-    ///
-    /// Son `OwnerId` est nul par construction (FBP). L'accepter rendrait la garde
-    /// inopérante — n'importe quel vendeur pointerait n'importe quel entrepôt.
-    /// Confier une boutique à un entrepôt de la plateforme est une décision
-    /// d'exploitation ; le jour où elle sera nécessaire, elle méritera sa propre
-    /// route d'administration, nommée pour ce qu'elle fait.
-    /// </summary>
+    /// <summary>UN ENTREPÔT PLATEFORME EST REFUSÉ, ET C'EST UN CHOIX.</summary>
     [Fact]
     public async Task Un_entrepot_plateforme_n_est_pas_rattachable_par_le_vendeur()
     {
@@ -111,9 +76,7 @@ public sealed class LieuExpeditionTests
         (await LireRaisonAsync(reponse)).Should().Be("sellers.store.location_not_owned");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // Outillage
-    // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Un vendeur ACTIF : `CreateStoreCommand` refuse une boutique à qui ne l'est
@@ -145,7 +108,10 @@ public sealed class LieuExpeditionTests
             $"/api/v1/merchants/{vendeur.SellerId}/stores/{storeId}/location",
             new { fulfillmentLocationId = locationId });
 
-    /// <summary>Le code fin du domaine vit dans `error.details[field=reason]` — voir `PieceKybTests`.</summary>
+    /// <summary>
+    /// Le code fin du domaine vit dans `error.details[field=reason]` — voir
+    /// `PieceKybTests`.
+    /// </summary>
     private static async Task<string?> LireRaisonAsync(HttpResponseMessage reponse)
     {
         var corps = await reponse.Content.ReadFromJsonAsync<JsonElement>();

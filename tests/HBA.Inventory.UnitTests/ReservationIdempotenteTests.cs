@@ -2,19 +2,7 @@ using HBA.Inventory.Domain.Stock;
 
 namespace HBA.Inventory.UnitTests;
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// ISSUE-075 — « `ReserveStock` n'est pas idempotent » (CRITICAL).
-///
-/// L'appelant, `PlaceOrderCommandHandler`, vit derrière une échéance de 5 s. Un
-/// dépassement suivi d'un rejeu réservait DEUX fois : le stock disparaissait deux
-/// fois pour une seule vente, et la moitié n'était portée par aucune commande —
-/// donc libérée par personne.
-///
-/// Ces tests n'avaient aucune chance de passer avant la correction : `Reserve`
-/// faisait un `_reservations.Add(...)` inconditionnel.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>ISSUE-075 — « `ReserveStock` n'est pas idempotent » (CRITICAL).</summary>
 public sealed class ReservationIdempotenteTests
 {
     [Fact]
@@ -33,8 +21,7 @@ public sealed class ReservationIdempotenteTests
 
     /// <summary>
     /// Le rejeu strictement identique ne doit RIEN écrire du tout : ni la ligne
-    /// enfant, ni le compteur du verrou optimiste. Sinon deux rejeux inoffensifs
-    /// se battraient sur `xmin` et l'un des deux repartirait en 409.
+    /// enfant, ni le compteur du verrou optimiste.
     /// </summary>
     [Fact]
     public void Un_rejeu_a_l_identique_ne_salit_pas_la_ligne_parente()
@@ -69,9 +56,7 @@ public sealed class ReservationIdempotenteTests
 
     /// <summary>
     /// La quantité est POSÉE, pas ajoutée — et le disponible ne compte pas deux
-    /// fois ce que cette commande détient déjà. Sur 10 en stock avec 6 déjà
-    /// réservés par cette commande, passer à 9 doit passer : il reste 4 libres, et
-    /// l'extension ne demande que 3 de plus.
+    /// fois ce que cette commande détient déjà.
     /// </summary>
     [Fact]
     public void Une_quantite_revue_a_la_hausse_ne_compte_pas_deux_fois_la_commande()
@@ -123,8 +108,8 @@ public sealed class ReservationIdempotenteTests
     }
 
     /// <summary>
-    /// Un rejeu ne doit jamais RACCOURCIR la fenêtre : le balayeur libérerait
-    /// alors le stock sous les pieds d'un paiement en cours d'aboutissement.
+    /// Un rejeu ne doit jamais RACCOURCIR la fenêtre : le balayeur libérerait alors
+    /// le stock sous les pieds d'un paiement en cours d'aboutissement.
     /// </summary>
     [Fact]
     public void Un_rejeu_ne_raccourcit_jamais_la_fenetre_d_expiration()
@@ -141,9 +126,7 @@ public sealed class ReservationIdempotenteTests
 
     /// <summary>
     /// Une commande dont la réservation a été LIBÉRÉE peut en reprendre une
-    /// nouvelle : c'est la reprise de paiement la plus banale. Deux lignes
-    /// subsistent alors pour le même couple — une `Released`, une `Active` — et
-    /// c'est exactement pourquoi l'index unique est PARTIEL.
+    /// nouvelle : c'est la reprise de paiement la plus banale.
     /// </summary>
     [Fact]
     public void Une_commande_liberee_peut_reserver_a_nouveau()

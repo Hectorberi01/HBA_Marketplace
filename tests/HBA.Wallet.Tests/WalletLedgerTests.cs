@@ -4,11 +4,7 @@ using Xunit;
 
 namespace HBA.Wallet.Tests;
 
-/// <summary>
-/// L'invariant comptable du §10.13. Ces tests protègent une propriété qui, une fois
-/// violée, ne se manifeste qu'après des mois — le jour où quelqu'un additionne les
-/// mouvements et trouve autre chose que le solde stocké.
-/// </summary>
+/// <summary>L'invariant comptable du §10.13.</summary>
 public sealed class WalletLedgerTests
 {
     private static WalletTransaction Ecriture(
@@ -47,13 +43,7 @@ public sealed class WalletLedgerTests
         resultat.Error.Code.Should().Be("wallet.ledger.unbalanced");
     }
 
-    /// <summary>
-    /// LE CŒUR DE LA VÉRIFICATION PAR DEVISE.
-    ///
-    /// 5 000 XOF au débit et 5 000 EUR au crédit s'équilibrent si l'on additionne
-    /// des nombres sans regarder leur unité. C'est faux, et c'est exactement le
-    /// genre de déséquilibre qu'un contrôle global laisserait passer.
-    /// </summary>
+    /// <summary>LE CŒUR DE LA VÉRIFICATION PAR DEVISE.</summary>
     [Fact]
     public void Deux_devises_ne_se_compensent_pas()
     {

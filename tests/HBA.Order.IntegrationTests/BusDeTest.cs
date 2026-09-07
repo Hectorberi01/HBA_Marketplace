@@ -9,85 +9,26 @@ namespace HBA.Order.IntegrationTests;
 internal sealed record Enveloppe(string EventType, string AggregateId, JsonElement Data);
 
 /// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// PARLER AU COURTIER COMME PAYMENT-SERVICE LUI PARLE, ET LE LIRE COMME UN TIERS
-/// LE LIRAIT.
-///
-/// LES DEUX NOMS DE SUJET CI-DESSOUS NE SE DEVINENT PAS : ILS SORTENT DE
-///    `HbaTopics.DomaineParService`.
-///
-/// Le sujet est `{TopicPrefix}.{domaine}.{TopicVersion}` — par défaut
-/// `service.{domaine}.v1` (voir `KafkaEventBusOptions`). Et le DOMAINE n'est pas
-/// le nom du conteneur : la table le traduit, ligne par ligne, et c'est tout
-/// l'objet d'ISSUE-001.
-///
-///     payment-service  →  financial   →  service.financial.v1
-///     order-service    →  order       →  service.order.v1
-///
-/// La première traduction est celle qui manquait. Le producteur dérivait son
-/// sujet du `SERVICE_NAME` en retirant « -service » : payment-service publiait
-/// donc sur `service.payment.v1` quand order-service écoutait
-/// `service.financial.v1`. Un message part, il est acquitté, et il n'arrive
-/// nulle part — sans erreur, sans avertissement. C'est très exactement ISSUE-002
-/// et ISSUE-003.
-///
-/// ÉCRITS À LA MAIN, ET NON CALCULÉS PAR `HbaTopics.Pour`.
-///
-/// Appeler la table ici ferait passer ce test quoi qu'elle contienne : si
-/// quelqu'un remettait `payment-service` → `payment`, le test suivrait
-/// docilement, publierait sur `service.payment.v1`, et resterait vert pendant que
-/// la plateforme cesserait d'encaisser. Un nom de sujet est un CONTRAT entre deux
-/// services ; il s'écrit à la main dans un test, précisément pour qu'il faille
-/// venir le modifier ici — et se demander pourquoi.
-/// ═════════════════════════════════════════════════════════════════════════════
+/// PARLER AU COURTIER COMME PAYMENT-SERVICE LUI PARLE, ET LE LIRE COMME UN TIERS LE
+/// LIRAIT.
 /// </summary>
 internal static class BusDeTest
 {
-    /// <summary>
-    /// Le sujet de payment-service. `HbaTopics.DomaineParService` traduit
-    /// `payment-service` → `financial` ; wallet et billing partagent le même hôte
-    /// et donc le même sujet.
-    /// </summary>
+    /// <summary>Le sujet de payment-service.</summary>
     public const string SujetFinancial = "service.financial.v1";
 
     /// <summary>
-    /// Le sujet d'order-service : `order-service` → `order`, une des entrées où
-    /// le nom du conteneur coïncide déjà avec le domaine.
+    /// Le sujet d'order-service : `order-service` → `order`, une des entrées où le
+    /// nom du conteneur coïncide déjà avec le domaine.
     /// </summary>
     public const string SujetOrder = "service.order.v1";
 
-    /// <summary>
-    /// LA PREMIÈRE ATTENTE EST LONGUE, LES SUIVANTES COURTES.
-    ///
-    /// Le premier `Consume` d'un groupe neuf couvre la découverte du coordinateur
-    /// et le rééquilibrage initial — plusieurs secondes sur une machine chargée.
-    /// Les suivants ne font que lire. Une seule valeur pour les deux serait soit
-    /// instable, soit inutilement lente sur chaque message.
-    /// </summary>
+    /// <summary>LA PREMIÈRE ATTENTE EST LONGUE, LES SUIVANTES COURTES.</summary>
     private static readonly TimeSpan PremiereAttente = TimeSpan.FromSeconds(20);
 
     private static readonly TimeSpan AttenteSuivante = TimeSpan.FromSeconds(2);
 
-    /// <summary>
-    /// Lit tout le sujet depuis le début.
-    /// </summary>
-    /// <remarks>
-    /// CHAQUE LECTURE PART DU DÉBUT, AVEC UN GROUPE NEUF.
-    ///
-    /// Réutiliser un groupe ferait dépendre chaque appel des offsets committés par
-    /// le précédent : deux tests lisant `service.order.v1` se voleraient leurs
-    /// messages, et l'échec dépendrait de l'ordre d'exécution. Un groupe jetable
-    /// par lecture rend les tests indépendants — au prix de relire tout le sujet,
-    /// ce qui, sur quelques dizaines de messages, ne se mesure pas.
-    ///
-    /// ET ON N'INTERROGE PAS `outbox_messages`.
-    ///
-    /// Vérifier qu'une ligne d'outbox existe prouve seulement que le gestionnaire
-    /// de domaine a tourné — ce que les tests unitaires savent déjà faire. Pire,
-    /// la table est un observable INSTABLE : le processeur marque puis nettoie ses
-    /// lignes traitées, donc l'assertion dépendrait du moment où l'on regarde. Le
-    /// courtier, lui, conserve.
-    /// </remarks>
+    /// <summary>Lit tout le sujet depuis le début.</summary>
     public static IReadOnlyList<Enveloppe> Drainer(string bootstrapServers, string sujet)
     {
         var config = new ConsumerConfig
@@ -139,20 +80,7 @@ internal static class BusDeTest
         return enveloppes;
     }
 
-    /// <summary>
-    /// Attend que <paramref name="attendu"/> messages satisfassent le filtre.
-    /// </summary>
-    /// <remarks>
-    /// UNE ATTENTE ACTIVE, PAS UN `Task.Delay` FIXE.
-    ///
-    /// Le processeur d'outbox scrute toutes les CINQ secondes, et le rééquilibrage
-    /// initial du courtier s'y ajoute. Un délai fixe assez court rend le test
-    /// instable ; assez long, il ralentit toute la suite. On sonde, et l'on
-    /// s'arrête dès que c'est bon.
-    ///
-    /// Un test instable est pire qu'un test absent : on finit par le désactiver, et
-    /// par désactiver ses voisins avec lui.
-    /// </remarks>
+    /// <summary>Attend que <paramref name="attendu"/> messages satisfassent le filtre.</summary>
     public static async Task<IReadOnlyList<Enveloppe>> AttendreAsync(
         string bootstrapServers,
         string sujet,
@@ -179,33 +107,10 @@ internal static class BusDeTest
     }
 
     /// <summary>
-    /// Publie un message dans l'enveloppe que `KafkaIntegrationEventConsumer` attend.
+    /// Publie un message dans l'enveloppe que `KafkaIntegrationEventConsumer`
+    /// attend.
     /// </summary>
-    /// <remarks>
-    /// `Id` DOIT ÊTRE DANS `data`, PAS SEULEMENT DANS `eventId`.
-    ///
-    /// C'est `IntegrationEvent.Id` — donc une propriété de la CHARGE UTILE — que
-    /// le dispatcher passe à l'inbox. Le `eventId` de l'enveloppe ne le renseigne
-    /// pas (il porte d'ailleurs un ULID `evt_…` chez le vrai producteur, pas un
-    /// GUID) : sans `id` dans `data`, chaque rejeu recevrait un identifiant neuf à
-    /// la désérialisation et l'inbox ne reconnaîtrait jamais rien. Le test
-    /// d'idempotence passerait alors pour la pire des raisons — il n'éprouverait
-    /// plus la garde, seulement la capacité du courtier à livrer deux fois.
-    ///
-    /// LA CLÉ EST L'AGRÉGAT, comme chez le vrai producteur : `KafkaEventNaming`
-    /// retient `OrderId` pour les événements de paiement. C'est ce qui garantit
-    /// que capture et échec d'une même commande restent ordonnés dans une
-    /// partition.
-    /// </remarks>
-    /// <summary>
-    /// Cree un sujet, et attend qu'il existe.
-    ///
-    /// LE PRODUCTEUR DE LETTRES MORTES POSE `AllowAutoCreateTopics = false`, comme
-    /// en production ou le courtier refuse la creation implicite. Un test qui
-    /// compterait sur la creation automatique du courtier de test passerait ici et
-    /// mentirait sur la production : c'est precisement le prerequis d'exploitation
-    /// qu'on veut eprouver.
-    /// </summary>
+    /// <summary>Cree un sujet, et attend qu'il existe.</summary>
     public static async Task CreerSujetAsync(string bootstrapServers, string sujet)
     {
         using var admin = new AdminClientBuilder(
@@ -225,12 +130,7 @@ internal static class BusDeTest
         }
     }
 
-    /// <summary>
-    /// Lit un sujet en gardant les EN-TETES, que `Drainer` jette.
-    ///
-    /// La file d'attente morte se verifie sur ses en-tetes — sujet, partition et
-    /// offset d'origine, raison — pas sur la charge, qui est recopiee telle quelle.
-    /// </summary>
+    /// <summary>Lit un sujet en gardant les EN-TETES, que `Drainer` jette.</summary>
     public static IReadOnlyList<(string Valeur, IReadOnlyDictionary<string, string> Entetes)> DrainerBrut(
         string bootstrapServers, string sujet)
     {

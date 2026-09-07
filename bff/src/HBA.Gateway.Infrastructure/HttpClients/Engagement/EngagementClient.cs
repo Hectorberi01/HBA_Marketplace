@@ -15,11 +15,6 @@ public sealed class EngagementClient : ServiceHttpClient, IEngagementClient
     public override string ServiceKey => ServiceKeys.Engagement;
 
     // CES TROIS ROUTES SONT AUTHENTIFIÉES CÔTÉ SERVICE.
-    //
-    // `MapAuthenticatedGroup("/api/engagement/reviews")` et
-    // `MapAuthenticatedGroup("/api/engagement/recommendations")`. Le jeton de
-    // l'appelant est propagé par `OutboundHeaderPropagationHandler` ; sans
-    // session, la réponse est un 401 que l'agrégateur traite comme une absence.
     public Task<ServiceResult<ProductRating>> GetProductRatingAsync(
         Guid productId, CancellationToken cancellationToken)
         => GetAsync<ProductRating>(

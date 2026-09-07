@@ -7,31 +7,7 @@ namespace HBA.Order.IntegrationTests;
 /// <param name="Geste">« reserve », « release » ou « confirm ».</param>
 internal sealed record GesteDeStock(string Geste, string Sku, Guid LieuId, Guid CommandeId, int Quantite);
 
-/// <summary>
-/// ═════════════════════════════════════════════════════════════════════════════
-/// UN INVENTAIRE EN MÉMOIRE QUI ENREGISTRE CE QU'ON LUI DEMANDE.
-///
-/// C'EST LUI QUI PORTE LA PREUVE D'ISSUE-003, ET IL N'Y A PAS D'ALTERNATIVE.
-///
-/// « Le paiement échoue, le stock reste réservé sans limite de temps » ne laisse
-/// AUCUNE trace dans le schéma `ordering` : la libération est un appel SORTANT
-/// vers inventory-service. On peut constater dans la base que la commande passe à
-/// « Cancelled » — mais une commande annulée dont les réservations restent posées
-/// est très exactement l'état de la panne. Le seul observable qui distingue les
-/// deux est la liste des appels reçus par ce contrat.
-///
-/// ET C'EST POURQUOI IL ENREGISTRE PAR LIGNE, AVEC SON SKU.
-///
-/// L'audit ne demande pas « une libération a eu lieu » mais « une libération par
-/// ligne qui réserve du stock ». La différence n'est pas rhétorique : la survente
-/// par étranglement est CUMULATIVE, chaque ligne oubliée en retire un peu plus.
-/// Un compteur global rendrait vert un service qui n'en libérerait qu'une sur
-/// deux.
-///
-/// SINGLETON : le test lit ce que la requête HTTP et le consommateur Kafka ont
-/// écrit, depuis trois portées différentes. D'où `ConcurrentQueue`.
-/// ═════════════════════════════════════════════════════════════════════════════
-/// </summary>
+/// <summary>UN INVENTAIRE EN MÉMOIRE QUI ENREGISTRE CE QU'ON LUI DEMANDE.</summary>
 internal sealed class InventaireDeTest : IInventoryModuleApi
 {
     private readonly ConcurrentQueue<GesteDeStock> _gestes = new();
@@ -44,17 +20,7 @@ internal sealed class InventaireDeTest : IInventoryModuleApi
     public IReadOnlyList<GesteDeStock> Pour(string geste, Guid commandeId)
         => _gestes.Where(g => g.Geste == geste && g.CommandeId == commandeId).ToArray();
 
-    /// <summary>
-    /// Dépose un lieu d'expédition et rend son identifiant.
-    /// </summary>
-    /// <remarks>
-    /// IL DOIT EXISTER, SANS QUOI LA COURSE N'EST PAS DEMANDÉE.
-    ///
-    /// `CreateDeliveryOnOrderConfirmedHandler` relit le lieu pour en faire le
-    /// point de COLLECTE, et LÈVE s'il est introuvable. Un lieu absent ferait donc
-    /// échouer un gestionnaire sans rapport avec ce qu'on éprouve, trois fois de
-    /// suite, puis abandonner l'événement en Critical.
-    /// </remarks>
+    /// <summary>Dépose un lieu d'expédition et rend son identifiant.</summary>
     public Guid DeposerLieu()
     {
         var id = Guid.NewGuid();
@@ -111,14 +77,7 @@ internal sealed class InventaireDeTest : IInventoryModuleApi
         return Task.FromResult(true);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // LE RESTE LÈVE. order-service ne lit ni la disponibilité ni le stock.
-    //
-    // Rendre des valeurs neutres ferait passer en silence un futur chemin de code
-    // qui se mettrait à les interroger — et une lecture de stock qui répond
-    // toujours « disponible » est une commande acceptée sur un stock qui n'existe
-    // pas.
-    // ═════════════════════════════════════════════════════════════════════════
 
     public Task<AvailabilitySummary> GetAvailabilityAsync(
         string sku, CancellationToken cancellationToken = default)
