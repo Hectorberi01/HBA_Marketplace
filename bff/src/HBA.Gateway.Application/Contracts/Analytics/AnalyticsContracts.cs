@@ -75,3 +75,38 @@ public sealed record SignupSeries(
     int TotalBuyers,
     int TotalSellers,
     int TotalDrivers);
+
+/// <summary>Un jour de tentatives de paiement, toutes issues confondues.</summary>
+/// <param name="Day">La journée UTC.</param>
+/// <param name="Captured">Tentatives encaissées ce jour-là.</param>
+/// <param name="Failed">Tentatives échouées ce jour-là.</param>
+/// <param name="CapturedAmount">Volume encaissé ce jour-là.</param>
+public sealed record PaymentPoint(DateOnly Day, int Captured, int Failed, decimal CapturedAmount);
+
+/// <summary>Ce qu'un prestataire a traité sur la période.</summary>
+/// <param name="Provider">Le prestataire, en minuscules. « inconnu » avant le lot 2.</param>
+/// <param name="Captured">Tentatives encaissées.</param>
+/// <param name="Failed">Tentatives échouées.</param>
+/// <param name="CapturedAmount">Volume encaissé.</param>
+/// <param name="FailureRate">Failed / (Failed + Captured). `null` sans tentative.</param>
+public sealed record PaymentProvider(
+    string Provider, int Captured, int Failed, decimal CapturedAmount, decimal? FailureRate);
+
+/// <summary>Les paiements de la plateforme sur une période.</summary>
+/// <param name="From">Première journée, incluse.</param>
+/// <param name="To">Dernière journée, incluse.</param>
+/// <param name="Currency">La devise retenue.</param>
+/// <param name="Points">La courbe jour par jour, tous prestataires confondus.</param>
+/// <param name="Providers">Le classement par prestataire, du plus gros volume au plus petit.</param>
+/// <param name="TotalCaptured">Tentatives encaissées sur la période.</param>
+/// <param name="TotalFailed">Tentatives échouées sur la période.</param>
+/// <param name="FailureRate">Taux d'échec global. `null` sans aucune tentative.</param>
+public sealed record PaymentSeries(
+    DateOnly From,
+    DateOnly To,
+    string Currency,
+    IReadOnlyList<PaymentPoint> Points,
+    IReadOnlyList<PaymentProvider> Providers,
+    int TotalCaptured,
+    int TotalFailed,
+    decimal? FailureRate);

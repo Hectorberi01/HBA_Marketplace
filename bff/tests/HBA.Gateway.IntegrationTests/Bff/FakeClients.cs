@@ -173,6 +173,8 @@ public sealed class FakeAnalyticsClient : IAnalyticsClient
 
     public ServiceResult<SignupSeries>? SignupsResult { get; set; }
 
+    public ServiceResult<PaymentSeries>? PaymentsResult { get; set; }
+
     /// <summary>
     /// Les bornes du dernier appel — c'est ce que vérifient les tests de période.
     /// </summary>
@@ -212,6 +214,15 @@ public sealed class FakeAnalyticsClient : IAnalyticsClient
         LastTo = to;
         return Task.FromResult(SignupsResult
             ?? ServiceResult<SignupSeries>.Failure(503, "analytics non armé"));
+    }
+
+    public Task<ServiceResult<PaymentSeries>> GetPaymentsAsync(
+        DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        LastFrom = from;
+        LastTo = to;
+        return Task.FromResult(PaymentsResult
+            ?? ServiceResult<PaymentSeries>.Failure(503, "analytics non armé"));
     }
 
     public Task<ServiceResult> GetJsonAsync(string relativePath, CancellationToken ct)

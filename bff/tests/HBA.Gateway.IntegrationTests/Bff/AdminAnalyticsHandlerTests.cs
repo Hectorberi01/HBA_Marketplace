@@ -42,11 +42,40 @@ public sealed class AdminAnalyticsHandlerTests
             points.Sum(p => p.Buyers), points.Sum(p => p.Sellers), points.Sum(p => p.Drivers));
     }
 
+    private static PaymentSeries Paiements(DateOnly du, DateOnly au)
+    {
+        var points = new List<PaymentPoint>();
+        for (var jour = du; jour <= au; jour = jour.AddDays(1))
+        {
+            points.Add(new PaymentPoint(jour, 3, 1, 45_000m));
+        }
+
+        // LE PLUS GROS VOLUME N'EST PAS LE MEILLEUR TAUX, et c'est voulu :
+        // « kkiapay » encaisse moins mais echoue moins. Un test qui les
+        // rangerait dans le meme ordre ne distinguerait pas les deux criteres.
+        var prestataires = new List<PaymentProvider>
+        {
+            new("fedapay", 40, 20, 600_000m, 0.3333m),
+            new("kkiapay", 20, 1, 300_000m, 0.0476m),
+            new("inconnu", 5, 0, 75_000m, 0m),
+        };
+
+        return new PaymentSeries(
+            du, au, "XOF", points, prestataires,
+            points.Sum(p => p.Captured), points.Sum(p => p.Failed), 0.25m);
+    }
+
     private void GivenLesDeux(int jours)
     {
         var du = Debut(jours);
         _analytics.ActivityResult = ServiceResult<PlatformActivitySeries>.Success(200, Activite(du, Aujourdhui));
         _analytics.SignupsResult = ServiceResult<SignupSeries>.Success(200, Inscriptions(du, Aujourdhui));
+    }
+
+    private void GivenLesTrois(int jours)
+    {
+        GivenLesDeux(jours);
+        _analytics.PaymentsResult = ServiceResult<PaymentSeries>.Success(200, Paiements(Debut(jours), Aujourdhui));
     }
 
     [Fact]
@@ -129,6 +158,112 @@ public sealed class AdminAnalyticsHandlerTests
 
         typeof(AdminAnalyticsDto).GetProperties().Select(p => p.Name)
             .Should().NotContain("TotalSignups");
+    }
+
+    [Fact]
+    public async Task Les_trois_courbes_arrivent_dans_un_seul_appel()
+    {
+        GivenLesTrois(GetAdminAnalyticsHandler.DefaultDays);
+
+        var envelope = await Handler().HandleAsync(null, CancellationToken.None);
+
+        envelope.Data.Activity.Should().HaveCount(GetAdminAnalyticsHandler.DefaultDays);
+        envelope.Data.Signups.Should().HaveCount(GetAdminAnalyticsHandler.DefaultDays);
+        envelope.Data.Payments.Should().HaveCount(GetAdminAnalyticsHandler.DefaultDays);
+        envelope.Data.Payments!.First().Day.Should().Be(envelope.Data.Activity!.First().Day);
+        envelope.Data.Payments!.Last().Day.Should().Be(envelope.Data.Activity!.Last().Day);
+        envelope.Warnings.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// LE CLASSEMENT DES PRESTATAIRES EST CELUI DU SERVICE, DU PLUS GROS VOLUME
+    /// AU PLUS PETIT — et surtout PAS par taux d'échec.
+    /// </summary>
+    [Fact]
+    public async Task Le_classement_des_prestataires_n_est_pas_reordonne()
+    {
+        GivenLesTrois(GetAdminAnalyticsHandler.DefaultDays);
+
+        var envelope = await Handler().HandleAsync(null, CancellationToken.None);
+
+        envelope.Data.PaymentProviders!.Select(p => p.Provider)
+            .Should().Equal("fedapay", "kkiapay", "inconnu");
+
+        // Le premier du classement a le PIRE taux des deux vrais prestataires :
+        // trier par taux inverserait l'ordre, et ce test tomberait.
+        envelope.Data.PaymentProviders![0].FailureRate
+            .Should().BeGreaterThan(envelope.Data.PaymentProviders![1].FailureRate!.Value);
+    }
+
+    /// <summary>
+    /// « inconnu » EST RENDU TEL QUEL, ET NE DOIT PAS ÊTRE FILTRÉ. C'est le seau
+    /// des messages d'avant le lot 2 : il décroît jusqu'à zéro dans les jours qui
+    /// suivent un déploiement, et sa disparition du graphe est l'information.
+    /// </summary>
+    [Fact]
+    public async Task Le_prestataire_inconnu_reste_visible()
+    {
+        GivenLesTrois(GetAdminAnalyticsHandler.DefaultDays);
+
+        var envelope = await Handler().HandleAsync(null, CancellationToken.None);
+
+        envelope.Data.PaymentProviders.Should().Contain(p => p.Provider == "inconnu");
+    }
+
+    /// <summary>
+    /// LES PAIEMENTS TOMBENT SEULS : les deux autres courbes restent.
+    /// </summary>
+    [Fact]
+    public async Task Les_paiements_absents_ne_font_pas_tomber_les_autres_courbes()
+    {
+        GivenLesDeux(GetAdminAnalyticsHandler.DefaultDays);
+
+        var envelope = await Handler().HandleAsync(null, CancellationToken.None);
+
+        envelope.Data.Payments.Should().BeNull();
+        envelope.Data.PaymentProviders.Should().BeNull();
+        envelope.Data.TotalCaptured.Should().BeNull();
+        envelope.Data.PaymentFailureRate.Should().BeNull();
+        envelope.Data.Activity.Should().NotBeNull();
+        envelope.Data.Signups.Should().NotBeNull();
+        envelope.Data.Currency.Should().Be("XOF");
+        envelope.Warnings.Should().Contain(w => w.Source == "Analytics");
+    }
+
+    /// <summary>
+    /// LA DEVISE SURVIT A LA PERTE DE L'ACTIVITE. Elle vient alors des paiements,
+    /// plutôt que d'être `null` parce que l'AUTRE série est tombée.
+    /// </summary>
+    [Fact]
+    public async Task La_devise_vient_des_paiements_quand_l_activite_manque()
+    {
+        var du = Debut(GetAdminAnalyticsHandler.DefaultDays);
+        _analytics.SignupsResult = ServiceResult<SignupSeries>.Success(200, Inscriptions(du, Aujourdhui));
+        _analytics.PaymentsResult = ServiceResult<PaymentSeries>.Success(200, Paiements(du, Aujourdhui));
+        _analytics.ActivityResult = ServiceResult<PlatformActivitySeries>.Failure(503, "activité à terre");
+
+        var envelope = await Handler().HandleAsync(null, CancellationToken.None);
+
+        envelope.Data.Currency.Should().Be("XOF");
+        envelope.Data.TotalGmv.Should().BeNull();
+        envelope.Data.TotalCaptured.Should().Be(3 * GetAdminAnalyticsHandler.DefaultDays);
+    }
+
+    /// <summary>
+    /// AUCUN TOTAL NE MELANGE `Gmv` ET `CapturedAmount`. Le premier est un volume
+    /// marchand — ni livraison ni commission, zéro pour un repas ; le second est
+    /// ce que l'acheteur a réellement payé. Les sommer ne veut rien dire.
+    /// </summary>
+    [Fact]
+    public async Task Aucun_total_ne_melange_le_volume_marchand_et_l_encaisse()
+    {
+        typeof(AdminAnalyticsDto).GetProperties().Select(p => p.Name)
+            .Should().NotContain(["TotalAmount", "TotalRevenue", "GrandTotal"]);
+
+        GivenLesTrois(GetAdminAnalyticsHandler.DefaultDays);
+        var envelope = await Handler().HandleAsync(null, CancellationToken.None);
+
+        envelope.Data.TotalGmv.Should().NotBe(envelope.Data.Payments!.Sum(p => p.CapturedAmount));
     }
 
     /// <summary>

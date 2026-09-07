@@ -35,4 +35,13 @@ public sealed class AnalyticsClient : ServiceHttpClient, IAnalyticsClient
         => GetAsync<SignupSeries>(
             $"/api/admin/analytics/signups?from={Borne(from)}&to={Borne(to)}",
             cancellationToken);
+
+    // Pas de `currency` transmis : le service normalise vers sa devise par
+    // defaut, la meme que pour l'activite. Les deux montants de l'ecran restent
+    // donc dans une seule devise.
+    public Task<ServiceResult<PaymentSeries>> GetPaymentsAsync(
+        DateOnly from, DateOnly to, CancellationToken cancellationToken)
+        => GetAsync<PaymentSeries>(
+            $"/api/admin/analytics/payments?from={Borne(from)}&to={Borne(to)}",
+            cancellationToken);
 }

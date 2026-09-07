@@ -19,4 +19,8 @@ public interface IAnalyticsClient : IServiceClient
     /// <summary><c>GET /api/admin/analytics/signups</c> — RÔLE ADMIN exigé en face.</summary>
     Task<ServiceResult<SignupSeries>> GetSignupsAsync(
         DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
+    /// <summary><c>GET /api/admin/analytics/payments</c> — RÔLE ADMIN exigé en face.</summary>
+    Task<ServiceResult<PaymentSeries>> GetPaymentsAsync(
+        DateOnly from, DateOnly to, CancellationToken cancellationToken);
 }
