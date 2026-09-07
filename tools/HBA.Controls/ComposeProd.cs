@@ -13,9 +13,14 @@ public static class ComposeProd
     private const string CourrielAcme = "${HBA_ACME_EMAIL:?l'adresse pour Let's Encrypt est obligatoire}";
     private const string VersionTraefik = "traefik:v3.3";
 
-    // Le service `gateway` est publié sous le nom `api-gateway` : le compose le
-    // demandait sous son nom de dossier, et le `pull` cherchait une image qui n'a
-    // jamais existé.
+    // Le service `gateway` est publié sous le nom `api-gateway`.
+    //
+    // CETTE TABLE NE RENOMME QUE LE COMPOSE. Ce que la CI POUSSE se decide dans
+    // `ImagesAffectees.NomsPublies`, qui alimente `strategy.matrix`. Renommer ici
+    // seulement produit un compose qui demande une image jamais poussee — c'est
+    // ce qui a valu un MANIFEST_UNKNOWN sur `api-gateway` a la verification des
+    // signatures. Les deux tables doivent dire la meme chose ; les gardes plus
+    // bas refusent le rendu sinon.
     private static readonly Dictionary<string, string> NomsImages = new()
     {
         ["gateway"] = "api-gateway",
@@ -946,8 +951,9 @@ public static class ComposeProd
             Console.Error.WriteLine($"REFUS : {string.Join(", ", orphelins)} portent une image "
                                     + "que la CI ne publie pas, et aucun `build:` ne pourrait "
                                     + "la produire.");
-            Console.Error.WriteLine("    Ajouter la traduction a NomsImages, ou le service a "
-                                    + "ConstruitsSurPlace.");
+            Console.Error.WriteLine("    Renommer DES DEUX COTES — NomsImages ici ET "
+                                    + "ImagesAffectees.NomsPublies, qui decide de ce que la CI "
+                                    + "pousse — ou ajouter le service a ConstruitsSurPlace.");
             return 1;
         }
 
@@ -1036,8 +1042,9 @@ public static class ComposeProd
                 Console.Error.WriteLine("    " + image);
             }
 
-            Console.Error.WriteLine("    Ajouter la traduction a NomsImages, ou le service a "
-                                    + "ConstruitsSurPlace.");
+            Console.Error.WriteLine("    Renommer DES DEUX COTES — NomsImages ici ET "
+                                    + "ImagesAffectees.NomsPublies, qui decide de ce que la CI "
+                                    + "pousse — ou ajouter le service a ConstruitsSurPlace.");
             return 1;
         }
 

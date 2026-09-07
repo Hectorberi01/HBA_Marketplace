@@ -19,6 +19,25 @@ public static class ImagesAffectees
 
     private sealed record Image(string Nom, string Dockerfile, IReadOnlyList<string> Dossiers);
 
+    // LE NOM PUBLIE N'EST PAS TOUJOURS LE NOM DU DOSSIER, ET C'EST ICI QUE CA SE
+    // DECIDE — parce que c'est ce fichier qui alimente `strategy.matrix`, donc ce
+    // que la CI POUSSE reellement.
+    //
+    // La passerelle vit dans `bff/`. Sans cette table, la CI poussait
+    // `ghcr.io/…/bff` pendant que `docker-compose.prod.yml` demandait
+    // `ghcr.io/…/api-gateway` : le `pull` et la verification de signature
+    // echouaient sur MANIFEST_UNKNOWN, pour une image que personne n'avait
+    // jamais poussee sous ce nom.
+    //
+    // ELLE DOIT DIRE LA MEME CHOSE QUE `ComposeProd.NomsImages`, qui renomme le
+    // meme composant cote compose. Les deux gardes de `compose-prod` refusent le
+    // rendu des qu'elles divergent : une image du compose qui n'est pas dans
+    // `NomsPubliables()` fait echouer la generation.
+    private static readonly Dictionary<string, string> NomsPublies = new(StringComparer.Ordinal)
+    {
+        ["bff"] = "api-gateway",
+    };
+
     /// <summary>Les noms des images que la CI sait publier.</summary>
     public static HashSet<string> NomsPubliables()
         => Catalogue().Select(i => i.Nom).ToHashSet(StringComparer.Ordinal);
@@ -107,8 +126,9 @@ public static class ImagesAffectees
                     }
                 }
 
+                var dossierNom = Path.GetFileName(dossier);
                 trouvees.Add(new Image(
-                    Path.GetFileName(dossier),
+                    NomsPublies.GetValueOrDefault(dossierNom, dossierNom),
                     Depot.Relatif(Path.Combine(dossier, "Dockerfile")),
                     vus.Select(p => Depot.Relatif(Path.GetDirectoryName(p)!) + "/")
                         .Distinct(StringComparer.OrdinalIgnoreCase)
