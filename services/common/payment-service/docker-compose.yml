@@ -1,0 +1,74 @@
+# ══════════════════════════════════════════════════════════════════════════
+# LANCER payment-service SEUL, SANS LE RESTE DE LA PLATEFORME.
+#
+#   docker compose -f services/common/payment-service/docker-compose.yml up --build
+#
+# CE FICHIER NE REDECRIT RIEN. Chaque bloc `extends` pointe sur
+# `docker-compose.dev.yml`, qui reste la SEULE description complete de la
+# pile — celle que `ComposeProd` lit pour engendrer la production, et que
+# les controles `adresses-service` et `config-et-gardes` verifient. Une
+# variable se change la-bas, et arrive ici sans etre recopiee.
+#
+# CE QUI NE REPONDRA PAS, ET C'EST LE PRINCIPE DE CETTE PILE :
+#   SERVICES__CATALOG -> catalog-service, absent d'ici.
+#   SERVICES__DELIVERY -> delivery-service, absent d'ici.
+#   SERVICES__FOOD -> restaurant-service, absent d'ici.
+#   SERVICES__FOODORDER -> food-order-service, absent d'ici.
+#   SERVICES__MERCHANT -> seller-service, absent d'ici.
+#   SERVICES__ORDER -> order-service, absent d'ici.
+#   SERVICES__USER -> user-service, absent d'ici.
+#
+# Le service DEMARRE quand meme : les adresses sont PRESENTES, et c'est
+# leur absence qui ferait lever a la construction de l'hote. Ce sont les
+# APPELS qui echoueront, chacun sur sa route.
+#
+# LA BASE DE CETTE PILE EST LA SIENNE, ET ELLE PART VIDE.
+# Le volume `postgres-data` est nomme par le PROJET (`hba-payment-service`) : ce
+# n'est pas celui de la pile complete. Au premier demarrage,
+# `infra/postgres/init/` cree les bases, puis `MigrateOnStartup` pose les
+# schemas. Repartir de zero : `docker compose down -v` depuis ce dossier.
+#
+# LE PORT 8080 EST PUBLIE ICI, alors qu'aucun service ne publie dans la pile
+# complete — seule la passerelle le fait. Sans passerelle, un service
+# injoignable ne sert a rien. DEUX PILES PAR-SERVICE NE PEUVENT DONC PAS
+# TOURNER ENSEMBLE : elles se disputent 8080, et l'infrastructure aussi.
+# ══════════════════════════════════════════════════════════════════════════
+
+name: hba-payment-service
+
+services:
+  kafka:
+    extends:
+      file: ../../../docker-compose.dev.yml
+      service: kafka
+
+  postgres:
+    extends:
+      file: ../../../docker-compose.dev.yml
+      service: postgres
+
+  redis:
+    extends:
+      file: ../../../docker-compose.dev.yml
+      service: redis
+
+  payment-service:
+    extends:
+      file: ../../../docker-compose.dev.yml
+      service: payment-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+
+volumes:
+  postgres-data:
+
+networks:
+  hba-backend:

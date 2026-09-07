@@ -936,6 +936,10 @@ services:
       KAFKA__CONSUMERGROUP: hba-driver-service
       KAFKA__PRODUCER: driver-service
     depends_on:
+      # Cette ligne manquait alors que `CONNECTIONSTRINGS__DEFAULT` pointe sur
+      # postgres : le service demarrait avant que la base reponde.
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       kafka:
@@ -958,6 +962,10 @@ services:
       KAFKA__CONSUMERGROUP: hba-route-service
       KAFKA__PRODUCER: route-service
     depends_on:
+      # Cette ligne manquait alors que `CONNECTIONSTRINGS__DEFAULT` pointe sur
+      # postgres : le service demarrait avant que la base reponde.
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       kafka:
