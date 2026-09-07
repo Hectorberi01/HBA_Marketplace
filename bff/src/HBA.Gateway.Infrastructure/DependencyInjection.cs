@@ -80,9 +80,18 @@ public static class DependencyInjection
         // avoir besoin.
         AddServiceClient<IDriversClient, HttpClients.Drivers.DriversClient>(services, ServiceKeys.Drivers, outbound);
 
+        // QUINZIÈME — LE PREMIER LECTEUR D'analytics-service.
+        //
+        // Le service est déployé, relayé par `ReverseProxy`, et jusqu'ici
+        // INTERROGEABLE PAR PERSONNE depuis la passerelle : les applications
+        // pouvaient l'appeler directement, aucun écran agrégé ne le pouvait.
+        // C'est exactement l'état que `IDriversClient` décrit au-dessus — adresse
+        // et clé présentes, client absent.
+        AddServiceClient<IAnalyticsClient, HttpClients.Analytics.AnalyticsClient>(services, ServiceKeys.Analytics, outbound);
+
         // PORTÉE REQUÊTE, PAS SINGLETON.
         //
-        // Le registre reçoit les quatorze clients typés. En singleton, il les
+        // Le registre reçoit les quinze clients typés. En singleton, il les
         // capturerait DÉFINITIVEMENT : les instances d'`HttpClient` ne seraient
         // jamais renouvelées, et le pool de connexions cesserait de suivre les
         // changements DNS. Dans Docker, un conteneur redéployé change d'adresse —

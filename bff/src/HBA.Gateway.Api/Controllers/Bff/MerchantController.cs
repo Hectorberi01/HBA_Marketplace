@@ -42,12 +42,16 @@ public sealed class MerchantController : ControllerBase
 {
     private readonly GetMerchantActivitiesHandler _activities;
     private readonly GetMerchantDashboardHandler _dashboard;
+    private readonly GetMerchantAnalyticsHandler _analytics;
 
     public MerchantController(
-        GetMerchantActivitiesHandler activities, GetMerchantDashboardHandler dashboard)
+        GetMerchantActivitiesHandler activities,
+        GetMerchantDashboardHandler dashboard,
+        GetMerchantAnalyticsHandler analytics)
     {
         _activities = activities;
         _dashboard = dashboard;
+        _analytics = analytics;
     }
 
     /// <summary>Les activités du compte : boutiques et restaurants.</summary>
@@ -92,4 +96,32 @@ public sealed class MerchantController : ControllerBase
     public Task<BffEnvelope<MerchantDashboardDto>> GetStoreDashboardAsync(
         Guid storeId, CancellationToken cancellationToken)
         => _dashboard.HandleAsync(storeId, cancellationToken);
+
+    /// <summary>Les courbes de vente du vendeur connecté.</summary>
+    /// <remarks>
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// PAS DE `storeId` DANS CE CHEMIN, ET CE N'EST PAS UN OUBLI.
+    ///
+    /// Les roll-ups sont tenus par VENDEUR, pas par boutique : `OrderLine` ne
+    /// porte aucune boutique — c'est une limite du schéma d'order-service, nommée
+    /// comme telle dans `IMerchantAccessApi`. Accepter un `storeId` ici
+    /// promettrait un filtre que rien en dessous ne sait appliquer, et rendrait
+    /// les chiffres de TOUTES les boutiques sous le nom d'une seule.
+    ///
+    /// `MerchantOnly` COMME LE TABLEAU DE BORD. Un restaurateur pur n'a pas de
+    /// dossier vendeur, donc pas de série : la politique le dit avant que le
+    /// handler ne le découvre.
+    ///
+    /// `days` EST UN SOUHAIT, PAS UN ORDRE — le handler le borne à 366, la même
+    /// limite qu'analytics-service.
+    /// ═════════════════════════════════════════════════════════════════════════
+    /// </remarks>
+    [HttpGet("analytics")]
+    [Authorize(Policy = GatewayPolicies.MerchantOnly)]
+    [ProducesResponseType<BffEnvelope<MerchantAnalyticsDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public Task<BffEnvelope<MerchantAnalyticsDto>> GetAnalyticsAsync(
+        int? days, CancellationToken cancellationToken)
+        => _analytics.HandleAsync(days, cancellationToken);
 }

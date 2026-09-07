@@ -25,12 +25,24 @@ namespace HBA.Analytics.Domain.RollUps;
 ///
 /// LE MONTANT EST LA PART DU VENDEUR, PAS LE TOTAL PAYÉ PAR L'ACHETEUR.
 ///
-/// `OrderSellerShare.Amount` est ce qui revient à ce vendeur pour cette commande.
-/// Les frais de livraison, la commission de la plateforme et les remises portées
-/// par la plateforme n'y sont pas. Un vendeur qui compare ce chiffre à son relevé
-/// de versement trouvera un écart, et l'écart est exactement la commission :
-/// c'est le CHIFFRE D'AFFAIRES, pas le gain net. Le gain net appartient à
-/// payment-service, qui tient le portefeuille.
+/// `OrderSellerShare.Amount` est la somme des `LineTotal` des lignes de ce
+/// vendeur — le prix FINAL, REMISES COMPRISES, qu'elles soient portées par le
+/// vendeur ou par la plateforme. Ce qui n'y est pas : les frais de livraison, qui
+/// n'appartiennent à aucun vendeur, et la commission de la plateforme, qui se
+/// retire plus loin, dans Settlement.
+///
+/// CETTE PRÉCISION A ÉTÉ CORRIGÉE APRÈS COUP, et l'erreur valait d'être relevée :
+/// la version précédente de cet encadré écrivait que les remises plateforme
+/// « n'y sont pas ». C'est faux — `LineTotal` est le prix après remises. La
+/// vérification tient en une lecture de `Order.BuildSellerShares`, qui dit
+/// exactement la même chose que `OrderMapper.ToSellerSummary` : les deux
+/// somment `LineTotal` sur les lignes du vendeur. Les deux chiffres coïncident
+/// donc, et c'est ce qui rend le remplacement du calcul de la passerelle sûr.
+///
+/// Un vendeur qui compare ce chiffre à son relevé de versement trouvera un
+/// écart, et l'écart est exactement la commission : c'est le CHIFFRE D'AFFAIRES,
+/// pas le gain net. Le gain net appartient à payment-service, qui tient le
+/// portefeuille.
 /// ═════════════════════════════════════════════════════════════════════════════
 /// </remarks>
 public sealed class VenteJournaliereVendeur

@@ -15,10 +15,11 @@ namespace HBA.Analytics.Application.RollUps;
 /// <param name="OrdersCount">Commandes confirmées où ce vendeur a une part.</param>
 /// <param name="ItemsCount">Articles vendus, toutes lignes confondues.</param>
 /// <param name="Revenue">
-/// Somme des parts vendeur. CE N'EST PAS LE GAIN NET : la commission de la
-/// plateforme n'est pas déduite, et les frais de livraison n'y sont pas. Un
-/// vendeur qui compare ce chiffre à son relevé de versement trouvera un écart,
-/// et l'écart est exactement la commission.
+/// Somme des parts vendeur : le prix final des lignes de ce vendeur, REMISES
+/// COMPRISES. CE N'EST PAS LE GAIN NET — la commission de la plateforme n'est pas
+/// déduite, et les frais de livraison n'y sont pas. Un vendeur qui compare ce
+/// chiffre à son relevé de versement trouvera un écart, et l'écart est
+/// exactement la commission.
 /// </param>
 /// <param name="GoodsOrdersCount">Dont marchandise.</param>
 /// <param name="FoodOrdersCount">

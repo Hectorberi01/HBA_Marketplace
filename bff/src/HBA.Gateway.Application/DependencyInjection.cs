@@ -49,9 +49,11 @@ public static class DependencyInjection
         services.AddScoped<GetDriverEarningsHandler>();
         services.AddScoped<GetMerchantActivitiesHandler>();
         services.AddScoped<GetMerchantDashboardHandler>();
+        services.AddScoped<GetMerchantAnalyticsHandler>();
         services.AddScoped<GetRestaurantDashboardHandler>();
         services.AddScoped<GetRestaurantKitchenHandler>();
         services.AddScoped<GetAdminQueuesHandler>();
+        services.AddScoped<GetAdminAnalyticsHandler>();
 
         return services;
     }

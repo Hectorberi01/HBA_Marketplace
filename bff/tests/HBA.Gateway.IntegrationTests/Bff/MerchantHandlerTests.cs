@@ -2,6 +2,7 @@ using FluentAssertions;
 using HBA.Gateway.Application.Abstractions.Services;
 using HBA.Gateway.Application.Bff.Merchant;
 using HBA.Gateway.Application.Bff.Shared;
+using HBA.Gateway.Application.Contracts.Analytics;
 using HBA.Gateway.Application.Contracts.Financial;
 using HBA.Gateway.Application.Contracts.Food;
 using HBA.Gateway.Application.Contracts.Merchant;
@@ -17,13 +18,26 @@ public sealed class MerchantHandlerTests
     private readonly FakeFoodClient _food = new();
     private readonly FakeOrderClient _order = new();
     private readonly FakeFinancialClient _financial = new();
+    private readonly FakeAnalyticsClient _analytics = new();
 
     private static readonly Guid SellerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid StoreId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     private static readonly Guid RestaurantId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
     private GetMerchantActivitiesHandler Activities() => new(_merchant, _food);
-    private GetMerchantDashboardHandler Dashboard() => new(_merchant, _order, _financial);
+    private GetMerchantDashboardHandler Dashboard() => new(_merchant, _order, _financial, _analytics);
+    private GetMerchantAnalyticsHandler Analytics() => new(_merchant, _analytics);
+
+    private static readonly DateOnly Aujourdhui = DateOnly.FromDateTime(DateTime.UtcNow);
+
+    /// <summary>La fenêtre exacte que le tableau de bord demande.</summary>
+    private static DateOnly Debut(int jours) => Aujourdhui.AddDays(-(jours - 1));
+
+    private void GivenVentes(params (DateOnly Jour, int Commandes, decimal Montant)[] jours)
+        => _analytics.SellerSalesResult = ServiceResult<SellerSalesSeries>.Success(
+            200,
+            Fixtures.Ventes(
+                Debut(GetMerchantDashboardHandler.SalesWindowDays), Aujourdhui, jours));
 
     private void GivenSeller()
         => _merchant.SellerResult = ServiceResult<SellerAccount>.Success(200, Fixtures.Seller(SellerId));
@@ -136,17 +150,31 @@ public sealed class MerchantHandlerTests
         _merchant.LastSellerId.Should().Be(SellerId);
     }
 
+    /// <summary>
+    /// LE ROLL-UP FAIT FOI, ET LA LISTE DE COMMANDES NE PEUT PLUS LE CONTREDIRE.
+    /// </summary>
+    /// <remarks>
+    /// La liste amont est volontairement en DÉSACCORD avec la série : trois
+    /// commandes du jour pour 520 000 F, contre deux commandes pour 20 000 F dans
+    /// le roll-up. Un test qui armerait les deux à la même valeur passerait aussi
+    /// bien avec l'ancien calcul — il ne prouverait rien.
+    ///
+    /// Le désaccord n'est pas artificiel : la liste compte les commandes PLACÉES,
+    /// le roll-up les commandes CONFIRMÉES, et la liste est bornée à cinquante
+    /// par order-service.
+    /// </remarks>
     [Fact]
-    public async Task Les_chiffres_du_jour_ignorent_les_commandes_de_la_veille()
+    public async Task Les_chiffres_du_jour_viennent_du_roll_up_et_non_de_la_liste_de_commandes()
     {
         GivenSeller();
         _merchant.StoreResult = ServiceResult<MerchantStore>.Success(
             200, Fixtures.Store(StoreId, SellerId, "HBA Tech Store"));
+        GivenVentes((Aujourdhui, 2, 20_000m));
         _order.SellerOrdersResult = ServiceResult<IReadOnlyList<OrderBrief>>.Success(200,
         [
             Order("Paid", 12_000m, DateTime.UtcNow),
             Order("Delivered", 8_000m, DateTime.UtcNow),
-            Order("Delivered", 500_000m, DateTime.UtcNow.AddDays(-1)),
+            Order("Pending", 500_000m, DateTime.UtcNow),
         ]);
 
         var envelope = await Dashboard().HandleAsync(StoreId, CancellationToken.None);
@@ -154,7 +182,45 @@ public sealed class MerchantHandlerTests
         envelope.Data.Today.OrdersToday.Should().Be(2);
         envelope.Data.Today.RevenueToday.Should().Be(20_000m);
         envelope.Data.Today.AverageBasket.Should().Be(10_000m);
+
+        // Celui-ci vient TOUJOURS de la liste : c'est un compte de statuts à
+        // l'instant présent, qu'aucun roll-up journalier ne rend.
         envelope.Data.Today.OrdersToProcess.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task La_fenetre_demandee_a_analytics_est_celle_du_tableau_de_bord()
+    {
+        GivenSeller();
+        _merchant.StoreResult = ServiceResult<MerchantStore>.Success(
+            200, Fixtures.Store(StoreId, SellerId, "HBA Tech Store"));
+        GivenVentes();
+
+        await Dashboard().HandleAsync(StoreId, CancellationToken.None);
+
+        _analytics.LastSellerId.Should().Be(SellerId);
+        _analytics.LastTo.Should().Be(Aujourdhui);
+        _analytics.LastFrom.Should().Be(Debut(GetMerchantDashboardHandler.SalesWindowDays));
+    }
+
+    [Fact]
+    public async Task Le_tableau_de_bord_porte_la_courbe_sans_trou()
+    {
+        GivenSeller();
+        _merchant.StoreResult = ServiceResult<MerchantStore>.Success(
+            200, Fixtures.Store(StoreId, SellerId, "HBA Tech Store"));
+        GivenVentes((Aujourdhui, 2, 20_000m), (Aujourdhui.AddDays(-5), 1, 3_000m));
+
+        var envelope = await Dashboard().HandleAsync(StoreId, CancellationToken.None);
+
+        envelope.Data.Sales.Should().NotBeNull();
+        envelope.Data.Sales!.Points.Should().HaveCount(GetMerchantDashboardHandler.SalesWindowDays);
+        envelope.Data.Sales.TotalRevenue.Should().Be(23_000m);
+
+        // UN POINT PAR JOUR, DANS L'ORDRE : c'est ce qui empêche une courbe de
+        // relier deux jours distants par une droite et de donner à lire une
+        // activité continue là où il n'y en a eu aucune.
+        envelope.Data.Sales.Points.Should().BeInAscendingOrder(point => point.Day);
     }
 
     [Fact]
@@ -163,13 +229,41 @@ public sealed class MerchantHandlerTests
         GivenSeller();
         _merchant.StoreResult = ServiceResult<MerchantStore>.Success(
             200, Fixtures.Store(StoreId, SellerId, "HBA Tech Store"));
-        _order.SellerOrdersResult = ServiceResult<IReadOnlyList<OrderBrief>>.Success(200, []);
+        GivenVentes();
 
         var envelope = await Dashboard().HandleAsync(StoreId, CancellationToken.None);
 
         // `0m` s'afficherait « panier moyen : 0 F », ce qui est faux : il n'existe pas.
         envelope.Data.Today.AverageBasket.Should().BeNull();
         envelope.Data.Today.RevenueToday.Should().Be(0m);
+    }
+
+    /// <summary>
+    /// ANALYTICS À TERRE NE DOIT PAS EMPORTER CE QUE LA PASSERELLE A DÉJÀ OBTENU.
+    /// </summary>
+    /// <remarks>
+    /// C'est la raison pour laquelle `Today` n'est PAS rendu `null` en bloc :
+    /// `OrdersToProcess` vient d'order-service et n'a aucune raison de disparaître
+    /// parce qu'un autre service est muet.
+    /// </remarks>
+    [Fact]
+    public async Task Analytics_a_terre_vide_les_chiffres_du_jour_sans_vider_l_ecran()
+    {
+        GivenSeller();
+        _merchant.StoreResult = ServiceResult<MerchantStore>.Success(
+            200, Fixtures.Store(StoreId, SellerId, "HBA Tech Store"));
+        _analytics.SellerSalesResult = ServiceResult<SellerSalesSeries>.Failure(503, "analytics à terre");
+        _order.SellerOrdersResult = ServiceResult<IReadOnlyList<OrderBrief>>.Success(200,
+            [Order("Paid", 12_000m, DateTime.UtcNow)]);
+
+        var envelope = await Dashboard().HandleAsync(StoreId, CancellationToken.None);
+
+        envelope.Data.Sales.Should().BeNull();
+        envelope.Data.Today.OrdersToday.Should().BeNull();
+        envelope.Data.Today.RevenueToday.Should().BeNull();
+        envelope.Data.Today.OrdersToProcess.Should().Be(1);
+        envelope.Data.Store.Name.Should().Be("HBA Tech Store");
+        envelope.Warnings.Should().Contain(w => w.Source == "Analytics");
     }
 
     [Fact]
@@ -207,13 +301,21 @@ public sealed class MerchantHandlerTests
         envelope.Warnings.Should().Contain(w => w.Source == "Financial");
     }
 
+    /// <summary>
+    /// LA DEVISE VIENT DE LA SÉRIE, ET LE PORTEFEUILLE N'EST QUE LE REPLI.
+    /// </summary>
+    /// <remarks>
+    /// Elle venait de la première commande du jour, ce qui la rendait absente les
+    /// jours sans vente. La série la porte toujours — elle est dans la clé des
+    /// roll-ups —, y compris quand tous les points valent zéro.
+    /// </remarks>
     [Fact]
-    public async Task La_devise_vient_des_commandes_sinon_du_portefeuille()
+    public async Task La_devise_vient_de_la_serie_sinon_du_portefeuille()
     {
         GivenSeller();
         _merchant.StoreResult = ServiceResult<MerchantStore>.Success(
             200, Fixtures.Store(StoreId, SellerId, "HBA Tech Store"));
-        _order.SellerOrdersResult = ServiceResult<IReadOnlyList<OrderBrief>>.Success(200, []);
+        GivenVentes();
         _financial.SellerWalletResult = ServiceResult<SellerWallet>.Success(
             200, new SellerWallet(SellerId, 5_000m, 120_000m, 0m, "XOF"));
 
@@ -221,6 +323,84 @@ public sealed class MerchantHandlerTests
 
         envelope.Data.Today.Currency.Should().Be("XOF");
         envelope.Data.Wallet!.AvailableBalance.Should().Be(120_000m);
+    }
+
+    [Fact]
+    public async Task Analytics_muet_laisse_le_portefeuille_donner_la_devise()
+    {
+        GivenSeller();
+        _merchant.StoreResult = ServiceResult<MerchantStore>.Success(
+            200, Fixtures.Store(StoreId, SellerId, "HBA Tech Store"));
+        _analytics.SellerSalesResult = ServiceResult<SellerSalesSeries>.Failure(503, "analytics à terre");
+        _financial.SellerWalletResult = ServiceResult<SellerWallet>.Success(
+            200, new SellerWallet(SellerId, 5_000m, 120_000m, 0m, "XOF"));
+
+        var envelope = await Dashboard().HandleAsync(StoreId, CancellationToken.None);
+
+        envelope.Data.Today.Currency.Should().Be("XOF");
+    }
+
+    // ───────────────────────── Écran de courbes dédié ────────────────────────
+
+    [Fact]
+    public async Task L_ecran_de_courbes_demande_la_periode_choisie_bornee_a_366_jours()
+    {
+        GivenSeller();
+        _analytics.SellerSalesResult = ServiceResult<SellerSalesSeries>.Success(
+            200, Fixtures.Ventes(Debut(366), Aujourdhui));
+
+        await Analytics().HandleAsync(100_000, CancellationToken.None);
+
+        // `days` VIENT DU CLIENT : sans la borne, il demanderait deux siècles de
+        // points, et analytics-service répondrait 400 — un refus que le vendeur
+        // ne peut pas comprendre.
+        _analytics.LastFrom.Should().Be(Debut(GetMerchantAnalyticsHandler.MaxDays));
+        _analytics.LastTo.Should().Be(Aujourdhui);
+    }
+
+    [Fact]
+    public async Task L_ecran_de_courbes_sans_parametre_prend_trente_jours()
+    {
+        GivenSeller();
+        _analytics.SellerSalesResult = ServiceResult<SellerSalesSeries>.Success(
+            200, Fixtures.Ventes(Debut(30), Aujourdhui));
+
+        await Analytics().HandleAsync(null, CancellationToken.None);
+
+        _analytics.LastFrom.Should().Be(Debut(GetMerchantAnalyticsHandler.DefaultDays));
+    }
+
+    /// <summary>
+    /// UN REFUS DE CAPACITÉ N'EST PAS UNE PANNE D'ÉCRAN.
+    /// </summary>
+    /// <remarks>
+    /// Un membre d'équipe sans `SELLER_ANALYTICS_VIEW` reçoit 403 d'analytics.
+    /// L'écran doit dire « pas de courbe » et non tomber : c'est pourquoi la
+    /// dépendance est IMPORTANTE alors qu'elle est le sujet de l'écran.
+    /// </remarks>
+    [Fact]
+    public async Task Un_membre_sans_la_capacite_voit_l_ecran_sans_la_courbe()
+    {
+        GivenSeller();
+        _analytics.SellerSalesResult = ServiceResult<SellerSalesSeries>.Failure(403, "capacité manquante");
+
+        var envelope = await Analytics().HandleAsync(null, CancellationToken.None);
+
+        envelope.Data.Sales.Should().BeNull();
+        envelope.Warnings.Should().Contain(w => w.Source == "Analytics");
+    }
+
+    [Fact]
+    public async Task L_ecran_de_courbes_demande_le_vendeur_du_jeton()
+    {
+        GivenSeller();
+        _analytics.SellerSalesResult = ServiceResult<SellerSalesSeries>.Success(
+            200, Fixtures.Ventes(Debut(30), Aujourdhui));
+
+        await Analytics().HandleAsync(null, CancellationToken.None);
+
+        // §30 : aucun segment de vendeur ne vient de l'URL sur cette route.
+        _analytics.LastSellerId.Should().Be(SellerId);
     }
 
     [Fact]

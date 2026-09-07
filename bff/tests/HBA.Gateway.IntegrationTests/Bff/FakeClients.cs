@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HBA.Gateway.Application.Abstractions.Services;
+using HBA.Gateway.Application.Contracts.Analytics;
 using HBA.Gateway.Application.Contracts.Catalog;
 using HBA.Gateway.Application.Contracts.Engagement;
 using HBA.Gateway.Application.Contracts.Delivery;
@@ -182,6 +183,59 @@ public sealed class FakeOrderClient : IOrderClient
         => Task.FromResult(ServiceResult.Failure(501, "non utilisé"));
 }
 
+public sealed class FakeAnalyticsClient : IAnalyticsClient
+{
+    public string ServiceKey => "Analytics";
+
+    public ServiceResult<SellerSalesSeries>? SellerSalesResult { get; set; }
+
+    public ServiceResult<PlatformActivitySeries>? ActivityResult { get; set; }
+
+    public ServiceResult<SignupSeries>? SignupsResult { get; set; }
+
+    /// <summary>Les bornes du dernier appel — c'est ce que vérifient les tests de période.</summary>
+    public DateOnly? LastFrom { get; private set; }
+
+    public DateOnly? LastTo { get; private set; }
+
+    public Guid? LastSellerId { get; private set; }
+
+    public Task<ServiceResult<SellerSalesSeries>> GetSellerSalesAsync(
+        Guid sellerId, DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        LastSellerId = sellerId;
+        LastFrom = from;
+        LastTo = to;
+
+        // LE DÉFAUT EST UN 503, PAS UNE SÉRIE VIDE, et c'est ce qui rend les
+        // tests honnêtes : un test qui n'arme pas analytics doit voir l'écran
+        // DÉGRADÉ, pas un écran complet rempli de zéros.
+        return Task.FromResult(SellerSalesResult
+            ?? ServiceResult<SellerSalesSeries>.Failure(503, "analytics non armé"));
+    }
+
+    public Task<ServiceResult<PlatformActivitySeries>> GetPlatformActivityAsync(
+        DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        LastFrom = from;
+        LastTo = to;
+        return Task.FromResult(ActivityResult
+            ?? ServiceResult<PlatformActivitySeries>.Failure(503, "analytics non armé"));
+    }
+
+    public Task<ServiceResult<SignupSeries>> GetSignupsAsync(
+        DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        LastFrom = from;
+        LastTo = to;
+        return Task.FromResult(SignupsResult
+            ?? ServiceResult<SignupSeries>.Failure(503, "analytics non armé"));
+    }
+
+    public Task<ServiceResult> GetJsonAsync(string relativePath, CancellationToken ct)
+        => Task.FromResult(ServiceResult.Failure(501, "non utilisé"));
+}
+
 public sealed class FakeFoodClient : IFoodClient
 {
     public string ServiceKey => "Food";
@@ -356,6 +410,36 @@ public static class Fixtures
                     null, 0,
                     [new KitchenTicketItem(Guid.NewGuid(), "Poulet braisé", 1, null, "Pending", null, 15, [])])),
             ]);
+
+    /// <summary>
+    /// Une série de ventes SANS TROU, comme analytics-service la rend.
+    /// </summary>
+    /// <remarks>
+    /// LE ZÉRO EST ÉCRIT, PAS OMIS. Le service remplit les journées sans vente ;
+    /// une doublure qui les omettrait ferait passer des tests que le vrai
+    /// service ferait échouer — le tableau de bord cherche le point du JOUR par
+    /// sa date, et ne le trouverait pas.
+    /// </remarks>
+    public static SellerSalesSeries Ventes(
+        DateOnly du, DateOnly au, params (DateOnly Jour, int Commandes, decimal Montant)[] jours)
+    {
+        var parJour = jours.ToDictionary(j => j.Jour);
+        var points = new List<SellerSalesPoint>();
+
+        for (var jour = du; jour <= au; jour = jour.AddDays(1))
+        {
+            points.Add(parJour.TryGetValue(jour, out var v)
+                ? new SellerSalesPoint(jour, v.Commandes, v.Montant)
+                : new SellerSalesPoint(jour, 0, 0m));
+        }
+
+        var commandes = points.Sum(p => p.OrdersCount);
+        var montant = points.Sum(p => p.Revenue);
+
+        return new SellerSalesSeries(
+            du, au, "XOF", points, commandes, montant,
+            commandes == 0 ? 0m : decimal.Round(montant / commandes, 2, MidpointRounding.AwayFromZero));
+    }
 
     public static JsonElement EmptyJson => JsonDocument.Parse("{}").RootElement.Clone();
 }
