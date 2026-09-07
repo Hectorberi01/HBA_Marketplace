@@ -113,7 +113,7 @@ public static class ImagesAffectees
     {
         var trouvees = new List<Image>();
 
-        foreach (var racineNom in new[] { "services", "apps" })
+        foreach (var racineNom in new[] { "services", "bff" })
         {
             var racine = Depot.Dossier(racineNom);
             foreach (var dossier in DossiersPortantUnDockerfile(racine))

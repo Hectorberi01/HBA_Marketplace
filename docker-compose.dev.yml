@@ -1242,7 +1242,7 @@ services:
       # besoin de `Directory.Build.props` et `Directory.Packages.props`, qui
       # vivent ici : sans eux, le projet n'a ni cadre cible ni version de paquet.
       context: .
-      dockerfile: apps/api-gateway/Dockerfile
+      dockerfile: bff/Dockerfile
     ports:
       - "8080:8080"
     environment:

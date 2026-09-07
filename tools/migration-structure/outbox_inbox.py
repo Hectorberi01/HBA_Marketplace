@@ -70,7 +70,7 @@ def racine_de_namespace(dossier):
 
 def services():
     """(dossier infra, nom court, DbContext) pour chaque service qui a une outbox."""
-    for base in ("services", "apps"):
+    for base in ("services", "bff"):
         for d, dirs, fs in os.walk(os.path.join(RACINE, base)):
             dirs[:] = [x for x in dirs if x not in SKIP]
             if os.path.basename(d) != "src":

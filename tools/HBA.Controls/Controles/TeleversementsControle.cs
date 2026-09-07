@@ -71,7 +71,7 @@ public sealed class TeleversementsControle : IControle
     {
         // L'absence d'un dossier LÈVE : un contrôle qui ne peut rien regarder ne
         // doit pas rendre « 0 anomalie ». Voir l'encadré de `Depot`.
-        var racines = new[] { Depot.Dossier("services"), Depot.Dossier("apps") };
+        var racines = new[] { Depot.Dossier("services"), Depot.Dossier("bff") };
 
         var fautes = new List<string>();
         var constats = new List<string>();

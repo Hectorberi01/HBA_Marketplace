@@ -3,7 +3,7 @@
 #
 # LE CONTEXTE EST `HBA/`, PAS LE DOSSIER `bff/`.
 #
-#   docker build -f apps/api-gateway/Dockerfile -t hba/gateway .
+#   docker build -f bff/Dockerfile -t hba/gateway .
 #
 # Ce fichier attendait `bff/` comme contexte, et la restauration échouait sur
 # « The TargetFramework value '' was not recognized » — un message qui ne
@@ -86,12 +86,12 @@ WORKDIR /source
 # restauration.
 COPY Directory.Build.props Directory.Packages.props ./
 
-ARG BFF=apps/api-gateway
+ARG BFF=bff
 
 # `shared/` EST DEVENU NÉCESSAIRE, ET SON ABSENCE NE SE SERAIT VUE QU'EN CI.
 #
 # La passerelle a longtemps été le seul projet du dépôt à ne dépendre d'aucun
-# projet partagé : trois csproj, aucune référence hors de `apps/api-gateway`. Le
+# projet partagé : trois csproj, aucune référence hors de `bff`. Le
 # contrôle de révocation (ISSUE-022) lui donne sa première — `HBA.Identity.Contracts.Grpc`,
 # qui vit sous `shared/contracts/` et entraîne `HBA.Shared.Hosting` derrière lui.
 #

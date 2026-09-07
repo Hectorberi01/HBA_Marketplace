@@ -81,7 +81,7 @@ def main():
 
     # 2. les sites d'appel, groupes par service appelant
     sites = collections.defaultdict(list)
-    for base in ("services", "apps"):
+    for base in ("services", "bff"):
         for f in fichiers_cs(os.path.join(RACINE, base)):
             s = io.open(f, encoding="utf-8", errors="replace").read()
             if "GrpcClient(" not in s:

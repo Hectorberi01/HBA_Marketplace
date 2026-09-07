@@ -709,7 +709,7 @@ def reparer_usings(paires, appliquer):
                 break
         for f in (glob.glob(f"{RACINE}/services/**/*.cs", recursive=True)
                   + glob.glob(f"{RACINE}/tests/**/*.cs", recursive=True)
-                  + glob.glob(f"{RACINE}/apps/**/*.cs", recursive=True)):
+                  + glob.glob(f"{RACINE}/bff/**/*.cs", recursive=True)):
             if "/obj/" in f or "/bin/" in f:
                 continue
             t0 = lire(f)

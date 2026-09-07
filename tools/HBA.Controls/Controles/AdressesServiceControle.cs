@@ -364,7 +364,7 @@ internal static class ComposeDev
 /// avec le code.
 ///
 /// `apps/` EST UNE RACINE DE TESTS AU MÊME TITRE QUE `tests/`.
-/// `apps/api-gateway/tests` n'est pas sous `tests/` — l'oublier laisserait
+/// `bff/tests` n'est pas sous `tests/` — l'oublier laisserait
 /// `GatewayFactory` hors contrôle, ce qui est précisément la façon dont ce défaut
 /// se reproduit.
 ///
@@ -425,7 +425,7 @@ public sealed class AdressesServiceControle : IControle
     private static readonly Regex Posee = new(
         @"""Services(?:__|:)(\w+)""", RegexOptions.Compiled);
 
-    private static readonly string[] RacinesTests = ["tests", "apps"];
+    private static readonly string[] RacinesTests = ["tests", "bff"];
 
     /// <inheritdoc/>
     public Verdict Executer()
@@ -445,7 +445,7 @@ public sealed class AdressesServiceControle : IControle
             "les clés sont trouvées par expression régulière : une adresse construite "
             + "dynamiquement, ou une extension d'enregistrement dont l'accolade fermante "
             + "n'est pas posée à quatre espaces, resterait invisible",
-            "les extensions posées ailleurs que sous `services/` et `apps/` : le "
+            "les extensions posées ailleurs que sous `services/` et `bff/` : le "
             + "périmètre suit les APPELANTS, et un enregistrement écrit dans `shared/` "
             + "ne serait plus vu",
         };
@@ -454,7 +454,7 @@ public sealed class AdressesServiceControle : IControle
         if (table.Count == 0)
         {
             fautes.Add(
-                "aucune extension `Add<X>GrpcClient` trouvée sous services/ ni apps/ : "
+                "aucune extension `Add<X>GrpcClient` trouvée sous services/ ni bff/ : "
                 + "le contrôle serait sans objet, et rendrait vert sans avoir rien comparé.");
             return new Verdict(fautes, constats, nonCouvert);
         }
@@ -580,7 +580,7 @@ public sealed class AdressesServiceControle : IControle
 
         // ON BALAIE LES APPELANTS, PAS UN DOSSIER DE CONTRATS. Chaque service porte
         // desormais SES enregistrements de clients ; la passerelle aussi.
-        var racines = new[] { Depot.Dossier("services"), Depot.Dossier("apps") };
+        var racines = new[] { Depot.Dossier("services"), Depot.Dossier("bff") };
 
         foreach (var fichier in racines.SelectMany(r => Depot.Fichiers(r, ".cs")))
         {

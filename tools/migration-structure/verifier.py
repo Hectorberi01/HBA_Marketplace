@@ -46,7 +46,7 @@ DISPARUS = ["Messaging/Kafka/Outbox", "Messaging/Kafka/Inbox", "Redis", "GrpcSer
 
 
 def projets():
-    for base in ("services", "apps"):
+    for base in ("services", "bff"):
         for d, dirs, fs in os.walk(os.path.join(RACINE, base)):
             dirs[:] = [x for x in dirs if x not in SKIP]
             if os.path.basename(d) == "src":

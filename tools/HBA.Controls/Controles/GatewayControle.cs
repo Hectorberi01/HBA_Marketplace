@@ -86,9 +86,9 @@ public sealed class GatewayControle : IControle
     {
         // Les dossiers de la passerelle : leur absence LÈVE, elle ne se solde
         // pas par un « contrôle sauté » qui rend zéro.
-        var api = Depot.Dossier("apps", "api-gateway", "src", "HBA.Gateway.Api");
+        var api = Depot.Dossier("bff", "src", "HBA.Gateway.Api");
         var infrastructure = Depot.Dossier(
-            "apps", "api-gateway", "src", "HBA.Gateway.Infrastructure");
+            "bff", "src", "HBA.Gateway.Infrastructure");
 
         var appsettings = Path.Combine(api, "appsettings.json");
         var options = Path.Combine(infrastructure, "Configuration", "ServicesOptions.cs");

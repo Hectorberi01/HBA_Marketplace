@@ -177,7 +177,7 @@ public static class SourceCsharp
     /// </remarks>
     public static IEnumerable<string> Fichiers()
     {
-        foreach (var racine in new[] { "services", "shared", "apps" })
+        foreach (var racine in new[] { "services", "shared", "bff" })
         {
             foreach (var fichier in Depot.Fichiers(Depot.Dossier(racine), ".cs"))
             {

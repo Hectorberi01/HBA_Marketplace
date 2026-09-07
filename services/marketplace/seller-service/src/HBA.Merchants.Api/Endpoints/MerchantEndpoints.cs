@@ -64,7 +64,7 @@ public static class MerchantEndpoints
         // et renommer sans coquille leur rendrait 404 sur toute la surface
         // vendeur, à la seconde du déploiement.
         //
-        // ET IL FAUT AUSSI CHERCHER DANS `apps/api-gateway/.../HttpClients/`.
+        // ET IL FAUT AUSSI CHERCHER DANS `bff/.../HttpClients/`.
         //
         // La leçon du catalogue : `MerchantClient` appelle le service EN DIRECT,
         // avec un `HttpClient` pointé sur son adresse — le proxy n'est pas sur ce

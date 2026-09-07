@@ -141,7 +141,7 @@ porte la politique de ce service, le socle partage porte le type et le protocole
 
 def main():
     projets = []
-    for base in ("services", "apps"):
+    for base in ("services", "bff"):
         for d, dirs, fs in os.walk(base):
             dirs[:] = [x for x in dirs if x not in SKIP]
             if os.path.basename(d) == "src":

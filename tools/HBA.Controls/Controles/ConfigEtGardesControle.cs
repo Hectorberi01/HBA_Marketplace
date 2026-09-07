@@ -521,7 +521,7 @@ public sealed class ConfigEtGardesControle : IControle
         }
 
         var metadonnees = Depot.Chemin(
-            "apps", "api-gateway", "src", "HBA.Gateway.Api", "appsettings.json");
+            "bff", "src", "HBA.Gateway.Api", "appsettings.json");
         if (!File.Exists(metadonnees))
         {
             nonCouvert.Add(

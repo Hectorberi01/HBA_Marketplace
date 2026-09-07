@@ -18,7 +18,7 @@ public static class UserEndpoints
         // PRÉFIXE VERSIONNÉ DU §10.2 : `/api/v1/users`, ET NON `/api/users`.
         //
         // Ce n'est pas un simple renommage : la passerelle route `/api/users/{**catch-all}`
-        // en dur dans `apps/api-gateway/.../appsettings.json`, et `RoutingTests` teste ce
+        // en dur dans `bff/.../appsettings.json`, et `RoutingTests` teste ce
         // chemin. Les trois doivent bouger ensemble — sinon le service répond sur un
         // chemin que plus personne n'appelle, et la passerelle rend 404 sur un service
         // parfaitement sain.

@@ -98,7 +98,7 @@ def main():
     nouvelles = {p: os.path.join(RACINE, s, "src", p, p + ".csproj") for p, s in PROPRIETAIRES.items()}
     touches = 0
     for c in list(fichiers(os.path.join(RACINE, "services"), ".csproj")) + \
-             list(fichiers(os.path.join(RACINE, "apps"), ".csproj")) + \
+             list(fichiers(os.path.join(RACINE, "bff"), ".csproj")) + \
              list(fichiers(os.path.join(RACINE, "shared"), ".csproj")) + \
              list(fichiers(os.path.join(RACINE, "tests"), ".csproj")) + \
              list(fichiers(os.path.join(RACINE, "tools"), ".csproj")):
@@ -131,7 +131,7 @@ def main():
     for docker in fichiers(os.path.join(RACINE, "services"), "Dockerfile") \
             if False else [p for p in
                            [os.path.join(d, f)
-                            for base in ("services", "apps")
+                            for base in ("services", "bff")
                             for d, dirs, fs in os.walk(os.path.join(RACINE, base))
                             if not any(x in d for x in SKIP)
                             for f in fs if f == "Dockerfile"]]:

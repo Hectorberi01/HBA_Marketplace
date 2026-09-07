@@ -34,8 +34,8 @@
       meme porte, sans etre utilises. Le trier a la main donnerait une seconde
       façon d'assembler le socle : voir `Messaging/Kafka/DependencyInjection`.
     -->
-    <ProjectReference Include="..\..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\services\common\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\shared\common\HBA.Shared.Infrastructure\HBA.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\services\common\identity-service\src\HBA.Identity.Contracts\HBA.Identity.Contracts.csproj" />
   </ItemGroup>
 
 
@@ -49,7 +49,7 @@
   <!-- CE SERVICE COMPILE LUI-MEME LE CONTRAT (lot D). `Access="Internal"` :
        voir l'encadre des fichiers de Grpc/. -->
   <ItemGroup>
-    <Protobuf Include="..\..\..\..\shared\proto\identity\v1\identity.proto" GrpcServices="Client" Access="Internal" />
+    <Protobuf Include="..\..\..\shared\proto\identity\v1\identity.proto" GrpcServices="Client" Access="Internal" />
   </ItemGroup>
 
   <ItemGroup>
@@ -64,7 +64,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\shared\common\HBA.Shared.Hosting\HBA.Shared.Hosting.csproj" />
   </ItemGroup>
 
 

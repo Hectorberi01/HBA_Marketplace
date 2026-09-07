@@ -169,7 +169,7 @@ def racine_de_namespace(dossier):
 def main():
     # 1. qui expose quoi : app.MapInternalGrpcService<X>() nomme le proprietaire
     proprietaire = {}
-    for base in ("services", "apps"):
+    for base in ("services", "bff"):
         for f in fichiers_cs(os.path.join(RACINE, base)):
             if os.path.basename(f) != "Program.cs":
                 continue
@@ -292,12 +292,12 @@ def main():
     # parle pas du deplacement.
     if namespaces_disparus:
         encore_declares = set()
-        for base in ("services", "apps", "shared"):
+        for base in ("services", "bff", "shared"):
             for f in fichiers_cs(os.path.join(RACINE, base)):
                 for m in re.finditer(r'^namespace\s+([\w\.]+)', io.open(f, encoding="utf-8", errors="replace").read(), re.M):
                     encore_declares.add(m.group(1))
         morts = namespaces_disparus - encore_declares
-        for base in ("services", "apps"):
+        for base in ("services", "bff"):
             for f in fichiers_cs(os.path.join(RACINE, base)):
                 s2 = io.open(f, encoding="utf-8").read()
                 avant = s2
@@ -341,13 +341,13 @@ def reparer_les_namespaces_englobants():
     ancetre de son ancien namespace qui n'est pas deja un ancetre du nouveau.
     """
     declares = set()
-    for base in ("services", "apps", "shared"):
+    for base in ("services", "bff", "shared"):
         for f in fichiers_cs(os.path.join(RACINE, base)):
             for m in re.finditer(r'^namespace\s+([\w\.]+)', io.open(f, encoding="utf-8", errors="replace").read(), re.M):
                 declares.add(m.group(1))
 
     repares = 0
-    for base in ("services", "apps"):
+    for base in ("services", "bff"):
         for f in fichiers_cs(os.path.join(RACINE, base)):
             if os.sep + "Grpc" + os.sep + "Services" + os.sep not in f:
                 continue

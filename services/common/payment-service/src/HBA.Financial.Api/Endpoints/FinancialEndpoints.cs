@@ -225,7 +225,7 @@ public static class FinancialEndpoints
         // rendu 404 depuis un téléphone — sans la moindre erreur de configuration
         // pour l'expliquer, puisque le cluster et la destination sont corrects.
         // C'est le défaut que la note « Six routes sur vingt-quatre » décrit dans
-        // `apps/api-gateway/.../appsettings.json`, et il ne se voit qu'à l'usage.
+        // `bff/.../appsettings.json`, et il ne se voit qu'à l'usage.
         //
         // Le chemin public est donc `/api/wallet/me`.
         wallet.MapGet("/me", GetMyWalletAsync).WithName("GetMyWallet");

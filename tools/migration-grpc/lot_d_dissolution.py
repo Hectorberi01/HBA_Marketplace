@@ -161,7 +161,7 @@ def inventaire():
 def proprietaires(infos):
     """projet de contrats -> dossier du .Api qui expose le serveur."""
     res = {}
-    for base in ("services", "apps"):
+    for base in ("services", "bff"):
         for f in fichiers_cs(os.path.join(RACINE, base)):
             if os.sep + "Grpc" + os.sep + "Services" + os.sep not in f:
                 continue
@@ -184,7 +184,7 @@ def consommateurs(infos):
         for e in i["enregistrements"]:
             par_enregistrement[e] = p
     res = collections.defaultdict(list)
-    for base in ("services", "apps"):
+    for base in ("services", "bff"):
         for f in fichiers_cs(os.path.join(RACINE, base)):
             if os.path.basename(f) != "DependencyInjection.cs" or os.sep + "Grpc" not in f:
                 continue
@@ -314,7 +314,7 @@ def appliquer():
     cons = consommateurs(infos)
 
     declares = set()
-    for base in ("services", "apps", "shared"):
+    for base in ("services", "bff", "shared"):
         for f in fichiers_cs(os.path.join(RACINE, base)):
             for m in re.finditer(r'^namespace\s+([\w\.]+)',
                                  io.open(f, encoding="utf-8", errors="replace").read(), re.M):
@@ -400,7 +400,7 @@ def appliquer():
 
     # plus aucune reference aux assemblages dissous, nulle part
     retires = 0
-    for base in ("services", "apps", "tests", "tools", "shared"):
+    for base in ("services", "bff", "tests", "tools", "shared"):
         for d, dirs, fs in os.walk(os.path.join(RACINE, base)):
             dirs[:] = [x for x in dirs if x not in SKIP]
             for f in fs:

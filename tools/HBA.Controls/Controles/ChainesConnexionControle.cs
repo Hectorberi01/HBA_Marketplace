@@ -67,7 +67,7 @@ public sealed class ChainesConnexionControle : IControle
             [
                 "les chaînes obtenues autrement que par `GetConnectionString(\"…\")`, "
                 + "et les noms construits dynamiquement",
-                "`shared/` et `apps/` : le périmètre est celui du contrôle d'origine, "
+                "`shared/` et `bff/` : le périmètre est celui du contrôle d'origine, "
                 + "l'élargir changerait ce que « 0 faute » veut dire",
             ]);
     }

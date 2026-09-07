@@ -14790,7 +14790,7 @@
       "limiteur": false,
       "chemin_interne": "/api/app/{app}/version",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/AppVersionController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/AppVersionController.cs"
     },
     {
       "service": "api-gateway",
@@ -14851,7 +14851,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/client/express/home",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/ClientExpressController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/ClientExpressController.cs"
     },
     {
       "service": "api-gateway",
@@ -14919,7 +14919,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/client/express/products/{productId:guid}",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/ClientExpressController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/ClientExpressController.cs"
     },
     {
       "service": "api-gateway",
@@ -14956,7 +14956,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/merchant/activities",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/MerchantController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/MerchantController.cs"
     },
     {
       "service": "api-gateway",
@@ -15012,7 +15012,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/merchant/stores/{storeId:guid}/dashboard",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/MerchantController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/MerchantController.cs"
     },
     {
       "service": "api-gateway",
@@ -15077,7 +15077,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/client/food/home",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/ClientFoodController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/ClientFoodController.cs"
     },
     {
       "service": "api-gateway",
@@ -15178,7 +15178,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/client/food/restaurants/{restaurantId:guid}",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/ClientFoodController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/ClientFoodController.cs"
     },
     {
       "service": "api-gateway",
@@ -15212,7 +15212,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/admin/queues",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/AdminController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/AdminController.cs"
     },
     {
       "service": "api-gateway",
@@ -15262,7 +15262,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/restaurant/restaurants/{restaurantId:guid}/dashboard",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/RestaurantController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/RestaurantController.cs"
     },
     {
       "service": "api-gateway",
@@ -15378,7 +15378,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/restaurant/restaurants/{restaurantId:guid}/kitchen",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/RestaurantController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/RestaurantController.cs"
     },
     {
       "service": "api-gateway",
@@ -15456,7 +15456,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/driver/dashboard",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
     },
     {
       "service": "api-gateway",
@@ -15521,7 +15521,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/driver/missions",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
     },
     {
       "service": "api-gateway",
@@ -15579,7 +15579,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/driver/missions/{deliveryId:guid}",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
     },
     {
       "service": "api-gateway",
@@ -15625,7 +15625,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/driver/earnings",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
     },
     {
       "service": "api-gateway",
@@ -15660,7 +15660,7 @@
       "limiteur": false,
       "chemin_interne": "/api/v1/bff/driver/profile",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Bff/DriverController.cs"
     },
     {
       "service": "api-gateway",
@@ -15694,7 +15694,7 @@
       "limiteur": false,
       "chemin_interne": "/api/bff/client/express/home",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Client/ExpressBffController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Client/ExpressBffController.cs"
     },
     {
       "service": "api-gateway",
@@ -15728,7 +15728,7 @@
       "limiteur": false,
       "chemin_interne": "/api/bff/client/food/home",
       "prefixe_passerelle": null,
-      "fichier": "apps/api-gateway/src/HBA.Gateway.Api/Controllers/Client/FoodBffController.cs"
+      "fichier": "bff/src/HBA.Gateway.Api/Controllers/Client/FoodBffController.cs"
     }
   ],
   "types_non_resolus": [

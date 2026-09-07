@@ -96,7 +96,7 @@ def main():
     protos = types_des_protos()
 
     cibles = []
-    for base in ("services", "apps"):
+    for base in ("services", "bff"):
         for f in fichiers_cs(os.path.join(RACINE, base)):
             if os.sep + "Grpc" + os.sep not in f:
                 continue

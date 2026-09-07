@@ -19,13 +19,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "contracts", "contracts", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "clients", "clients", "{36F75ADA-E425-5EEB-BC09-6205C5489081}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Gateway.Api", "apps\api-gateway\src\HBA.Gateway.Api\HBA.Gateway.Api.csproj", "{7DB3889A-FE55-6528-D102-72887C8D0AF0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Gateway.Api", "bff\src\HBA.Gateway.Api\HBA.Gateway.Api.csproj", "{7DB3889A-FE55-6528-D102-72887C8D0AF0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Gateway.Application", "apps\api-gateway\src\HBA.Gateway.Application\HBA.Gateway.Application.csproj", "{2C3CB40D-BE46-04E9-2C45-E80B1A266B0E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Gateway.Application", "bff\src\HBA.Gateway.Application\HBA.Gateway.Application.csproj", "{2C3CB40D-BE46-04E9-2C45-E80B1A266B0E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Gateway.Infrastructure", "apps\api-gateway\src\HBA.Gateway.Infrastructure\HBA.Gateway.Infrastructure.csproj", "{1B062F3C-402A-B6F1-27D8-AEE298762FC3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Gateway.Infrastructure", "bff\src\HBA.Gateway.Infrastructure\HBA.Gateway.Infrastructure.csproj", "{1B062F3C-402A-B6F1-27D8-AEE298762FC3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Gateway.IntegrationTests", "apps\api-gateway\tests\HBA.Gateway.IntegrationTests\HBA.Gateway.IntegrationTests.csproj", "{055B6D24-90F1-6248-FD12-D7656F85CA19}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HBA.Gateway.IntegrationTests", "bff\tests\HBA.Gateway.IntegrationTests\HBA.Gateway.IntegrationTests.csproj", "{055B6D24-90F1-6248-FD12-D7656F85CA19}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A1A1A1A1-0000-4000-8000-000000000001}"
 EndProject

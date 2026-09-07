@@ -51,7 +51,7 @@ namespace HBA.Controls.Controles;
 ///
 /// LES `ARG` SONT SUBSTITUÉS AVANT LECTURE, ET C'EST INDISPENSABLE.
 ///
-/// `apps/api-gateway/Dockerfile` écrit `COPY ${BFF}/src/...` et
+/// `bff/Dockerfile` écrit `COPY ${BFF}/src/...` et
 /// `dotnet restore ${BFF}/src/...`. Comparer ces chaînes telles quelles à des
 /// chemins du dépôt ne rend jamais vrai : le contrôle passerait en annonçant zéro
 /// problème sur un fichier qu'il n'a pas compris. Un contrôle qui se tait à tort
@@ -208,12 +208,14 @@ public sealed class DockerfilesControle : IControle
             }
         }
 
-        var apps = Depot.Dossier("apps");
-        foreach (var app in Directory.EnumerateDirectories(apps)
-                     .OrderBy(x => x, StringComparer.Ordinal))
-        {
-            yield return ($"apps/{Path.GetFileName(app)}", app);
-        }
+        // `bff/` EST LE PROJET, PAS UN DOSSIER QUI EN CONTIENT.
+        //
+        // Tant que la passerelle vivait sous `apps/`, ce bloc enumerait les
+        // sous-dossiers de ce parent. `bff/` porte son Dockerfile a sa racine :
+        // enumerer ses sous-dossiers rendrait `bff/src` et `bff/tests`, deux
+        // images qui n'existent pas — et le controle chercherait un Dockerfile
+        // dans chacune avant de conclure a leur absence.
+        yield return ("bff", Depot.Dossier("bff"));
     }
 
     /// <summary>
@@ -252,7 +254,7 @@ public sealed class DockerfilesControle : IControle
             "les `ARG` sans valeur par défaut, et ceux redéfinis à la "
             + "construction par `--build-arg` : seule la valeur écrite dans le "
             + "fichier est substituée",
-            "les Dockerfiles hors `services/<univers>/<service>/` et `apps/<nom>/`",
+            "les Dockerfiles hors `services/<univers>/<service>/` et `bff/`",
             "les `ProjectReference` écrites dans un commentaire XML ou sous un "
             + "`Condition` faux — la lecture est textuelle, elle ne comprend pas "
             + "MSBuild",

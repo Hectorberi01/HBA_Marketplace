@@ -171,7 +171,7 @@ services:
 
   # `gateway`, ET NON `api-gateway`.
   #
-  # Le dossier s'appelle `apps/api-gateway`, le conteneur s'appelle `gateway`.
+  # Le dossier s'appelle `bff`, le conteneur s'appelle `gateway`.
   # Compose ne se plaint pas d'un service inconnu dans un fichier de surcharge :
   # il en CRÉE un, sans image, et la pile refuse de monter avec une erreur qui
   # parle d'image manquante — pas de nom mal orthographié.
