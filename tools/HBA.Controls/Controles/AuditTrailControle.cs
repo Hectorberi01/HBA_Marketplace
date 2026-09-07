@@ -63,6 +63,17 @@ public sealed class AuditTrailControle : IControle
     /// <inheritdoc/>
     public string Resume => "tout contexte qui journalise a sa table, et toute table son contexte";
 
+    /// <summary>
+    /// Le bloc `AuditEntry` d'un instantane, quel que soit son espace de noms.
+    /// </summary>
+    /// <remarks>
+    /// Ancre sur `modelBuilder.Entity("…AuditEntry"` : c'est la declaration
+    /// elle-meme, pas un fragment de chemin. Elle survit au prochain
+    /// deplacement de dossier, contrairement au test qu'elle remplace.
+    /// </remarks>
+    private static readonly Regex EntiteDAudit = new(
+        @"modelBuilder\.Entity\(""[\w.]*\.AuditEntry""", RegexOptions.Compiled);
+
     private static readonly Regex Contexte = new(
         @"class\s+(\w*DbContext)\s*:\s*ModuleDbContext", RegexOptions.Compiled);
 
@@ -108,7 +119,16 @@ public sealed class AuditTrailControle : IControle
 
             if (service is not null)
             {
-                if (estSnapshot && texte.Contains("Audit.AuditEntry", StringComparison.Ordinal))
+                // ON ANCRE SUR LE TYPE, PAS SUR SON ESPACE DE NOMS.
+                //
+                // Le test etait `Contains("Audit.AuditEntry")` — le nom du
+                // DOSSIER d'alors. L'entite vit maintenant dans `Auditing/` de
+                // chaque service, et le fragment ne correspondait plus : douze
+                // instantanes qui la CONTIENNENT etaient declares sans elle.
+                // `EntiteDAudit` ne regarde que la fin du nom qualifie, que
+                // ni un deplacement de dossier ni un changement de service ne
+                // touchent.
+                if (estSnapshot && EntiteDAudit.IsMatch(texte))
                 {
                     avecSnapshot.Add(service);
                 }
